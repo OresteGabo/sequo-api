@@ -1,0 +1,56 @@
+@startuml
+title Return, Relay Intake, Refund, And Settlement Sequence
+
+skinparam shadowing false
+autonumber
+
+actor Customer
+participant "Client App" as Client
+participant "Return API" as ReturnApi
+participant "Return Service" as Returns
+participant "Relay Partner" as Relay
+participant "Relay Service" as RelayService
+participant "Sequo Intake/Admin" as Intake
+participant "Wallet Service" as Wallets
+participant "Settlement Service" as Settlements
+database "PostgreSQL" as Db
+queue "Outbox" as Outbox
+
+Customer -> Client : Request return from order
+Client -> ReturnApi : POST /orders/{orderId}/returns\nIdempotency-Key
+ReturnApi -> Returns : validate eligibility
+Returns -> Db : read order, item, delivery time,\nreturn policy, prior refunds
+alt eligible within 72 hours
+  Returns -> Db : create return reference and PIN
+  Returns -> Outbox : notify customer relay instructions
+  ReturnApi --> Client : return id, relay drop-off status
+else ineligible
+  ReturnApi --> Client : RETURN_* error
+end
+
+Customer -> Relay : Drop item with return reference/PIN
+Relay -> RelayService : POST /relay/returns/{returnId}/receive
+RelayService -> Returns : validate active return and PIN
+Returns -> Db : record custody event and locker/case
+Returns -> Outbox : notify Sequo collection
+
+Intake -> Returns : confirm physical receipt
+Returns -> Db : receipt data, condition,\nresponsibility decision
+alt refund approved
+  Returns -> Wallets : refundPayment(original provider, amount)
+  Wallets -> Db : refund attempt and wallet ledger
+  Wallets --> Returns : pending/triggered
+  Returns -> Settlements : post refund liability and payout adjustment
+  Settlements -> Db : append ledger entries
+else rejected or disputed
+  Returns -> Db : update decision state
+end
+
+note right of Returns
+Automated refund is triggered only after
+Sequo physical receipt, not at request time
+or relay drop-off time.
+end note
+
+@enduml
+
