@@ -1,0 +1,67 @@
+@startuml
+title Sequo API - System Context
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor Customer
+actor Merchant
+actor "Merchant Staff" as MerchantStaff
+actor Courier
+actor "Relay Partner" as RelayPartner
+actor "Support/Admin" as Admin
+
+rectangle "Client Applications" as Clients {
+  [Customer App] as CustomerApp
+  [Merchant App] as MerchantApp
+  [Courier App] as CourierApp
+  [Relay App] as RelayApp
+  [Admin Web] as AdminWeb
+}
+
+rectangle "Sequo API\nSpring Boot / Kotlin" as Api {
+  [Auth and RBAC]
+  [Catalog]
+  [Cart and Order Workflow]
+  [Pricing Engine]
+  [Commission Engine]
+  [Bargaining]
+  [Cooperative Markets]
+  [Delivery and Relay Logistics]
+  [Returns and Settlements]
+  [Wallet Payments]
+  [Notifications]
+  [Audit and Reporting]
+}
+
+database "PostgreSQL" as Db
+cloud "Object Storage\nimages, KYC, proof, evidence" as Storage
+cloud "Yas Togo Wallet" as Yas
+cloud "Moov Africa Wallet" as Moov
+cloud "SMS / Push / WhatsApp" as Notify
+cloud "Observability Stack" as Obs
+
+Customer --> CustomerApp
+Merchant --> MerchantApp
+MerchantStaff --> MerchantApp
+Courier --> CourierApp
+RelayPartner --> RelayApp
+Admin --> AdminWeb
+
+Clients --> Api : HTTPS + JWT\n/api/v1
+
+Api --> Db : transactions,\nqueries, ledgers
+Api --> Storage : upload/read artifacts
+Api --> Yas : payment, refund,\npayout integration
+Api --> Moov : payment, refund,\npayout integration
+Api --> Notify : async notifications
+Api --> Obs : logs, metrics,\ntraces, alerts
+
+note right of Api
+Financial truth, order state, role enforcement,
+and audit history live on the backend.
+end note
+
+@enduml
+
