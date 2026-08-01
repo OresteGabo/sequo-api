@@ -1,7 +1,7 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 enum class AuthProvider {
-    GOOGLE, FACEBOOK, APPLE
+    EMAIL, GOOGLE, FACEBOOK, APPLE
 }
 
 data class SocialUser(
