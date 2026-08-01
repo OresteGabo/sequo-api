@@ -1,0 +1,66 @@
+@startuml
+title Payment Processing Sequence
+
+skinparam shadowing false
+autonumber
+
+participant "PaymentProcessor" as Processor
+participant "PaymentPolicy" as Policy
+participant "SequoPaymentMethod" as Method
+participant "YasTogoPaymentMethod" as Yas
+participant "MoovAfricaPaymentMethod" as Moov
+participant "Provider API" as Provider
+database "Payment / Ledger Tables" as Db
+participant "Audit Service" as Audit
+
+== Create Payment Attempt ==
+Processor -> Processor : methodFor(provider)
+alt provider not registered
+  Processor --> Processor : PaymentAttemptResult.Blocked
+else provider registered
+  Processor -> Policy : decision(provider, CustomerCheckout, country)
+  alt blocked
+    Policy --> Processor : blocked reason
+    Processor --> Processor : PaymentAttemptResult.Blocked
+  else allowed
+    Processor -> Method : createPaymentAttempt(request)
+    Method -> Provider : create payment flow
+    Provider --> Method : providerReference
+    Method --> Processor : Created
+    Processor -> Db : persist intent/reference
+    Processor -> Audit : payment attempt event
+  end
+end
+
+== Validate Callback ==
+Provider -> Method : signed payment callback
+Method -> Processor : validatePayment(request)
+Processor -> Policy : decision(provider, CustomerCheckout, country)
+Processor -> Method : validatePayment(request)
+alt provider says success
+  Method --> Processor : Validated(providerReference)
+  Processor -> Db : post wallet ledger entry
+else pending
+  Method --> Processor : Pending(message)
+else failed/cancelled
+  Method --> Processor : Failed or Cancelled
+end
+
+== Cancel Or Refund ==
+Processor -> Policy : decision(provider, PaymentCancellation or Refund, country)
+alt allowed and supported
+  Processor -> Method : cancelPayment/refundPayment
+  Method -> Provider : provider command
+  Provider --> Method : result/reference
+  Processor -> Db : post result and ledger event
+else blocked or unsupported
+  Processor --> Processor : Blocked(message)
+end
+
+note bottom
+Current providers: Yas Togo and Moov Africa.
+Globally disabled features include CashWithdrawal and CashReferralPayout.
+end note
+
+@enduml
+
