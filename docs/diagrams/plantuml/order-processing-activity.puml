@@ -1,0 +1,54 @@
+@startuml
+title Implemented Order Processor Activity
+
+skinparam shadowing false
+
+start
+:Select RegularOrderProcessor or PrimeOrderProcessor;
+:Validate service level, checkout id,\ncustomer id, lines, distance,\ncredit, payment reference;
+
+if (Validation failed?) then (yes)
+  :Record failed ValidateOrder event;
+  :Return Rejected(reason, events);
+  stop
+else (no)
+  :Record passed ValidateOrder event;
+endif
+
+:Calculate item subtotal from effective unit prices;
+if (route == Pickup?) then (yes)
+  :Delivery fee = 0;
+else (no)
+  :Calculate delivery pricing using distance,\nprime discount, and referral credit;
+endif
+:totalCfa = itemSubtotalCfa + finalDeliveryFeeCfa;
+:Record passed CalculateTotal event;
+
+:Validate payment with PaymentProcessor;
+if (Payment Validated?) then (yes)
+  :Record passed ProcessPayment event;
+elseif (Payment Pending?) then (pending)
+  :Record waiting ProcessPayment event;
+  :Return AwaitingPaymentValidation;
+  stop
+else (failed/cancelled/blocked)
+  :Record failed ProcessPayment event;
+  :Return Rejected(payment_not_validated);
+  stop
+endif
+
+:Build provisional order id from checkout id;
+:Plan fulfillment;
+if (route is GroupedSequo or multiple sellers?) then (yes)
+  :requiresConsolidation = true;
+else (no)
+  :requiresConsolidation = false;
+endif
+
+:Send in-app confirmation;
+:Record SendConfirmation and SendToMerchant events;
+:Return AcceptedForFulfillment;
+stop
+
+@enduml
+
