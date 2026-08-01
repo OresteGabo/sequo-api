@@ -1,0 +1,207 @@
+@startuml
+title Sequo API - High-Level Logical Database ERD
+
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+
+entity users {
+  * id : UUID
+  --
+  public_id
+  phone_e164
+  email
+  status
+}
+
+entity user_roles {
+  * user_id : UUID
+  * role_code
+  --
+  scope_type
+  scope_id
+}
+
+entity refresh_sessions {
+  * id : UUID
+  --
+  user_id
+  token_hash
+  family_id
+  revoked_at
+}
+
+entity merchants {
+  * id : UUID
+  --
+  owner_user_id
+  merchant_code
+  commission_rate_bps
+  wallet_provider
+}
+
+entity merchant_staff {
+  * merchant_id : UUID
+  * user_id : UUID
+  --
+  permissions
+  status
+}
+
+entity products {
+  * id : UUID
+  --
+  merchant_id
+  base_price_cfa
+  platform_margin_cfa
+  bargaining_enabled
+  returnable
+}
+
+entity cooperative_markets {
+  * id : UUID
+  --
+  cooperative_code
+  name
+  status
+}
+
+entity cooperative_members {
+  * cooperative_id : UUID
+  * merchant_id : UUID
+  --
+  member_status
+}
+
+entity carts {
+  * id : UUID
+  --
+  customer_id
+  status
+}
+
+entity orders {
+  * id : UUID
+  --
+  order_code
+  customer_id
+  status
+  payment_status
+}
+
+entity order_items {
+  * id : UUID
+  --
+  order_id
+  product_id
+  merchant_id
+  effective_base_amount_cfa
+  effective_platform_margin_cfa
+}
+
+entity merchant_sub_orders {
+  * id : UUID
+  --
+  order_id
+  merchant_id
+  sub_order_code
+  status
+}
+
+entity delivery_missions {
+  * id : UUID
+  --
+  order_id
+  courier_id
+  mission_code
+  final_courier_fee_cfa
+}
+
+entity relay_points {
+  * id : UUID
+  --
+  relay_code
+  operator_user_id
+  wallet_provider
+}
+
+entity relay_parcels {
+  * id : UUID
+  --
+  relay_point_id
+  order_id
+  return_id
+  locker_id
+}
+
+entity return_requests {
+  * id : UUID
+  --
+  return_code
+  order_id
+  customer_id
+  status
+}
+
+entity wallet_transactions {
+  * id : UUID
+  --
+  provider
+  provider_reference
+  amount_cfa
+  status
+}
+
+entity settlement_ledger_entries {
+  * id : UUID
+  --
+  source_domain
+  source_id
+  debit_cfa
+  credit_cfa
+  reason_code
+}
+
+entity audit_events {
+  * id : UUID
+  --
+  actor_id
+  action
+  source_domain
+  source_id
+}
+
+users ||--o{ user_roles
+users ||--o{ refresh_sessions
+users ||--o{ carts
+users ||--o{ orders
+users ||--o{ return_requests
+users ||--o{ audit_events
+
+users ||--o{ merchants : owns
+users ||--o{ merchant_staff
+merchants ||--o{ merchant_staff
+merchants ||--o{ products
+merchants ||--o{ cooperative_members
+cooperative_markets ||--o{ cooperative_members
+
+orders ||--o{ order_items
+orders ||--o{ merchant_sub_orders
+orders ||--o{ delivery_missions
+orders ||--o{ relay_parcels
+orders ||--o{ return_requests
+products ||--o{ order_items
+merchants ||--o{ order_items
+merchants ||--o{ merchant_sub_orders
+
+relay_points ||--o{ relay_parcels
+return_requests ||--o{ relay_parcels
+
+orders ||--o{ wallet_transactions
+orders ||--o{ settlement_ledger_entries
+return_requests ||--o{ wallet_transactions
+return_requests ||--o{ settlement_ledger_entries
+delivery_missions ||--o{ settlement_ledger_entries
+
+@enduml
+
