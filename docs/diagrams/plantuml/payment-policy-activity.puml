@@ -1,0 +1,48 @@
+@startuml
+title Payment Policy Decision Activity
+
+skinparam shadowing false
+
+start
+:Receive provider, feature, countryCode;
+:Normalize country code;
+
+if (Feature globally disabled?) then (yes)
+  :Return blocked decision;
+  note right
+  CashWithdrawal and CashReferralPayout
+  are disabled by default.
+  end note
+  stop
+else (no)
+endif
+
+if (Country-specific rules exist?) then (yes)
+  if (Feature disabled in country?) then (yes)
+    :Return blocked decision;
+    stop
+  else (no)
+  endif
+
+  if (Provider policy exists?) then (yes)
+    if (Provider disabled?) then (yes)
+      :Return blocked decision;
+      stop
+    else (no)
+    endif
+
+    if (Feature disabled for provider?) then (yes)
+      :Return blocked decision;
+      stop
+    else (no)
+    endif
+  else (no)
+  endif
+else (no)
+endif
+
+:Return allowed decision;
+stop
+
+@enduml
+
