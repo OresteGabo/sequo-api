@@ -1,0 +1,57 @@
+@startuml
+title Auth, RBAC, Ownership, And Audit Sequence
+
+skinparam shadowing false
+autonumber
+
+actor Actor
+participant "Client App" as Client
+participant "Auth API" as AuthApi
+participant "JWT / Session Service" as Jwt
+participant "RBAC Service" as Rbac
+participant "Domain Service" as Domain
+participant "Audit Service" as Audit
+database "PostgreSQL" as Db
+
+== Login ==
+Actor -> Client : Submit credentials or OTP
+Client -> AuthApi : POST /auth/login\nX-Device-Id
+AuthApi -> Db : load user and status
+AuthApi -> Jwt : issue access token and refresh session
+Jwt -> Db : store refresh token hash/family
+AuthApi -> Audit : login event
+AuthApi --> Client : access token + refresh token
+
+== Protected Action ==
+Client -> AuthApi : Protected request\nAuthorization: Bearer token
+AuthApi -> Jwt : validate signature, issuer,\naudience, expiry
+alt token invalid
+  AuthApi --> Client : AUTH_* error
+else token valid
+  AuthApi -> Rbac : check role and ownership scope
+  Rbac -> Db : load roles, scopes,\nresource owner if required
+  alt denied
+    Rbac -> Audit : denied authorization event
+    AuthApi --> Client : AUTH_* or ADMIN_* error
+  else allowed
+    AuthApi -> Domain : execute use case
+    Domain -> Db : transaction and state changes
+    Domain -> Audit : sensitive domain event
+    AuthApi --> Client : response envelope
+  end
+end
+
+== Refresh Rotation ==
+Client -> AuthApi : POST /auth/refresh
+AuthApi -> Jwt : verify refresh token hash/family
+alt reuse or revoked family
+  Jwt -> Db : revoke session family
+  Jwt -> Audit : refresh reuse event
+  AuthApi --> Client : AUTH_* error
+else valid
+  Jwt -> Db : revoke old session,\nstore replacement
+  AuthApi --> Client : rotated tokens
+end
+
+@enduml
+
