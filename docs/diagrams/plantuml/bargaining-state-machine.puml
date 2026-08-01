@@ -1,0 +1,36 @@
+@startuml
+title Bargaining State Machine
+
+skinparam shadowing false
+
+[*] --> OPEN
+OPEN --> CUSTOMER_OFFERED : customer submits offer\nif bargaining enabled and attempts remain
+OPEN --> LOCKED_ATTEMPTS_EXHAUSTED : 3 attempts reached
+
+CUSTOMER_OFFERED --> ACCEPTED : merchant accepts offer
+CUSTOMER_OFFERED --> REJECTED : merchant rejects offer
+CUSTOMER_OFFERED --> MERCHANT_COUNTERED : merchant counters
+CUSTOMER_OFFERED --> EXPIRED : offer expires
+
+MERCHANT_COUNTERED --> ACCEPTED : customer accepts counter
+MERCHANT_COUNTERED --> REJECTED : customer rejects counter
+MERCHANT_COUNTERED --> EXPIRED : counter expires
+
+REJECTED --> OPEN : attempts remain
+REJECTED --> LOCKED_ATTEMPTS_EXHAUSTED : no attempts remain
+
+ACCEPTED --> EXPIRED : 24-hour price lock expires
+ACCEPTED --> [*] : lock consumed at checkout
+
+LOCKED_ATTEMPTS_EXHAUSTED --> [*]
+EXPIRED --> [*]
+
+note right of ACCEPTED
+Accepted price locks are scoped to
+customer, seller, product/variant,
+and expire after 24 hours.
+Historical accepted minimums remain stored.
+end note
+
+@enduml
+
