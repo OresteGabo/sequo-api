@@ -1,0 +1,44 @@
+@startuml
+title Cooperative Market Order Flow
+
+skinparam shadowing false
+autonumber
+
+actor Customer
+participant "Cooperative Storefront" as Storefront
+participant "Cart / Checkout" as Checkout
+participant "Pricing Service" as Pricing
+participant "Order Service" as Orders
+participant "Member Merchant A" as MerchantA
+participant "Member Merchant B" as MerchantB
+participant "Sequo Consolidation" as Consolidation
+participant "Delivery / Relay" as Delivery
+participant "Settlement Service" as Settlements
+
+Customer -> Storefront : Browse cooperative market
+Storefront -> Checkout : Add products from multiple members
+Checkout -> Pricing : quote one customer-facing package
+Pricing --> Checkout : quote with per-item merchant ownership
+Customer -> Checkout : Pay checkout
+Checkout -> Orders : create customer order
+Orders -> Orders : split sub-orders by merchant_id
+Orders -> MerchantA : sub-order SC-A
+Orders -> MerchantB : sub-order SC-B
+MerchantA -> Orders : accept and prepare
+MerchantB -> Orders : accept and prepare
+Orders -> Consolidation : create package manifest
+Consolidation -> Delivery : hand off one consolidated package
+Delivery -> Customer : deliver or route to relay
+Delivery -> Orders : delivery/customer pickup confirmed
+Orders -> Settlements : settle per item owner
+Settlements -> MerchantA : payout net of A commission/refunds
+Settlements -> MerchantB : payout net of B commission/refunds
+
+note right of Orders
+The customer can see one cooperative package,
+but backend order items, commissions, refunds,
+and payouts retain the true merchant owner.
+end note
+
+@enduml
+
