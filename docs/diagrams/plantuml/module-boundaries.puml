@@ -1,0 +1,89 @@
+@startuml
+title Sequo API - Module Boundaries
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "Transport Layer" {
+  [REST Controllers] as Controllers
+  [Request Validation] as Validation
+  [Response Mapping] as Mapping
+}
+
+package "Application Layer" {
+  [Use Case Services] as UseCases
+  [Transaction Boundaries] as Transactions
+  [Idempotency] as Idempotency
+  [Outbox Publisher] as OutboxPublisher
+}
+
+package "Domain Layer" {
+  [Auth] as Auth
+  [Users] as Users
+  [Merchants] as Merchants
+  [Catalog] as Catalog
+  [Cooperatives] as Cooperatives
+  [Carts] as Carts
+  [Orders] as Orders
+  [Pricing] as Pricing
+  [Commissions] as Commissions
+  [Bargaining] as Bargaining
+  [Delivery] as Delivery
+  [Relay] as Relay
+  [Returns] as Returns
+  [Wallets] as Wallets
+  [Settlements] as Settlements
+  [Audit] as Audit
+}
+
+package "Adapters" {
+  [Persistence Adapters] as Persistence
+  [Yas Adapter] as Yas
+  [Moov Adapter] as Moov
+  [Notification Adapters] as NotificationAdapters
+  [Storage Adapter] as StorageAdapter
+}
+
+database "PostgreSQL" as Db
+queue "Outbox Table" as Outbox
+
+Controllers --> Validation
+Controllers --> UseCases
+UseCases --> Transactions
+UseCases --> Idempotency
+UseCases --> Orders
+UseCases --> Pricing
+UseCases --> Wallets
+UseCases --> Settlements
+UseCases --> Audit
+UseCases --> OutboxPublisher
+
+Orders --> Pricing : totals and delivery snapshot
+Orders --> Wallets : payment validation result
+Orders --> Delivery : fulfillment missions
+Orders --> Relay : pickup/deposit route
+Orders --> Commissions : seller split
+Returns --> Wallets : refund command
+Returns --> Settlements : refund liability
+Settlements --> Commissions : commission snapshot
+Settlements --> Audit
+Bargaining --> Carts : accepted price lock
+Cooperatives --> Orders : sub-order split
+Catalog --> Bargaining : toggle and product policy
+
+Persistence --> Db
+OutboxPublisher --> Outbox
+Wallets --> Yas
+Wallets --> Moov
+UseCases --> Persistence
+UseCases --> NotificationAdapters
+UseCases --> StorageAdapter
+
+note bottom of Controllers
+Controllers validate transport shape only.
+Prices, commissions, refunds, and payouts belong to domain services.
+end note
+
+@enduml
+
