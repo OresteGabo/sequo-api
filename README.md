@@ -51,6 +51,7 @@ The current backend scope supersedes older legacy notes where they conflict:
 | [SETTLEMENTS_AND_RETURNS.md](SETTLEMENTS_AND_RETURNS.md) | 72-hour return flow, relay intake, refund triggers, payout timing, financial settlement lifecycle |
 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Logical relational schema, tables, enums, indexes, and constraints |
 | [SECURITY.md](SECURITY.md) | Auth, RBAC, secrets, wallet safety, PII, audit, idempotency, and operational security |
+| [docs/diagrams/plantuml](docs/diagrams/plantuml/README.md) | PlantUML diagrams for architecture, payments, orders, pricing, returns, settlements, bargaining, cooperatives, database, and security |
 
 ## Core Backend Capabilities
 
@@ -136,4 +137,3 @@ Minimum backend test coverage before production:
 | Returns | 72-hour eligibility, relay intake, physical receipt trigger, refund idempotency |
 | Wallets | Yas/Moov callbacks, duplicate webhook handling, failed payment recovery |
 | Security | Ownership checks, PII masking, audit event creation |
-
