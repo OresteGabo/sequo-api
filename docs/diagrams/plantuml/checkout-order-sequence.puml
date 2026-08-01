@@ -1,0 +1,55 @@
+@startuml
+title Checkout And Order Confirmation Sequence
+
+skinparam shadowing false
+autonumber
+
+actor Customer
+participant "Client App" as Client
+participant "Checkout API" as CheckoutApi
+participant "Pricing Service" as Pricing
+participant "Wallet Service" as Wallets
+participant "Yas/Moov Provider" as Provider
+participant "Order Processor" as Orders
+participant "Merchant Workflow" as MerchantWorkflow
+database "PostgreSQL" as Db
+queue "Outbox" as Outbox
+
+Customer -> Client : Review cart
+Client -> CheckoutApi : POST /pricing/quote
+CheckoutApi -> Pricing : calculate quote
+Pricing --> CheckoutApi : immutable quote components
+CheckoutApi --> Client : customer total
+
+Customer -> Client : Select wallet provider
+Client -> CheckoutApi : POST /checkout\nIdempotency-Key
+CheckoutApi -> Db : store checkout and payment intent
+CheckoutApi -> Wallets : createPaymentAttempt(provider, amount)
+Wallets -> Wallets : enforce provider and feature policy
+alt provider allowed
+  Wallets -> Provider : initiate wallet flow
+  Provider --> Wallets : provider reference
+  Wallets --> CheckoutApi : attempt created
+  CheckoutApi --> Client : payment instructions
+else provider or feature blocked
+  Wallets --> CheckoutApi : blocked by policy
+  CheckoutApi --> Client : WALLET_* error
+end
+
+Provider -> Wallets : signed callback / webhook
+Wallets -> Wallets : verify signature and idempotency
+Wallets -> Db : store provider reference and wallet ledger entry
+Wallets -> Orders : validatePayment(checkoutId, amount)
+Orders -> Pricing : calculate total from checkout snapshot
+Orders -> Db : create order, sub-orders, events, ledger reservations
+Orders -> Outbox : confirmation and merchant notification events
+Orders --> Client : order status
+Orders -> MerchantWorkflow : paid order ready for seller acceptance
+
+note right of Wallets
+Payment confirmation must come from provider verification,
+not only from a client confirmation request.
+end note
+
+@enduml
+
