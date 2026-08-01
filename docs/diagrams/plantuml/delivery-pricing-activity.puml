@@ -1,0 +1,41 @@
+@startuml
+title Delivery Pricing Activity
+
+skinparam shadowing false
+
+start
+:Receive distanceKm,\nsubscriptionDiscountPercent,\nreferralCreditCfa;
+
+if (distanceKm < 0?) then (yes)
+  :Reject invalid distance;
+  stop
+endif
+
+if (discount not in 0..100?) then (yes)
+  :Reject invalid discount;
+  stop
+endif
+
+if (referral credit < 0?) then (yes)
+  :Reject invalid credit;
+  stop
+endif
+
+:billableKm = ceil(distanceKm);
+
+if (billableKm <= 5?) then (yes)
+  :baseFeeCfa = 400;
+else (no)
+  :baseFeeCfa = 400 +\n((billableKm - 5) * 100);
+endif
+
+:subscriptionDiscountCfa =\nbaseFeeCfa * discountPercent / 100;
+:feeAfterSubscription =\nbaseFeeCfa - subscriptionDiscountCfa;
+:referralCreditAppliedCfa =\nmin(referralCreditCfa, feeAfterSubscription);
+:finalDeliveryFeeCfa =\nmax(feeAfterSubscription - referralCreditAppliedCfa, 0);
+
+:Return DeliveryPricingBreakdown;
+stop
+
+@enduml
+
