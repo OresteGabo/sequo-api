@@ -1,0 +1,39 @@
+@startuml
+title Target Return State Machine
+
+skinparam shadowing false
+
+[*] --> REQUESTED
+REQUESTED --> AWAITING_RELAY_DROPOFF : eligible, PIN issued
+REQUESTED --> REJECTED : policy rejects
+
+AWAITING_RELAY_DROPOFF --> DROPPED_AT_RELAY : relay validates reference/PIN
+AWAITING_RELAY_DROPOFF --> EXPIRED : drop-off deadline missed
+
+DROPPED_AT_RELAY --> IN_SEQUO_COLLECTION
+DROPPED_AT_RELAY --> RELAY_EXCEPTION
+
+IN_SEQUO_COLLECTION --> RECEIVED_BY_SEQUO : physical item received
+IN_SEQUO_COLLECTION --> LOST_IN_TRANSIT
+
+RECEIVED_BY_SEQUO --> REFUND_APPROVED : inspection approves
+RECEIVED_BY_SEQUO --> REFUND_REJECTED : inspection rejects
+RECEIVED_BY_SEQUO --> DISPUTED : investigation needed
+
+DISPUTED --> REFUND_APPROVED : support/admin approves
+DISPUTED --> REFUND_REJECTED : support/admin rejects
+
+REFUND_APPROVED --> REFUND_PENDING : wallet refund command
+REFUND_PENDING --> REFUNDED : provider confirms
+REFUND_PENDING --> REFUND_FAILED : retry/manual action
+REFUND_FAILED --> REFUND_PENDING : retry
+
+REFUNDED --> [*]
+REJECTED --> [*]
+EXPIRED --> [*]
+REFUND_REJECTED --> [*]
+LOST_IN_TRANSIT --> DISPUTED
+RELAY_EXCEPTION --> DISPUTED
+
+@enduml
+
