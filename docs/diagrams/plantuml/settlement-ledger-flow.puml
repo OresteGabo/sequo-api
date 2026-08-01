@@ -1,0 +1,74 @@
+@startuml
+title Settlement And Ledger Flow
+
+skinparam shadowing false
+autonumber
+
+participant "Order Service" as Orders
+participant "Commission Service" as Commissions
+participant "Settlement Service" as Settlements
+database "Append-Only Ledger" as Ledger
+participant "Wallet Provider\nYas/Moov" as Provider
+participant "Reconciliation Job" as Reconciliation
+participant "Admin Finance" as Admin
+
+Orders -> Settlements : package receipt confirmed\n(delivery, pickup, or Sequo custody)
+Settlements -> Orders : load immutable order item snapshots
+Settlements -> Commissions : resolve merchant rates\n(default 15%, override 5%-15%)
+Commissions --> Settlements : commission, platform margin,\nmerchant net amounts
+
+Settlements -> Ledger : customer payment received
+Settlements -> Ledger : merchant gross sale
+Settlements -> Ledger : platform margin revenue
+Settlements -> Ledger : merchant commission revenue
+Settlements -> Ledger : delivery fee collected
+Settlements -> Ledger : courier/relay payable
+
+alt courier fee exceeds customer delivery fee
+  Settlements -> Ledger : delivery shortfall\nSequo expense
+end
+
+alt return window hold policy applies
+  Settlements -> Ledger : HELD_RETURN_WINDOW
+  Settlements -> Settlements : wait through 72-hour return window
+end
+
+alt active return or dispute
+  Settlements -> Ledger : HELD_DISPUTE
+  alt refund approved and merchant liable
+    Settlements -> Ledger : merchant refund liability\npayout reduction or future adjustment
+  else refund approved and Sequo/courier liable
+    Settlements -> Ledger : Sequo/courier liability entry
+  else refund rejected
+    Settlements -> Ledger : release hold or adjustment
+  end
+end
+
+Settlements -> Ledger : mark eligible payable amounts
+Settlements -> Admin : payout batch ready\nwithin 1 week of package receipt
+Admin -> Settlements : approve payout batch
+Settlements -> Provider : send payout through wallet rail
+
+alt provider confirms payout
+  Provider --> Settlements : paid reference
+  Settlements -> Ledger : payout paid entry
+else provider fails
+  Provider --> Settlements : failed reference
+  Settlements -> Ledger : failed payout entry
+  Settlements -> Admin : retry/manual correction needed
+end
+
+Reconciliation -> Provider : fetch provider confirmations
+Reconciliation -> Ledger : compare payments, refunds,\npayouts, order status
+alt mismatch found
+  Reconciliation -> Admin : create finance alert
+else matched
+  Reconciliation -> Ledger : close reconciliation cycle
+end
+
+note over Ledger
+Ledger entries are append-only.
+Corrections use reversing or adjustment entries.
+end note
+
+@enduml
