@@ -14,6 +14,10 @@ Sequo API should be built as a modular Spring Boot backend. The deployment unit 
 
 ## Runtime View
 
+![Sequo API system context](docs/diagrams/plantuml/generated/system-context.svg)
+
+Source: [system-context.puml](docs/diagrams/plantuml/system-context.puml)
+
 ```text
 Mobile/Web Clients
   Customer app
@@ -23,6 +27,7 @@ Mobile/Web Clients
   Admin web
         |
         | HTTPS + JWT
+        | WebSocket/STOMP + JWT for active realtime clients
         v
 Sequo API
   Auth and RBAC
@@ -35,14 +40,16 @@ Sequo API
   Delivery and Relay Logistics
   Returns and Settlements
   Wallet Payments
-  Notifications
+  Notifications and Realtime
   Audit and Reporting
         |
         +--> PostgreSQL
         +--> Object Storage
         +--> Yas Togo Wallet
         +--> Moov Africa Wallet
-        +--> SMS/Push/WhatsApp Providers
+        +--> Firebase Cloud Messaging
+        +--> SMS/WhatsApp Providers
+        +--> STOMP broker relay when horizontally scaled
         +--> Observability Stack
 ```
 
@@ -120,6 +127,8 @@ Controllers must not calculate prices, commissions, refunds, or payout balances.
 | Returns | Eligibility, return state, physical receipt, refund trigger | Wallet provider protocol details |
 | Settlements | Ledgers, payouts, shortfalls, holds, reconciliation | Order item catalog editing |
 | Wallets | Payment intents, provider callbacks, internal wallet balances | Order transition authorization |
+| Notifications | FCM tokens, in-app notification history, delivery attempts, SMS fallback policy | Domain state changes |
+| Realtime | WebSocket/STOMP sessions, topics, user queues, active client presence | Durable order/payment truth |
 | Audit | Security, admin, financial, and support action history | Domain decision making |
 
 ## Key Aggregates
@@ -254,4 +263,3 @@ Minimum production telemetry:
 - Separate local, staging, and production environments.
 - Migrations run automatically in controlled deploy phases or explicitly in CI/CD.
 - Production secrets come from a secret manager, not repository files.
-
