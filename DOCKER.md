@@ -7,7 +7,7 @@ Docker is useful for Sequo now because it gives the backend a repeatable local r
 | File | Purpose |
 | --- | --- |
 | `Dockerfile` | Multi-stage Java 21 image build for the Spring Boot API. |
-| `docker-compose.yml` | Local API plus PostgreSQL runtime. |
+| `docker-compose.yml` | Local API, PostgreSQL runtime, healthchecks, and optional database UI. |
 | `.dockerignore` | Keeps local build output, IDE files, secrets, and Git metadata out of the Docker build context. |
 | `.env.example` | Optional local environment template for Compose variables. |
 | `src/main/resources/application-docker.properties` | Spring profile used inside Docker containers. |
@@ -43,8 +43,26 @@ Default local endpoints:
 | Service | URL |
 | --- | --- |
 | API | `http://localhost:8080` |
+| API readiness | `http://localhost:8080/actuator/health/readiness` |
 | PostgreSQL from host | `localhost:5433` |
 | PostgreSQL from API container | `postgres:5432` |
+| Adminer, optional | `http://localhost:8081` |
+
+Start the optional database UI:
+
+```bash
+docker compose --profile tools up --build
+```
+
+Adminer login values with default local settings:
+
+| Field | Value |
+| --- | --- |
+| System | `PostgreSQL` |
+| Server | `postgres` |
+| Username | `sequo` |
+| Password | `sequo_dev_password` |
+| Database | `sequo` |
 
 ## Environment
 
@@ -64,6 +82,7 @@ Important variables:
 | --- | --- |
 | `SEQUO_API_PORT` | Host port mapped to the API container. |
 | `SEQUO_POSTGRES_PORT` | Host port mapped to PostgreSQL. Defaults to `5433` to avoid colliding with a local PostgreSQL on `5432`. |
+| `SEQUO_ADMINER_PORT` | Host port mapped to optional Adminer database UI. |
 | `POSTGRES_DB` | Local database name. |
 | `POSTGRES_USER` | Local database user. |
 | `POSTGRES_PASSWORD` | Local database password. |
@@ -109,4 +128,5 @@ Before using this image in production, add:
 | Database migrations with Flyway or Liquibase. | Not implemented |
 | Image vulnerability scanning. | Not implemented |
 | Published images in GHCR or cloud registry. | Not implemented |
-| Runtime health endpoint and deployment smoke tests. | Not implemented |
+| Runtime health endpoint. | Implemented |
+| Deployment smoke tests. | Not implemented |
