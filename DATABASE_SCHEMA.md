@@ -26,6 +26,10 @@ This is the target logical relational schema for Sequo API. PostgreSQL is the re
 | `wallet_provider` | `YAS_TOGO`, `MOOV_AFRICA`, `SEQUO_INTERNAL` |
 | `courier_workforce_type` | `SEQUO_SALARIED`, `FREELANCER` |
 | `vehicle_type` | `MOTO`, `BICYCLE`, `CAR`, `VAN` |
+| `merchant_sub_order_status` | `MERCHANT_PENDING`, `ACCEPTED`, `PREPARING`, `PACKED_READY`, `HANDED_TO_COURIER`, `REJECTED`, `CANCELLED` |
+| `delivery_mission_status` | `CREATED`, `OFFERED_TO_COURIER`, `ACCEPTED_BY_COURIER`, `PICKED_UP_FROM_SELLER`, `DEPOSITED_AT_RELAY`, `DELIVERED_TO_CUSTOMER`, `RELEASED_BY_RELAY`, `PROBLEM_REPORTED`, `CANCELLED` |
+| `delivery_destination_type` | `CUSTOMER_ADDRESS`, `RELAY_POINT`, `SEQUO_CONSOLIDATION` |
+| `relay_parcel_status` | `CREATED`, `DEPOSITED`, `PICKED_UP`, `COLLECTED_BY_SEQUO`, `DELAYED`, `RETURN_TO_SELLER_REVIEW`, `RETURNED_TO_SELLER`, `PROBLEM` |
 | `order_status` | `DRAFT`, `PRICE_QUOTED`, `PAYMENT_PENDING`, `PAID`, `MERCHANT_PENDING`, `ACCEPTED`, `PREPARING`, `READY_FOR_PICKUP`, `IN_TRANSIT`, `RELAY_DEPOSITED`, `DELIVERED`, `RETURN_WINDOW_OPEN`, `RETURN_REQUESTED`, `REFUNDED`, `SETTLED`, `CANCELLED`, `REJECTED`, `DELIVERY_PROBLEM` |
 | `return_status` | `REQUESTED`, `AWAITING_RELAY_DROPOFF`, `DROPPED_AT_RELAY`, `IN_SEQUO_COLLECTION`, `RECEIVED_BY_SEQUO`, `REFUND_APPROVED`, `REFUND_PENDING`, `REFUNDED`, `REJECTED`, `EXPIRED`, `DISPUTED` |
 | `bargaining_status` | `OPEN`, `CUSTOMER_OFFERED`, `MERCHANT_COUNTERED`, `ACCEPTED`, `REJECTED`, `LOCKED_ATTEMPTS_EXHAUSTED`, `EXPIRED` |
@@ -412,11 +416,13 @@ Unique: `(cooperative_id, merchant_id)`.
 | `sub_order_code` | `SC-...`, unique |
 | `order_id` | FK |
 | `merchant_id` | FK |
-| `status` | Merchant workflow status |
+| `status` | `merchant_sub_order_status` |
 | `item_subtotal_cfa` | Merchant item subtotal |
 | `commission_rate_bps` | Snapshot |
 | `commission_cfa` | Snapshot |
 | `merchant_net_cfa` | Before holds/refunds |
+| `package_count` | Number of packages prepared for pickup |
+| `accepted_at`, `preparing_at`, `packed_ready_at`, `handed_to_courier_at` | Nullable timestamps |
 
 ### `order_events`
 
@@ -495,14 +501,18 @@ Index: `(customer_id, merchant_id, product_id, expires_at)`.
 | `id` | UUID primary key |
 | `delivery_code` | `LIV-...`, unique |
 | `order_id` | FK |
+| `merchant_sub_order_id` | Nullable FK for seller pickup mission |
 | `courier_id` | Nullable FK |
 | `delivery_mode` | `delivery_mode` |
-| `status` | Offered/accepted/picked_up/delivered/problem |
+| `destination_type` | `delivery_destination_type` |
+| `status` | `delivery_mission_status` |
 | `customer_delivery_fee_cfa` | Customer paid |
 | `courier_fee_cfa` | Courier payable |
 | `shortfall_cfa` | Sequo expense |
-| `pickup_at`, `delivered_at` | Nullable |
-| `proof_metadata` | JSONB |
+| `assigned_at`, `accepted_at`, `pickup_at`, `relay_deposited_at`, `delivered_at` | Nullable |
+| `pickup_proof_metadata` | JSONB |
+| `dropoff_proof_metadata` | JSONB |
+| `problem_metadata` | JSONB for failed delivery or courier incident details |
 
 ### `delivery_pins`
 
@@ -525,7 +535,7 @@ Index: `(customer_id, merchant_id, product_id, expires_at)`.
 | `order_id` | Nullable FK |
 | `return_id` | Nullable FK |
 | `deposit_code` | `DEP-...`, nullable unique |
-| `status` | Deposited/picked_up/collected/delayed/problem |
+| `status` | `relay_parcel_status` |
 | `deposited_at`, `picked_up_at`, `collected_at` | Nullable |
 | `late_fee_started_at` | Nullable; set when delayed parcel fee policy starts |
 | `return_to_seller_due_at` | Nullable; set only after owner-approved threshold policy |
