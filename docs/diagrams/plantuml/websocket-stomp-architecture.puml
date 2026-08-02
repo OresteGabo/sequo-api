@@ -1,0 +1,60 @@
+@startuml
+title Sequo API - WebSocket/STOMP Architecture
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor "Mobile Client\nCustomer/Merchant/Hub/Rider" as Mobile
+actor "Admin Web" as Admin
+
+rectangle "Spring WebSocket Endpoint\n/ws" as WsEndpoint {
+  [JwtHandshakeInterceptor] as Handshake
+  [StompAuthChannelInterceptor] as Auth
+  [StompAuthorizationInterceptor] as Authorization
+  [WebSocketPresenceService] as Presence
+  [RealtimeDestinationPolicy] as DestPolicy
+}
+
+rectangle "Application Realtime Services" as Services {
+  [RealtimeEventPublisher] as Publisher
+  [RealtimePayloadRedactor] as Redactor
+  [RiderRadarRealtimeService] as RiderRadar
+  [BargainingRealtimeService] as Bargaining
+  [RelayRealtimeService] as Relay
+  [AdminOperationsRealtimeService] as AdminRealtime
+}
+
+queue "STOMP Broker\nsimple broker locally\nbroker relay in production" as Broker
+
+database "PostgreSQL" as Db {
+  [notification_messages] as Messages
+  [notification_outbox] as Outbox
+}
+
+Mobile --> WsEndpoint : CONNECT\nAuthorization: Bearer JWT
+Admin --> WsEndpoint : CONNECT\nAuthorization: Bearer JWT
+Handshake --> Auth : validate token
+Auth --> Presence : register session\napp family + device
+Mobile --> Authorization : SUBSCRIBE/SEND
+Authorization --> DestPolicy : role + ownership check
+DestPolicy --> Broker : allow destination
+
+Publisher --> Redactor : build recipient-safe envelope
+Redactor --> Broker : send /user/queue or /topic
+RiderRadar --> Broker : /user/queue/mission-offers\n/topic/rider-radar/{zone}
+Bargaining --> Broker : /topic/bargaining/{sessionId}
+Relay --> Broker : /topic/relay/{relayPointId}/parcels
+AdminRealtime --> Broker : /topic/admin/operations
+Publisher --> Messages : durable recovery history
+Publisher --> Outbox : optional async notification work
+
+Broker --> Mobile : MESSAGE
+Broker --> Admin : MESSAGE
+
+note bottom of Authorization
+Every subscription is authorized.
+Topic names are not security.
+end note
+
+@enduml
