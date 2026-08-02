@@ -2,7 +2,7 @@
 
 This file is the dedicated authentication and authorization security checklist for Sequo API. It documents what is already treated in the current Spring Boot code, what is only documented as a target, and what must still be fixed before production.
 
-Review date: 2026-08-01
+Review date: 2026-08-02
 
 ## Current Auth Implementation
 
@@ -38,12 +38,12 @@ Main files:
 | Password hashing | Treated | BCrypt is used. |
 | Basic route authentication | Treated | `/api/auth/**` is public; other routes require authentication. |
 | Stateless server sessions | Treated | Spring session creation is stateless. |
-| JWT signing | Partially treated | Tokens are signed, but claims and validation are incomplete. |
-| Access/refresh token separation | Not treated | Refresh tokens can currently be accepted as bearer access tokens. |
+| JWT signing | Partially treated | Tokens are signed and now include stronger claims, but key rotation and production secret validation are still missing. |
+| Access/refresh token separation | Treated | Bearer authentication now accepts only access tokens. Refresh storage/rotation is still pending. |
 | Refresh revocation/rotation | Not treated | Refresh tokens are stateless JWTs, not stored or rotated server-side. |
 | Logout/logout-all | Not treated | No endpoint or token/session revocation exists. |
 | RBAC and roles | Not treated | Authentication principal has no authorities. |
-| User account status | Not treated | No active/locked/suspended/deleted status exists. |
+| User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
 | Password reset security | Not treated | Reset token is returned in API response and stored plaintext. |
 | Rate limiting | Not treated | Login, signup, refresh, and reset endpoints are unprotected from brute force. |
 | Social login hardening | Partially treated | Google is strongest; Facebook and Apple are incomplete. |
@@ -71,18 +71,18 @@ Legend:
 | 7 | Google ID token verification | [ ] | [x] | [ ] | Uses Google verifier, but needs prod config validation and tests. |
 | 8 | Facebook login | [ ] | [x] | [ ] | Calls Graph API, but does not verify app ownership with `debug_token`. |
 | 9 | Apple login | [ ] | [ ] | [x] | Placeholder returns `null`; must be disabled or fully verified. |
-| 10 | JWT signing | [ ] | [x] | [ ] | Tokens are signed, but claims and secret validation are weak. |
-| 11 | JWT access token issuance | [ ] | [x] | [ ] | Exists, but missing issuer/audience/jti/type/session claims. |
+| 10 | JWT signing | [ ] | [x] | [ ] | Tokens are signed, but secret validation and key rotation are still missing. |
+| 11 | JWT access token issuance | [ ] | [x] | [ ] | Includes issuer/audience/jti/type/nbf; still needs session-aware revocation. |
 | 12 | JWT refresh token issuance | [ ] | [x] | [ ] | Exists as stateless JWT, but this is not production-safe. |
-| 13 | Access-token-only validation in bearer filter | [ ] | [ ] | [x] | Refresh tokens can currently authenticate protected routes. |
-| 14 | Token type or token-use claim | [ ] | [ ] | [x] | Needed to separate access and refresh tokens. |
-| 15 | JWT issuer claim | [ ] | [ ] | [x] | Missing from issued tokens and validation. |
-| 16 | JWT audience claim | [ ] | [ ] | [x] | Missing from issued tokens and validation. |
-| 17 | JWT ID (`jti`) claim | [ ] | [ ] | [x] | Missing; needed for audit/revocation strategy. |
-| 18 | JWT not-before (`nbf`) claim | [ ] | [ ] | [x] | Missing. |
+| 13 | Access-token-only validation in bearer filter | [x] | [ ] | [ ] | Refresh tokens are no longer accepted by bearer-token validation. |
+| 14 | Token type or token-use claim | [x] | [ ] | [ ] | Tokens include `token_use=ACCESS` or `token_use=REFRESH`. |
+| 15 | JWT issuer claim | [x] | [ ] | [ ] | Issued and validated. |
+| 16 | JWT audience claim | [x] | [ ] | [ ] | Issued and validated. |
+| 17 | JWT ID (`jti`) claim | [x] | [ ] | [ ] | Issued for access and refresh JWTs. |
+| 18 | JWT not-before (`nbf`) claim | [x] | [ ] | [ ] | Issued for access and refresh JWTs. |
 | 19 | JWT session ID claim | [ ] | [ ] | [x] | Missing; needed for session-aware auth. |
-| 20 | JWT role/scope claims | [ ] | [ ] | [x] | No roles are issued or loaded. |
-| 21 | Issuer/audience validation | [ ] | [ ] | [x] | Parser validates signature/expiry only. |
+| 20 | JWT role/scope claims | [ ] | [x] | [ ] | Role enum and token claim exist; roles are not loaded from DB or enforced yet. |
+| 21 | Issuer/audience validation | [x] | [ ] | [ ] | Access and refresh parsing now checks configured issuer/audience. |
 | 22 | Refresh token stored as server-side hash | [ ] | [ ] | [x] | No refresh-session table exists. |
 | 23 | Opaque refresh tokens | [ ] | [ ] | [x] | Current refresh tokens are JWTs. |
 | 24 | Refresh token rotation | [ ] | [ ] | [x] | Old refresh token remains valid until expiry. |
@@ -95,10 +95,10 @@ Legend:
 | 31 | Reset token single-use | [ ] | [x] | [ ] | Cleared after successful reset, but plaintext and response leak remain. |
 | 32 | Reset token short TTL | [ ] | [x] | [ ] | One hour TTL exists; production should prefer 10-30 minutes. |
 | 33 | Existing session revocation after password reset | [ ] | [ ] | [x] | No refresh-session store to revoke. |
-| 34 | User account status model | [ ] | [ ] | [x] | No active/locked/suspended/deleted state. |
-| 35 | User status checked on login | [ ] | [ ] | [x] | Cannot enforce without status field. |
-| 36 | User status checked on refresh | [ ] | [ ] | [x] | Cannot enforce without refresh session and status checks. |
-| 37 | User roles table/model | [ ] | [ ] | [x] | Not implemented. |
+| 34 | User account status model | [x] | [ ] | [ ] | `UserStatus` exists on the `User` entity. |
+| 35 | User status checked on login | [x] | [ ] | [ ] | Non-authenticatable users are rejected. |
+| 36 | User status checked on refresh | [x] | [ ] | [ ] | Status is checked before issuing replacement tokens. |
+| 37 | User roles table/model | [ ] | [x] | [ ] | `RoleCode` enum exists; persistence model is not implemented. |
 | 38 | Authorities loaded into Spring Security | [ ] | [ ] | [x] | Filter creates auth token with `emptyList()`. |
 | 39 | Method-level role checks | [ ] | [ ] | [x] | No `@PreAuthorize` or equivalent policy yet. |
 | 40 | Ownership checks for customer resources | [ ] | [x] | [ ] | Order process overwrites `customerId`, but broader object checks are missing. |
@@ -117,9 +117,9 @@ Legend:
 | 53 | Signup abuse protection | [ ] | [ ] | [x] | No throttling or verification gate. |
 | 54 | Password reset abuse protection | [ ] | [ ] | [x] | No throttling or generic response. |
 | 55 | Account enumeration resistance | [ ] | [ ] | [x] | Forgot-password and signup reveal account state. |
-| 56 | Password strength validation | [ ] | [ ] | [x] | No DTO validation or password policy. |
-| 57 | Password maximum length guard | [ ] | [ ] | [x] | Needed to reduce password-hash DoS risk. |
-| 58 | Breached/common password rejection | [ ] | [ ] | [x] | Not implemented. |
+| 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, names, email terms, sequences, repeated characters, and common terms. |
+| 57 | Password maximum length guard | [x] | [ ] | [ ] | Password policy caps passwords at 128 characters. |
+| 58 | Breached/common password rejection | [ ] | [x] | [ ] | Extended local blocked list exists; real breached-password checks are pending. |
 | 59 | Bean Validation on auth DTOs | [ ] | [ ] | [x] | No `@Valid`, `@Email`, `@NotBlank`, or size rules. |
 | 60 | Generic auth error model | [ ] | [ ] | [x] | Responses vary between 400, 401, 404, and message maps. |
 | 61 | Global exception handler | [ ] | [ ] | [x] | Not implemented. |
@@ -136,9 +136,9 @@ Legend:
 | 72 | Provider HTTP client timeouts | [ ] | [ ] | [x] | Facebook `RestTemplate` has no explicit timeout. |
 | 73 | Provider outage handling | [ ] | [ ] | [x] | Invalid token and upstream outage are not distinguished. |
 | 74 | Actuator exposure policy | [ ] | [ ] | [x] | Actuator is not present yet; policy not implemented. |
-| 75 | Security integration tests | [ ] | [ ] | [x] | No auth/security tests detected. |
+| 75 | Security integration tests | [ ] | [x] | [ ] | JWT and password-policy unit tests exist; route-level integration tests are pending. |
 | 76 | Refresh token replay tests | [ ] | [ ] | [x] | Not possible until refresh sessions exist. |
-| 77 | JWT claim validation tests | [ ] | [ ] | [x] | Missing. |
+| 77 | JWT claim validation tests | [ ] | [x] | [ ] | Token-use and issuer/audience tests exist; more negative cases are pending. |
 | 78 | RBAC and ownership tests | [ ] | [ ] | [x] | Missing. |
 | 79 | Wallet webhook auth checks | [ ] | [ ] | [x] | Future wallet feature; must verify signatures/idempotency. |
 | 80 | Delivery/return PIN security checks | [ ] | [ ] | [x] | Future logistics feature; must hash PINs and limit attempts. |
@@ -508,14 +508,18 @@ Treatment:
 - Consider generic signup response or email-verification flow.
 - Add tests to prevent enumeration regressions.
 
-### 14. No Password Policy
+### 14. Password Policy Needs Breached-Password Integration
 
-Severity: High
+Severity: Medium
 
-Observed problem:
+Current state:
 
-- Signup accepts any password string.
-- Reset accepts any new password string.
+- Signup and reset now use `PasswordPolicy`.
+- The policy rejects blank, short, very long, missing character groups, common passwords, obvious keyboard/numeric sequences, repeated-character runs, date-like passwords, and passwords containing the user's name or email terms.
+
+Remaining problem:
+
+- The policy does not check a live breached-password corpus.
 
 Expected secure behavior:
 
@@ -527,9 +531,9 @@ Expected secure behavior:
 
 Treatment:
 
-- Add Bean Validation.
-- Add password policy service.
-- Add tests for weak, blank, very long, and valid passwords.
+- Add breached-password checks when an approved provider or offline corpus is selected.
+- Keep the local blocked list as a fast baseline.
+- Add Bean Validation on auth DTOs.
 
 ### 15. Password Reset Does Not Revoke Existing Sessions
 
@@ -1106,22 +1110,23 @@ The production auth system should use:
 
 Priority 0, production blockers:
 
-- [ ] Add token type claim and reject refresh tokens in bearer filter.
+- [x] Add token type claim and reject refresh tokens in bearer filter.
 - [ ] Replace stateless refresh JWTs with opaque hashed refresh sessions.
 - [ ] Add refresh rotation and replay detection.
 - [ ] Add logout and logout-all.
 - [ ] Remove reset token from forgot-password response.
 - [ ] Hash reset tokens.
-- [ ] Add JWT issuer, audience, JWT ID, token-use, and session ID.
+- [x] Add JWT issuer, audience, JWT ID, token-use, and not-before claims.
+- [ ] Add JWT session ID after refresh sessions exist.
 - [ ] Remove production fallback JWT secret.
-- [ ] Add user status and block locked/suspended users.
+- [x] Add user status and block locked/suspended users.
 - [ ] Add user roles and authorities.
 - [ ] Add rate limiting on auth endpoints.
 
 Priority 1, high security:
 
 - [ ] Add email verification.
-- [ ] Add password policy.
+- [x] Add password policy.
 - [ ] Revoke sessions after password reset.
 - [ ] Harden Facebook token verification.
 - [ ] Disable or implement Apple login.
