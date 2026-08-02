@@ -104,6 +104,17 @@ Examples of valid multipliers:
 
 Exact tier percentages and loyalty multipliers are configuration data, not hard-coded constants.
 
+## Delivery-Only Referral Credits
+
+Referral/parrainage rewards are not money balances. They are delivery credits that can reduce customer-facing delivery fees only.
+
+Rules:
+
+- Apply referral credit after subscription and loyalty discounts.
+- Never apply referral credit to item price, merchant base amount, platform margin, service fees, tips, refunds, or payouts.
+- Never allow cash withdrawal, wallet transfer, or conversion into merchant/courier payable.
+- Preserve original credit amount, applied amount, remaining amount, expiry, and source referral reference.
+
 ## Final Delivery Fee Formula
 
 ```text
@@ -111,7 +122,8 @@ standard_fee = standard_delivery_fee(distance)
 subscription_discount = resolve_subscription_discount(customer, standard_fee)
 after_subscription = max(0, standard_fee - subscription_discount)
 after_loyalty = round(after_subscription * loyalty_multiplier)
-customer_delivery_fee = max(0, after_loyalty)
+referral_credit_applied = min(active_delivery_credit, after_loyalty)
+customer_delivery_fee = max(0, after_loyalty - referral_credit_applied)
 ```
 
 The original courier fee must still be recorded. If the customer delivery fee is lower than the courier fee, the settlement engine posts a Sequo shortfall expense.
@@ -192,6 +204,7 @@ Each quote and order stores:
 - Delivery fee before discounts.
 - Subscription tier and discount.
 - Loyalty multiplier and discount.
+- Referral delivery credit applied.
 - Customer delivery fee.
 - Courier fee estimate if available.
 - Delivery shortfall estimate.
@@ -216,8 +229,8 @@ Each quote and order stores:
 - Minimum 400 CFA behavior.
 - Subscription discount with and without cap.
 - Loyalty multiplier order of operations.
+- Referral credit applies only to delivery fee and never creates cash value.
 - Bargaining accepted price allocation.
 - Multi-merchant cooperative package quote.
 - Customer delivery fee lower than courier fee creates shortfall estimate.
 - Quote immutability after order payment.
-
