@@ -4,7 +4,6 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
 
 @Service
 class AuthService(
@@ -14,7 +13,8 @@ class AuthService(
     private val facebookVerifier: FacebookTokenVerifier,
     private val appleVerifier: AppleTokenVerifier,
     private val jwtService: JwtService,
-    private val passwordPolicy: PasswordPolicy
+    private val passwordPolicy: PasswordPolicy,
+    private val passwordResetTokenService: PasswordResetTokenService
 ) {
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
         if (userRepository.findByEmail(request.email) != null) {
@@ -85,22 +85,23 @@ class AuthService(
         return generateTokensForUser(user)
     }
 
-    fun forgotPassword(email: String): String? {
-        val user = userRepository.findByEmail(email) ?: return null
-        if (user.provider != AuthProvider.EMAIL) return null
+    fun forgotPassword(email: String) {
+        val user = userRepository.findByEmail(email) ?: return
+        if (user.provider != AuthProvider.EMAIL || !user.status.canAuthenticate()) return
 
-        val token = UUID.randomUUID().toString()
-        user.resetToken = token
-        user.resetTokenExpiry = Instant.now().plus(1, ChronoUnit.HOURS)
+        val token = passwordResetTokenService.generate()
+        user.resetTokenHash = token.tokenHash
+        user.resetTokenExpiry = Instant.now().plus(30, ChronoUnit.MINUTES)
         userRepository.save(user)
 
-        // In a real app, send an email here
-        return token
+        // TODO(sequo-auth): Send token.rawToken through the approved email/SMS provider.
     }
 
     fun resetPassword(request: AuthController.ResetPasswordRequest): Boolean {
-        val user = userRepository.findByResetToken(request.token) ?: return false
-        if (user.resetTokenExpiry?.isBefore(Instant.now()) == true) return false
+        val tokenHash = passwordResetTokenService.hash(request.token)
+        val user = userRepository.findByResetTokenHash(tokenHash) ?: return false
+        val resetTokenExpiry = user.resetTokenExpiry ?: return false
+        if (resetTokenExpiry.isBefore(Instant.now())) return false
 
         passwordPolicy.validateOrThrow(
             request.newPassword,
@@ -108,7 +109,7 @@ class AuthService(
         )
 
         user.passwordHash = passwordEncoder.encode(request.newPassword)
-        user.resetToken = null
+        user.resetTokenHash = null
         user.resetTokenExpiry = null
         userRepository.save(user)
         return true
