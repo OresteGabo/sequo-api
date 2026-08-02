@@ -71,6 +71,8 @@ Error response:
 | `WALLET_*` | Payment intent, provider callback, refund, reconciliation |
 | `RETURN_*` | Eligibility, receipt, refund trigger, window expiry |
 | `SETTLEMENT_*` | Ledger, payout, hold, commission, reconciliation |
+| `NOTIFICATION_*` | FCM token, in-app inbox, preferences, realtime recovery |
+| `WEBSOCKET_*` | STOMP auth, subscription authorization, message delivery |
 | `ADMIN_*` | Override, configuration, audit, permission |
 
 ## Endpoint Families
@@ -214,6 +216,28 @@ Error response:
 | `POST` | `/webhooks/wallets/moov` | Provider | Moov Africa callback |
 
 No endpoint should support cash withdrawal.
+
+### Notifications And Realtime
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/users/me/devices/fcm` | Yes | Register or rotate FCM token for current user/device/app |
+| `DELETE` | `/users/me/devices/{deviceId}` | Device owner | Revoke one FCM device token |
+| `DELETE` | `/users/me/devices` | Yes | Revoke all own notification devices |
+| `GET` | `/users/me/notification-preferences` | Yes | Read notification channel preferences and quiet hours |
+| `PATCH` | `/users/me/notification-preferences` | Yes | Update non-critical notification preferences |
+| `GET` | `/users/me/notifications` | Yes | In-app notification inbox |
+| `POST` | `/users/me/notifications/{notificationId}/read` | Owner | Mark notification as read |
+| `GET` | `/realtime/events` | Yes | Fetch missed realtime events after reconnect |
+| `POST` | `/admin/notifications/test` | Admin | Send sandbox test notification when enabled |
+
+WebSocket/STOMP endpoint:
+
+| Endpoint | Auth | Purpose |
+| --- | --- | --- |
+| `/ws` | JWT on `CONNECT` | STOMP realtime connection for active app clients |
+
+Realtime topics, payloads, and authorization rules are defined in [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md). FCM routing and notification persistence are defined in [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md).
 
 ### Settlements And Admin Finance
 
