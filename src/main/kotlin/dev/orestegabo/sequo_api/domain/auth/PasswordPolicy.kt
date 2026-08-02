@@ -38,6 +38,7 @@ class PasswordPolicy {
 
         val violations = mutableListOf<PasswordPolicyViolation>()
         val normalizedPassword = normalize(rawPassword)
+        val leetspeakNormalizedPassword = normalizeLeetspeak(rawPassword)
 
         if (rawPassword.length < 12) {
             violations += PasswordPolicyViolation(
@@ -81,10 +82,21 @@ class PasswordPolicy {
             )
         }
 
-        if (rawPassword.lowercase() in blockedPasswords || normalizedPassword in normalizedBlockedPasswords) {
+        if (
+            rawPassword.lowercase() in blockedPasswords ||
+            normalizedPassword in normalizedBlockedPasswords ||
+            leetspeakNormalizedPassword in normalizedBlockedPasswords
+        ) {
             violations += PasswordPolicyViolation(
                 "password_common",
                 "Password is too common."
+            )
+        }
+
+        if (containsWeakTerm(normalizedPassword) || containsWeakTerm(leetspeakNormalizedPassword)) {
+            violations += PasswordPolicyViolation(
+                "password_contains_weak_term",
+                "Password must not contain obvious weak words."
             )
         }
 
@@ -95,6 +107,13 @@ class PasswordPolicy {
             )
         }
 
+        if (hasLongNumericRun(rawPassword)) {
+            violations += PasswordPolicyViolation(
+                "password_long_numeric_run",
+                "Password must not contain long number runs that look like phone numbers or IDs."
+            )
+        }
+
         if (hasLongRepeatedCharacterRun(rawPassword)) {
             violations += PasswordPolicyViolation(
                 "password_repeated_characters",
@@ -102,10 +121,24 @@ class PasswordPolicy {
             )
         }
 
+        if (hasRepeatedPattern(normalizedPassword)) {
+            violations += PasswordPolicyViolation(
+                "password_repeated_pattern",
+                "Password must not rely on repeated word or character patterns."
+            )
+        }
+
         if (containsLikelyDate(rawPassword)) {
             violations += PasswordPolicyViolation(
                 "password_looks_like_date",
                 "Password must not contain a date such as a birthday or anniversary."
+            )
+        }
+
+        if (containsCalendarTermWithNumber(normalizedPassword)) {
+            violations += PasswordPolicyViolation(
+                "password_contains_calendar_term",
+                "Password must not contain obvious month or calendar terms with numbers."
             )
         }
 
@@ -168,6 +201,32 @@ class PasswordPolicy {
         return false
     }
 
+    private fun hasLongNumericRun(rawPassword: String): Boolean =
+        Regex("\\d{8,}").containsMatchIn(rawPassword)
+
+    private fun hasRepeatedPattern(normalizedPassword: String): Boolean {
+        if (normalizedPassword.length < 8) return false
+
+        for (patternLength in 2..6) {
+            val pattern = normalizedPassword.take(patternLength)
+            val repeated = pattern.repeat(normalizedPassword.length / patternLength)
+            if (
+                repeated == normalizedPassword &&
+                normalizedPassword.length / patternLength >= 3
+            ) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun containsWeakTerm(normalizedPassword: String): Boolean =
+        weakTerms.any { normalizedPassword.contains(it) }
+
+    private fun containsCalendarTermWithNumber(normalizedPassword: String): Boolean =
+        normalizedPassword.any(Char::isDigit) && calendarTerms.any { normalizedPassword.contains(it) }
+
     private fun containsLikelyDate(rawPassword: String): Boolean {
         val digits = rawPassword.filter(Char::isDigit)
         if (digits.length < 6) return false
@@ -205,37 +264,78 @@ class PasswordPolicy {
     private fun normalize(value: String): String =
         value.lowercase().filter(Char::isLetterOrDigit)
 
+    private fun normalizeLeetspeak(value: String): String =
+        normalize(
+            value
+                .replace('0', 'o')
+                .replace('1', 'i')
+                .replace('3', 'e')
+                .replace('4', 'a')
+                .replace('5', 's')
+                .replace('7', 't')
+                .replace('@', 'a')
+                .replace('$', 's')
+                .replace('!', 'i')
+        )
+
     private companion object {
         val blockedPasswords = setOf(
             "password",
             "password123",
             "password123!",
             "password1234",
+            "password2026",
             "passw0rd",
             "p@ssw0rd",
+            "p@ssword123",
             "changeme",
             "changeme123",
+            "changeit",
+            "changeit123",
             "letmein",
             "letmein123",
             "welcome",
             "welcome123",
             "welcome2026",
+            "bienvenue",
+            "bienvenue123",
+            "bonjour",
+            "bonjour123",
+            "bonsoir",
+            "bonsoir123",
             "admin",
             "admin123",
+            "adminadmin",
             "administrator",
             "root",
             "rootroot",
             "user123",
+            "useruser",
             "test1234",
             "demo1234",
+            "guest123",
+            "guestguest",
             "qwerty",
             "qwerty123",
             "azerty",
             "azerty123",
+            "azertyuiop",
             "iloveyou",
+            "love123",
+            "amour123",
+            "secret",
+            "secret123",
             "monkey",
             "dragon",
             "football",
+            "soccer",
+            "basketball",
+            "princess",
+            "sunshine",
+            "master",
+            "freedom",
+            "whatever",
+            "trustno1",
             "abc123",
             "abcd1234",
             "123456789012",
@@ -256,6 +356,69 @@ class PasswordPolicy {
             password.lowercase().filter(Char::isLetterOrDigit)
         }.toSet()
 
+        val weakTerms = setOf(
+            "password",
+            "passw0rd",
+            "admin",
+            "administrator",
+            "root",
+            "welcome",
+            "bienvenue",
+            "bonjour",
+            "bonsoir",
+            "changeme",
+            "letmein",
+            "secret",
+            "qwerty",
+            "azerty",
+            "iloveyou",
+            "love",
+            "amour",
+            "master",
+            "login",
+            "sequo",
+            "sequoservice",
+            "sequoapi",
+            "togo",
+            "lome",
+            "lomé",
+            "default",
+            "temporary",
+            "temporaire"
+        ).map { it.lowercase().filter(Char::isLetterOrDigit) }.toSet()
+
+        val calendarTerms = setOf(
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "janvier",
+            "fevrier",
+            "février",
+            "mars",
+            "avril",
+            "mai",
+            "juin",
+            "juillet",
+            "aout",
+            "août",
+            "septembre",
+            "octobre",
+            "novembre",
+            "decembre",
+            "décembre",
+            "anniversaire",
+            "birthday"
+        ).map { it.lowercase().filter(Char::isLetterOrDigit) }.toSet()
+
         val keyboardSequences = setOf(
             "123456",
             "234567",
@@ -269,8 +432,17 @@ class PasswordPolicy {
             "fedcba",
             "qwerty",
             "azerty",
+            "ytrewq",
+            "ytreza",
+            "qwertyuiop",
+            "azertyuiop",
             "asdf",
-            "zxcv"
+            "zxcv",
+            "qazwsx",
+            "1q2w3e",
+            "zaq12wsx",
+            "poiuyt",
+            "mlkjhg"
         )
     }
 }
