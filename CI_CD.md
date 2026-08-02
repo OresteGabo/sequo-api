@@ -6,7 +6,7 @@ This repository uses GitHub Actions for the first production-ready automation la
 
 | File | Purpose |
 | --- | --- |
-| `.github/workflows/ci-cd.yml` | Runs the Gradle build, executes tests, builds the Docker image, reviews dependency changes, and publishes the boot JAR artifact from `main`. |
+| `.github/workflows/ci-cd.yml` | Runs the Gradle build, executes tests, validates Flyway migrations against PostgreSQL, builds the Docker image, reviews dependency changes, and publishes the boot JAR artifact from `main`. |
 | `.github/dependabot.yml` | Opens weekly dependency update PRs for Gradle and GitHub Actions dependencies. |
 
 ## Workflow Triggers
@@ -34,6 +34,7 @@ Required checks before merge:
 | --- | --- | --- |
 | Gradle build | Yes | Compiles Kotlin, assembles the Spring Boot artifact, and runs test tasks included in `build`. |
 | Unit and context tests | Yes | Covers current auth, pricing, payment, order, and application startup behavior. |
+| PostgreSQL migration validation | Yes | Runs a Spring context test against PostgreSQL with Flyway migrations and Hibernate `validate`. |
 | Docker image build | Yes | Validates that the Spring Boot API can be packaged into the runtime container. |
 | Dependency review | Yes for PRs | Fails PRs that introduce high-severity or critical vulnerable dependency changes. |
 | Test reports artifact | Yes | Uploaded on every run for debugging failed CI results. |
@@ -107,7 +108,7 @@ Add these once the project moves closer to production:
 | --- | --- |
 | Add a Dockerfile and container image build. | Implemented |
 | Publish container images to GHCR or the selected cloud registry. | Not implemented |
-| Add Flyway or Liquibase migration validation in CI. | Partially implemented with Flyway baseline; add dedicated PostgreSQL migration test next. |
+| Add Flyway or Liquibase migration validation in CI. | Implemented with Flyway baseline plus PostgreSQL validation job. |
 | Add OWASP dependency scanning or Snyk after the dependency policy is chosen. | Not implemented |
 | Add CodeQL/SAST if GitHub code scanning is available for the repository plan. | Not implemented |
 | Add deployment smoke tests against the selected environment. | Not implemented |
