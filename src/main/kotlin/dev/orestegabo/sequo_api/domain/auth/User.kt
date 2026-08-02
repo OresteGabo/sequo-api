@@ -23,6 +23,10 @@ class User(
     @Column(nullable = false)
     val provider: AuthProvider,
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var status: UserStatus = UserStatus.ACTIVE,
+
     @Column(unique = true)
     val providerId: String? = null,
 
