@@ -1,0 +1,82 @@
+@startuml
+title Sequo API - Notification System Architecture
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor "Customer App\nSequo" as CustomerApp
+actor "Merchant App" as MerchantApp
+actor "SequoHub\nRelay App" as RelayApp
+actor "SequoRider\nRider App" as RiderApp
+actor "Admin Web" as AdminWeb
+
+rectangle "Sequo API\nSpring Boot" as Api {
+  [Domain Services\nOrders, Delivery, Bargaining,\nReturns, Settlement] as Domain
+  [Domain Event Publisher] as Publisher
+  [Notification Event Listener\nAFTER_COMMIT] as Listener
+  [Notification Outbox Worker] as Worker
+  [Notification Orchestrator] as Orchestrator
+  [Routing Service\nrole + ownership scope] as Routing
+  [Preference Policy\nquiet hours + critical override] as Preferences
+  [Template Renderer\nlocalized safe payloads] as Templates
+  [Device Token Service] as TokenService
+  [FCM Push Gateway] as FcmGateway
+  [WebSocket Gateway\nSTOMP user queues/topics] as WsGateway
+  [SMS Fallback Gateway] as SmsGateway
+  [Delivery Audit Service] as AuditService
+}
+
+database "PostgreSQL" as Db {
+  [device_fcm_tokens] as Tokens
+  [notification_preferences] as Prefs
+  [notification_outbox] as Outbox
+  [notification_messages] as Messages
+  [notification_deliveries] as Deliveries
+}
+
+cloud "Firebase Cloud Messaging" as FCM
+cloud "SMS Provider" as SMS
+
+CustomerApp --> Api : HTTPS registration\nWebSocket /ws
+MerchantApp --> Api : HTTPS + /ws
+RelayApp --> Api : HTTPS + /ws
+RiderApp --> Api : HTTPS + /ws
+AdminWeb --> Api : HTTPS + /ws
+
+Domain --> Publisher : publish domain event
+Publisher --> Listener : committed event
+Listener --> Outbox : enqueue idempotent work
+Worker --> Outbox : claim pending work
+Worker --> Orchestrator : dispatch
+Orchestrator --> Routing : resolve recipients
+Routing --> Preferences : channel policy
+Preferences --> Templates : render title/body/payload
+Templates --> Messages : store in-app message
+TokenService --> Tokens : register/revoke/prune
+Orchestrator --> FcmGateway : background/locked app push
+Orchestrator --> WsGateway : active in-app realtime
+Orchestrator --> SmsGateway : critical fallback
+FcmGateway --> FCM : send FCM
+SmsGateway --> SMS : send SMS
+FcmGateway --> AuditService : delivery result
+WsGateway --> AuditService : delivery result
+SmsGateway --> AuditService : delivery result
+AuditService --> Deliveries : attempt audit
+Routing --> Prefs : load preferences
+
+note right of Templates
+Payloads must contain safe public IDs only.
+Never send raw PIN hashes, FCM tokens,
+full addresses, phone numbers,
+or wallet secrets.
+end note
+
+note bottom of SmsGateway
+SMS fallback is reserved for
+critical PIN, blocked delivery,
+relay pickup, and urgent
+payment/refund events.
+end note
+
+@enduml
