@@ -46,6 +46,7 @@ The current backend scope supersedes older legacy notes where they conflict:
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Spring Boot backend architecture, modules, state machines, integrations, deployment assumptions |
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Owner-note API requirement matrix with implementation checkboxes and backlog priorities |
 | [DOMAIN_SERVICES.md](DOMAIN_SERVICES.md) | Domain service responsibilities and workflow rules |
+| [DELIVERY.md](DELIVERY.md) | Delivery and fulfillment audit: direct delivery, relay delivery, Sequo consolidation, proof, gaps, and build order |
 | [API_SPEC.md](API_SPEC.md) | REST API conventions, endpoint families, idempotency, response envelope, error model |
 | [PRICING_ENGINE.md](PRICING_ENGINE.md) | Delivery, subscription, loyalty, item, service fee, and pricing audit rules |
 | [COMMISSION_MODEL.md](COMMISSION_MODEL.md) | Merchant commission, platform margin, cooperative split, payout, and shortfall accounting |
