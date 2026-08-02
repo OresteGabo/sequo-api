@@ -37,7 +37,7 @@ dependencies {
 
     // Social Token Verification
     implementation("com.google.api-client:google-api-client:2.7.0")
-    implementation("com.google.http-client:google-http-client-gson:1.44.1")
+    implementation("com.google.http-client:google-http-client-gson:2.2.0")
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
