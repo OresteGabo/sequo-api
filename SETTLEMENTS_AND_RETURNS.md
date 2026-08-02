@@ -8,6 +8,8 @@ This document defines how Sequo API handles returns, refunds, physical custody, 
 | --- | --- |
 | Return window | 72 hours after delivery/customer receipt |
 | Return intake | Customer must drop item at a Point de Relai |
+| Relay eligibility | Food and perishable products cannot be routed to Point de Relai by default |
+| Delayed relay parcels | Fees may start after 2 weeks; return-to-seller timing needs owner approval |
 | Refund trigger | Automated refund can start only after Sequo physically receives the item |
 | Merchant payout | Scheduled within 1 week of package receipt, net of holds and adjustments |
 | Shortfall | Sequo covers delivery fee shortfall when customer delivery payment is lower than courier fee |
@@ -171,6 +173,13 @@ Relay custody events must be tracked for:
 - Sequo collection.
 - Lost/damaged parcel report.
 
+Relay pickup restrictions:
+
+- Food and perishable products are not eligible for Point de Relai pickup by default.
+- Pickup release requires a valid hashed numeric code or QR payload and an identity validation event when policy requires it.
+- Delayed parcels can generate storage-fee ledger entries only after a configured threshold.
+- Return-to-seller automation must wait for a product-approved threshold because the owner note still leaves the exact 1-month timing discussable.
+
 ## Ledger Requirements
 
 The settlement ledger is append-only.
@@ -216,4 +225,3 @@ Mismatches create admin alerts.
 - Payout generated within configured 1-week window.
 - Delivery shortfall posts Sequo expense.
 - Ledger correction uses adjustment entry, not mutation.
-
