@@ -22,6 +22,7 @@ This document defines the backend domain services that should exist in Sequo API
 | Wallet Service | Yas Togo and Moov Africa payment intents, callbacks, refunds, wallet ledger |
 | Settlement Service | Merchant/courier/relay payouts, holds, shortfalls, adjustments, reconciliation |
 | Notification Service | Push, SMS, email, WhatsApp provider abstraction |
+| Realtime Service | Spring WebSocket/STOMP in-app updates, rider radar, bargaining, tracking, relay/admin topics |
 | Audit Service | Security, admin, financial, support, and domain audit events |
 
 ## Auth And Roles
@@ -266,6 +267,28 @@ Responsibilities:
 - Hold disputed or return-eligible amounts where policy requires.
 - Net merchant refunds against future payouts when merchant is responsible.
 - Reconcile payout batches against wallet provider transaction references.
+
+## Notification And Realtime Services
+
+Notification responsibilities:
+
+- Store and manage FCM tokens per user, device, platform, and app family.
+- Route notifications by customer, merchant, relay, rider, support, admin, and super admin scope.
+- Send FCM push notifications for background/locked mobile states.
+- Store durable in-app notification messages and read/archive state.
+- Apply notification preferences, quiet hours, and critical-event override policy.
+- Use SMS fallback only for critical events such as PIN delivery, blocked delivery, relay pickup, or urgent refund/payment action.
+- Record every delivery attempt by channel with provider references and retry/failure state.
+
+Realtime responsibilities:
+
+- Configure Spring WebSocket/STOMP under `/ws`.
+- Authenticate `CONNECT` with JWT and authorize every `SUBSCRIBE`/`SEND` destination.
+- Publish active order status, merchant order queue, rider radar, mission, bargaining, relay parcel, and admin operations updates.
+- Use durable notification/event history for reconnect recovery.
+- Coordinate with FCM using shared event IDs so mobile clients can deduplicate foreground and push-open events.
+
+Full details are documented in [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md) and [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
 
 ## Audit Service
 
