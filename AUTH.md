@@ -50,6 +50,103 @@ Main files:
 | Audit logging | Not treated | No auth/security audit events are persisted. |
 | Production config hardening | Not treated | Dev fallback secrets, H2 console, and `ddl-auto=update` are active by default. |
 
+## Radio-Style Implementation Matrix
+
+Use this table as the working implementation tracker. Each row has exactly one checked status box.
+
+Legend:
+
+- `[x] Implemented`: present in code at the time of review.
+- `[x] Partial`: present but not production-safe or incomplete.
+- `[x] Not implemented`: missing from code, even if documented as a target.
+
+| # | Auth security feature | Implemented | Partial | Not implemented | Notes |
+| ---: | --- | :---: | :---: | :---: | --- |
+| 1 | BCrypt password hashing | [x] | [ ] | [ ] | `BCryptPasswordEncoder` is configured and used. |
+| 2 | Email/password signup endpoint | [x] | [ ] | [ ] | Exists, but needs validation and email verification. |
+| 3 | Email/password login endpoint | [x] | [ ] | [ ] | Exists, but needs rate limiting and generic errors. |
+| 4 | Stateless Spring Security sessions | [x] | [ ] | [ ] | `SessionCreationPolicy.STATELESS` is configured. |
+| 5 | Default route authentication | [x] | [ ] | [ ] | Non-auth routes require authentication. |
+| 6 | Basic bearer-token filter | [x] | [ ] | [ ] | Custom filter extracts `Authorization: Bearer`. |
+| 7 | Google ID token verification | [ ] | [x] | [ ] | Uses Google verifier, but needs prod config validation and tests. |
+| 8 | Facebook login | [ ] | [x] | [ ] | Calls Graph API, but does not verify app ownership with `debug_token`. |
+| 9 | Apple login | [ ] | [ ] | [x] | Placeholder returns `null`; must be disabled or fully verified. |
+| 10 | JWT signing | [ ] | [x] | [ ] | Tokens are signed, but claims and secret validation are weak. |
+| 11 | JWT access token issuance | [ ] | [x] | [ ] | Exists, but missing issuer/audience/jti/type/session claims. |
+| 12 | JWT refresh token issuance | [ ] | [x] | [ ] | Exists as stateless JWT, but this is not production-safe. |
+| 13 | Access-token-only validation in bearer filter | [ ] | [ ] | [x] | Refresh tokens can currently authenticate protected routes. |
+| 14 | Token type or token-use claim | [ ] | [ ] | [x] | Needed to separate access and refresh tokens. |
+| 15 | JWT issuer claim | [ ] | [ ] | [x] | Missing from issued tokens and validation. |
+| 16 | JWT audience claim | [ ] | [ ] | [x] | Missing from issued tokens and validation. |
+| 17 | JWT ID (`jti`) claim | [ ] | [ ] | [x] | Missing; needed for audit/revocation strategy. |
+| 18 | JWT not-before (`nbf`) claim | [ ] | [ ] | [x] | Missing. |
+| 19 | JWT session ID claim | [ ] | [ ] | [x] | Missing; needed for session-aware auth. |
+| 20 | JWT role/scope claims | [ ] | [ ] | [x] | No roles are issued or loaded. |
+| 21 | Issuer/audience validation | [ ] | [ ] | [x] | Parser validates signature/expiry only. |
+| 22 | Refresh token stored as server-side hash | [ ] | [ ] | [x] | No refresh-session table exists. |
+| 23 | Opaque refresh tokens | [ ] | [ ] | [x] | Current refresh tokens are JWTs. |
+| 24 | Refresh token rotation | [ ] | [ ] | [x] | Old refresh token remains valid until expiry. |
+| 25 | Refresh token replay detection | [ ] | [ ] | [x] | No token family or reuse detection. |
+| 26 | Logout endpoint | [ ] | [ ] | [x] | No session/token revocation endpoint exists. |
+| 27 | Logout-all endpoint | [ ] | [ ] | [x] | No all-device revocation exists. |
+| 28 | Password-reset token generation | [x] | [ ] | [ ] | Exists, but current flow is unsafe. |
+| 29 | Reset token not returned in API response | [ ] | [ ] | [x] | Current forgot-password response exposes token. |
+| 30 | Reset token stored hashed | [ ] | [ ] | [x] | Current reset token is stored plaintext. |
+| 31 | Reset token single-use | [ ] | [x] | [ ] | Cleared after successful reset, but plaintext and response leak remain. |
+| 32 | Reset token short TTL | [ ] | [x] | [ ] | One hour TTL exists; production should prefer 10-30 minutes. |
+| 33 | Existing session revocation after password reset | [ ] | [ ] | [x] | No refresh-session store to revoke. |
+| 34 | User account status model | [ ] | [ ] | [x] | No active/locked/suspended/deleted state. |
+| 35 | User status checked on login | [ ] | [ ] | [x] | Cannot enforce without status field. |
+| 36 | User status checked on refresh | [ ] | [ ] | [x] | Cannot enforce without refresh session and status checks. |
+| 37 | User roles table/model | [ ] | [ ] | [x] | Not implemented. |
+| 38 | Authorities loaded into Spring Security | [ ] | [ ] | [x] | Filter creates auth token with `emptyList()`. |
+| 39 | Method-level role checks | [ ] | [ ] | [x] | No `@PreAuthorize` or equivalent policy yet. |
+| 40 | Ownership checks for customer resources | [ ] | [x] | [ ] | Order process overwrites `customerId`, but broader object checks are missing. |
+| 41 | Merchant-scoped authorization | [ ] | [ ] | [x] | Needed before merchant APIs. |
+| 42 | Courier-scoped authorization | [ ] | [ ] | [x] | Needed before courier mission APIs. |
+| 43 | Relay-scoped authorization | [ ] | [ ] | [x] | Needed before Point de Relai APIs. |
+| 44 | Cooperative member data isolation | [ ] | [ ] | [x] | Documented target, not implemented. |
+| 45 | Admin role protection | [ ] | [ ] | [x] | Needed before admin APIs. |
+| 46 | Finance/admin step-up auth | [ ] | [ ] | [x] | Needed for refunds, payouts, and commission changes. |
+| 47 | MFA for internal roles | [ ] | [ ] | [x] | Not implemented. |
+| 48 | Email verification | [ ] | [ ] | [x] | Signup immediately returns tokens. |
+| 49 | Social account linking confirmation | [ ] | [ ] | [x] | Existing email match links silently. |
+| 50 | Social email verification enforcement | [ ] | [ ] | [x] | Required before safe auto-linking. |
+| 51 | Auth endpoint rate limiting | [ ] | [ ] | [x] | Signup, login, refresh, and reset are unlimited. |
+| 52 | Account lockout or progressive delay | [ ] | [ ] | [x] | No failed-attempt tracking. |
+| 53 | Signup abuse protection | [ ] | [ ] | [x] | No throttling or verification gate. |
+| 54 | Password reset abuse protection | [ ] | [ ] | [x] | No throttling or generic response. |
+| 55 | Account enumeration resistance | [ ] | [ ] | [x] | Forgot-password and signup reveal account state. |
+| 56 | Password strength validation | [ ] | [ ] | [x] | No DTO validation or password policy. |
+| 57 | Password maximum length guard | [ ] | [ ] | [x] | Needed to reduce password-hash DoS risk. |
+| 58 | Breached/common password rejection | [ ] | [ ] | [x] | Not implemented. |
+| 59 | Bean Validation on auth DTOs | [ ] | [ ] | [x] | No `@Valid`, `@Email`, `@NotBlank`, or size rules. |
+| 60 | Generic auth error model | [ ] | [ ] | [x] | Responses vary between 400, 401, 404, and message maps. |
+| 61 | Global exception handler | [ ] | [ ] | [x] | Not implemented. |
+| 62 | Auth audit logging | [ ] | [ ] | [x] | No login/reset/refresh/security event audit trail. |
+| 63 | Privacy-safe logging/redaction policy | [ ] | [ ] | [x] | No redaction filter or documented logger guard in code. |
+| 64 | CORS policy | [ ] | [ ] | [x] | No explicit CORS configuration. |
+| 65 | HTTPS/HSTS enforcement | [ ] | [ ] | [x] | Not enforced in app config. |
+| 66 | H2 console restricted to local/test | [ ] | [ ] | [x] | Enabled in default properties. |
+| 67 | Production-safe schema migration policy | [ ] | [ ] | [x] | `ddl-auto=update` is in default properties. |
+| 68 | Production startup rejects default JWT secret | [ ] | [ ] | [x] | No startup validation. |
+| 69 | Production startup rejects placeholder OAuth IDs | [ ] | [ ] | [x] | No startup validation. |
+| 70 | JWT key rotation strategy | [ ] | [ ] | [x] | No `kid`, key versioning, or rotation procedure. |
+| 71 | Device/session tracking | [ ] | [ ] | [x] | No device ID, IP hint, or user-agent hash persistence. |
+| 72 | Provider HTTP client timeouts | [ ] | [ ] | [x] | Facebook `RestTemplate` has no explicit timeout. |
+| 73 | Provider outage handling | [ ] | [ ] | [x] | Invalid token and upstream outage are not distinguished. |
+| 74 | Actuator exposure policy | [ ] | [ ] | [x] | Actuator is not present yet; policy not implemented. |
+| 75 | Security integration tests | [ ] | [ ] | [x] | No auth/security tests detected. |
+| 76 | Refresh token replay tests | [ ] | [ ] | [x] | Not possible until refresh sessions exist. |
+| 77 | JWT claim validation tests | [ ] | [ ] | [x] | Missing. |
+| 78 | RBAC and ownership tests | [ ] | [ ] | [x] | Missing. |
+| 79 | Wallet webhook auth checks | [ ] | [ ] | [x] | Future wallet feature; must verify signatures/idempotency. |
+| 80 | Delivery/return PIN security checks | [ ] | [ ] | [x] | Future logistics feature; must hash PINs and limit attempts. |
+| 81 | Mass-assignment protection | [ ] | [x] | [ ] | `OrderController` protects `customerId`; broader DTO hardening is missing. |
+| 82 | Cross-tenant query protections | [ ] | [ ] | [x] | Needs scoped repository/service checks. |
+| 83 | Append-only audit tamper resistance | [ ] | [ ] | [x] | No audit table/service yet. |
+| 84 | Unsafe local config deployment guard | [ ] | [ ] | [x] | H2, dev secret, placeholders, and `ddl-auto=update` need profile isolation. |
+
 ## Already Treated In Code
 
 ### 1. Password Hashing
