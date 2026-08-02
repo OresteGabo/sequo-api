@@ -164,24 +164,33 @@ Error response:
 | --- | --- | --- | --- |
 | `GET` | `/orders` | Customer | Own orders |
 | `GET` | `/orders/{orderId}` | Owner/support/admin | Order detail |
+| `GET` | `/orders/{orderId}/tracking` | Customer owner/support/admin | Delivery tracking, relay instructions, safe proof status |
 | `POST` | `/orders/{orderId}/cancel` | Customer/support/admin | Cancel when policy allows |
 | `GET` | `/merchant/orders` | Merchant | Own merchant orders/sub-orders |
 | `POST` | `/merchant/orders/{subOrderId}/accept` | Merchant owner | Accept merchant sub-order |
 | `POST` | `/merchant/orders/{subOrderId}/reject` | Merchant owner | Reject merchant sub-order |
+| `POST` | `/merchant/orders/{subOrderId}/start-preparation` | Merchant owner | Mark accepted order as being prepared |
 | `POST` | `/merchant/orders/{subOrderId}/ready` | Merchant owner | Mark ready for pickup/deposit |
+| `POST` | `/merchant/orders/{subOrderId}/handoff` | Merchant owner/courier | Confirm courier collected packed package |
 
 ### Delivery And Relay
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/courier/missions` | Courier | Offered/assigned missions |
+| `GET` | `/courier/missions/{missionId}` | Courier owner/support/admin | Mission details and current state |
 | `POST` | `/courier/missions/{missionId}/accept` | Courier | Accept mission |
-| `POST` | `/courier/missions/{missionId}/pickup` | Courier | Mark picked up |
+| `POST` | `/courier/missions/{missionId}/pickup` | Courier | Mark picked up with seller handoff proof |
 | `POST` | `/courier/missions/{missionId}/deliver` | Courier | Complete with proof/PIN |
+| `POST` | `/courier/missions/{missionId}/deposit-relay` | Courier | Deposit relay-bound parcel at Point de Relai |
+| `POST` | `/courier/missions/{missionId}/problem` | Courier | Report pickup/drop-off/routing problem |
 | `GET` | `/relay/parcels` | Relay partner | Parcels at assigned relay |
 | `POST` | `/relay/parcels/deposit` | Relay partner | Receive parcel or return |
 | `POST` | `/relay/parcels/{parcelId}/validate-pickup-code` | Relay partner | Validate pickup numeric code or QR payload |
 | `POST` | `/relay/parcels/{parcelId}/release` | Relay partner | Release to customer/Sequo agent |
+| `POST` | `/relay/parcels/{parcelId}/problem` | Relay partner | Report lost, damaged, delayed, or identity mismatch case |
+| `POST` | `/admin/delivery-missions/{missionId}/reassign` | Admin/support | Reassign delivery mission to another courier |
+| `POST` | `/admin/delivery-missions/{missionId}/cancel` | Admin/support | Cancel mission with audited reason |
 | `GET` | `/admin/relay/parcels/delayed` | Admin/support | List delayed relay parcels for fee/return workflow |
 
 ### Returns
