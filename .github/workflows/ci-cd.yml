@@ -76,6 +76,26 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  docker-build:
+    name: Docker Image Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: sequo-api:ci
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
