@@ -43,13 +43,10 @@ class AuthController(private val authService: AuthService) {
 
     @PostMapping("/forgot-password")
     fun forgotPassword(@RequestBody request: ForgotPasswordRequest): ResponseEntity<Map<String, String>> {
-        val token = authService.forgotPassword(request.email)
-        // In a real app, we wouldn't return the token in the response; it would be sent via email.
-        return if (token != null) {
-            ResponseEntity.ok(mapOf("message" to "Reset token generated", "token" to token))
-        } else {
-            ResponseEntity.notFound().build()
-        }
+        authService.forgotPassword(request.email)
+        return ResponseEntity.ok(
+            mapOf("message" to "If the account exists, password reset instructions will be sent.")
+        )
     }
 
     @PostMapping("/reset-password")
