@@ -31,7 +31,7 @@ rectangle "Sequo API\nSpring Boot / Kotlin" as Api {
   [Delivery and Relay Logistics]
   [Returns and Settlements]
   [Wallet Payments]
-  [Notifications]
+  [Notifications and Realtime]
   [Audit and Reporting]
 }
 
@@ -39,7 +39,9 @@ database "PostgreSQL" as Db
 cloud "Object Storage\nimages, KYC, proof, evidence" as Storage
 cloud "Yas Togo Wallet" as Yas
 cloud "Moov Africa Wallet" as Moov
-cloud "SMS / Push / WhatsApp" as Notify
+cloud "Firebase Cloud Messaging" as FCM
+cloud "SMS / WhatsApp Providers" as Notify
+queue "STOMP Broker Relay\nwhen horizontally scaled" as StompBroker
 cloud "Observability Stack" as Obs
 
 Customer --> CustomerApp
@@ -50,12 +52,15 @@ RelayPartner --> RelayApp
 Admin --> AdminWeb
 
 Clients --> Api : HTTPS + JWT\n/api/v1
+Clients --> Api : WebSocket/STOMP + JWT\n/ws
 
 Api --> Db : transactions,\nqueries, ledgers
 Api --> Storage : upload/read artifacts
 Api --> Yas : payment, refund,\npayout integration
 Api --> Moov : payment, refund,\npayout integration
-Api --> Notify : async notifications
+Api --> FCM : mobile push
+Api --> Notify : SMS / WhatsApp fallback
+Api --> StompBroker : realtime broker relay
 Api --> Obs : logs, metrics,\ntraces, alerts
 
 note right of Api
@@ -64,4 +69,3 @@ and audit history live on the backend.
 end note
 
 @enduml
-
