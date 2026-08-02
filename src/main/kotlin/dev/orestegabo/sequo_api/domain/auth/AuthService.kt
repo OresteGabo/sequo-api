@@ -17,17 +17,22 @@ class AuthService(
     private val passwordResetTokenService: PasswordResetTokenService
 ) {
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
-        if (userRepository.findByEmail(request.email) != null) {
-            throw IllegalArgumentException("Email already in use")
+        val email = normalizeEmail(request.email)
+        val existingUser = userRepository.findByEmail(email)
+        if (existingUser != null) {
+            if (existingUser.provider != AuthProvider.EMAIL || existingUser.passwordHash == null) {
+                throw AuthProviderRequiredException(existingUser.provider)
+            }
+            throw EmailAlreadyRegisteredException()
         }
 
         passwordPolicy.validateOrThrow(
             request.password,
-            PasswordPolicyContext(email = request.email, displayName = request.name)
+            PasswordPolicyContext(email = email, displayName = request.name)
         )
 
         val user = User(
-            email = request.email,
+            email = email,
             passwordHash = passwordEncoder.encode(request.password),
             name = request.name,
             provider = AuthProvider.EMAIL
@@ -37,9 +42,11 @@ class AuthService(
     }
 
     fun login(request: AuthController.LoginWithEmailRequest): AuthTokens? {
-        val user = userRepository.findByEmail(request.email) ?: return null
+        val user = userRepository.findByEmail(normalizeEmail(request.email)) ?: return null
         if (!user.status.canAuthenticate()) return null
-        if (user.provider != AuthProvider.EMAIL || user.passwordHash == null) return null
+        if (user.provider != AuthProvider.EMAIL || user.passwordHash == null) {
+            throw AuthProviderRequiredException(user.provider)
+        }
         
         if (!passwordEncoder.matches(request.password, user.passwordHash)) return null
         
@@ -55,17 +62,21 @@ class AuthService(
         }
 
         val socialUser = verifier.verify(token) ?: return null
+        if (socialUser.provider != provider) return null
+        if (socialUser.email != null && !socialUser.emailVerified) return null
         
         var user = userRepository.findByProviderAndProviderId(provider, socialUser.providerId)
         if (user == null) {
-            // Check if user exists with the same email
-            val existingUser = socialUser.email?.let { userRepository.findByEmail(it) }
+            val email = socialUser.email?.let(::normalizeEmail)
+            val existingUser = email?.let { userRepository.findByEmail(it) }
             if (existingUser != null) {
-                // Link account if necessary or return existing (depends on policy)
-                user = existingUser
+                throw AccountLinkRequiredException(
+                    existingProvider = existingUser.provider,
+                    attemptedProvider = provider
+                )
             } else {
                 user = userRepository.save(User(
-                    email = socialUser.email ?: "${socialUser.providerId}@${provider.name.lowercase()}.com",
+                    email = email ?: providerScopedEmail(socialUser),
                     name = socialUser.name,
                     provider = provider,
                     providerId = socialUser.providerId
@@ -86,7 +97,7 @@ class AuthService(
     }
 
     fun forgotPassword(email: String) {
-        val user = userRepository.findByEmail(email) ?: return
+        val user = userRepository.findByEmail(normalizeEmail(email)) ?: return
         if (user.provider != AuthProvider.EMAIL || !user.status.canAuthenticate()) return
 
         val token = passwordResetTokenService.generate()
@@ -123,4 +134,10 @@ class AuthService(
         )
         return jwtService.generateTokens(session)
     }
+
+    private fun normalizeEmail(email: String): String =
+        email.trim().lowercase()
+
+    private fun providerScopedEmail(socialUser: SocialUser): String =
+        "${socialUser.providerId}@${socialUser.provider.name.lowercase()}.sequo.local"
 }
