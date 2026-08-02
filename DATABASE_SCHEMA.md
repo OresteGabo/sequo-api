@@ -37,6 +37,11 @@ This is the target logical relational schema for Sequo API. PostgreSQL is the re
 | `payment_feature` | `CUSTOMER_CHECKOUT`, `SUBSCRIPTION_BILLING`, `REFUND`, `PAYOUT` |
 | `product_media_source` | `LIVE_CAMERA`, `GENERIC_CATALOG_REFERENCE`, `ADMIN_APPROVED_REFERENCE` |
 | `referral_credit_status` | `ACTIVE`, `EXPIRED`, `CONSUMED`, `REVOKED` |
+| `notification_app_family` | `SEQUO_CUSTOMER`, `SEQUO_MERCHANT`, `SEQUO_HUB`, `SEQUO_RIDER`, `SEQUO_ADMIN` |
+| `notification_platform` | `ANDROID`, `IOS`, `WEB` |
+| `notification_channel` | `IN_APP`, `FCM`, `WEBSOCKET`, `SMS`, `EMAIL`, `WHATSAPP` |
+| `notification_status` | `PENDING`, `PROCESSING`, `SENT`, `FAILED_RETRYABLE`, `FAILED_FINAL`, `SUPPRESSED`, `REVOKED`, `STALE` |
+| `notification_severity` | `INFO`, `ACTION_REQUIRED`, `URGENT`, `SECURITY`, `FINANCIAL` |
 | `payout_status` | `ACCRUED`, `HELD_RETURN_WINDOW`, `HELD_DISPUTE`, `ELIGIBLE`, `BATCHED`, `APPROVED`, `SENT_TO_PROVIDER`, `PAID`, `FAILED`, `ADJUSTED` |
 
 ## Identity And Access
@@ -691,6 +696,91 @@ Constraint: exactly one of debit/credit should be positive.
 | `provider_reference` | Nullable |
 | `source_metadata` | JSONB |
 
+## Notifications And Realtime
+
+Full routing, channel, and realtime rules are defined in [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md) and [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
+
+### `device_fcm_tokens`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `user_id` | FK `users.id` |
+| `device_id` | Client installation/device reference |
+| `app_family` | `notification_app_family` |
+| `platform` | `notification_platform` |
+| `fcm_token_hash` | Unique token hash for dedupe |
+| `fcm_token_ciphertext` | Protected raw token value for FCM send |
+| `app_version` | Last app version that registered token |
+| `locale`, `timezone` | Template/routing hints |
+| `status` | `ACTIVE`, `REVOKED`, `STALE`, `FAILED` |
+| `last_seen_at`, `revoked_at` | Nullable timestamps |
+| `created_at`, `updated_at` | Timestamps |
+
+Unique: `(user_id, device_id, app_family)` and `fcm_token_hash`.
+
+### `notification_preferences`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `user_id` | FK |
+| `app_family` | `notification_app_family` |
+| `event_type` | Specific event type or `ALL` |
+| `push_enabled`, `in_app_enabled`, `sms_enabled` | Channel preferences |
+| `quiet_hours_start`, `quiet_hours_end` | Nullable local-time window |
+| `created_at`, `updated_at` | Timestamps |
+
+Critical operational/security notifications can override preferences only by explicit audited policy.
+
+### `notification_messages`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `event_id` | Domain event idempotency key |
+| `recipient_user_id` | FK `users.id` |
+| `app_family` | `notification_app_family` |
+| `event_type` | Stable notification type |
+| `severity` | `notification_severity` |
+| `title`, `body` | Rendered localized text |
+| `action_url` | Nullable deep link |
+| `payload` | JSONB, safe public identifiers only |
+| `read_at`, `archived_at` | Nullable |
+| `created_at` | Timestamp |
+
+Unique: `(event_id, recipient_user_id, app_family, event_type)`.
+
+### `notification_deliveries`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `message_id` | FK `notification_messages.id` |
+| `channel` | `notification_channel` |
+| `target_ref` | Token hash, user destination, or masked phone reference |
+| `status` | `notification_status` |
+| `provider_reference` | Nullable |
+| `failure_code`, `failure_message` | Nullable user-safe failure information |
+| `attempt_count` | Retry count |
+| `next_attempt_at` | Nullable |
+| `sent_at`, `created_at`, `updated_at` | Timestamps |
+
+### `notification_outbox`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `event_id` | Unique domain event ID |
+| `event_type` | Domain event type |
+| `aggregate_type`, `aggregate_id` | Order, delivery mission, return, settlement, etc. |
+| `payload` | JSONB domain event payload |
+| `status` | `notification_status` |
+| `attempt_count` | Retry count |
+| `next_attempt_at` | Nullable |
+| `locked_by`, `locked_until` | Nullable worker lease |
+| `created_at`, `updated_at`, `processed_at` | Timestamps |
+
 ## Platform Tables
 
 ### `idempotency_records`
@@ -756,6 +846,13 @@ Unique: `(actor_key, idempotency_key)`.
 - `referral_delivery_credits(customer_id, status, expires_at)`.
 - `wallet_transactions(provider, provider_reference) unique where provider_reference is not null`.
 - `settlement_ledger_entries(source_type, source_id)`.
+- `device_fcm_tokens(user_id, app_family, status)`.
+- `device_fcm_tokens(fcm_token_hash) unique`.
+- `notification_messages(recipient_user_id, created_at desc)`.
+- `notification_messages(event_id, recipient_user_id, app_family, event_type) unique`.
+- `notification_deliveries(message_id, channel, status)`.
+- `notification_outbox(event_id) unique`.
+- `notification_outbox(status, next_attempt_at)`.
 - `audit_logs(target_type, target_id, created_at desc)`.
 - `outbox_events(status, next_attempt_at)`.
 
