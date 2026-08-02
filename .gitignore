@@ -1,7 +1,6 @@
 HELP.md
 .gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -21,6 +20,7 @@ build/
 *.tar.gz
 *.rar
 *.zip
+!gradle/wrapper/gradle-wrapper.jar
 
 # --- Local Environment & Secrets (CRITICAL) ---
 .env
