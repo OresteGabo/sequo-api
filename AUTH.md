@@ -48,7 +48,7 @@ Main files:
 | Rate limiting | Not treated | Login, signup, refresh, and reset endpoints are unprotected from brute force. |
 | Social login hardening | Partially treated | Google is strongest; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
-| Production config hardening | Not treated | Dev fallback secrets, H2 console, and `ddl-auto=update` are active by default. |
+| Production config hardening | Partially treated | Docker profile now uses Flyway and Hibernate validation; dev fallback secrets, H2 console, and default local `ddl-auto=update` still need isolation. |
 | CI/CD security gates | Partially treated | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
 
 ## Radio-Style Implementation Matrix
@@ -129,7 +129,7 @@ Legend:
 | 64 | CORS policy | [ ] | [ ] | [x] | No explicit CORS configuration. |
 | 65 | HTTPS/HSTS enforcement | [ ] | [ ] | [x] | Not enforced in app config. |
 | 66 | H2 console restricted to local/test | [ ] | [ ] | [x] | Enabled in default properties. |
-| 67 | Production-safe schema migration policy | [ ] | [ ] | [x] | `ddl-auto=update` is in default properties. |
+| 67 | Production-safe schema migration policy | [ ] | [x] | [ ] | Flyway baseline exists and Docker profile defaults to Hibernate `validate`; default local properties still use `ddl-auto=update`. |
 | 68 | Production startup rejects default JWT secret | [ ] | [ ] | [x] | No startup validation. |
 | 69 | Production startup rejects placeholder OAuth IDs | [ ] | [ ] | [x] | No startup validation. |
 | 70 | JWT key rotation strategy | [ ] | [ ] | [x] | No `kid`, key versioning, or rotation procedure. |
