@@ -146,6 +146,7 @@ Legend:
 | 82 | Cross-tenant query protections | [ ] | [ ] | [x] | Needs scoped repository/service checks. |
 | 83 | Append-only audit tamper resistance | [ ] | [ ] | [x] | No audit table/service yet. |
 | 84 | Unsafe local config deployment guard | [ ] | [ ] | [x] | H2, dev secret, placeholders, and `ddl-auto=update` need profile isolation. |
+| 85 | Optional on-device AI password coach | [ ] | [ ] | [x] | Future KMP/mobile-only UX helper; must be open-source, local-only, and never replace server validation. |
 
 ## Already Treated In Code
 
@@ -895,7 +896,43 @@ Treatment:
 
 - Add logging guidelines and request logging filters with redaction.
 
-### 36. No Actuator Exposure Policy
+### 36. Optional On-Device AI Password Coach
+
+Severity: Optional later enhancement
+
+Placement decision:
+
+- This belongs primarily in the Kotlin Multiplatform mobile app because it helps the user before the password reaches the server.
+- The API should keep only the authoritative deterministic password policy.
+- The API may later expose non-sensitive password policy metadata or message keys, but it must never depend on the client-side AI for enforcement.
+- Shared KMP code can reuse deterministic rules, but the server remains the source of truth because mobile clients can be bypassed.
+
+Expected secure behavior:
+
+- The AI must run on-device only.
+- The model must be open-source and reviewed before use.
+- The raw password must never be sent to a remote AI service.
+- The model should produce user-facing warnings only, not final allow/deny decisions.
+- The mobile warning text must be predefined/localized by Sequo, not free-form model output.
+- The server must revalidate the password with `PasswordPolicy` even when the mobile app says the password looks strong.
+
+Example predefined warnings:
+
+- "Your password looks like someone's name."
+- "Your password looks like a birthday or date."
+- "Your password contains a common word."
+- "Your password contains a keyboard pattern."
+- "Your password contains your email or username."
+- "Your password uses repeated characters."
+- "Try a longer phrase with unrelated words, numbers, and symbols."
+
+Treatment:
+
+- Add this later in the KMP app password field as an optional local strength coach.
+- Keep the server-side `PasswordPolicy` as the source of truth.
+- Add mobile tests that verify passwords are not sent to external services for analysis.
+
+### 37. No Actuator Exposure Policy
 
 Severity: Medium
 
@@ -908,7 +945,7 @@ Treatment:
 
 - Add Actuator only with strict exposure config when needed.
 
-### 37. No Security Tests
+### 38. No Security Tests
 
 Severity: Medium/High
 
@@ -936,7 +973,7 @@ Treatment:
 
 These are not all implemented yet, but must be planned before the related modules go live.
 
-### 38. Merchant Staff Privilege Escalation
+### 39. Merchant Staff Privilege Escalation
 
 Risk:
 
@@ -948,7 +985,7 @@ Treatment:
 - Owner-only staff management.
 - Audit staff changes.
 
-### 39. Cooperative Member Data Leakage
+### 40. Cooperative Member Data Leakage
 
 Risk:
 
@@ -958,7 +995,7 @@ Treatment:
 
 - Cooperative storefront aggregation must not bypass merchant ownership checks.
 
-### 40. Courier Mission ID Guessing
+### 41. Courier Mission ID Guessing
 
 Risk:
 
@@ -968,7 +1005,7 @@ Treatment:
 
 - Object-level authorization on delivery missions.
 
-### 41. Relay Parcel ID Guessing
+### 42. Relay Parcel ID Guessing
 
 Risk:
 
@@ -978,7 +1015,7 @@ Treatment:
 
 - Relay-scoped authorization.
 
-### 42. Admin Endpoint Exposure
+### 43. Admin Endpoint Exposure
 
 Risk:
 
@@ -990,7 +1027,7 @@ Treatment:
 - MFA for internal roles.
 - Separate admin route policy.
 
-### 43. Payout/Refund Abuse
+### 44. Payout/Refund Abuse
 
 Risk:
 
@@ -1002,7 +1039,7 @@ Treatment:
 - Two-person approval for high-value actions.
 - Audit and ledger immutability.
 
-### 44. Wallet Webhook Spoofing
+### 45. Wallet Webhook Spoofing
 
 Risk:
 
@@ -1015,7 +1052,7 @@ Treatment:
 - Amount/currency/reference validation.
 - Replay protection.
 
-### 45. Delivery PIN Brute Force
+### 46. Delivery PIN Brute Force
 
 Risk:
 
@@ -1028,7 +1065,7 @@ Treatment:
 - Short TTL.
 - Audit failed attempts.
 
-### 46. PII Overexposure
+### 47. PII Overexposure
 
 Risk:
 
@@ -1040,7 +1077,7 @@ Treatment:
 - Masked contact channels.
 - Audit PII access.
 
-### 47. Mass Assignment
+### 48. Mass Assignment
 
 Risk:
 
@@ -1052,7 +1089,7 @@ Treatment:
 - Server derives owner/customer IDs from principal.
 - Reject sensitive fields in client payloads.
 
-### 48. Cross-Tenant Query Bugs
+### 49. Cross-Tenant Query Bugs
 
 Risk:
 
@@ -1063,7 +1100,7 @@ Treatment:
 - Query by `(id, owner_id)` where possible.
 - Central ownership checks before mutation.
 
-### 49. Audit Log Tampering
+### 50. Audit Log Tampering
 
 Risk:
 
@@ -1075,7 +1112,7 @@ Treatment:
 - Restrict audit access.
 - Consider write-once export for critical events.
 
-### 50. Dev/Test Config Accidentally Deployed
+### 51. Dev/Test Config Accidentally Deployed
 
 Risk:
 
@@ -1105,6 +1142,7 @@ The production auth system should use:
 - Strong provider verification for social login.
 - Secure password reset through email/SMS.
 - Production startup validation for secrets and unsafe local settings.
+- Optional on-device password coaching in the KMP app, with server-side validation remaining authoritative.
 
 ## Remediation Checklist
 
@@ -1146,6 +1184,13 @@ Priority 2, production maturity:
 - [ ] Add Actuator exposure policy.
 - [ ] Add provider/client HTTP timeouts and resilience.
 - [ ] Add ownership policy service for customers, merchants, couriers, relays, cooperatives, support, and admins.
+
+Optional later, mobile/KMP UX:
+
+- [ ] Add an open-source, on-device-only AI password coach in the KMP app.
+- [ ] Use predefined/localized warning messages rather than raw free-form model text.
+- [ ] Verify the mobile password coach never sends raw passwords to remote services.
+- [ ] Keep API-side `PasswordPolicy` as the final source of truth.
 
 ## Minimum Required Tests
 
