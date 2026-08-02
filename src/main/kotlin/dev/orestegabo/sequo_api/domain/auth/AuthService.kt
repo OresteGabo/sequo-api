@@ -13,12 +13,18 @@ class AuthService(
     private val googleVerifier: GoogleTokenVerifier,
     private val facebookVerifier: FacebookTokenVerifier,
     private val appleVerifier: AppleTokenVerifier,
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val passwordPolicy: PasswordPolicy
 ) {
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
         if (userRepository.findByEmail(request.email) != null) {
             throw IllegalArgumentException("Email already in use")
         }
+
+        passwordPolicy.validateOrThrow(
+            request.password,
+            PasswordPolicyContext(email = request.email, displayName = request.name)
+        )
 
         val user = User(
             email = request.email,
@@ -32,6 +38,7 @@ class AuthService(
 
     fun login(request: AuthController.LoginWithEmailRequest): AuthTokens? {
         val user = userRepository.findByEmail(request.email) ?: return null
+        if (!user.status.canAuthenticate()) return null
         if (user.provider != AuthProvider.EMAIL || user.passwordHash == null) return null
         
         if (!passwordEncoder.matches(request.password, user.passwordHash)) return null
@@ -66,12 +73,15 @@ class AuthService(
             }
         }
 
-        return generateTokensForUser(user!!)
+        if (!user.status.canAuthenticate()) return null
+
+        return generateTokensForUser(user)
     }
 
     fun refreshTokens(refreshToken: String): AuthTokens? {
-        val session = jwtService.parseToken(refreshToken) ?: return null
+        val session = jwtService.parseRefreshToken(refreshToken) ?: return null
         val user = userRepository.findById(session.userId).orElse(null) ?: return null
+        if (!user.status.canAuthenticate()) return null
         return generateTokensForUser(user)
     }
 
@@ -91,6 +101,11 @@ class AuthService(
     fun resetPassword(request: AuthController.ResetPasswordRequest): Boolean {
         val user = userRepository.findByResetToken(request.token) ?: return false
         if (user.resetTokenExpiry?.isBefore(Instant.now()) == true) return false
+
+        passwordPolicy.validateOrThrow(
+            request.newPassword,
+            PasswordPolicyContext(email = user.email, displayName = user.name)
+        )
 
         user.passwordHash = passwordEncoder.encode(request.newPassword)
         user.resetToken = null
