@@ -47,6 +47,8 @@ The current backend scope supersedes older legacy notes where they conflict:
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Owner-note API requirement matrix with implementation checkboxes and backlog priorities |
 | [DOMAIN_SERVICES.md](DOMAIN_SERVICES.md) | Domain service responsibilities and workflow rules |
 | [DELIVERY.md](DELIVERY.md) | Delivery and fulfillment audit: direct delivery, relay delivery, Sequo consolidation, proof, gaps, and build order |
+| [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md) | FCM, in-app notifications, SMS fallback, device tokens, event listeners, routing, delivery audit |
+| [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md) | Spring WebSocket/STOMP realtime channels, auth, topics, rider radar, bargaining, relay, admin dashboards |
 | [API_SPEC.md](API_SPEC.md) | REST API conventions, endpoint families, idempotency, response envelope, error model |
 | [PRICING_ENGINE.md](PRICING_ENGINE.md) | Delivery, subscription, loyalty, item, service fee, and pricing audit rules |
 | [COMMISSION_MODEL.md](COMMISSION_MODEL.md) | Merchant commission, platform margin, cooperative split, payout, and shortfall accounting |
