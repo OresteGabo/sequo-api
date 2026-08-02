@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sequo}
+      POSTGRES_USER: ${POSTGRES_USER:-sequo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sequo_dev_password}
+    ports:
+      - "${SEQUO_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: sequo-api:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sequo}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sequo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sequo_dev_password}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
+      JWT_SECRET: ${JWT_SECRET:-sequo_compose_dev_secret_key_2026_change_before_prod}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google_docker_dev_client_id}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-facebook_docker_dev_app_id}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-apple_docker_dev_client_id}
+      JAVA_OPTS: ${JAVA_OPTS:-}
+    ports:
+      - "${SEQUO_API_PORT:-8080}:8080"
+
+volumes:
+  postgres-data:
