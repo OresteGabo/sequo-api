@@ -52,6 +52,7 @@ The current backend scope supersedes older legacy notes where they conflict:
 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Logical relational schema, tables, enums, indexes, and constraints |
 | [SECURITY.md](SECURITY.md) | Auth, RBAC, secrets, wallet safety, PII, audit, idempotency, and operational security |
 | [CI_CD.md](CI_CD.md) | GitHub Actions CI/CD workflow, dependency updates, branch protection, and deployment requirements |
+| [DOCKER.md](DOCKER.md) | Docker image, Docker Compose runtime, environment variables, and Kubernetes timing |
 | [docs/diagrams/plantuml](docs/diagrams/plantuml/README.md) | PlantUML diagrams for architecture, payments, orders, pricing, returns, settlements, bargaining, cooperatives, database, and security |
 
 ## Core Backend Capabilities
@@ -103,6 +104,12 @@ Run the API locally after web and persistence modules are added:
 
 ```bash
 ./gradlew bootRun
+```
+
+Run the API with PostgreSQL through Docker Compose:
+
+```bash
+docker compose up --build
 ```
 
 ## Environment Groups
