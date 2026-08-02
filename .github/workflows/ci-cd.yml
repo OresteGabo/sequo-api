@@ -96,6 +96,53 @@ jobs:
           push: false
           tags: sequo-api:ci
 
+  postgres-migration-validation:
+    name: PostgreSQL Migration Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sequo_test
+          POSTGRES_USER: sequo
+          POSTGRES_PASSWORD: sequo_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sequo -d sequo_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/sequo_test
+      SPRING_DATASOURCE_USERNAME: sequo
+      SPRING_DATASOURCE_PASSWORD: sequo_test_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JWT_SECRET: ci_only_sequo_auth_secret_2026_change_me
+      GOOGLE_CLIENT_ID: ci_google_client_id
+      FACEBOOK_APP_ID: ci_facebook_app_id
+      APPLE_CLIENT_ID: ci_apple_client_id
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate migrations against PostgreSQL
+        run: ./gradlew test --tests dev.orestegabo.sequo_api.SequoApiApplicationTests --no-daemon --stacktrace
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
