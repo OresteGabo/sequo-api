@@ -117,7 +117,7 @@ Legend:
 | 53 | Signup abuse protection | [ ] | [ ] | [x] | No throttling or verification gate. |
 | 54 | Password reset abuse protection | [ ] | [ ] | [x] | No throttling or generic response. |
 | 55 | Account enumeration resistance | [ ] | [ ] | [x] | Forgot-password and signup reveal account state. |
-| 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, names, email terms, sequences, repeated characters, and common terms. |
+| 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, calendar terms, names, email terms, leetspeak weak terms, sequences, repeated characters, repeated patterns, phone-like numeric runs, and common/local terms. |
 | 57 | Password maximum length guard | [x] | [ ] | [ ] | Password policy caps passwords at 128 characters. |
 | 58 | Breached/common password rejection | [ ] | [x] | [ ] | Extended local blocked list exists; real breached-password checks are pending. |
 | 59 | Bean Validation on auth DTOs | [ ] | [ ] | [x] | No `@Valid`, `@Email`, `@NotBlank`, or size rules. |
@@ -515,7 +515,7 @@ Severity: Medium
 Current state:
 
 - Signup and reset now use `PasswordPolicy`.
-- The policy rejects blank, short, very long, missing character groups, common passwords, obvious keyboard/numeric sequences, repeated-character runs, date-like passwords, and passwords containing the user's name or email terms.
+- The policy rejects blank, short, very long, missing character groups, common passwords, local/business terms, leetspeak weak words, obvious keyboard/numeric sequences, repeated-character runs, repeated patterns, phone-like numeric runs, calendar terms with numbers, date-like passwords, and passwords containing the user's name or email terms.
 
 Remaining problem:
 
