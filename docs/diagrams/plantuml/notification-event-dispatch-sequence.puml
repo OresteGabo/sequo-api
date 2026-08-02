@@ -1,0 +1,50 @@
+@startuml
+title Sequo API - Notification Event Dispatch Sequence
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Domain Service" as Domain
+participant "DomainEventPublisher" as Publisher
+participant "NotificationDomainEventListener\nAFTER_COMMIT" as Listener
+database "notification_outbox" as Outbox
+participant "NotificationOutboxWorker" as Worker
+participant "NotificationRoutingService" as Routing
+participant "NotificationTemplateService" as Template
+database "notification_messages" as Messages
+participant "WebSocketNotificationGateway" as WS
+participant "FcmPushGateway" as FCM
+participant "SmsFallbackGateway" as SMS
+database "notification_deliveries" as Deliveries
+
+Domain -> Publisher : publish OrderStatusChangedEvent
+Publisher -> Listener : transaction committed
+Listener -> Outbox : insert pending outbox row\nunique event_id
+
+Worker -> Outbox : claim pending row\nwith worker lease
+Worker -> Routing : resolve recipients\nby role + ownership
+Routing --> Worker : recipient channel plan
+Worker -> Template : render localized message\nsafe payload
+Template --> Worker : title/body/action/payload
+Worker -> Messages : persist in-app message
+
+par Active app
+  Worker -> WS : send STOMP user/topic message
+  WS -> Deliveries : record websocket delivery
+else Background app
+  Worker -> FCM : send FCM push
+  FCM -> Deliveries : record provider result
+else Critical fallback
+  Worker -> SMS : send SMS fallback
+  SMS -> Deliveries : record provider result
+end
+
+alt transient provider failure
+  Worker -> Outbox : retry later\nFAILED_RETRYABLE
+else permanent failure
+  Worker -> Outbox : mark FAILED_FINAL
+else all required channels complete
+  Worker -> Outbox : mark SENT
+end
+
+@enduml
