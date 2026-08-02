@@ -1,0 +1,41 @@
+@startuml
+title Sequo API - Rider Realtime Mission Offer Flow
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "SequoRider App" as RiderApp
+participant "WebSocket /ws" as WS
+participant "Presence Service" as Presence
+participant "Delivery Mission Service" as Mission
+participant "DeliveryAssignmentPolicy" as Assignment
+participant "RiderRadarRealtimeService" as Radar
+participant "FCM Push Gateway" as FCM
+database "delivery_missions" as MissionsDb
+
+RiderApp -> WS : CONNECT + JWT
+WS -> Presence : mark rider AVAILABLE\nzone + device + app family
+
+Mission -> Assignment : select eligible courier\nsubscriber priority if needed
+Assignment --> Mission : selected rider or unassigned
+Mission -> MissionsDb : create/offer mission\nstatus OFFERED_TO_COURIER
+Mission -> Radar : publish mission offer event
+
+alt Rider active over WebSocket
+  Radar -> WS : /user/queue/mission-offers
+  WS -> RiderApp : mission offer payload\nsafe pickup/dropoff zones
+else Rider backgrounded
+  Radar -> FCM : high priority FCM push\nmission offer
+end
+
+RiderApp -> Mission : REST accept mission\nIdempotency-Key
+Mission -> MissionsDb : status ACCEPTED_BY_COURIER
+Mission -> Radar : publish accepted update
+Radar -> WS : /topic/delivery-missions/{missionId}
+
+note right of Radar
+Before rider accepts, payload must not include
+full customer address or phone number.
+end note
+
+@enduml
