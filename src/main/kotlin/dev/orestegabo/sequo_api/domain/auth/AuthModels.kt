@@ -35,7 +35,8 @@ data class SocialUser(
     val provider: AuthProvider,
     val email: String?,
     val name: String?,
-    val pictureUrl: String?
+    val pictureUrl: String?,
+    val emailVerified: Boolean = false
 )
 
 data class AuthTokens(
@@ -50,3 +51,21 @@ data class UserSession(
     val provider: AuthProvider,
     val roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER)
 )
+
+data class AuthErrorResponse(
+    val code: String,
+    val message: String,
+    val requiredProvider: AuthProvider? = null,
+    val attemptedProvider: AuthProvider? = null
+)
+
+class EmailAlreadyRegisteredException : RuntimeException()
+
+class AuthProviderRequiredException(
+    val requiredProvider: AuthProvider
+) : RuntimeException()
+
+class AccountLinkRequiredException(
+    val existingProvider: AuthProvider,
+    val attemptedProvider: AuthProvider
+) : RuntimeException()
