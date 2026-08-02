@@ -28,7 +28,8 @@ class GoogleTokenVerifier(
                 provider = AuthProvider.GOOGLE,
                 email = payload.email,
                 name = payload["name"] as? String,
-                pictureUrl = payload["picture"] as? String
+                pictureUrl = payload["picture"] as? String,
+                emailVerified = payload.emailVerified == true
             )
         } catch (e: Exception) {
             null
@@ -53,7 +54,8 @@ class FacebookTokenVerifier(
                 provider = AuthProvider.FACEBOOK,
                 email = response["email"] as? String,
                 name = response["name"] as? String,
-                pictureUrl = ((response["picture"] as? Map<*, *>)?.get("data") as? Map<*, *>)?.get("url") as? String
+                pictureUrl = ((response["picture"] as? Map<*, *>)?.get("data") as? Map<*, *>)?.get("url") as? String,
+                emailVerified = true
             )
         } catch (e: Exception) {
             null
