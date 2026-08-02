@@ -137,6 +137,29 @@ class OrderProcessingTest {
     }
 
     @Test
+    fun rejectsPointDeRelaiRouteForFoodAndPerishableProducts() {
+        val processor = RegularOrderProcessor(
+            paymentProcessor = PaymentProcessor(
+                paymentMethods = listOf(
+                    YasTogoPaymentMethod(validateHandler = { error("Payment must not run when relay eligibility fails.") }),
+                ),
+            ),
+            pricingService = DeliveryPricingService(),
+        )
+
+        val result = processor.process(
+            sampleRequest(
+                serviceLevel = OrderServiceLevel.Regular,
+                route = OrderRoute.PointDeRelai,
+                lines = listOf(sampleLine(category = OrderProductCategory.Food)),
+            ),
+        )
+
+        assertTrue(result is OrderProcessingResult.Rejected)
+        assertEquals("relay_not_allowed_for_perishable", result.reason.code)
+    }
+
+    @Test
     fun factoryRoutesServiceLevelsToTheRightProcessor() {
         val factory = OrderProcessorFactory(
             regularOrderProcessor = RegularOrderProcessor(
@@ -159,6 +182,7 @@ class OrderProcessingTest {
 
     private fun sampleRequest(
         serviceLevel: OrderServiceLevel,
+        route: OrderRoute = OrderRoute.FastDelivery,
         lines: List<OrderLineRequest> = listOf(sampleLine()),
         deliveryDistanceKm: Double = 5.6,
     ): OrderProcessingRequest =
@@ -166,7 +190,7 @@ class OrderProcessingTest {
             checkoutId = "checkout-2419",
             customerId = "customer-1",
             serviceLevel = serviceLevel,
-            route = OrderRoute.FastDelivery,
+            route = route,
             lines = lines,
             deliveryDistanceKm = deliveryDistanceKm,
             referralCreditCfa = 0,
