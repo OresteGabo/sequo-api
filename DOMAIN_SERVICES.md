@@ -188,6 +188,8 @@ Responsibilities:
 - Support Sequo-controlled scheduled tours for cooperative and programmed logistics.
 - Prefer freelance moto couriers for express local deliveries unless subscriber or Sequo-capacity policy takes priority.
 - Prefer salaried Sequo delivery capacity for subscriber orders and programmed/consolidated deliveries, with freelancer fallback when needed.
+- Enforce merchant fulfillment transitions: seller acceptance, preparation, packed-ready state, and courier collection.
+- Enforce delivery mission transitions: offered, accepted, picked up, direct delivered, relay deposited, relay released, problem, and cancelled.
 - Store estimated distance, actual courier cost, customer delivery fee, and delivery shortfall.
 - Enforce pickup and drop-off proof rules.
 - Validate single-use delivery PINs when used.
