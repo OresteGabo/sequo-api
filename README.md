@@ -51,6 +51,7 @@ The current backend scope supersedes older legacy notes where they conflict:
 | [SETTLEMENTS_AND_RETURNS.md](SETTLEMENTS_AND_RETURNS.md) | 72-hour return flow, relay intake, refund triggers, payout timing, financial settlement lifecycle |
 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Logical relational schema, tables, enums, indexes, and constraints |
 | [SECURITY.md](SECURITY.md) | Auth, RBAC, secrets, wallet safety, PII, audit, idempotency, and operational security |
+| [CI_CD.md](CI_CD.md) | GitHub Actions CI/CD workflow, dependency updates, branch protection, and deployment requirements |
 | [docs/diagrams/plantuml](docs/diagrams/plantuml/README.md) | PlantUML diagrams for architecture, payments, orders, pricing, returns, settlements, bargaining, cooperatives, database, and security |
 
 ## Core Backend Capabilities
@@ -90,6 +91,12 @@ Build:
 
 ```bash
 ./gradlew build
+```
+
+Run the same check used by CI:
+
+```bash
+./gradlew clean build --no-daemon --stacktrace
 ```
 
 Run the API locally after web and persistence modules are added:
