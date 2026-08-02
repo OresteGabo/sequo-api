@@ -14,13 +14,14 @@ Implemented today:
 - Multi-seller orders marked as requiring Sequo consolidation.
 - Courier assignment policy for subscriber priority, express freelance moto preference, freelancer fallback, and Sequo shortfall calculation.
 - Merchant packing workflow policy.
+- Repository-backed merchant sub-order service for seller acceptance, preparation, packing, rejection, and courier handoff.
 - Delivery mission transition policy for pickup, direct delivery, relay deposit, and relay release.
 - Relay policy blocking food/perishable relay pickup and identifying delayed parcels.
 - Flyway migration for merchant sub-orders, delivery missions, delivery PINs, relay parcels, pickup codes, and relay custody events.
 
 Not implemented yet:
 
-- Repository-backed delivery missions, merchant sub-orders, relay parcels, and custody events.
+- Repository-backed delivery missions, relay parcels, pickup codes, and custody events.
 - Merchant, courier, relay, and admin delivery controllers.
 - RBAC and ownership checks for seller/courier/relay delivery actions.
 - Real assignment queue, courier availability, dispatch locking, and re-assignment.
@@ -54,10 +55,10 @@ Not implemented yet:
 | Done | State | Step | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | Customer pays before fulfillment | API must not create fulfillment handoff until wallet payment is validated. | `OrderProcessing` stops before seller handoff if payment is pending/failed. |
-| [ ] | Partial | Paid order creates merchant sub-order | Persist order, immutable snapshots, and one sub-order per merchant. | `merchant_sub_orders` migration exists; order repository/service missing. |
-| [ ] | Partial | Seller accepts order | Seller must explicitly accept before packing. | API target exists; `MerchantFulfillmentWorkflow` has transition rules; no controller/persistence. |
-| [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentWorkflow` covers this transition. |
-| [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentWorkflow` requires `packageCount > 0`. |
+| [ ] | Partial | Paid order creates merchant sub-order | Persist order, immutable snapshots, and one sub-order per merchant. | `merchant_sub_orders` migration and service exist; order creation is not wired to create sub-orders yet. |
+| [x] | Implemented | Seller accepts order | Seller must explicitly accept before packing. | `MerchantFulfillmentService` persists acceptance and tests cover merchant scope checks. |
+| [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentService` persists preparation timestamp. |
+| [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentService` requires `packageCount > 0` and persists packed state. |
 | [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `delivery_missions` migration exists; mission service/repository missing. |
 | [x] | Implemented | Courier assignment policy | Selects eligible courier based on subscriber/order channel/workforce/vehicle rules. | `DeliveryAssignmentPolicy` and tests. |
 | [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionWorkflow` covers transition; no endpoint. |
@@ -93,7 +94,7 @@ Not implemented yet:
 
 | Done | State | Case | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Partial | Seller rejects order | Customer must be refunded or rerouted according to policy. | Merchant workflow can reject; refund orchestration missing. |
+| [ ] | Partial | Seller rejects order | Customer must be refunded or rerouted according to policy. | Merchant fulfillment service can persist rejection reason; refund orchestration missing. |
 | [ ] | Not implemented | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | Missing. |
 | [ ] | Partial | Courier reports problem | Mission can be moved to problem with reason. | Delivery workflow policy exists; endpoint/audit/notification missing. |
 | [ ] | Not implemented | Customer unavailable | Reschedule, fallback relay, support intervention, or failed delivery state. | Missing. |
@@ -106,7 +107,7 @@ Not implemented yet:
 
 | Done | State | Data | Purpose | Evidence or gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Partial | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table exists; JPA entity/repository missing. |
+| [x] | Implemented | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table, JPA entity, repository, and service exist. |
 | [ ] | Partial | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | Flyway table exists; JPA entity/repository missing. |
 | [ ] | Partial | `delivery_pins` | Direct delivery PIN validation and attempt control. | Flyway table exists; PIN service missing. |
 | [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | Flyway table exists; relay service/repository missing. |
@@ -129,7 +130,7 @@ Not implemented yet:
 
 | Done | State | Requirement | Why it matters |
 | --- | --- | --- | --- |
-| [ ] | Not implemented | Merchant ownership checks | A merchant must not accept/pack another merchant's sub-order. |
+| [ ] | Partial | Merchant ownership checks | Service rejects wrong merchant scope; controller/RBAC enforcement remains. |
 | [ ] | Not implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. |
 | [ ] | Not implemented | Relay scope checks | A relay partner must not release parcels from another relay. |
 | [ ] | Not implemented | One-time pickup/delivery credentials | PIN/QR cannot be reused or brute-forced. |
@@ -139,7 +140,7 @@ Not implemented yet:
 ## Recommended Implementation Order
 
 1. [x] Add Flyway migrations for `merchant_sub_orders`, `delivery_missions`, `delivery_pins`, `relay_parcels`, `relay_pickup_codes`, `relay_custody_events`, and required status constraints.
-2. [ ] Implement repository-backed merchant fulfillment service using `MerchantFulfillmentWorkflow`.
+2. [x] Implement repository-backed merchant fulfillment service using `MerchantFulfillmentWorkflow`.
 3. [ ] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
 4. [ ] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
 5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks.
