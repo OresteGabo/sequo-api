@@ -494,6 +494,8 @@ Index: `(customer_id, merchant_id, product_id, expires_at)`.
 
 ## Delivery And Relay
 
+Current migration: `V2__create_delivery_fulfillment_tables.sql` creates `merchant_sub_orders`, `delivery_missions`, `delivery_pins`, `relay_parcels`, `relay_pickup_codes`, and `relay_custody_events`. The tables intentionally use string reference IDs for order, merchant, courier, relay point, locker, and return aggregates until those aggregates receive their own migrations.
+
 ### `delivery_missions`
 
 | Column | Notes |
