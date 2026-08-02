@@ -6,7 +6,7 @@ This repository uses GitHub Actions for the first production-ready automation la
 
 | File | Purpose |
 | --- | --- |
-| `.github/workflows/ci-cd.yml` | Runs the Gradle build, executes tests, reviews dependency changes, and publishes the boot JAR artifact from `main`. |
+| `.github/workflows/ci-cd.yml` | Runs the Gradle build, executes tests, builds the Docker image, reviews dependency changes, and publishes the boot JAR artifact from `main`. |
 | `.github/dependabot.yml` | Opens weekly dependency update PRs for Gradle and GitHub Actions dependencies. |
 
 ## Workflow Triggers
@@ -34,6 +34,7 @@ Required checks before merge:
 | --- | --- | --- |
 | Gradle build | Yes | Compiles Kotlin, assembles the Spring Boot artifact, and runs test tasks included in `build`. |
 | Unit and context tests | Yes | Covers current auth, pricing, payment, order, and application startup behavior. |
+| Docker image build | Yes | Validates that the Spring Boot API can be packaged into the runtime container. |
 | Dependency review | Yes for PRs | Fails PRs that introduce high-severity or critical vulnerable dependency changes. |
 | Test reports artifact | Yes | Uploaded on every run for debugging failed CI results. |
 | Boot JAR artifact | Yes on `main` | Uploaded after successful pushes to `main`. |
@@ -56,6 +57,18 @@ This is intentionally provider-neutral. Once the production target is selected, 
 | Kubernetes | Good later, when multiple services and workers exist. |
 
 Production deployment should use GitHub Environments with required reviewers, environment-scoped secrets, and rollback instructions.
+
+## Docker
+
+The repository includes a multi-stage `Dockerfile` and `docker-compose.yml`. Compose is the recommended local runtime because it starts the API with PostgreSQL without requiring Kubernetes.
+
+Local run:
+
+```bash
+docker compose up --build
+```
+
+The CI workflow builds the Docker image on every PR and protected branch push. It does not publish images yet.
 
 ## Required Future Production Secrets
 
@@ -92,7 +105,7 @@ Add these once the project moves closer to production:
 
 | Step | Status |
 | --- | --- |
-| Add a Dockerfile and container image build. | Not implemented |
+| Add a Dockerfile and container image build. | Implemented |
 | Publish container images to GHCR or the selected cloud registry. | Not implemented |
 | Add Flyway or Liquibase migration validation in CI. | Not implemented |
 | Add OWASP dependency scanning or Snyk after the dependency policy is chosen. | Not implemented |
