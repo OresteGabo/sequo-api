@@ -46,7 +46,7 @@ Main files:
 | User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
 | Password reset security | Partially treated | Reset token is no longer returned and is stored hashed; notification delivery, rate limits, audit, and session revocation are still pending. |
 | Rate limiting | Not treated | Login, signup, refresh, and reset endpoints are unprotected from brute force. |
-| Social login hardening | Partially treated | Google is strongest; Facebook and Apple are incomplete. |
+| Social login hardening | Partially treated | Google is strongest; same-email social login no longer silently links accounts; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
 | Production config hardening | Partially treated | Docker profile now uses Flyway and Hibernate validation; dev fallback secrets, H2 console, and default local `ddl-auto=update` still need isolation. |
 | CI/CD security gates | Partially treated | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
@@ -111,18 +111,18 @@ Legend:
 | 46 | Finance/admin step-up auth | [ ] | [ ] | [x] | Needed for refunds, payouts, and commission changes. |
 | 47 | MFA for internal roles | [ ] | [ ] | [x] | Not implemented. |
 | 48 | Email verification | [ ] | [ ] | [x] | Signup immediately returns tokens. |
-| 49 | Social account linking confirmation | [ ] | [ ] | [x] | Existing email match links silently. |
-| 50 | Social email verification enforcement | [ ] | [ ] | [x] | Required before safe auto-linking. |
+| 49 | Social account linking confirmation | [ ] | [x] | [ ] | Same-email social login now returns `account_link_required`; full authenticated linking flow and linked-identities table are still missing. |
+| 50 | Social email verification enforcement | [ ] | [x] | [ ] | Google requires `email_verified`; Facebook and Apple verification are still incomplete. |
 | 51 | Auth endpoint rate limiting | [ ] | [ ] | [x] | Signup, login, refresh, and reset are unlimited. |
 | 52 | Account lockout or progressive delay | [ ] | [ ] | [x] | No failed-attempt tracking. |
 | 53 | Signup abuse protection | [ ] | [ ] | [x] | No throttling or verification gate. |
 | 54 | Password reset abuse protection | [ ] | [x] | [ ] | Forgot-password response is generic; throttling and audit are still missing. |
-| 55 | Account enumeration resistance | [ ] | [x] | [ ] | Forgot-password is generic; signup still reveals existing accounts. |
+| 55 | Account enumeration resistance | [ ] | [x] | [ ] | Forgot-password is generic; signup/login provider hints intentionally reveal auth method for UX and need rate limiting. |
 | 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, calendar terms, names, email terms, leetspeak weak terms, sequences, repeated characters, repeated patterns, phone-like numeric runs, and common/local terms. |
 | 57 | Password maximum length guard | [x] | [ ] | [ ] | Password policy caps passwords at 128 characters. |
 | 58 | Breached/common password rejection | [ ] | [x] | [ ] | Extended local blocked list exists; real breached-password checks are pending. |
 | 59 | Bean Validation on auth DTOs | [ ] | [ ] | [x] | No `@Valid`, `@Email`, `@NotBlank`, or size rules. |
-| 60 | Generic auth error model | [ ] | [ ] | [x] | Responses vary between 400, 401, 404, and message maps. |
+| 60 | Generic auth error model | [ ] | [x] | [ ] | Provider conflicts now use `AuthErrorResponse`; global auth error handling is still missing. |
 | 61 | Global exception handler | [ ] | [ ] | [x] | Not implemented. |
 | 62 | Auth audit logging | [ ] | [ ] | [x] | No login/reset/refresh/security event audit trail. |
 | 63 | Privacy-safe logging/redaction policy | [ ] | [ ] | [x] | No redaction filter or documented logger guard in code. |
@@ -136,7 +136,7 @@ Legend:
 | 71 | Device/session tracking | [ ] | [ ] | [x] | No device ID, IP hint, or user-agent hash persistence. |
 | 72 | Provider HTTP client timeouts | [ ] | [ ] | [x] | Facebook `RestTemplate` has no explicit timeout. |
 | 73 | Provider outage handling | [ ] | [ ] | [x] | Invalid token and upstream outage are not distinguished. |
-| 74 | Actuator exposure policy | [ ] | [ ] | [x] | Actuator is not present yet; policy not implemented. |
+| 74 | Actuator exposure policy | [ ] | [x] | [ ] | Actuator health is exposed for Docker healthchecks; broader production exposure policy is still needed. |
 | 75 | Security integration tests | [ ] | [x] | [ ] | JWT and password-policy unit tests exist; route-level integration tests are pending. |
 | 76 | Refresh token replay tests | [ ] | [ ] | [x] | Not possible until refresh sessions exist. |
 | 77 | JWT claim validation tests | [ ] | [x] | [ ] | Token-use and issuer/audience tests exist; more negative cases are pending. |
@@ -212,8 +212,8 @@ Evidence:
 Remaining work:
 
 - Reject dev placeholder client IDs outside local profile.
-- Confirm email-verification policy before account linking.
-- Add social login tests with valid, invalid, wrong-audience, expired, and missing-email tokens.
+- Add token-level tests with valid, invalid, wrong-audience, expired, and missing-email Google tokens.
+- Add authenticated account-linking flow if users should add Google after email/password login.
 
 ## Critical Vulnerabilities To Treat First
 
@@ -409,8 +409,8 @@ Severity: Critical
 
 Observed problem:
 
-- Social login links to an existing account if provider email matches an existing email.
-- This is dangerous unless the provider's email is verified and the provider is trusted for that account.
+- Older code linked to an existing account if provider email matched an existing email.
+- That was dangerous unless the provider email was verified and the existing user explicitly approved linking.
 
 Expected secure behavior:
 
@@ -419,10 +419,16 @@ Expected secure behavior:
 - Store provider identity per account in a separate linked-identities table.
 - Do not silently replace or merge auth providers.
 
-Treatment:
+Current treatment:
+
+- Same-email social login no longer signs into or silently links the existing account.
+- Email/password login or signup for a Google-only account returns `409` with `code=auth_provider_required` and `requiredProvider=GOOGLE`.
+- Google social login requires Google's `email_verified` claim before creating or matching by email.
+- Email/password accounts that later attempt Google login return `409` with `code=account_link_required`.
+
+Remaining treatment:
 
 - Add `social_identities` table.
-- Add email verification checks.
 - Require authenticated linking flow for existing accounts.
 - Audit all account-link events.
 
