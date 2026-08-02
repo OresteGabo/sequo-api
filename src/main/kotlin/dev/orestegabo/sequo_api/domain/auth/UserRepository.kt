@@ -6,5 +6,5 @@ import java.util.*
 interface UserRepository : JpaRepository<User, String> {
     fun findByEmail(email: String): User?
     fun findByProviderAndProviderId(provider: AuthProvider, providerId: String): User?
-    fun findByResetToken(resetToken: String): User?
+    fun findByResetTokenHash(resetTokenHash: String): User?
 }
