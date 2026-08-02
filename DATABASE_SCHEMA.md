@@ -5,6 +5,7 @@ This is the target logical relational schema for Sequo API. PostgreSQL is the re
 ## Schema Principles
 
 - Use UUID primary keys internally.
+- Manage relational schema through Flyway migrations in `src/main/resources/db/migration`.
 - Use human-readable operational IDs for orders, deliveries, deposits, returns, payments, and settlements.
 - Store money as integer CFA amounts.
 - Store immutable snapshots for paid orders.
@@ -33,6 +34,8 @@ This is the target logical relational schema for Sequo API. PostgreSQL is the re
 
 ### `users`
 
+Current migration: `V1__create_auth_users.sql`.
+
 | Column | Notes |
 | --- | --- |
 | `id` | UUID primary key |
@@ -45,6 +48,8 @@ This is the target logical relational schema for Sequo API. PostgreSQL is the re
 | `preferred_language` | Default `fr` |
 | `created_at`, `updated_at` | Timestamps |
 | `version` | Optimistic lock |
+
+Current implementation note: the first code entity currently stores `email`, `password_hash`, `name`, `provider`, `status`, `provider_id`, `reset_token_hash`, and `reset_token_expiry`. Public IDs, phone numbers, timestamps, optimistic locking, and role tables remain target-schema work.
 
 ### `user_roles`
 
@@ -650,4 +655,3 @@ Unique: `(actor_key, idempotency_key)`.
 - Add constraints after data is backfilled.
 - Financial tables require migration review before production deploy.
 - Enum changes require backward-compatible rollout planning.
-
