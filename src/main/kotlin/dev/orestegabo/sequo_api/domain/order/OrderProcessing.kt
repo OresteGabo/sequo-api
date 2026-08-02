@@ -260,6 +260,15 @@ abstract class SequoOrderProcessor(
         if (request.paymentReference.isBlank()) {
             return OrderRejectionReason("missing_payment_reference", "Payment reference is required before validation.")
         }
+        if (
+            request.route == OrderRoute.PointDeRelai &&
+            request.lines.any { it.category == OrderProductCategory.Food || it.category == OrderProductCategory.Perishable }
+        ) {
+            return OrderRejectionReason(
+                code = "relay_not_allowed_for_perishable",
+                message = "Point de Relai pickup is not allowed for food or perishable products.",
+            )
+        }
 
         request.lines.forEachIndexed { index, line ->
             validateLine(index, line)?.let { return it }
