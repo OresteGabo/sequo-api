@@ -59,6 +59,20 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Logistics platform | Sequo API owns logistics orchestration across customer, seller, courier, relay, and admin workflows. | Delivery workflow policy and Flyway delivery tables exist; controllers, repositories, dispatch, tracking, and settlement modules remain. |
 | [ ] | Decision needed | Routing cost | Google Maps or another routing provider cost must be controlled for courier distance estimation. | Need provider choice, quota policy, caching strategy, and fallback/manual distance policy. |
 
+## Notification And Realtime Requirements
+
+| Done | State | Area | Requirement | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [ ] | Not implemented | FCM | Store and manage FCM device tokens per user, device, platform, and app family. | Architecture documented in [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md); migrations/service not implemented. |
+| [ ] | Not implemented | Push routing | Route notifications separately for customer, merchant, relay, rider, support, admin, and super admin roles. | Routing matrix documented; service not implemented. |
+| [ ] | Not implemented | In-app inbox | Persist notification history with read/archive state. | Schema documented; migration/service not implemented. |
+| [ ] | Not implemented | SMS fallback | Use SMS backup for critical PIN, blocked delivery, relay pickup, and urgent payment/refund events. | Policy documented; provider adapter not implemented. |
+| [ ] | Not implemented | WebSocket/STOMP | Configure `/ws` with JWT-authenticated STOMP for active mobile clients. | Architecture documented in [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md); dependencies/config not implemented. |
+| [ ] | Not implemented | Realtime authorization | Authorize every STOMP subscription by role and ownership. | Topic policy documented; interceptors not implemented. |
+| [ ] | Not implemented | Rider radar | Publish live mission offers and high-priority subscriber orders to eligible riders. | Topics and payloads documented; service not implemented. |
+| [ ] | Not implemented | Bargaining realtime | Publish active offer/counter/accept/reject updates to bargaining participants. | Topics documented; bargaining service not implemented. |
+| [ ] | Not implemented | Event-driven triggers | Fire notifications from committed domain events/outbox, not controller side effects. | Event listener/outbox design documented; implementation pending. |
+
 ## Immediate Implementation Backlog
 
 ### Priority 0 - Security and startup safety
