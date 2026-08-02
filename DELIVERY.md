@@ -1,0 +1,146 @@
+# Delivery And Fulfillment
+
+This document audits Sequo delivery coverage end to end: customer checkout, seller acceptance, packing, courier pickup, direct delivery, relay delivery, Sequo consolidation, proof, problems, and settlement hooks.
+
+## Current Verdict
+
+Delivery is only partially treated.
+
+Implemented today:
+
+- Delivery pricing with 400 CFA minimum and 100 CFA per extra km.
+- Paid-order validation before seller handoff.
+- Fulfillment planning for fast delivery, pickup, Point de Relai, and grouped Sequo routes.
+- Multi-seller orders marked as requiring Sequo consolidation.
+- Courier assignment policy for subscriber priority, express freelance moto preference, freelancer fallback, and Sequo shortfall calculation.
+- Merchant packing workflow policy.
+- Delivery mission transition policy for pickup, direct delivery, relay deposit, and relay release.
+- Relay policy blocking food/perishable relay pickup and identifying delayed parcels.
+
+Not implemented yet:
+
+- Persistent delivery missions, merchant sub-orders, relay parcels, and custody events.
+- Merchant, courier, relay, and admin delivery controllers.
+- RBAC and ownership checks for seller/courier/relay delivery actions.
+- Real assignment queue, courier availability, dispatch locking, and re-assignment.
+- PIN/QR generation, hashing, verification, expiry, and attempt limits.
+- Proof photo/signature/geolocation storage.
+- Notifications, tracking, ETA, route provider integration, and maps cost controls.
+- Settlement ledger posting for courier payable, relay payable, and shortfalls.
+
+## Status Legend
+
+- `[x] Implemented`: domain code exists and focused tests cover the rule.
+- `[ ] Partial`: documented, specified, or partly modeled, but missing persistence, controllers, integrations, or full workflow.
+- `[ ] Not implemented`: no meaningful backend implementation yet.
+- `[ ] Decision needed`: product/owner decision still required.
+
+## Delivery Modes
+
+| Done | State | Mode | Backend rule | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | Delivery workflow policy exists; mission persistence/controllers/proof storage missing. |
+| [ ] | Partial | Express delivery | Non-subscriber express orders prefer freelance moto couriers. | `DeliveryAssignmentPolicy` implements selection; dispatch queue missing. |
+| [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
+| [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
+| [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `OrderProcessing` marks consolidation; manifest, hub custody, and final dispatch missing. |
+| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | Relay route/policy/schema/API target exist; code generation, locker assignment, and relay controllers missing. |
+| [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
+| [ ] | Partial | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | Return docs/API/schema exist; service implementation missing. |
+
+## Happy Path: Direct Customer Delivery
+
+| Done | State | Step | Required backend behavior | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [x] | Implemented | Customer pays before fulfillment | API must not create fulfillment handoff until wallet payment is validated. | `OrderProcessing` stops before seller handoff if payment is pending/failed. |
+| [ ] | Partial | Paid order creates merchant sub-order | Persist order, immutable snapshots, and one sub-order per merchant. | Target schema exists; no order repository/service yet. |
+| [ ] | Partial | Seller accepts order | Seller must explicitly accept before packing. | API target exists; `MerchantFulfillmentWorkflow` has transition rules; no controller/persistence. |
+| [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentWorkflow` covers this transition. |
+| [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentWorkflow` requires `packageCount > 0`. |
+| [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | Target schema exists; no mission service/repository. |
+| [x] | Implemented | Courier assignment policy | Selects eligible courier based on subscriber/order channel/workforce/vehicle rules. | `DeliveryAssignmentPolicy` and tests. |
+| [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionWorkflow` covers transition; no endpoint. |
+| [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionWorkflow` requires proof. |
+| [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionWorkflow` blocks direct delivery without proof. |
+| [ ] | Partial | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | Target docs/schema exist; no persisted workflow service. |
+| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | Shortfall calculation exists; ledger posting missing. |
+
+## Happy Path: Relay Delivery
+
+| Done | State | Step | Required backend behavior | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [x] | Implemented | Reject food/perishable relay route | Food and perishables cannot be routed to Point de Relai by default. | `OrderProcessing` and `RelayParcelPolicy` enforce the rule. |
+| [ ] | Partial | Create relay parcel | Eligible relay order creates parcel record and assigns relay point/locker. | Schema target exists; no relay parcel service. |
+| [x] | Implemented | Courier deposits at relay | Relay mission can move to deposited only with proof. | `DeliveryMissionWorkflow` covers transition. |
+| [ ] | Not implemented | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | Schema/API target only. |
+| [x] | Implemented | Release requires code and identity validation | Relay release requires pickup code and identity validation. | `DeliveryMissionWorkflow` enforces both flags at policy level. |
+| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy` identifies threshold; scheduler/fee ledger missing. |
+| [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | Product decision required before automation. |
+
+## Grouped Sequo And Cooperative Delivery
+
+| Done | State | Step | Required backend behavior | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [ ] | Partial | Multi-seller checkout detected | Backend detects multiple sellers and marks consolidation required. | `OrderProcessing` does this. |
+| [ ] | Not implemented | Create consolidation manifest | API must create manifest with seller packages, Sequo hub custody, and final package ID. | Missing service/schema detail beyond target docs. |
+| [ ] | Not implemented | Sellers mark each sub-order ready | All merchants must accept and mark ready before Sequo pickup/consolidation. | Merchant workflow policy exists for one package; aggregate manifest workflow missing. |
+| [ ] | Not implemented | Sequo collects from sellers | Sequo/courier missions collect each seller package into consolidation custody. | Missing. |
+| [ ] | Not implemented | Final customer package dispatched | Consolidated package gets one final delivery or relay route. | Missing. |
+| [ ] | Partial | Settlement remains per merchant | Even one package must preserve item ownership and per-merchant commission/refund liability. | Commission/schema docs exist; implementation missing. |
+
+## Problem And Exception Flows
+
+| Done | State | Case | Required backend behavior | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [ ] | Partial | Seller rejects order | Customer must be refunded or rerouted according to policy. | Merchant workflow can reject; refund orchestration missing. |
+| [ ] | Not implemented | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | Missing. |
+| [ ] | Partial | Courier reports problem | Mission can be moved to problem with reason. | Delivery workflow policy exists; endpoint/audit/notification missing. |
+| [ ] | Not implemented | Customer unavailable | Reschedule, fallback relay, support intervention, or failed delivery state. | Missing. |
+| [ ] | Not implemented | Relay locker unavailable | Alternative locker/relay/manual custody workflow. | Missing. |
+| [ ] | Not implemented | Package lost/damaged | Responsibility assignment, evidence, support investigation, ledger liability. | Return/settlement docs only. |
+| [ ] | Not implemented | Courier no-show | Mission expiry, reassign, courier penalty/support workflow. | Missing. |
+| [ ] | Not implemented | Duplicate pickup/delivery submission | Idempotency key plus state guard prevents duplicate side effects. | Idempotency docs exist; delivery endpoints missing. |
+
+## Delivery Data That Must Be Persisted
+
+| Done | State | Data | Purpose | Evidence or gap |
+| --- | --- | --- | --- | --- |
+| [ ] | Partial | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Target schema only. |
+| [ ] | Partial | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | Target schema only. |
+| [ ] | Partial | `delivery_pins` | Direct delivery PIN validation and attempt control. | Target schema only. |
+| [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | Target schema only. |
+| [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | Target schema only. |
+| [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | Target schema only. |
+| [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
+| [ ] | Partial | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | Target schema only. |
+
+## API Surface Required Before Delivery Apps Work
+
+| Done | State | Endpoint family | Needed endpoints |
+| --- | --- | --- | --- |
+| [ ] | Partial | Merchant order workflow | Accept, reject, start preparation, mark packed/ready, handoff verification. |
+| [ ] | Partial | Courier missions | List offers, accept, pickup with proof, deliver with proof/PIN, deposit at relay, report problem. |
+| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. |
+| [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. |
+| [ ] | Partial | Admin dispatch | Reassign courier, pause courier, force problem state, view capacity, view delayed parcels, resolve failed deliveries. |
+
+## Security Requirements For Delivery
+
+| Done | State | Requirement | Why it matters |
+| --- | --- | --- | --- |
+| [ ] | Not implemented | Merchant ownership checks | A merchant must not accept/pack another merchant's sub-order. |
+| [ ] | Not implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. |
+| [ ] | Not implemented | Relay scope checks | A relay partner must not release parcels from another relay. |
+| [ ] | Not implemented | One-time pickup/delivery credentials | PIN/QR cannot be reused or brute-forced. |
+| [ ] | Not implemented | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. |
+| [ ] | Not implemented | Idempotency | Pickup, delivery, relay release, and problem reports must not duplicate side effects. |
+
+## Recommended Implementation Order
+
+1. Add Flyway migrations for `merchant_sub_orders`, `delivery_missions`, `delivery_pins`, `relay_parcels`, `relay_pickup_codes`, `relay_custody_events`, and required enums.
+2. Implement repository-backed merchant fulfillment service using `MerchantFulfillmentWorkflow`.
+3. Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
+4. Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
+5. Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks.
+6. Add notification/outbox events and settlement ledger posting.
+7. Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized.
