@@ -37,9 +37,9 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Apps and roles | Support separate customer, seller, courier, and future relay apps against one API. | Roles are documented; RBAC, scoped permissions, and app-specific claims remain incomplete. |
 | [ ] | Partial | Admin operations | Admin can use a web monitoring surface instead of a desktop app. | Monitoring endpoints are now specified; implementation remains. |
 | [x] | Implemented | Relay logistics | Point de Relai is not allowed for food or perishable products. | `OrderProcessing` rejects relay routing and `RelayParcelPolicy` rejects relay pickup for food/perishable lines. |
-| [ ] | Partial | Relay logistics | Customers can choose relay pickup for eligible deliveries. | `PointDeRelai` route and relay release policy exist; relay availability, parcel assignment, and customer pickup service remain. |
+| [ ] | Partial | Relay logistics | Customers can choose relay pickup for eligible deliveries. | `PointDeRelai` route, relay release policy, and relay parcel migration exist; relay availability, assignment service, and customer pickup service remain. |
 | [ ] | Partial | Relay logistics | Relay locations manage lockers/cases for parcels. | Schema documents `relay_lockers`; implementation remains. |
-| [ ] | Partial | Relay logistics | Pickup uses numeric code or QR code plus identity validation. | Delivery workflow requires code and identity validation; hashed code generation, QR payload, attempt limits, and relay endpoint remain. |
+| [ ] | Partial | Relay logistics | Pickup uses numeric code or QR code plus identity validation. | Delivery workflow and `relay_pickup_codes` table exist; hashed code generation, QR payload, attempt limits, and relay endpoint remain. |
 | [ ] | Partial | Relay logistics | Parcels staying more than 2 weeks can start storage fees. | `RelayParcelPolicy` identifies fee-eligible parcels; scheduler, fee ledger, and notification workflow remain. |
 | [ ] | Decision needed | Relay logistics | After another 2 weeks, parcel can be returned to seller; 1-month timing is still discussable. | Owner decision needed before final threshold and fee policy are locked. |
 | [ ] | Partial | Commissions | Default merchant commission is 15%. | Commission docs and schema constrain default; service/controller implementation remains. |
@@ -48,7 +48,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Cooperatives | Group merchants into market cooperatives such as Marche de Mulhouse. | Schema/API/docs exist; cooperative service implementation remains. |
 | [ ] | Not implemented | Cooperatives | Merchants or cooperative actors request cooperative creation, then Sequo validates. | Requires request/approval workflow and scoped permissions. |
 | [ ] | Partial | Consolidation | Multi-merchant purchases pass through Sequo and arrive as one package to the customer. | Order processor marks multi-seller orders as requiring consolidation; fulfillment workflow remains. |
-| [ ] | Partial | Merchant fulfillment | Merchant prepares package in a reasonable delay and marks it ready for Sequo pickup. | `MerchantFulfillmentWorkflow` enforces accept/prepare/packed/handoff transitions; controller, persistence, and SLA tracking remain. |
+| [ ] | Partial | Merchant fulfillment | Merchant prepares package in a reasonable delay and marks it ready for Sequo pickup. | `MerchantFulfillmentWorkflow` and `merchant_sub_orders` table exist; controller, repository-backed service, and SLA tracking remain. |
 | [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods. |
 | [x] | Implemented | Catalog media | Generic sealed products can use reference/catalog images. | `GenericCatalogImage` is accepted only for `GenericSealedItem`. |
 | [ ] | Not implemented | Food catalog | Food items need toppings/customizations/options. | Requires customization group/option model, price deltas, and order snapshots. |
@@ -56,7 +56,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Returns | Return window is 72 hours after delivery/customer receipt. | Docs/schema specify the rule; eligibility service remains. |
 | [ ] | Partial | Refunds | Refund is triggered only after Sequo physically receives the returned item. | Docs/API specify physical receipt; refund orchestration remains. |
 | [ ] | Partial | Settlements | Merchant payout should happen within 1 week after Sequo receives package/custody. | Settlement docs/schema specify schedule; payout scheduler remains. |
-| [ ] | Partial | Logistics platform | Sequo API owns logistics orchestration across customer, seller, courier, relay, and admin workflows. | Delivery workflow policy now covers seller/courier/relay transitions; controllers, persistence, dispatch, tracking, and settlement modules remain. |
+| [ ] | Partial | Logistics platform | Sequo API owns logistics orchestration across customer, seller, courier, relay, and admin workflows. | Delivery workflow policy and Flyway delivery tables exist; controllers, repositories, dispatch, tracking, and settlement modules remain. |
 | [ ] | Decision needed | Routing cost | Google Maps or another routing provider cost must be controlled for courier distance estimation. | Need provider choice, quota policy, caching strategy, and fallback/manual distance policy. |
 
 ## Immediate Implementation Backlog
