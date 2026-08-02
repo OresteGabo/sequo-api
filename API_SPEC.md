@@ -115,6 +115,10 @@ Error response:
 | `POST` | `/merchant/products` | Merchant | Create product |
 | `PATCH` | `/merchant/products/{productId}` | Merchant owner | Update product |
 | `PATCH` | `/merchant/products/{productId}/bargaining` | Merchant owner | Toggle bargaining |
+| `POST` | `/merchant/products/{productId}/media/live-captures` | Merchant owner | Attach real-time camera evidence |
+| `POST` | `/merchant/products/{productId}/media/catalog-reference` | Merchant owner/admin | Attach approved generic catalog image |
+| `POST` | `/merchant/products/{productId}/customization-groups` | Merchant owner | Create food topping/option group |
+| `PATCH` | `/merchant/products/{productId}/customization-groups/{groupId}` | Merchant owner | Update topping/option group |
 
 ### Cooperative Markets
 
@@ -122,7 +126,11 @@ Error response:
 | --- | --- | --- | --- |
 | `GET` | `/cooperatives` | Optional | Browse cooperative markets |
 | `GET` | `/cooperatives/{cooperativeId}` | Optional | Cooperative storefront |
+| `POST` | `/cooperatives/requests` | Merchant owner | Request cooperative creation or membership |
+| `GET` | `/merchant/cooperatives/requests` | Merchant owner | Read own cooperative requests |
 | `POST` | `/admin/cooperatives` | Admin | Create cooperative |
+| `POST` | `/admin/cooperatives/requests/{requestId}/approve` | Admin | Approve cooperative request |
+| `POST` | `/admin/cooperatives/requests/{requestId}/reject` | Admin | Reject cooperative request |
 | `POST` | `/admin/cooperatives/{cooperativeId}/members` | Admin | Add merchant member |
 | `DELETE` | `/admin/cooperatives/{cooperativeId}/members/{merchantId}` | Admin | Remove member |
 
@@ -134,6 +142,10 @@ Error response:
 | `POST` | `/checkout` | Customer | Create checkout session and payment intent |
 | `GET` | `/checkout/{checkoutId}` | Customer owner | Read checkout status |
 | `POST` | `/checkout/{checkoutId}/confirm` | Customer owner | Confirm selected wallet payment flow |
+| `GET` | `/subscriptions/tiers` | Optional | List active subscription tiers and delivery discounts |
+| `GET` | `/users/me/subscription` | Customer | Read own subscription status |
+| `POST` | `/users/me/subscription` | Customer | Start or change monthly subscription |
+| `GET` | `/users/me/referral-credit` | Customer | Read delivery-only referral credit balance |
 
 ### Bargaining
 
@@ -168,7 +180,9 @@ Error response:
 | `POST` | `/courier/missions/{missionId}/deliver` | Courier | Complete with proof/PIN |
 | `GET` | `/relay/parcels` | Relay partner | Parcels at assigned relay |
 | `POST` | `/relay/parcels/deposit` | Relay partner | Receive parcel or return |
+| `POST` | `/relay/parcels/{parcelId}/validate-pickup-code` | Relay partner | Validate pickup numeric code or QR payload |
 | `POST` | `/relay/parcels/{parcelId}/release` | Relay partner | Release to customer/Sequo agent |
+| `GET` | `/admin/relay/parcels/delayed` | Admin/support | List delayed relay parcels for fee/return workflow |
 
 ### Returns
 
@@ -202,6 +216,8 @@ No endpoint should support cash withdrawal.
 | `POST` | `/admin/payout-batches/{batchId}/approve` | Finance admin | Approve payout batch |
 | `POST` | `/admin/settlements/{settlementId}/hold` | Finance admin | Place hold with reason |
 | `POST` | `/admin/settlements/{settlementId}/release` | Finance admin | Release hold |
+| `GET` | `/admin/monitoring/operations` | Admin/support | Operational dashboard for orders, returns, relays, payouts |
+| `GET` | `/admin/monitoring/delivery-capacity` | Admin/support | Courier capacity and subscriber-priority delivery view |
 
 ## Idempotency Rules
 
@@ -225,4 +241,3 @@ The API should store:
 - Response body or terminal result.
 - Expiry.
 - Conflict state when same key is reused with a different request hash.
-
