@@ -49,6 +49,7 @@ Main files:
 | Social login hardening | Partially treated | Google is strongest; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
 | Production config hardening | Not treated | Dev fallback secrets, H2 console, and `ddl-auto=update` are active by default. |
+| CI/CD security gates | Partially treated | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
 
 ## Radio-Style Implementation Matrix
 
@@ -147,6 +148,8 @@ Legend:
 | 83 | Append-only audit tamper resistance | [ ] | [ ] | [x] | No audit table/service yet. |
 | 84 | Unsafe local config deployment guard | [ ] | [ ] | [x] | H2, dev secret, placeholders, and `ddl-auto=update` need profile isolation. |
 | 85 | Optional on-device AI password coach | [ ] | [ ] | [x] | Future KMP/mobile-only UX helper; must be open-source, local-only, and never replace server validation. |
+| 86 | CI executes auth and security tests | [x] | [ ] | [ ] | GitHub Actions runs `./gradlew clean build --no-daemon --stacktrace` on PRs and protected branch pushes. |
+| 87 | PR dependency vulnerability review | [ ] | [x] | [ ] | Dependency Review fails high-severity vulnerable dependency changes; broader SAST and secret scanning are still pending. |
 
 ## Already Treated In Code
 
@@ -1129,6 +1132,7 @@ Treatment:
 - Strict Spring profiles.
 - Startup config validator.
 - CI/CD production config checks.
+- GitHub Actions build/test gate and dependency review are now present; add SAST, secret scanning, and deployment smoke tests later.
 
 ## Target Auth Architecture
 
