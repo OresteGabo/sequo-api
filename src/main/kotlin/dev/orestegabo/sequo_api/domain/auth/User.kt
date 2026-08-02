@@ -30,8 +30,8 @@ class User(
     @Column(unique = true)
     val providerId: String? = null,
 
-    @Column
-    var resetToken: String? = null,
+    @Column(name = "reset_token_hash")
+    var resetTokenHash: String? = null,
 
     @Column
     var resetTokenExpiry: Instant? = null
