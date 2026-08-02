@@ -15,7 +15,10 @@ RUN ./gradlew --no-daemon bootJar && \
 
 FROM eclipse-temurin:21-jre
 
-RUN groupadd --system sequo && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --system sequo && \
     useradd --system --gid sequo --home-dir /app --shell /usr/sbin/nologin sequo
 
 WORKDIR /app
@@ -28,5 +31,8 @@ EXPOSE 8080
 
 ENV SPRING_PROFILES_ACTIVE=docker
 ENV JAVA_OPTS=""
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+    CMD curl --fail --silent --show-error http://localhost:8080/actuator/health/readiness || exit 1
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
