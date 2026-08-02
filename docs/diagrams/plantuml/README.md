@@ -8,6 +8,12 @@ Render with any PlantUML-compatible tool, for example:
 plantuml docs/diagrams/plantuml/*.puml
 ```
 
+Render embeddable SVGs into the generated folder:
+
+```bash
+plantuml -tsvg -o generated docs/diagrams/plantuml/*.puml
+```
+
 ## Diagram Map
 
 | File | Purpose |
@@ -27,4 +33,15 @@ plantuml docs/diagrams/plantuml/*.puml
 | `cooperative-market-flow.puml` | Multi-merchant cooperative order split and consolidation |
 | `database-erd.puml` | High-level logical database relationships |
 | `security-auth-rbac-sequence.puml` | Auth, JWT validation, RBAC, ownership, and audit flow |
+| `notification-system-architecture.puml` | FCM, WebSocket, SMS fallback, outbox, routing, templates, and notification audit architecture |
+| `notification-event-dispatch-sequence.puml` | Domain event to notification outbox, routing, delivery, retry, and audit flow |
+| `websocket-stomp-architecture.puml` | Spring WebSocket/STOMP endpoint, JWT auth, destination authorization, topics, and broker |
+| `rider-realtime-mission-flow.puml` | SequoRider availability, mission offer, WebSocket/FCM delivery, and mission acceptance flow |
 
+## Generated SVGs
+
+Generated SVGs live under `docs/diagrams/plantuml/generated/` and can be embedded in Markdown with normal image syntax:
+
+```markdown
+![Notification system architecture](docs/diagrams/plantuml/generated/notification-system-architecture.svg)
+```
