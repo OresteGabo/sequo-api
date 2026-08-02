@@ -15,24 +15,48 @@ class AuthController(private val authService: AuthService) {
     data class ResetPasswordRequest(val token: String, val newPassword: String)
 
     @PostMapping("/signup")
-    fun signUp(@RequestBody request: SignUpRequest): ResponseEntity<AuthTokens> {
+    fun signUp(@RequestBody request: SignUpRequest): ResponseEntity<Any> {
         return try {
             ResponseEntity.ok(authService.signUp(request))
+        } catch (e: AuthProviderRequiredException) {
+            authProviderRequiredResponse(e.requiredProvider)
+        } catch (e: EmailAlreadyRegisteredException) {
+            ResponseEntity.status(409).body(
+                AuthErrorResponse(
+                    code = "email_already_registered",
+                    message = "An account already exists for this email."
+                )
+            )
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().build()
         }
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginWithEmailRequest): ResponseEntity<AuthTokens> {
-        val tokens = authService.login(request)
-        return tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+    fun login(@RequestBody request: LoginWithEmailRequest): ResponseEntity<Any> {
+        return try {
+            val tokens = authService.login(request)
+            tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+        } catch (e: AuthProviderRequiredException) {
+            authProviderRequiredResponse(e.requiredProvider)
+        }
     }
 
     @PostMapping("/login/social")
-    fun loginSocial(@RequestBody request: LoginWithSocialRequest): ResponseEntity<AuthTokens> {
-        val tokens = authService.loginWithSocialToken(request.provider, request.token)
-        return tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+    fun loginSocial(@RequestBody request: LoginWithSocialRequest): ResponseEntity<Any> {
+        return try {
+            val tokens = authService.loginWithSocialToken(request.provider, request.token)
+            tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+        } catch (e: AccountLinkRequiredException) {
+            ResponseEntity.status(409).body(
+                AuthErrorResponse(
+                    code = "account_link_required",
+                    message = "This email already belongs to an existing ${providerLabel(e.existingProvider)} account. Sign in with that method before linking ${providerLabel(e.attemptedProvider)}.",
+                    requiredProvider = e.existingProvider,
+                    attemptedProvider = e.attemptedProvider
+                )
+            )
+        }
     }
 
     @PostMapping("/refresh")
@@ -58,4 +82,21 @@ class AuthController(private val authService: AuthService) {
             ResponseEntity.badRequest().body(mapOf("message" to "Invalid or expired token"))
         }
     }
+
+    private fun authProviderRequiredResponse(provider: AuthProvider): ResponseEntity<Any> =
+        ResponseEntity.status(409).body(
+            AuthErrorResponse(
+                code = "auth_provider_required",
+                message = "This account uses ${providerLabel(provider)} sign-in. Continue with ${providerLabel(provider)} to access it.",
+                requiredProvider = provider
+            )
+        )
+
+    private fun providerLabel(provider: AuthProvider): String =
+        when (provider) {
+            AuthProvider.EMAIL -> "email/password"
+            AuthProvider.GOOGLE -> "Google"
+            AuthProvider.FACEBOOK -> "Facebook"
+            AuthProvider.APPLE -> "Apple"
+        }
 }
