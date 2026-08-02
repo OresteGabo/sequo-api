@@ -24,10 +24,15 @@ This is the target logical relational schema for Sequo API. PostgreSQL is the re
 | `merchant_type` | `LOGISTICS`, `STANDARD_RESTAURANT`, `SERVICE`, `COOPERATIVE_MEMBER` |
 | `delivery_mode` | `STANDARD`, `EXPRESS`, `PROGRAMMED`, `CLICK_COLLECT`, `RELAY` |
 | `wallet_provider` | `YAS_TOGO`, `MOOV_AFRICA`, `SEQUO_INTERNAL` |
+| `courier_workforce_type` | `SEQUO_SALARIED`, `FREELANCER` |
+| `vehicle_type` | `MOTO`, `BICYCLE`, `CAR`, `VAN` |
 | `order_status` | `DRAFT`, `PRICE_QUOTED`, `PAYMENT_PENDING`, `PAID`, `MERCHANT_PENDING`, `ACCEPTED`, `PREPARING`, `READY_FOR_PICKUP`, `IN_TRANSIT`, `RELAY_DEPOSITED`, `DELIVERED`, `RETURN_WINDOW_OPEN`, `RETURN_REQUESTED`, `REFUNDED`, `SETTLED`, `CANCELLED`, `REJECTED`, `DELIVERY_PROBLEM` |
 | `return_status` | `REQUESTED`, `AWAITING_RELAY_DROPOFF`, `DROPPED_AT_RELAY`, `IN_SEQUO_COLLECTION`, `RECEIVED_BY_SEQUO`, `REFUND_APPROVED`, `REFUND_PENDING`, `REFUNDED`, `REJECTED`, `EXPIRED`, `DISPUTED` |
 | `bargaining_status` | `OPEN`, `CUSTOMER_OFFERED`, `MERCHANT_COUNTERED`, `ACCEPTED`, `REJECTED`, `LOCKED_ATTEMPTS_EXHAUSTED`, `EXPIRED` |
 | `payment_status` | `CREATED`, `PENDING_PROVIDER`, `AUTHORIZED`, `CAPTURED`, `FAILED`, `CANCELLED`, `REFUNDED`, `PARTIALLY_REFUNDED` |
+| `payment_feature` | `CUSTOMER_CHECKOUT`, `SUBSCRIPTION_BILLING`, `REFUND`, `PAYOUT` |
+| `product_media_source` | `LIVE_CAMERA`, `GENERIC_CATALOG_REFERENCE`, `ADMIN_APPROVED_REFERENCE` |
+| `referral_credit_status` | `ACTIVE`, `EXPIRED`, `CONSUMED`, `REVOKED` |
 | `payout_status` | `ACCRUED`, `HELD_RETURN_WINDOW`, `HELD_DISPUTE`, `ELIGIBLE`, `BATCHED`, `APPROVED`, `SENT_TO_PROVIDER`, `PAID`, `FAILED`, `ADJUSTED` |
 
 ## Identity And Access
@@ -145,7 +150,8 @@ Unique: `(merchant_id, user_id)`.
 | `id` | UUID primary key |
 | `user_id` | FK |
 | `status` | Active/unavailable/suspended |
-| `vehicle_type` | Moto/car/bike/etc. |
+| `workforce_type` | `courier_workforce_type`; salaried Sequo staff or freelancer |
+| `vehicle_type` | `vehicle_type` |
 | `kyc_status` | Review state |
 | `wallet_provider` | Yas/Moov |
 | `wallet_account_ref` | Provider reference |
@@ -219,6 +225,47 @@ Unique: `(relay_point_id, locker_code)`.
 
 Unique: `(product_id, delivery_mode)`.
 
+### `product_media`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `product_id` | FK |
+| `source_type` | `product_media_source` |
+| `storage_key` | Object storage key or catalog reference key |
+| `captured_at` | Nullable; required for live camera evidence |
+| `uploaded_by_user_id` | FK `users.id` |
+| `approved_by_admin_id` | Nullable FK for admin-approved references |
+| `approved_at` | Nullable |
+| `metadata` | JSONB for device/camera hints, dimensions, moderation result |
+| `created_at` | Timestamp |
+
+Rule: seller-specific goods require `LIVE_CAMERA` evidence. Generic sealed products can use `GENERIC_CATALOG_REFERENCE` or `ADMIN_APPROVED_REFERENCE`.
+
+### `product_customization_groups`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `product_id` | FK |
+| `name` | Example `Toppings`, `Sauce`, `Side` |
+| `required` | Boolean |
+| `min_choices` | Minimum selected options |
+| `max_choices` | Maximum selected options |
+| `display_order` | Sort order |
+| `active` | Boolean |
+
+### `product_customization_options`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `group_id` | FK `product_customization_groups.id` |
+| `name` | Option label |
+| `price_delta_cfa` | Extra or discount amount |
+| `available` | Boolean |
+| `display_order` | Sort order |
+
 ### `cooperative_markets`
 
 | Column | Notes |
@@ -241,6 +288,23 @@ Unique: `(product_id, delivery_mode)`.
 | `joined_at` | Timestamp |
 
 Unique: `(cooperative_id, merchant_id)`.
+
+### `cooperative_requests`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `request_code` | Human-readable request code |
+| `requested_by_user_id` | FK `users.id` |
+| `cooperative_id` | Nullable FK for membership requests |
+| `merchant_id` | Nullable FK for requesting merchant |
+| `request_type` | `CREATE_COOPERATIVE`, `JOIN_COOPERATIVE` |
+| `requested_name` | Nullable cooperative name for create requests |
+| `city`, `neighborhood` | Nullable location |
+| `status` | Pending/approved/rejected/cancelled |
+| `reviewed_by_admin_id` | Nullable FK |
+| `review_reason` | Nullable |
+| `created_at`, `updated_at`, `reviewed_at` | Timestamps |
 
 ## Subscriptions And Loyalty
 
@@ -335,6 +399,7 @@ Unique: `(cooperative_id, merchant_id)`.
 | `platform_margin_cfa` | Original margin |
 | `effective_base_cfa` | After bargaining allocation |
 | `effective_margin_cfa` | After bargaining allocation |
+| `customization_snapshot` | JSONB copy of selected toppings/options and price deltas |
 | `bargaining_lock_id` | Nullable |
 | `returnable` | Snapshot |
 | `line_total_cfa` | Quantity total |
@@ -462,6 +527,21 @@ Index: `(customer_id, merchant_id, product_id, expires_at)`.
 | `deposit_code` | `DEP-...`, nullable unique |
 | `status` | Deposited/picked_up/collected/delayed/problem |
 | `deposited_at`, `picked_up_at`, `collected_at` | Nullable |
+| `late_fee_started_at` | Nullable; set when delayed parcel fee policy starts |
+| `return_to_seller_due_at` | Nullable; set only after owner-approved threshold policy |
+
+### `relay_pickup_codes`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `relay_parcel_id` | FK |
+| `code_hash` | Hashed numeric pickup code |
+| `qr_nonce_hash` | Nullable hashed QR nonce |
+| `identity_check_required` | Boolean |
+| `expires_at` | Timestamp |
+| `used_at` | Nullable |
+| `attempt_count` | Integer |
 
 ### `relay_custody_events`
 
@@ -524,8 +604,24 @@ Index: `(customer_id, merchant_id, product_id, expires_at)`.
 | `provider_reference` | Nullable |
 | `status` | `payment_status` |
 | `amount_cfa` | Amount |
+| `feature` | `payment_feature` |
 | `idempotency_key` | Unique per actor/operation |
 | `created_at`, `updated_at` | Timestamps |
+
+### `referral_delivery_credits`
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `customer_id` | FK `users.id` |
+| `source_referral_id` | Nullable referral campaign/reference |
+| `amount_cfa` | Original delivery credit amount |
+| `remaining_cfa` | Remaining delivery credit |
+| `status` | `referral_credit_status` |
+| `expires_at` | Nullable |
+| `created_at`, `updated_at` | Timestamps |
+
+Rule: referral credits can reduce delivery fees only. They must not be withdrawable, transferable as cash, or included in merchant/courier payouts.
 
 ### `wallet_transactions`
 
@@ -635,13 +731,17 @@ Unique: `(actor_key, idempotency_key)`.
 - `merchant_sub_orders(merchant_id, status, created_at desc)`.
 - `products(merchant_id, status)`.
 - `products(bargaining_enabled, status)`.
+- `product_media(product_id, source_type)`.
+- `cooperative_requests(status, created_at)`.
 - `bargaining_sessions(customer_id, merchant_id, product_id, variant_id, status)`.
 - `accepted_price_locks(customer_id, merchant_id, product_id, expires_at)`.
 - `delivery_missions(courier_id, status)`.
 - `relay_parcels(relay_point_id, status, deposited_at)`.
+- `relay_pickup_codes(relay_parcel_id, used_at)`.
 - `return_requests(order_id)`.
 - `return_requests(status, requested_at)`.
 - `payment_intents(provider, provider_reference)`.
+- `referral_delivery_credits(customer_id, status, expires_at)`.
 - `wallet_transactions(provider, provider_reference) unique where provider_reference is not null`.
 - `settlement_ledger_entries(source_type, source_id)`.
 - `audit_logs(target_type, target_id, created_at desc)`.
