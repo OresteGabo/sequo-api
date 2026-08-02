@@ -9,7 +9,7 @@ class PasswordPolicyTest {
 
     @Test
     fun acceptsStrongPassword() {
-        assertTrue(passwordPolicy.validate("RiverMarket2026!").isEmpty())
+        assertTrue(passwordPolicy.validate("Cobalt-Violet-47!").isEmpty())
     }
 
     @Test
@@ -71,5 +71,44 @@ class PasswordPolicyTest {
 
         assertTrue(keyboardViolations.any { it.code == "password_keyboard_sequence" })
         assertTrue(repeatedViolations.any { it.code == "password_repeated_characters" })
+    }
+
+    @Test
+    fun rejectsLeetspeakWeakTermsInsideLongerPasswords() {
+        val violations = passwordPolicy.validate("MyP@ssw0rd2026!")
+
+        assertTrue(violations.any { it.code == "password_contains_weak_term" })
+    }
+
+    @Test
+    fun rejectsLongNumericRunsThatLookLikePhoneNumbersOrIds() {
+        val violations = passwordPolicy.validate("Secure99011234!")
+
+        assertTrue(violations.any { it.code == "password_long_numeric_run" })
+    }
+
+    @Test
+    fun rejectsRepeatedPatterns() {
+        val violations = passwordPolicy.validate("Ab1!Ab1!Ab1!")
+
+        assertTrue(violations.any { it.code == "password_repeated_pattern" })
+    }
+
+    @Test
+    fun rejectsCalendarWordsWithNumbers() {
+        val englishViolations = passwordPolicy.validate("JanuarySafe2026!")
+        val frenchViolations = passwordPolicy.validate("JanvierSafe2026!")
+
+        assertTrue(englishViolations.any { it.code == "password_contains_calendar_term" })
+        assertTrue(frenchViolations.any { it.code == "password_contains_calendar_term" })
+    }
+
+    @Test
+    fun rejectsLocalBusinessTerms() {
+        val sequoViolations = passwordPolicy.validate("SequoSecure2026!")
+        val lomeViolations = passwordPolicy.validate("LomeSecure2026!")
+
+        assertTrue(sequoViolations.any { it.code == "password_contains_weak_term" })
+        assertTrue(lomeViolations.any { it.code == "password_contains_weak_term" })
     }
 }
