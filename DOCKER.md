@@ -87,7 +87,7 @@ Important variables:
 | `POSTGRES_USER` | Local database user. |
 | `POSTGRES_PASSWORD` | Local database password. |
 | `JWT_SECRET` | Local JWT signing secret. Must be replaced outside local development. |
-| `SPRING_JPA_HIBERNATE_DDL_AUTO` | Local schema strategy. `update` is acceptable only for local development until migrations exist. |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | Local schema strategy. Defaults to `validate` because Flyway owns schema creation. |
 | `JAVA_OPTS` | Optional JVM tuning. |
 
 ## Image Build
@@ -125,7 +125,7 @@ Before using this image in production, add:
 | Requirement | Status |
 | --- | --- |
 | Production startup validation for unsafe dev defaults. | Not implemented |
-| Database migrations with Flyway or Liquibase. | Not implemented |
+| Database migrations with Flyway or Liquibase. | Implemented with Flyway baseline for current auth schema |
 | Image vulnerability scanning. | Not implemented |
 | Published images in GHCR or cloud registry. | Not implemented |
 | Runtime health endpoint. | Implemented |
