@@ -107,7 +107,7 @@ Add these once the project moves closer to production:
 | --- | --- |
 | Add a Dockerfile and container image build. | Implemented |
 | Publish container images to GHCR or the selected cloud registry. | Not implemented |
-| Add Flyway or Liquibase migration validation in CI. | Not implemented |
+| Add Flyway or Liquibase migration validation in CI. | Partially implemented with Flyway baseline; add dedicated PostgreSQL migration test next. |
 | Add OWASP dependency scanning or Snyk after the dependency policy is chosen. | Not implemented |
 | Add CodeQL/SAST if GitHub code scanning is available for the repository plan. | Not implemented |
 | Add deployment smoke tests against the selected environment. | Not implemented |
