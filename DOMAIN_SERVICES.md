@@ -68,6 +68,8 @@ Responsibilities:
 - Store `base_price`, `platform_margin`, service fee policy, and bargaining eligibility.
 - Preserve price snapshots on checkout and order items.
 - Enforce product stock rules and delivery eligibility.
+- Enforce media evidence policy: seller-specific goods require real-time camera evidence, while approved generic sealed items can use catalog/reference images.
+- Support food customization groups for toppings, options, required choices, optional choices, and price deltas.
 
 Delivery modes:
 
@@ -84,6 +86,8 @@ Invariants:
 - Reduced price must be lower than base price when promotions are implemented.
 - A product with bargaining disabled cannot receive offers.
 - Listing price calculations must come from the pricing engine, not ad hoc controller code.
+- Gallery uploads or web images must not replace required live product evidence for seller-specific goods.
+- Food customization selections must be copied into checkout and order item snapshots.
 
 ## Cooperative Market Service
 
@@ -182,6 +186,8 @@ Responsibilities:
 
 - Create courier missions for standard and express orders.
 - Support Sequo-controlled scheduled tours for cooperative and programmed logistics.
+- Prefer freelance moto couriers for express local deliveries unless subscriber or Sequo-capacity policy takes priority.
+- Prefer salaried Sequo delivery capacity for subscriber orders and programmed/consolidated deliveries, with freelancer fallback when needed.
 - Store estimated distance, actual courier cost, customer delivery fee, and delivery shortfall.
 - Enforce pickup and drop-off proof rules.
 - Validate single-use delivery PINs when used.
@@ -191,6 +197,7 @@ Delivery shortfall rule:
 - If `customer_delivery_fee < courier_fee`, Sequo covers the difference.
 - The shortfall is posted to settlement ledger as Sequo expense.
 - Merchant payout is not reduced unless explicitly configured by an admin policy.
+- Salaried Sequo staff do not create per-mission courier payable entries; their compensation is handled outside delivery mission settlement.
 
 ## Relay Service
 
@@ -200,6 +207,9 @@ Responsibilities:
 - Accept merchant deposits, courier deposits, customer pickup, Sequo collection, and return drop-offs.
 - Assign one parcel to one available locker/case.
 - Track delay and custody chain.
+- Reject relay pickup routing for food and perishable products unless a future admin exception policy explicitly allows it.
+- Generate and validate hashed pickup codes represented to the customer as numeric codes or QR payloads.
+- Apply late parcel policy after configured thresholds, currently proposed as storage fees after 2 weeks and return-to-seller review after another 2 weeks.
 
 Return drop-off:
 
@@ -267,4 +277,3 @@ Every sensitive action must emit an audit event:
 - Refund approval or rejection.
 - Payout creation, approval, failure, retry.
 - Admin override of order, delivery, return, or settlement state.
-
