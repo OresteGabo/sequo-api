@@ -44,7 +44,7 @@ Main files:
 | Logout/logout-all | Not treated | No endpoint or token/session revocation exists. |
 | RBAC and roles | Not treated | Authentication principal has no authorities. |
 | User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
-| Password reset security | Not treated | Reset token is returned in API response and stored plaintext. |
+| Password reset security | Partially treated | Reset token is no longer returned and is stored hashed; notification delivery, rate limits, audit, and session revocation are still pending. |
 | Rate limiting | Not treated | Login, signup, refresh, and reset endpoints are unprotected from brute force. |
 | Social login hardening | Partially treated | Google is strongest; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
@@ -89,11 +89,11 @@ Legend:
 | 25 | Refresh token replay detection | [ ] | [ ] | [x] | No token family or reuse detection. |
 | 26 | Logout endpoint | [ ] | [ ] | [x] | No session/token revocation endpoint exists. |
 | 27 | Logout-all endpoint | [ ] | [ ] | [x] | No all-device revocation exists. |
-| 28 | Password-reset token generation | [x] | [ ] | [ ] | Exists, but current flow is unsafe. |
-| 29 | Reset token not returned in API response | [ ] | [ ] | [x] | Current forgot-password response exposes token. |
-| 30 | Reset token stored hashed | [ ] | [ ] | [x] | Current reset token is stored plaintext. |
-| 31 | Reset token single-use | [ ] | [x] | [ ] | Cleared after successful reset, but plaintext and response leak remain. |
-| 32 | Reset token short TTL | [ ] | [x] | [ ] | One hour TTL exists; production should prefer 10-30 minutes. |
+| 28 | Password-reset token generation | [x] | [ ] | [ ] | Uses 32 secure-random bytes encoded as URL-safe Base64. |
+| 29 | Reset token not returned in API response | [x] | [ ] | [ ] | Forgot-password response is generic and does not include the token. |
+| 30 | Reset token stored hashed | [x] | [ ] | [ ] | `User` stores `resetTokenHash`, not the raw token. |
+| 31 | Reset token single-use | [x] | [ ] | [ ] | Cleared after successful reset. |
+| 32 | Reset token short TTL | [x] | [ ] | [ ] | Reset token expires after 30 minutes. |
 | 33 | Existing session revocation after password reset | [ ] | [ ] | [x] | No refresh-session store to revoke. |
 | 34 | User account status model | [x] | [ ] | [ ] | `UserStatus` exists on the `User` entity. |
 | 35 | User status checked on login | [x] | [ ] | [ ] | Non-authenticatable users are rejected. |
@@ -115,8 +115,8 @@ Legend:
 | 51 | Auth endpoint rate limiting | [ ] | [ ] | [x] | Signup, login, refresh, and reset are unlimited. |
 | 52 | Account lockout or progressive delay | [ ] | [ ] | [x] | No failed-attempt tracking. |
 | 53 | Signup abuse protection | [ ] | [ ] | [x] | No throttling or verification gate. |
-| 54 | Password reset abuse protection | [ ] | [ ] | [x] | No throttling or generic response. |
-| 55 | Account enumeration resistance | [ ] | [ ] | [x] | Forgot-password and signup reveal account state. |
+| 54 | Password reset abuse protection | [ ] | [x] | [ ] | Forgot-password response is generic; throttling and audit are still missing. |
+| 55 | Account enumeration resistance | [ ] | [x] | [ ] | Forgot-password is generic; signup still reveals existing accounts. |
 | 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, calendar terms, names, email terms, leetspeak weak terms, sequences, repeated characters, repeated patterns, phone-like numeric runs, and common/local terms. |
 | 57 | Password maximum length guard | [x] | [ ] | [ ] | Password policy caps passwords at 128 characters. |
 | 58 | Breached/common password rejection | [ ] | [x] | [ ] | Extended local blocked list exists; real breached-password checks are pending. |
@@ -263,14 +263,19 @@ Treatment:
 - Add `/api/auth/logout` and `/api/auth/logout-all`.
 - Add replay detection tests.
 
-### 3. Password Reset Token Is Returned In API Response
+### 3. Password Reset Token Delivery Is Not Integrated Yet
 
-Severity: Critical
+Severity: Medium/High
 
-Observed problem:
+Current state:
 
-- `AuthController.forgotPassword()` returns `"token" to token` in the HTTP response.
-- Any caller who knows an email can directly obtain a reset token.
+- `AuthController.forgotPassword()` now returns a generic response.
+- The raw reset token is not returned in the HTTP response.
+- The service generates a raw token for the future notification sender, stores only its hash, and currently keeps a TODO at the delivery boundary.
+
+Remaining problem:
+
+- Email/SMS delivery is not integrated yet.
 
 Expected secure behavior:
 
@@ -280,18 +285,20 @@ Expected secure behavior:
 
 Treatment:
 
-- Remove token from response.
 - Add email/SMS notification integration.
-- Add generic responses for known and unknown email addresses.
+- Keep generic responses for known and unknown email addresses.
+- Ensure logs and metrics never include the raw reset token.
 
-### 4. Reset Tokens Are Stored In Plaintext
+### 4. Reset Token Hashing Is Implemented
 
-Severity: Critical
+Severity: Treated, with remaining integration work
 
-Observed problem:
+Current state:
 
-- `User.resetToken` stores the reset token directly.
-- If the database leaks, active reset tokens can be used to take over accounts.
+- `User.resetTokenHash` stores the hash instead of the raw token.
+- `PasswordResetTokenService` generates 32 secure-random bytes and stores a SHA-256 hash.
+- Reset tokens expire after 30 minutes.
+- Reset token is cleared after successful use.
 
 Expected secure behavior:
 
@@ -301,12 +308,11 @@ Expected secure behavior:
 - Single-use only.
 - Clear token after success.
 
-Treatment:
+Remaining work:
 
-- Rename to `resetTokenHash`.
-- Hash reset tokens with HMAC-SHA256 or a password-hashing strategy.
-- Compare submitted token hash.
-- Add reset-token replay tests.
+- Add rate limiting and audit events around forgot/reset attempts.
+- Revoke existing refresh sessions after password reset once refresh sessions exist.
+- Consider HMAC-SHA256 if the team wants a server-secret keyed reset-token hash.
 
 ### 5. JWT Claims Are Incomplete
 
@@ -1152,8 +1158,8 @@ Priority 0, production blockers:
 - [ ] Replace stateless refresh JWTs with opaque hashed refresh sessions.
 - [ ] Add refresh rotation and replay detection.
 - [ ] Add logout and logout-all.
-- [ ] Remove reset token from forgot-password response.
-- [ ] Hash reset tokens.
+- [x] Remove reset token from forgot-password response.
+- [x] Hash reset tokens.
 - [x] Add JWT issuer, audience, JWT ID, token-use, and not-before claims.
 - [ ] Add JWT session ID after refresh sessions exist.
 - [ ] Remove production fallback JWT secret.
