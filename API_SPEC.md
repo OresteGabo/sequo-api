@@ -56,6 +56,18 @@ Error response:
 }
 ```
 
+Rate-limited response:
+
+```json
+{
+  "code": "rate_limited",
+  "message": "Too many attempts. Please wait before trying again.",
+  "retryAfterSeconds": 900
+}
+```
+
+Rate-limited responses must use HTTP `429` and include a `Retry-After` header when the backend can calculate it.
+
 ## Error Code Families
 
 | Prefix | Meaning |
