@@ -63,15 +63,15 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 | Done | State | Area | Requirement | Evidence or gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Not implemented | FCM | Store and manage FCM device tokens per user, device, platform, and app family. | Architecture documented in [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md); migrations/service not implemented. |
-| [ ] | Not implemented | Push routing | Route notifications separately for customer, merchant, relay, rider, support, admin, and super admin roles. | Routing matrix documented; service not implemented. |
-| [ ] | Not implemented | In-app inbox | Persist notification history with read/archive state. | Schema documented; migration/service not implemented. |
-| [ ] | Not implemented | SMS fallback | Use SMS backup for critical PIN, blocked delivery, relay pickup, and urgent payment/refund events. | Policy documented; provider adapter not implemented. |
+| [x] | Implemented | FCM | Store and manage FCM device tokens per user, device, platform, and app family. | `V3__create_notification_tables.sql`, `DeviceTokenService`, `DeviceTokenController`, and tests register, rotate, revoke, encrypt, and list active tokens. Firebase sending remains separate. |
+| [ ] | Partial | Push routing | Route notifications separately for customer, merchant, relay, rider, support, admin, and super admin roles. | App-family channel planning exists; role/ownership recipient routing service remains. |
+| [ ] | Partial | In-app inbox | Persist notification history with read/archive state. | `notification_messages` and `NotificationDispatchService` persist message history; read/list/archive APIs remain. |
+| [ ] | Partial | SMS fallback | Use SMS backup for critical PIN, blocked delivery, relay pickup, and urgent payment/refund events. | `NotificationChannelPolicy` gates SMS behind critical events, explicit fallback, user preference, push failure/unavailability, and remaining budget. Paid provider adapter is intentionally not wired yet. |
 | [ ] | Not implemented | WebSocket/STOMP | Configure `/ws` with JWT-authenticated STOMP for active mobile clients. | Architecture documented in [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md); dependencies/config not implemented. |
 | [ ] | Not implemented | Realtime authorization | Authorize every STOMP subscription by role and ownership. | Topic policy documented; interceptors not implemented. |
 | [ ] | Not implemented | Rider radar | Publish live mission offers and high-priority subscriber orders to eligible riders. | Topics and payloads documented; service not implemented. |
 | [ ] | Not implemented | Bargaining realtime | Publish active offer/counter/accept/reject updates to bargaining participants. | Topics documented; bargaining service not implemented. |
-| [ ] | Not implemented | Event-driven triggers | Fire notifications from committed domain events/outbox, not controller side effects. | Event listener/outbox design documented; implementation pending. |
+| [ ] | Partial | Event-driven triggers | Fire notifications from committed domain events/outbox, not controller side effects. | Notification outbox table and idempotent dispatch service exist; event listener hooks and worker remain. |
 
 ## Immediate Implementation Backlog
 
@@ -85,6 +85,10 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 ### Priority 1 - Owner-note core domain workflows
 
+- [ ] Notification routing service for customer, merchant, rider, relay, support, admin, and super-admin scopes.
+- [ ] Notification outbox worker plus `@TransactionalEventListener` hooks from order, merchant fulfillment, delivery, relay, return, refund, and settlement workflows.
+- [ ] Firebase Admin SDK adapter with stale-token pruning, retries, and provider delivery audit.
+- [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
 - [ ] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
 - [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow.
 - [ ] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
