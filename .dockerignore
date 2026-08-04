@@ -15,6 +15,7 @@ bin
 *.log
 
 .env
+local.properties
 application-local.properties
 application-local.yml
 application-secret.properties
