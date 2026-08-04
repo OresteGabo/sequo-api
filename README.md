@@ -70,6 +70,7 @@ The current backend scope supersedes older legacy notes where they conflict:
 - Cooperative market orchestration for grouped independent sellers and single-package consolidation.
 - Return and settlement engine with relay drop-offs, receipt-based refund triggers, payout scheduling, and ledger entries.
 - Zero-cash wallet adapters for Yas Togo and Moov Africa.
+- Notification foundation with encrypted FCM token registration, in-app delivery audit rows, and cost-controlled SMS fallback planning.
 - Audit logs for security, admin, financial, support, commission, refund, and payout actions.
 
 ## Current Stack
@@ -81,7 +82,7 @@ The current backend scope supersedes older legacy notes where they conflict:
 | Framework | Spring Boot 4.1 |
 | Build | Gradle Kotlin DSL |
 | Tests | JUnit Platform |
-| Intended database | PostgreSQL with Flyway or Liquibase migrations |
+| Database | PostgreSQL target, H2 local/test, Flyway migrations |
 | Intended API contract | REST under `/api/v1`, generated OpenAPI |
 
 ## Local Development
@@ -128,7 +129,7 @@ Expected configuration groups:
 | Database | JDBC URL, username, password, pool size |
 | Auth | JWT issuer, audience, signing keys, access TTL, refresh TTL |
 | Wallets | Yas Togo credentials, Moov Africa credentials, webhook secrets |
-| Notifications | SMS, push, email, WhatsApp Business provider keys |
+| Notifications | `NOTIFICATION_TOKEN_ENCRYPTION_SECRET`, FCM, SMS, email, WhatsApp Business provider keys |
 | Storage | Product images, KYC documents, proof photos |
 | Observability | Log level, tracing, metrics, alert routing |
 
@@ -154,4 +155,5 @@ Minimum backend test coverage before production:
 | Orders | Valid transitions, invalid transition rejection, seller rejection, courier assignment |
 | Returns | 72-hour eligibility, relay intake, physical receipt trigger, refund idempotency |
 | Wallets | Yas/Moov callbacks, duplicate webhook handling, failed payment recovery |
+| Notifications | FCM token encryption/rotation, in-app message idempotency, SMS fallback suppression, provider retry handling |
 | Security | Ownership checks, PII masking, audit event creation |
