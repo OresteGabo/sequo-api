@@ -1,0 +1,530 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\geometry{margin=2.3cm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65em}
+\setlist[itemize]{leftmargin=1.3em,itemsep=0.25em,topsep=0.25em}
+\setlist[enumerate]{leftmargin=1.5em,itemsep=0.25em,topsep=0.25em}
+
+\newcommand{\champ}[1]{\textbf{[#1]}}
+\newcommand{\separateur}{\vspace{0.8em}\hrule\vspace{1em}}
+
+\begin{document}
+
+\begin{center}
+    {\Large \textbf{Contrat de développement du MVP SEQUO}}\\[0.35em]
+    {\large \textbf{et reconnaissance d'engagement de paiement}}\\[0.8em]
+    Version de travail à compléter avant signature
+\end{center}
+
+\separateur
+
+\textbf{Important.} Le présent document est une base contractuelle simple, rédigée à partir des notes de cadrage du projet SEQUO. Il ne remplace pas l'avis d'un avocat, d'un juriste ou d'un conseiller fiscal en France, au Rwanda ou au Togo. Comme le Prestataire agit via une entreprise enregistrée au Rwanda et que la plateforme vise une activité commerciale et logistique au Togo, les Parties devraient vérifier les obligations applicables dans chaque pays concerné. Avant signature, les parties devraient vérifier au minimum: l'identité exacte des signataires, la fiscalité applicable, la propriété intellectuelle, la protection des données, les moyens de preuve des paiements et la juridiction compétente.
+
+\section*{1. Parties}
+
+Le présent contrat est conclu entre:
+
+\textbf{Le Commanditaire / Client}\\
+SEQUO, entreprise située au Togo, représentée par Monsieur Gamal Tchadenu, fondateur et dirigeant.\\
+Adresse: \champ{adresse complète de SEQUO}\\
+Numéro d'identification / registre: \champ{à compléter}\\
+Email: \href{mailto:gamal@sequoservice.com}{gamal@sequoservice.com}\\
+Site web: \href{https://sequoservice.com}{sequoservice.com}\\
+Téléphone: +33 7 80 43 46 90
+
+\textbf{Le Prestataire}\\
+GABO, entreprise enregistrée au Rwanda et basée à Kigali, représentée par Monsieur Muhirwa Gabo Oreste.\\
+Reference ID: REG-2022-1829159\\
+TIN: 120387596\\
+Date d'immatriculation / émission: 16 juin 2022\\
+Email: \href{mailto:orestegabo@icloud.com}{orestegabo@icloud.com}\\
+Site web: \href{https://orestegabo.dev}{orestegabo.dev}\\
+Adresse de l'entreprise: Kigali, Rwanda\\
+Téléphone du représentant: +33 7 69 09 79 91\\
+Secrétariat / personne en charge: Emmanuella Karemera, +250 786 123 384
+
+Le Commanditaire et le Prestataire sont ci-après désignés ensemble les \textbf{Parties}.
+
+\section*{2. Contexte}
+
+SEQUO souhaite créer une plateforme de commerce en ligne et de logistique au Togo. La plateforme doit permettre notamment:
+
+\begin{itemize}
+    \item la vente de produits par des commerçants;
+    \item la commande par des clients;
+    \item l'organisation de livraisons classiques, express et différées;
+    \item l'utilisation de livreurs salariés et de livreurs indépendants;
+    \item la gestion interne par SEQUO;
+    \item l'utilisation de points relais pour certains colis, lorsque cela est adapté.
+\end{itemize}
+
+Le Prestataire accepte de développer une première version exploitable, appelée \textbf{MVP} (\textit{Minimum Viable Product}), selon le périmètre défini dans le présent contrat et dans l'annexe fonctionnelle.
+
+\section*{3. Objet du contrat}
+
+Le présent contrat a pour objet:
+
+\begin{enumerate}
+    \item de définir le résultat attendu pour le MVP SEQUO;
+    \item de fixer le prix forfaitaire du MVP à \textbf{3 000 euros};
+    \item de reconnaître l'engagement de paiement du Commanditaire envers le Prestataire;
+    \item de préciser les limites du MVP, les éléments exclus et les conditions de validation.
+\end{enumerate}
+
+Le MVP ne correspond pas à une version finale complète de la plateforme. Il correspond à une première version utilisable permettant de tester et lancer les principaux parcours métier, avec un niveau de qualité raisonnable pour une mise en service limitée ou progressive.
+
+\section*{4. Résultat attendu pour le MVP}
+
+Le Prestataire réalisera un système composé au minimum des éléments suivants:
+
+\begin{itemize}
+    \item une API backend servant de serveur central aux applications et interfaces;
+    \item une application mobile client, utilisable sur iOS et Android;
+    \item une application mobile livreur, utilisable sur iOS et Android;
+    \item une application mobile vendeur/commerçant, utilisable sur iOS et Android;
+    \item une interface web d'administration et de gestion interne pour SEQUO;
+    \item un module minimum pour la gestion des points relais, si nécessaire au fonctionnement du MVP.
+\end{itemize}
+
+Les Parties reconnaissent que les applications client, livreur et vendeur/commerçant sont prévues comme applications mobiles iOS et Android. Le choix technique exact pour ces applications mobiles, par exemple développement natif ou solution cross-platform, relève de la solution proposée par le Prestataire, à condition que le résultat MVP permette les usages validés par les Parties. L'interface d'administration interne de SEQUO reste une interface web.
+
+\textbf{Points relais.} L'application dédiée aux points relais peut être traitée comme une phase post-MVP si les Parties ne la confirment pas expressément par écrit dans le périmètre MVP. Pour le MVP, un module simple dans l'interface d'administration ou dans une interface web peut suffire pour tester les codes, QR codes, dépôts et retraits.
+
+\section*{5. Fonctionnalités principales incluses}
+
+Les fonctionnalités ci-dessous constituent la base fonctionnelle du MVP, sous réserve de faisabilité raisonnable dans le budget et le délai prévus.
+
+\subsection*{5.1 Comptes, rôles et accès}
+
+\begin{itemize}
+    \item création et connexion des utilisateurs;
+    \item rôles de base: client, livreur, commerçant/vendeur, administrateur SEQUO;
+    \item rôle ou accès simplifié pour point relais, si inclus dans le MVP;
+    \item gestion des informations de profil nécessaires aux commandes et livraisons.
+\end{itemize}
+
+\subsection*{5.2 Catalogue et produits}
+
+\begin{itemize}
+    \item ajout, modification et désactivation de produits par les commerçants ou par SEQUO;
+    \item gestion du prix affiché, de la marge ou commission SEQUO et des frais de service;
+    \item photos des produits avec priorité aux photos prises en temps réel lorsque cela est nécessaire;
+    \item possibilité d'autoriser des images génériques pour certains produits standards, par exemple une bouteille d'eau;
+    \item prise en charge d'options spécifiques pour la nourriture, comme les suppléments, variantes ou toppings.
+\end{itemize}
+
+\subsection*{5.3 Commandes et panier}
+
+\begin{itemize}
+    \item création d'une commande par le client;
+    \item paiement ou validation du paiement avant confirmation définitive de la commande;
+    \item gestion d'un panier pouvant contenir plusieurs produits;
+    \item possibilité de regrouper plusieurs produits avant livraison au client;
+    \item obligation pour le commerçant de préparer le colis dans un délai raisonnable et de signaler que le colis est prêt.
+\end{itemize}
+
+\subsection*{5.4 Livraison et logistique}
+
+\begin{itemize}
+    \item distinction entre livraisons express, livraisons classiques et livraisons pouvant prendre plusieurs jours;
+    \item utilisation de livreurs salariés SEQUO et de livreurs indépendants;
+    \item priorisation possible des livreurs SEQUO pour les commandes de clients abonnés;
+    \item attribution possible aux livreurs indépendants lorsque les livreurs SEQUO ne sont pas disponibles;
+    \item gestion de la distance de livraison et du prix selon la formule prévue;
+    \item suivi logistique interne par SEQUO;
+    \item optimisation possible par regroupement de produits provenant de commerçants proches ou organisés en coopérative;
+    \item validation par SEQUO des coopératives ou regroupements de commerçants.
+\end{itemize}
+
+\subsection*{5.5 Prix de livraison}
+
+Le modèle de livraison de départ est le suivant:
+
+\begin{itemize}
+    \item prix minimum: \textbf{400 francs CFA} pour une livraison de \textbf{5 km ou moins};
+    \item au-delà de 5 km: \textbf{100 francs CFA par kilomètre supplémentaire};
+    \item les règles d'abonnement, de réduction et de prise en charge par SEQUO seront paramétrables ou précisées ultérieurement.
+\end{itemize}
+
+Lorsque le prix payé par le client est inférieur au montant dû au livreur indépendant, SEQUO prend en charge la différence. Les livreurs salariés SEQUO ne sont pas inclus dans le calcul de frais livreur, car ils sont rémunérés par salaire.
+
+\subsection*{5.6 Paiement}
+
+\begin{itemize}
+    \item intégration ou préparation de l'intégration de moyens de paiement utilisés au Togo, notamment YAS Togo et Moov Africa, selon leur disponibilité technique;
+    \item principe: la commande doit être payée avant validation;
+    \item priorité aux transferts électroniques afin de limiter les retraits d'espèces et les frais associés;
+    \item possibilité de payer les livreurs via les mêmes systèmes de transfert lorsque cela est possible.
+\end{itemize}
+
+Les frais imposés par les opérateurs de paiement, banques, fournisseurs tiers ou plateformes externes ne sont pas inclus dans le prix du développement, sauf accord écrit contraire.
+
+\subsection*{5.7 Abonnements et parrainage}
+
+\begin{itemize}
+    \item le système pourra prévoir une base technique pour des abonnements mensuels;
+    \item les abonnés pourront obtenir des réductions automatiques en pourcentage sur les livraisons par kilomètre;
+    \item les abonnés conservant leur abonnement sur une longue durée pourront bénéficier de tarifs plus bas, selon une règle à préciser;
+    \item le parrainage pourra donner droit à un crédit de livraison, par exemple 500 francs CFA, sans paiement d'argent au client.
+\end{itemize}
+
+Les montants, pourcentages, conditions d'abonnement et conditions de parrainage devront être validés par SEQUO avant leur mise en production.
+
+\subsection*{5.8 Négociation de prix}
+
+\begin{itemize}
+    \item un client peut proposer un prix inférieur au prix affiché pour certains produits;
+    \item le vendeur et le client disposent chacun d'un nombre limité de tentatives, fixé à trois par défaut;
+    \item après épuisement des tentatives, le produit peut être bloqué pour la négociation entre ces mêmes parties;
+    \item le prix minimum accepté peut rester verrouillé pendant 24 heures afin de permettre au client de l'accepter plus tard;
+    \item certains vendeurs peuvent désactiver la négociation sur certains produits;
+    \item l'affichage du prix minimum déjà accepté par le passé peut être ajouté si SEQUO le valide.
+\end{itemize}
+
+\subsection*{5.9 Points relais}
+
+\begin{itemize}
+    \item un point relais peut servir de solution alternative lorsque le client n'est pas disponible à domicile;
+    \item les produits alimentaires, périssables ou sensibles peuvent être exclus des points relais;
+    \item le retrait peut être validé par code numérique, QR code et présentation d'une pièce d'identité;
+    \item SEQUO peut fournir des casiers ou boîtes aux partenaires points relais, ce matériel étant exclu du prix du développement;
+    \item des frais peuvent être prévus si un colis reste plus de deux semaines en point relais;
+    \item après une durée totale à préciser, par exemple un mois, le colis peut être retourné au vendeur ou traité selon la politique SEQUO.
+\end{itemize}
+
+\subsection*{5.10 Retours et remboursements}
+
+\begin{itemize}
+    \item les demandes de retour sont possibles dans les 72 heures suivant la livraison;
+    \item les retours peuvent être déposés en point relais si le produit est éligible;
+    \item SEQUO récupère le produit retourné;
+    \item le remboursement intervient après récupération effective du produit par SEQUO et vérification de l'état du colis;
+    \item la demande ou instruction de paiement du remboursement doit être effectuée dans un délai raisonnable, à préciser, par exemple une semaine après réception du colis par SEQUO.
+\end{itemize}
+
+\subsection*{5.11 Commissions et frais SEQUO}
+
+\begin{itemize}
+    \item SEQUO peut appliquer une commission sur les ventes, en pourcentage ou selon des tranches de prix;
+    \item le taux par défaut proposé est de 15\%;
+    \item SEQUO peut configurer des taux différents, par exemple entre 5\% et 15\%, selon les commerçants ou catégories;
+    \item les frais de service, marges et frais de livraison doivent être visibles ou calculables dans le système.
+\end{itemize}
+
+\section*{6. Eléments exclus du prix forfaitaire}
+
+Sauf accord écrit contraire, le prix de 3 000 euros ne comprend pas:
+
+\begin{itemize}
+    \item les frais Google Maps, fournisseurs de cartes, SMS, emails, notifications ou services externes;
+    \item les frais App Store, Google Play, nom de domaine, hébergement, serveurs ou bases de données payantes;
+    \item les frais bancaires, mobile money, retraits d'espèces, commissions d'opérateurs ou taxes;
+    \item l'achat de casiers, boîtes, téléphones, motos, vélos, matériel de livraison ou matériel point relais;
+    \item les salaires des employés SEQUO ou paiements aux livreurs indépendants;
+    \item la rédaction des conditions générales de vente, politique de confidentialité ou documents légaux destinés aux clients finaux;
+    \item la conformité complète à toutes les réglementations applicables aux ventes, livraisons, paiements, données personnelles ou produits réglementés;
+    \item la maintenance après livraison du MVP;
+    \item les développements demandés après validation du périmètre MVP;
+    \item les performances de grande échelle, la haute disponibilité et les audits de sécurité avancés, sauf accord séparé.
+\end{itemize}
+
+\section*{7. Délai prévisionnel}
+
+Le délai estimé pour réaliser le MVP est de \textbf{5 à 6 mois} à compter de la signature du contrat et, si un acompte est prévu, de la réception effective de cet acompte.
+
+Ce délai est une estimation raisonnable et non une garantie absolue. Il peut varier notamment en cas de:
+
+\begin{itemize}
+    \item retard de validation ou de réponse du Commanditaire;
+    \item modification du périmètre ou ajout de fonctionnalités;
+    \item retard lié aux fournisseurs externes, paiements, cartes, comptes développeur ou hébergement;
+    \item difficulté technique imprévue;
+    \item force majeure ou événement indépendant de la volonté du Prestataire.
+\end{itemize}
+
+\section*{8. Prix et reconnaissance d'engagement de paiement}
+
+En contrepartie de la réalisation du MVP, le Commanditaire reconnaît s'engager à payer au Prestataire la somme forfaitaire totale de:
+
+\begin{center}
+    {\Large \textbf{3 000 euros}}\\
+    \textbf{trois mille euros}
+\end{center}
+
+Cette somme constitue le prix du développement du MVP décrit dans le présent contrat. Elle est due et payable \textbf{uniquement en euros}. Elle ne comprend pas les frais externes listés dans la section 6.
+
+Les Parties reconnaissent que le paiement était initialement prévu par mensualités de \textbf{1 000 euros par mois}. Pour tenir compte du budget du Commanditaire, le Prestataire a accepté un paiement plus flexible.
+
+Sauf accord écrit contraire, le prix total de 3 000 euros sera payé par mensualités flexibles comprises entre \textbf{500 euros et 1 000 euros par mois}, jusqu'au paiement complet du montant total dû.
+
+La date de paiement souhaitée par le Commanditaire est le \textbf{10 de chaque mois}. Cette date reste flexible: les Parties peuvent convenir par écrit d'un léger décalage lorsque la situation le justifie, à condition que le paiement mensuel reste régulier et que le solde total de 3 000 euros soit effectivement payé.
+
+Chaque paiement déjà effectué rémunère le travail, le temps, la conception, les développements, les échanges, les tests et les livrables réalisés par le Prestataire à la date du paiement.
+
+Aucun paiement du prix forfaitaire de 3 000 euros ne pourra être imposé ou réalisé en francs CFA.
+
+La présente clause vaut reconnaissance écrite par le Commanditaire de son engagement de paiement de 3 000 euros au profit du Prestataire pour le MVP SEQUO.
+
+\section*{9. Validation du MVP}
+
+Le Prestataire livre le MVP sous forme de version de recette, de démonstration ou de mise en ligne testable.
+
+A compter de cette livraison, le Commanditaire dispose d'un délai maximum de \textbf{30 jours calendaires} pour tester le MVP et signaler par écrit les anomalies bloquantes liées au périmètre convenu.
+
+Une anomalie est bloquante lorsqu'elle empêche un parcours essentiel du MVP de fonctionner. Les demandes d'amélioration, préférences visuelles, nouvelles idées ou fonctionnalités non prévues ne bloquent pas la validation du MVP et peuvent faire l'objet d'une phase ultérieure.
+
+Les Parties reconnaissent qu'un MVP n'est pas une version finale garantie sans bug. Le MVP peut donc être validé même s'il contient certaines anomalies, dès lors que ces anomalies ne sont pas bloquantes pour les parcours essentiels convenus.
+
+Les anomalies, bugs ou défauts qui ne sont pas détectés et signalés par écrit pendant la période de recette sont présumés non bloquants, sauf impossibilité manifeste d'utiliser un parcours essentiel du MVP. Ils pourront être traités après validation dans le cadre d'une maintenance, d'une correction ou d'une évolution négociée séparément entre les Parties.
+
+Si le Commanditaire ne signale pas d'anomalie bloquante dans le délai prévu, le MVP est réputé accepté.
+
+\section*{10. Modifications du périmètre}
+
+Toute demande ajoutée après signature, ou toute modification importante des fonctionnalités prévues, peut entraîner:
+
+\begin{itemize}
+    \item un délai supplémentaire;
+    \item un coût supplémentaire;
+    \item une réduction ou réorganisation du périmètre MVP;
+    \item un avenant écrit ou une validation écrite par email/message traçable.
+\end{itemize}
+
+Le Prestataire n'est pas tenu de réaliser gratuitement des fonctionnalités non comprises dans le périmètre initial.
+
+\section*{11. Obligations du Commanditaire}
+
+Le Commanditaire s'engage à:
+
+\begin{itemize}
+    \item fournir les informations métier nécessaires au projet;
+    \item répondre dans des délais raisonnables aux questions du Prestataire;
+    \item valider ou refuser clairement les propositions importantes;
+    \item fournir les comptes, accès, logos, textes, contenus, numéros, moyens de paiement et informations nécessaires;
+    \item payer les frais externes nécessaires au fonctionnement du service;
+    \item vérifier la conformité légale de son activité commerciale, de ses conditions de vente, de ses traitements de données et de ses relations avec livreurs, commerçants et points relais.
+\end{itemize}
+
+\section*{12. Obligations du Prestataire}
+
+Le Prestataire s'engage à:
+
+\begin{itemize}
+    \item développer le MVP avec diligence et sérieux;
+    \item informer le Commanditaire, dans la mesure des informations dont il a effectivement connaissance, des limites, risques ou blocages importants identifiés;
+    \item proposer des choix techniques raisonnables pour atteindre le résultat MVP;
+    \item corriger les anomalies bloquantes signalées pendant la période de recette;
+    \item remettre ou rendre accessible, après paiement complet, l'ensemble du code source et des éléments techniques nécessaires à la reprise, l'exploitation, la maintenance et l'évolution du MVP, sauf éléments tiers, licences externes, accès personnels, clés privées, secrets personnels ou informations dont la transmission serait interdite ou risquée pour la sécurité.
+\end{itemize}
+
+\textbf{Utilisation d'outils d'intelligence artificielle.} Le Commanditaire est informé que le Prestataire peut utiliser des outils d'intelligence artificielle comme aide au développement, à la conception, à la documentation, aux tests, à l'analyse ou à la correction du projet. Ces outils sont des moyens d'assistance et ne remplacent pas le travail, les choix techniques ni le contrôle du Prestataire. Le Prestataire s'engage à les utiliser avec sérieux et diligence.
+
+Les Parties reconnaissent toutefois que les outils d'intelligence artificielle peuvent produire des erreurs, approximations, oublis, incohérences techniques ou propositions imparfaites. La présence d'une erreur issue ou assistée par un outil d'intelligence artificielle ne constitue pas automatiquement une faute du Prestataire, sauf faute grave, négligence grave, mauvaise foi ou anomalie bloquante non corrigée dans les conditions prévues par le présent contrat. Ces erreurs seront traitées selon les règles de recette, de correction des anomalies bloquantes, de maintenance ou d'évolution prévues au présent contrat.
+
+\section*{13. Propriété intellectuelle et code source}
+
+Après paiement complet du prix convenu, le Commanditaire obtient le droit d'utiliser, exploiter, modifier et faire évoluer le MVP SEQUO pour son activité.
+
+Jusqu'au paiement complet, le Commanditaire dispose uniquement d'un droit de test et de recette du MVP, sauf accord écrit contraire.
+
+Le Prestataire conserve:
+
+\begin{itemize}
+    \item son savoir-faire général;
+    \item les méthodes, idées, composants génériques et éléments réutilisables qui ne sont pas spécifiques à SEQUO;
+    \item les droits ou restrictions attachés aux logiciels libres, bibliothèques, frameworks et services tiers utilisés.
+\end{itemize}
+
+Les logos, marques, contenus commerciaux, textes, images et documents fournis par SEQUO restent la propriété de SEQUO ou de leurs titulaires légitimes.
+
+\section*{14. Maintenance et évolutions après MVP}
+
+La maintenance, l'hébergement opérationnel long terme, le support quotidien, les nouvelles fonctionnalités, les améliorations et les corrections de bugs non bloquants ou découverts après validation du MVP ne sont pas inclus dans le prix de 3 000 euros. Le Prestataire peut toutefois accepter, à sa seule appréciation, d'effectuer certaines interventions ponctuelles à l'amiable, sans nouveau contrat écrit ou sans paiement supplémentaire; cette possibilité reste volontaire et ne crée aucune obligation pour le Prestataire.
+
+Les Parties prévoient de négocier séparément les conditions de maintenance, support et évolution du système après livraison du MVP. Cette négociation pourra notamment permettre au Prestataire de continuer à entretenir le projet, corriger les bugs, ajouter des fonctionnalités, améliorer les parcours existants, adapter le système aux besoins de SEQUO et accompagner l'exploitation technique.
+
+\section*{15. Confidentialité}
+
+Chaque Partie s'engage à garder confidentielles les informations techniques, commerciales, financières ou stratégiques reçues de l'autre Partie dans le cadre du projet.
+
+Cette obligation ne s'applique pas aux informations déjà publiques, obtenues légalement auprès d'un tiers ou nécessaires à l'exécution du projet auprès de fournisseurs techniques.
+
+\section*{16. Données et conformité}
+
+Le Commanditaire reste responsable de l'utilisation commerciale de la plateforme, des données collectées auprès des utilisateurs, des documents destinés aux clients finaux et de la conformité de son activité.
+
+Le Prestataire intervient dans le cadre de son entreprise enregistrée au Rwanda, identifiée ci-dessus. Les obligations fiscales, déclaratives, comptables et administratives liées à la rémunération du Prestataire, à son activité professionnelle et à l'encaissement des sommes dues au titre du présent contrat relèvent du Prestataire et seront traitées au Rwanda selon les règles applicables à son entreprise, sauf obligation légale impérative contraire.
+
+Chaque Partie reste responsable de ses propres obligations fiscales, sociales, déclaratives, comptables et administratives. Le Commanditaire n'est pas responsable des impôts, taxes, cotisations, déclarations ou obligations professionnelles du Prestataire, sauf obligation légale impérative contraire.
+
+Le Prestataire intervient comme développeur du MVP et non comme conseiller juridique, fiscal, comptable, bancaire ou réglementaire.
+
+\section*{17. Limitation de responsabilité}
+
+Le Prestataire est responsable de la réalisation raisonnable du MVP selon le périmètre convenu. Il n'est pas responsable des pertes indirectes, pertes de chiffre d'affaires, décisions commerciales, problèmes de fournisseurs externes, comportements des utilisateurs, commerçants, livreurs ou points relais.
+
+Sauf faute grave ou obligation légale contraire, la responsabilité financière du Prestataire est limitée au montant effectivement payé par le Commanditaire au titre du présent contrat.
+
+\section*{18. Suspension ou arrêt du projet}
+
+En cas de retard important de paiement, de non-réponse prolongée ou de blocage causé par l'absence d'informations nécessaires, le Prestataire peut suspendre le projet après notification écrite au Commanditaire.
+
+Si les engagements financiers ne sont pas tenus par le Commanditaire, les sommes déjà versées restent définitivement acquises au Prestataire en rémunération du travail déjà réalisé. Aucun remboursement ne sera dû par le Prestataire au titre des sommes déjà payées, sauf faute grave légalement établie ou accord écrit contraire entre les Parties.
+
+Si le projet est arrêté par le Commanditaire avant livraison finale, les sommes correspondant au travail déjà réalisé restent dues. Les Parties devront alors faire un point écrit sur l'état d'avancement, les livrables disponibles et le solde éventuel.
+
+Si le Commanditaire, SEQUO ou Monsieur Gamal Tchadenu décide de remplacer le Prestataire, de changer de développeur ou de confier la suite du projet à un tiers avant la fin du MVP, sans faute grave légalement établie du Prestataire, le travail réalisé par le Prestataire jusqu'à cette date sera automatiquement considéré comme livré, accepté et satisfaisant au regard de l'état d'avancement du projet. Les sommes déjà payées resteront acquises au Prestataire et les sommes dues pour le travail réalisé resteront exigibles.
+
+Si le Prestataire souhaite se retirer volontairement du projet avant la fin du MVP, sans cause imputable au Commanditaire, il s'engage à chercher un développeur compétent capable de poursuivre le projet et à organiser la passation à ses frais, dans la limite du périmètre MVP convenu. Cette obligation ne s'applique pas en cas de retrait motivé par un retard ou défaut de paiement, une absence durable de collaboration, un changement substantiel du périmètre ou un manquement du Commanditaire.
+
+\section*{19. Règlement des différends}
+
+Les Parties s'engagent d'abord à rechercher une solution amiable en cas de désaccord, pendant une durée de \textbf{30 jours} à compter de la notification écrite du désaccord par l'une des Parties.
+
+A défaut d'accord amiable dans ce délai de \textbf{30 jours}, le différend pourra être porté devant les juridictions françaises compétentes, sauf règle obligatoire contraire.
+
+Le présent contrat est soumis au \textbf{droit français}.
+
+\section*{20. Signature}
+
+Fait à \champ{ville}, le \champ{date}.
+
+En deux exemplaires originaux, un pour chaque Partie.
+
+\vspace{1em}
+
+\begin{minipage}[t]{0.47\textwidth}
+\textbf{Pour SEQUO}\\
+Nom: Gamal Tchadenu\\
+Qualité: Fondateur et dirigeant\\
+Email: \href{mailto:gamal@sequoservice.com}{gamal@sequoservice.com}\\
+Téléphone: +33 7 80 43 46 90\\[2em]
+Signature:\\[3em]
+
+Mention manuscrite conseillée:\\
+\textit{Lu et approuvé, bon pour engagement de paiement de trois mille euros au titre du MVP SEQUO.}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+\textbf{Pour le Prestataire}\\
+Entreprise: GABO\\
+Base: Kigali, Rwanda\\
+Représentée par: Muhirwa Gabo Oreste\\
+Reference ID: REG-2022-1829159\\
+TIN: 120387596\\
+Email: \href{mailto:orestegabo@icloud.com}{orestegabo@icloud.com}\\
+Téléphone: +33 7 69 09 79 91\\
+Secrétariat: Emmanuella Karemera\\
+Téléphone secrétariat: +250 786 123 384\\[2em]
+Signature:\\[3em]
+
+Mention manuscrite conseillée:\\
+\textit{Lu et approuvé, bon pour acceptation de la mission MVP SEQUO.}
+\end{minipage}
+
+\newpage
+
+\section*{Annexe A - Périmètre fonctionnel du MVP}
+
+Cette annexe reprend les principales notes de cadrage du projet et les transforme en périmètre fonctionnel exploitable.
+
+\subsection*{A.1 Interfaces prévues}
+
+\begin{itemize}
+    \item Application mobile client iOS et Android: recherche, panier, commande, paiement, suivi, livraison, négociation, retours.
+    \item Application mobile livreur iOS et Android: missions disponibles ou attribuées, détails de livraison, statut, validation, historique.
+    \item Application mobile vendeur/commerçant iOS et Android: produits, prix, négociation, préparation de colis, statut de commande.
+    \item Interface admin SEQUO: utilisateurs, commerçants, commandes, livraisons, paiements, commissions, paramètres, points relais.
+    \item Point relais: module simple de validation par code/QR et suivi des colis, sauf décision de créer une application dédiée dans le MVP.
+\end{itemize}
+
+\subsection*{A.2 Parcours client}
+
+\begin{enumerate}
+    \item Le client crée un compte ou se connecte.
+    \item Il consulte les produits et ajoute des articles au panier.
+    \item Il peut négocier le prix si le produit l'autorise.
+    \item Il choisit une livraison à domicile ou un point relais si disponible.
+    \item Il paie avant validation de la commande.
+    \item Il suit la commande et la livraison.
+    \item Il peut demander un retour dans le délai prévu si le produit est éligible.
+\end{enumerate}
+
+\subsection*{A.3 Parcours commerçant}
+
+\begin{enumerate}
+    \item Le commerçant ajoute ses produits avec prix, descriptions et photos.
+    \item Il indique si la négociation est autorisée.
+    \item Il reçoit les commandes et prépare les colis.
+    \item Il signale que le colis est prêt pour récupération par SEQUO.
+    \item Il suit les ventes, retours et statuts de paiement selon les droits prévus.
+\end{enumerate}
+
+\subsection*{A.4 Parcours livreur}
+
+\begin{enumerate}
+    \item Le livreur reçoit ou accepte une mission.
+    \item Il récupère le colis auprès du commerçant, de SEQUO ou d'un point relais.
+    \item Il livre au client ou dépose au point relais prévu.
+    \item Il valide les étapes de livraison dans l'application.
+    \item Le système calcule ou affiche la rémunération prévue pour les livreurs indépendants.
+\end{enumerate}
+
+\subsection*{A.5 Parcours point relais}
+
+\begin{enumerate}
+    \item SEQUO ou le livreur dépose le colis au point relais.
+    \item Le colis est associé à un code numérique ou QR code.
+    \item Le client se présente avec son code et une pièce d'identité.
+    \item Le point relais valide le retrait.
+    \item Le système garde un historique des dépôts, retraits et délais.
+\end{enumerate}
+
+\subsection*{A.6 Paramètres métier modifiables}
+
+Les paramètres suivants doivent être modifiables par SEQUO ou préparés pour l'être:
+
+\begin{itemize}
+    \item prix minimum de livraison;
+    \item prix par kilomètre;
+    \item pourcentages de commission;
+    \item taux de réduction abonnés;
+    \item crédits de parrainage;
+    \item nombre de tentatives de négociation;
+    \item durée de verrouillage d'un prix négocié;
+    \item délai de demande de retour;
+    \item délais et frais de conservation en point relais;
+    \item catégories de produits non éligibles aux points relais ou retours.
+\end{itemize}
+
+\section*{Annexe B - Points à compléter avant signature}
+
+Avant signature, les Parties devraient compléter ou confirmer les points suivants:
+
+\begin{itemize}
+    \item identité complète de SEQUO et du représentant habilité à signer;
+    \item adresse complète de SEQUO et, si nécessaire, coordonnées complémentaires de GABO à Kigali;
+    \item montant mensuel choisi dans la fourchette de 500 à 1 000 euros;
+    \item date effective du premier paiement et modalités de virement ou transfert;
+    \item confirmation que le prix forfaitaire de 3 000 euros est payé uniquement en euros;
+    \item délai de recette du MVP;
+    \item lieu de signature;
+    \item juridiction française compétente en cas de litige;
+    \item choix technique des applications mobiles iOS et Android: développement natif ou solution cross-platform;
+    \item liste définitive des interfaces incluses dans le MVP;
+    \item niveau exact d'intégration des paiements YAS Togo et Moov Africa;
+    \item prise en charge ou non de Google Maps dans le budget;
+    \item hébergement prévu pour la recette et pour la production;
+    \item conditions de maintenance après MVP.
+\end{itemize}
+
+\end{document}
