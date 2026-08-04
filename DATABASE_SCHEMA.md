@@ -700,6 +700,8 @@ Constraint: exactly one of debit/credit should be positive.
 
 Full routing, channel, and realtime rules are defined in [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md) and [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
 
+Current migration: `V3__create_notification_tables.sql`.
+
 ### `device_fcm_tokens`
 
 | Column | Notes |
@@ -717,7 +719,9 @@ Full routing, channel, and realtime rules are defined in [NOTIFICATION_SYSTEM.md
 | `last_seen_at`, `revoked_at` | Nullable timestamps |
 | `created_at`, `updated_at` | Timestamps |
 
-Unique: `(user_id, device_id, app_family)` and `fcm_token_hash`.
+Unique: `fcm_token_hash`.
+
+Index: `(user_id, device_id, app_family, status)` keeps active-token lookup fast while allowing revoked rotation history.
 
 ### `notification_preferences`
 
@@ -745,7 +749,7 @@ Critical operational/security notifications can override preferences only by exp
 | `severity` | `notification_severity` |
 | `title`, `body` | Rendered localized text |
 | `action_url` | Nullable deep link |
-| `payload` | JSONB, safe public identifiers only |
+| `payload` | JSON or text payload with safe public identifiers only |
 | `read_at`, `archived_at` | Nullable |
 | `created_at` | Timestamp |
 
@@ -774,7 +778,7 @@ Unique: `(event_id, recipient_user_id, app_family, event_type)`.
 | `event_id` | Unique domain event ID |
 | `event_type` | Domain event type |
 | `aggregate_type`, `aggregate_id` | Order, delivery mission, return, settlement, etc. |
-| `payload` | JSONB domain event payload |
+| `payload` | JSON or text domain event payload |
 | `status` | `notification_status` |
 | `attempt_count` | Retry count |
 | `next_attempt_at` | Nullable |
@@ -847,6 +851,7 @@ Unique: `(actor_key, idempotency_key)`.
 - `wallet_transactions(provider, provider_reference) unique where provider_reference is not null`.
 - `settlement_ledger_entries(source_type, source_id)`.
 - `device_fcm_tokens(user_id, app_family, status)`.
+- `device_fcm_tokens(user_id, device_id, app_family, status)`.
 - `device_fcm_tokens(fcm_token_hash) unique`.
 - `notification_messages(recipient_user_id, created_at desc)`.
 - `notification_messages(event_id, recipient_user_id, app_family, event_type) unique`.
