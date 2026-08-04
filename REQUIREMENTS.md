@@ -78,7 +78,8 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 ### Priority 0 - Security and startup safety
 
 - [ ] Production startup guardrails for missing JWT secrets, wallet secrets, CORS origins, and database configuration.
-- [ ] Auth rate limiting for login, refresh, password reset, social login, and OTP endpoints.
+- [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
+- [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
 - [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources.
 - [ ] Social identity linking table to safely handle Google login and password login for the same verified email.
 - [ ] Flyway migrations for roles, refresh sessions, social identities, and audit logs.
