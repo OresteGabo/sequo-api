@@ -2,7 +2,7 @@
 
 This file is the dedicated authentication and authorization security checklist for Sequo API. It documents what is already treated in the current Spring Boot code, what is only documented as a target, and what must still be fixed before production.
 
-Review date: 2026-08-02
+Review date: 2026-08-04
 
 ## Current Auth Implementation
 
@@ -17,6 +17,7 @@ The current implementation includes:
 - Apple login placeholder.
 - Forgot-password and reset-password endpoints.
 - Basic Spring Security route protection.
+- In-memory auth endpoint rate limiting with safe `429` responses and `Retry-After` headers.
 
 Main files:
 
@@ -44,8 +45,8 @@ Main files:
 | Logout/logout-all | Not treated | No endpoint or token/session revocation exists. |
 | RBAC and roles | Not treated | Authentication principal has no authorities. |
 | User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
-| Password reset security | Partially treated | Reset token is no longer returned and is stored hashed; notification delivery, rate limits, audit, and session revocation are still pending. |
-| Rate limiting | Not treated | Login, signup, refresh, and reset endpoints are unprotected from brute force. |
+| Password reset security | Partially treated | Reset token is no longer returned and is stored hashed; forgot/reset endpoints are rate-limited; notification delivery, audit, and session revocation are still pending. |
+| Rate limiting | Partially treated | Signup, login, social login, refresh, forgot-password, and reset-password have single-node in-memory limits. Distributed/gateway limits, audit, and lockout remain pending. |
 | Social login hardening | Partially treated | Google is strongest; same-email social login no longer silently links accounts; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
 | Production config hardening | Partially treated | Docker profile now uses Flyway and Hibernate validation; dev fallback secrets, H2 console, and default local `ddl-auto=update` still need isolation. |
@@ -65,7 +66,7 @@ Legend:
 | ---: | --- | :---: | :---: | :---: | --- |
 | 1 | BCrypt password hashing | [x] | [ ] | [ ] | `BCryptPasswordEncoder` is configured and used. |
 | 2 | Email/password signup endpoint | [x] | [ ] | [ ] | Exists, but needs validation and email verification. |
-| 3 | Email/password login endpoint | [x] | [ ] | [ ] | Exists, but needs rate limiting and generic errors. |
+| 3 | Email/password login endpoint | [x] | [ ] | [ ] | Exists with endpoint rate limiting; still needs more generic error handling. |
 | 4 | Stateless Spring Security sessions | [x] | [ ] | [ ] | `SessionCreationPolicy.STATELESS` is configured. |
 | 5 | Default route authentication | [x] | [ ] | [ ] | Non-auth routes require authentication. |
 | 6 | Basic bearer-token filter | [x] | [ ] | [ ] | Custom filter extracts `Authorization: Bearer`. |
@@ -113,11 +114,11 @@ Legend:
 | 48 | Email verification | [ ] | [ ] | [x] | Signup immediately returns tokens. |
 | 49 | Social account linking confirmation | [ ] | [x] | [ ] | Same-email social login now returns `account_link_required`; full authenticated linking flow and linked-identities table are still missing. |
 | 50 | Social email verification enforcement | [ ] | [x] | [ ] | Google requires `email_verified`; Facebook and Apple verification are still incomplete. |
-| 51 | Auth endpoint rate limiting | [ ] | [ ] | [x] | Signup, login, refresh, and reset are unlimited. |
+| 51 | Auth endpoint rate limiting | [ ] | [x] | [ ] | Signup, login, social login, refresh, forgot-password, and reset-password use in-memory per-IP/per-subject limits with `429` and `Retry-After`; distributed limits remain. |
 | 52 | Account lockout or progressive delay | [ ] | [ ] | [x] | No failed-attempt tracking. |
-| 53 | Signup abuse protection | [ ] | [ ] | [x] | No throttling or verification gate. |
-| 54 | Password reset abuse protection | [ ] | [x] | [ ] | Forgot-password response is generic; throttling and audit are still missing. |
-| 55 | Account enumeration resistance | [ ] | [x] | [ ] | Forgot-password is generic; signup/login provider hints intentionally reveal auth method for UX and need rate limiting. |
+| 53 | Signup abuse protection | [ ] | [x] | [ ] | Signup is rate-limited, but email verification and bot protection are still missing. |
+| 54 | Password reset abuse protection | [ ] | [x] | [ ] | Forgot-password response is generic and forgot/reset are rate-limited; audit and notification delivery remain missing. |
+| 55 | Account enumeration resistance | [ ] | [x] | [ ] | Forgot-password is generic; signup/login provider hints intentionally reveal auth method for UX and still need lockout/audit controls. |
 | 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, calendar terms, names, email terms, leetspeak weak terms, sequences, repeated characters, repeated patterns, phone-like numeric runs, and common/local terms. |
 | 57 | Password maximum length guard | [x] | [ ] | [ ] | Password policy caps passwords at 128 characters. |
 | 58 | Breached/common password rejection | [ ] | [x] | [ ] | Extended local blocked list exists; real breached-password checks are pending. |
@@ -313,7 +314,7 @@ Expected secure behavior:
 
 Remaining work:
 
-- Add rate limiting and audit events around forgot/reset attempts.
+- Add audit events around forgot/reset attempts.
 - Revoke existing refresh sessions after password reset once refresh sessions exist.
 - Consider HMAC-SHA256 if the team wants a server-secret keyed reset-token hash.
 
@@ -478,11 +479,11 @@ Treatment:
 
 ## High-Priority Vulnerabilities To Treat
 
-### 12. No Rate Limiting
+### 12. Single-Node Rate Limiting Needs Production Hardening
 
 Severity: High
 
-Affected endpoints:
+Rate-limited endpoints:
 
 - `/api/auth/signup`
 - `/api/auth/login`
@@ -491,16 +492,26 @@ Affected endpoints:
 - `/api/auth/forgot-password`
 - `/api/auth/reset-password`
 
+Current treatment:
+
+- `AuthRateLimiter` applies fixed-window limits per client IP fingerprint and per safe subject key such as normalized email or token hash.
+- Limited requests return `429` with a safe `rate_limited` body and a `Retry-After` header.
+- Raw emails, reset tokens, refresh tokens, and IP addresses are hashed before being used as limiter subjects.
+- The limiter is in-memory and bounded; it is appropriate for the current single-node backend and tests.
+
 Expected secure behavior:
 
 - Per-IP and per-account limits.
+- Distributed limits when multiple API instances run.
 - Progressive delay or lockout after repeated failures.
 - Safe `429` responses.
 - Audit repeated attempts.
 
-Treatment:
+Remaining treatment:
 
-- Add Bucket4j, Resilience4j RateLimiter, gateway-level rate limiting, or provider-level controls.
+- Add Redis/Bucket4j, gateway-level rate limiting, or provider-level controls before horizontal scaling.
+- Add persistent failed-attempt tracking, risk events, and account lockout/progressive delay.
+- Add auth audit logging for blocked and repeated attempts.
 
 ### 13. Account Enumeration
 
@@ -883,7 +894,7 @@ Expected secure behavior:
 
 Treatment:
 
-- Add reset attempt limiter and audit events.
+- Reset attempts are now rate-limited; add audit events and persistent risk tracking.
 
 ### 34. No Protection Against Signup Abuse
 
@@ -897,7 +908,7 @@ Expected secure behavior:
 
 Treatment:
 
-- Add per-IP and per-email rate limits.
+- Signup now has per-IP and per-email rate limits; add email/phone verification and optional bot protection.
 
 ### 35. No Privacy-Safe Logging Policy In Code
 
@@ -1175,7 +1186,8 @@ Priority 0, production blockers:
 - [ ] Remove production fallback JWT secret.
 - [x] Add user status and block locked/suspended users.
 - [ ] Add user roles and authorities.
-- [ ] Add rate limiting on auth endpoints.
+- [x] Add first-pass in-memory rate limiting on auth endpoints.
+- [ ] Upgrade rate limiting to distributed/gateway-level protection before horizontal scaling.
 
 Priority 1, high security:
 
