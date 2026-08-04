@@ -169,16 +169,32 @@ Rules:
 
 ## Rate Limiting
 
+Current implementation:
+
+- Auth endpoints use `AuthRateLimiter`, an in-memory fixed-window limiter.
+- Signup, login, social login, refresh, forgot-password, and reset-password are limited by client IP fingerprint plus a safe subject key where possible.
+- Blocked auth requests return `429` and `Retry-After`.
+- Raw emails, reset tokens, refresh tokens, and IP addresses are not stored as limiter keys; the limiter uses hashes/fingerprints.
+
 Rate limit:
 
-- Login.
-- Refresh.
-- OTP/password reset if implemented.
+- Login. First-pass in-memory limit implemented.
+- Refresh. First-pass in-memory limit implemented.
+- Signup. First-pass in-memory limit implemented.
+- Social login. First-pass in-memory limit implemented.
+- Password reset and forgot-password. First-pass in-memory limit implemented.
+- OTP if implemented later.
 - Bargaining offers.
 - Checkout and payment intent creation.
 - Wallet webhook endpoints by provider/IP/signature context.
 - Return request creation.
 - Admin high-risk actions.
+
+Production hardening still required:
+
+- Add gateway-level or Redis-backed distributed limits before running multiple API instances.
+- Add persistent failed-attempt counters, progressive delay or account lockout, and audit events.
+- Add provider-specific webhook limits that combine IP, signature validity, and provider reference context.
 
 ## Operational Alerts
 
@@ -208,4 +224,3 @@ Alert on:
 - Paid order snapshot immutable.
 - Ledger correction uses adjustment entry.
 - Audit log emitted for commission, refund, payout, and role changes.
-
