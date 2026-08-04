@@ -54,6 +54,34 @@ class DatabaseMigrationValidationTest @Autowired constructor(
     }
 
     @Test
+    fun notificationTablesAreMigrated() {
+        val expectedTables = listOf(
+            "DEVICE_FCM_TOKENS",
+            "NOTIFICATION_PREFERENCES",
+            "NOTIFICATION_MESSAGES",
+            "NOTIFICATION_DELIVERIES",
+            "NOTIFICATION_OUTBOX",
+        )
+
+        expectedTables.forEach { tableName ->
+            assertEquals(
+                1,
+                jdbcTemplate.queryForObject(
+                    """
+                    select count(*)
+                    from information_schema.tables
+                    where table_schema = 'PUBLIC'
+                      and table_name = ?
+                    """.trimIndent(),
+                    Int::class.java,
+                    tableName,
+                ),
+                "$tableName should be created by Flyway.",
+            )
+        }
+    }
+
+    @Test
     fun merchantSubOrderStatusConstraintRejectsInvalidState() {
         assertFailsWith<DataAccessException> {
             jdbcTemplate.update(
@@ -109,6 +137,63 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                 "relay-code-orphan",
                 "missing-parcel",
                 "hashed-code",
+            )
+        }
+    }
+
+    @Test
+    fun notificationDeliveriesRejectUnsupportedChannels() {
+        jdbcTemplate.update(
+            """
+            insert into users (
+                id,
+                email,
+                provider,
+                status
+            ) values (?, ?, ?, ?)
+            """.trimIndent(),
+            "user-notification-constraint",
+            "notification-constraint@sequo.test",
+            "EMAIL",
+            "ACTIVE",
+        )
+        jdbcTemplate.update(
+            """
+            insert into notification_messages (
+                id,
+                event_id,
+                recipient_user_id,
+                app_family,
+                event_type,
+                severity,
+                title,
+                body
+            ) values (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "message-invalid-channel",
+            "event-invalid-channel",
+            "user-notification-constraint",
+            "SEQUO_CUSTOMER",
+            "ORDER_CREATED",
+            "INFO",
+            "Order created",
+            "Your order was created.",
+        )
+
+        assertFailsWith<DataAccessException> {
+            jdbcTemplate.update(
+                """
+                insert into notification_deliveries (
+                    id,
+                    message_id,
+                    channel,
+                    target_ref
+                ) values (?, ?, ?, ?)
+                """.trimIndent(),
+                "delivery-invalid-channel",
+                "message-invalid-channel",
+                "EXPENSIVE_SMS_BLAST",
+                "user:user-notification-constraint",
             )
         }
     }
