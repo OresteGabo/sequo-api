@@ -46,6 +46,28 @@ Source: [notification-system-architecture.puml](docs/diagrams/plantuml/notificat
 
 The backend should use the outbox pattern. Domain services publish events only after a successful transaction. A notification worker then resolves recipients, renders messages, stores in-app records, sends WebSocket messages to active clients, and sends FCM pushes for mobile devices.
 
+## Current Implementation Snapshot
+
+Implemented as of the current repository state:
+
+- `V3__create_notification_tables.sql` creates `device_fcm_tokens`, `notification_preferences`, `notification_messages`, `notification_deliveries`, and `notification_outbox`.
+- `DeviceTokenService` registers, rotates, revokes, and lists active FCM tokens per authenticated user/device/app family.
+- FCM tokens are stored as a SHA-256 lookup hash plus AES-GCM protected ciphertext; raw FCM tokens must never be logged.
+- `DeviceTokenController` exposes authenticated token registration at `POST /api/notifications/devices/fcm` and device revocation at `DELETE /api/notifications/devices/{appFamily}/{deviceId}`.
+- `NotificationChannelPolicy` always creates an in-app path and uses WebSocket/FCM before considering paid SMS.
+- SMS is not connected to a paid provider yet. The code only creates an SMS delivery work row for critical fallback cases when fallback is explicitly allowed, the user allows SMS, push is unavailable or failed, and budget remains.
+- `NotificationDispatchService` persists idempotent in-app notification messages and planned delivery audit rows.
+- Focused tests cover token encryption/rotation/revocation, channel cost policy, dispatch idempotency, and migration constraints.
+
+Still pending:
+
+- Firebase Admin SDK sender adapter.
+- Spring WebSocket/STOMP runtime configuration.
+- Notification outbox worker and `@TransactionalEventListener` hooks from order/delivery/return/settlement domains.
+- Recipient routing by role, ownership, merchant scope, relay scope, rider assignment, and admin scope.
+- In-app inbox read/list/archive endpoints.
+- Real SMS provider abstraction, spend caps, and provider-level retry/dead-letter monitoring.
+
 ## Core Spring Components
 
 | Component | Type | Responsibility |
@@ -58,7 +80,9 @@ The backend should use the outbox pattern. Domain services publish events only a
 | `NotificationRoutingService` | Service | Resolve recipients by role, ownership, merchant scope, relay scope, courier assignment, and admin scope. |
 | `NotificationPreferenceService` | Service | Apply user/app/channel preferences, quiet hours, and critical override policy. |
 | `NotificationTemplateService` | Service | Render localized title/body/action labels and construct safe payload data. |
-| `DeviceTokenService` | Service | Register, update, revoke, and prune FCM tokens per user/device/app. |
+| `DeviceTokenService` | Service | Implemented. Register, update, revoke, and prune FCM tokens per user/device/app. |
+| `NotificationDispatchService` | Service | Implemented foundation. Persist idempotent messages and planned delivery audit rows using channel policy. |
+| `NotificationChannelPolicy` | Service | Implemented foundation. Prefer in-app/WebSocket/FCM and suppress paid SMS unless critical fallback gates pass. |
 | `FcmPushGateway` | Adapter | Send push notifications through Firebase Admin SDK. |
 | `WebSocketNotificationGateway` | Adapter | Send active-session realtime messages through Spring STOMP. |
 | `SmsFallbackGateway` | Adapter | Send critical fallback SMS through a provider abstraction. |
@@ -162,9 +186,9 @@ Mobile apps must register their FCM token after login and whenever Firebase rota
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/users/me/devices/fcm` | User | Register or rotate FCM token for the current app/device. |
-| `DELETE` | `/api/v1/users/me/devices/{deviceId}` | Device owner | Revoke one device token, usually on logout. |
-| `DELETE` | `/api/v1/users/me/devices` | User | Revoke all own devices. |
+| `POST` | `/api/notifications/devices/fcm` | User | Implemented. Register or rotate FCM token for the current app/device. |
+| `DELETE` | `/api/notifications/devices/{appFamily}/{deviceId}` | Device owner | Implemented. Revoke one device token, usually on logout. |
+| `DELETE` | `/api/v1/users/me/devices` | User | Future. Revoke all own devices. |
 | `GET` | `/api/v1/users/me/notification-preferences` | User | Read channel preferences and quiet hours. |
 | `PATCH` | `/api/v1/users/me/notification-preferences` | User | Update non-critical preferences. |
 | `GET` | `/api/v1/users/me/notifications` | User | In-app notification inbox. |
@@ -207,8 +231,14 @@ Mobile apps must register their FCM token after login and whenever Firebase rota
 
 Unique constraints:
 
-- `(user_id, device_id, app_family)`.
 - `fcm_token_hash`.
+
+Indexes:
+
+- `(user_id, app_family, status)`.
+- `(user_id, device_id, app_family, status)`.
+
+Rotation rule: keep revoked token history for audit/debugging, so `(user_id, device_id, app_family)` is indexed but not unique.
 
 ### `notification_preferences`
 
@@ -278,8 +308,9 @@ Unique: `(event_id, recipient_user_id, app_family, event_type)`.
 Indexes:
 
 - `device_fcm_tokens(user_id, app_family, status)`.
+- `device_fcm_tokens(user_id, device_id, app_family, status)`.
 - `notification_messages(recipient_user_id, created_at desc)`.
-- `notification_messages(event_id, recipient_user_id, event_type) unique`.
+- `notification_messages(event_id, recipient_user_id, app_family, event_type) unique`.
 - `notification_deliveries(message_id, channel, status)`.
 - `notification_outbox(status, next_attempt_at)`.
 - `notification_outbox(event_id) unique`.
@@ -328,6 +359,19 @@ Fallback trigger examples:
 - Notification remains undelivered after configured retry window.
 - Event policy explicitly requires SMS and user phone is verified.
 
+Implemented cost gate:
+
+```kotlin
+SMS is planned only when:
+event is critical
+AND smsFallbackAllowed == true
+AND userSmsEnabled == true
+AND smsBudgetRemaining > 0
+AND (no active FCM token OR FCM delivery already failed)
+```
+
+This keeps local development and early production from spending money on SMS for normal order progress updates.
+
 ## Security And Privacy
 
 - All notification APIs require authentication.
@@ -363,13 +407,15 @@ Fallback trigger examples:
 
 ## Implementation Order
 
-1. Add notification dependencies: Firebase Admin SDK, Spring WebSocket, validation, and optional scheduler lock library.
-2. Add migrations for `device_fcm_tokens`, `notification_preferences`, `notification_messages`, `notification_deliveries`, and `notification_outbox`.
-3. Implement `DeviceTokenService` and device token APIs.
-4. Implement notification outbox and `NotificationDomainEventListener`.
-5. Implement `NotificationRoutingService` for customer, merchant, rider, relay, and admin scopes.
-6. Implement WebSocket/STOMP infrastructure from [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
-7. Implement FCM send adapter and delivery audit.
-8. Add SMS fallback provider abstraction for critical events.
-9. Wire notification triggers into order, merchant fulfillment, delivery mission, relay parcel, bargaining, return, refund, and settlement services.
-10. Add admin monitoring for failed deliveries, stale tokens, SMS fallback usage, and dead-lettered notifications.
+1. [x] Add migrations for `device_fcm_tokens`, `notification_preferences`, `notification_messages`, `notification_deliveries`, and `notification_outbox`.
+2. [x] Implement `DeviceTokenService` and authenticated device token APIs.
+3. [x] Implement token hash/encryption protection for FCM tokens at rest.
+4. [x] Implement notification channel cost policy and delivery planning foundation.
+5. [ ] Add notification dependencies: Firebase Admin SDK, Spring WebSocket, validation, and optional scheduler lock library.
+6. [ ] Implement notification outbox worker and `NotificationDomainEventListener`.
+7. [ ] Implement `NotificationRoutingService` for customer, merchant, rider, relay, and admin scopes.
+8. [ ] Implement WebSocket/STOMP infrastructure from [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
+9. [ ] Implement FCM sender adapter and provider delivery audit.
+10. [ ] Add SMS fallback provider abstraction for critical events with monthly spend caps and provider-level rate limits.
+11. [ ] Wire notification triggers into order, merchant fulfillment, delivery mission, relay parcel, bargaining, return, refund, and settlement services.
+12. [ ] Add admin monitoring for failed deliveries, stale tokens, SMS fallback usage, and dead-lettered notifications.
