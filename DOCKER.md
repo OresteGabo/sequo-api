@@ -87,6 +87,7 @@ Important variables:
 | `POSTGRES_USER` | Local database user. |
 | `POSTGRES_PASSWORD` | Local database password. |
 | `JWT_SECRET` | Local JWT signing secret. Must be replaced outside local development. |
+| `NOTIFICATION_TOKEN_ENCRYPTION_SECRET` | Secret used to encrypt FCM tokens at rest. Must be replaced outside local development. |
 | `SPRING_JPA_HIBERNATE_DDL_AUTO` | Local schema strategy. Defaults to `validate` because Flyway owns schema creation. |
 | `JAVA_OPTS` | Optional JVM tuning. |
 
@@ -107,6 +108,7 @@ docker run --rm -p 8080:8080 \
   -e SPRING_DATASOURCE_USERNAME=sequo \
   -e SPRING_DATASOURCE_PASSWORD=sequo_dev_password \
   -e JWT_SECRET=replace_this_with_a_strong_local_secret \
+  -e NOTIFICATION_TOKEN_ENCRYPTION_SECRET=replace_this_with_a_strong_local_secret \
   sequo-api:local
 ```
 
@@ -125,7 +127,7 @@ Before using this image in production, add:
 | Requirement | Status |
 | --- | --- |
 | Production startup validation for unsafe dev defaults. | Not implemented |
-| Database migrations with Flyway or Liquibase. | Implemented with Flyway baseline for current auth schema |
+| Database migrations with Flyway or Liquibase. | Implemented with Flyway migrations for current auth, delivery, and notification schemas |
 | Image vulnerability scanning. | Not implemented |
 | Published images in GHCR or cloud registry. | Not implemented |
 | Runtime health endpoint. | Implemented |
