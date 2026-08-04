@@ -5,7 +5,10 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/auth")
-class AuthController(private val authService: AuthService) {
+class AuthController(
+    private val authService: AuthService,
+    private val authRateLimiter: AuthRateLimiter,
+) {
 
     data class SignUpRequest(val email: String, val password: String, val name: String?)
     data class LoginWithEmailRequest(val email: String, val password: String)
@@ -13,11 +16,19 @@ class AuthController(private val authService: AuthService) {
     data class RefreshRequest(val refreshToken: String)
     data class ForgotPasswordRequest(val email: String)
     data class ResetPasswordRequest(val token: String, val newPassword: String)
+    data class RateLimitErrorResponse(
+        val code: String,
+        val message: String,
+        val retryAfterSeconds: Long,
+    )
 
     @PostMapping("/signup")
     fun signUp(@RequestBody request: SignUpRequest): ResponseEntity<Any> {
         return try {
+            authRateLimiter.checkSignUp(request.email)
             ResponseEntity.ok(authService.signUp(request))
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
         } catch (e: AuthProviderRequiredException) {
             authProviderRequiredResponse(e.requiredProvider)
         } catch (e: EmailAlreadyRegisteredException) {
@@ -35,8 +46,11 @@ class AuthController(private val authService: AuthService) {
     @PostMapping("/login")
     fun login(@RequestBody request: LoginWithEmailRequest): ResponseEntity<Any> {
         return try {
+            authRateLimiter.checkEmailLogin(request.email)
             val tokens = authService.login(request)
             tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
         } catch (e: AuthProviderRequiredException) {
             authProviderRequiredResponse(e.requiredProvider)
         }
@@ -45,8 +59,11 @@ class AuthController(private val authService: AuthService) {
     @PostMapping("/login/social")
     fun loginSocial(@RequestBody request: LoginWithSocialRequest): ResponseEntity<Any> {
         return try {
+            authRateLimiter.checkSocialLogin(request.provider)
             val tokens = authService.loginWithSocialToken(request.provider, request.token)
             tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
         } catch (e: AccountLinkRequiredException) {
             ResponseEntity.status(409).body(
                 AuthErrorResponse(
@@ -60,28 +77,65 @@ class AuthController(private val authService: AuthService) {
     }
 
     @PostMapping("/refresh")
-    fun refresh(@RequestBody request: RefreshRequest): ResponseEntity<AuthTokens> {
-        val tokens = authService.refreshTokens(request.refreshToken)
-        return tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+    fun refresh(@RequestBody request: RefreshRequest): ResponseEntity<Any> {
+        return try {
+            authRateLimiter.checkRefresh(request.refreshToken)
+            val tokens = authService.refreshTokens(request.refreshToken)
+            tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
+        }
     }
 
     @PostMapping("/forgot-password")
     fun forgotPassword(@RequestBody request: ForgotPasswordRequest): ResponseEntity<Map<String, String>> {
-        authService.forgotPassword(request.email)
-        return ResponseEntity.ok(
-            mapOf("message" to "If the account exists, password reset instructions will be sent.")
-        )
+        return try {
+            authRateLimiter.checkForgotPassword(request.email)
+            authService.forgotPassword(request.email)
+            ResponseEntity.ok(
+                mapOf("message" to "If the account exists, password reset instructions will be sent.")
+            )
+        } catch (e: RateLimitExceededException) {
+            rateLimitedMapResponse(e)
+        }
     }
 
     @PostMapping("/reset-password")
     fun resetPassword(@RequestBody request: ResetPasswordRequest): ResponseEntity<Map<String, String>> {
-        val success = authService.resetPassword(request)
-        return if (success) {
-            ResponseEntity.ok(mapOf("message" to "Password reset successful"))
-        } else {
-            ResponseEntity.badRequest().body(mapOf("message" to "Invalid or expired token"))
+        return try {
+            authRateLimiter.checkResetPassword(request.token)
+            val success = authService.resetPassword(request)
+            if (success) {
+                ResponseEntity.ok(mapOf("message" to "Password reset successful"))
+            } else {
+                ResponseEntity.badRequest().body(mapOf("message" to "Invalid or expired token"))
+            }
+        } catch (e: RateLimitExceededException) {
+            rateLimitedMapResponse(e)
         }
     }
+
+    private fun rateLimitedResponse(e: RateLimitExceededException): ResponseEntity<Any> =
+        ResponseEntity.status(429)
+            .header("Retry-After", e.retryAfterSeconds.toString())
+            .body(
+                RateLimitErrorResponse(
+                    code = "rate_limited",
+                    message = "Too many attempts. Please wait before trying again.",
+                    retryAfterSeconds = e.retryAfterSeconds,
+                )
+            )
+
+    private fun rateLimitedMapResponse(e: RateLimitExceededException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(429)
+            .header("Retry-After", e.retryAfterSeconds.toString())
+            .body(
+                mapOf(
+                    "code" to "rate_limited",
+                    "message" to "Too many attempts. Please wait before trying again.",
+                    "retryAfterSeconds" to e.retryAfterSeconds.toString(),
+                )
+            )
 
     private fun authProviderRequiredResponse(provider: AuthProvider): ResponseEntity<Any> =
         ResponseEntity.status(409).body(
