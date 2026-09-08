@@ -11,6 +11,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -65,6 +66,8 @@ interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String>
     fun countByStatusIn(statuses: Collection<RelayParcelStatus>): Long
     fun countByReturnIdIsNotNullAndStatusIn(statuses: Collection<RelayParcelStatus>): Long
     fun findTop50ByStatusInOrderByUpdatedAtAsc(statuses: Collection<RelayParcelStatus>): List<RelayParcelRecord>
+    @Query("select distinct p.relayPointId from RelayParcelRecord p")
+    fun findDistinctRelayPointIds(): List<String>
 }
 interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String> {
     fun findFirstByRelayParcelIdOrderByCreatedAtDesc(relayParcelId: String): RelayPickupCodeRecord?
@@ -91,6 +94,8 @@ class RelayParcelPersistenceService(
             .filter { status == null || it.status == status }
             .map { it.toDomain() }
             .toList()
+
+    fun relayPointIds(): List<String> = parcels.findDistinctRelayPointIds()
 
     @Transactional
     fun save(parcel: RelayParcel): RelayParcel = parcels.save(parcel.toRecord()).toDomain()
@@ -210,6 +215,11 @@ class RelayParcelApplicationService(
             .map { parcel -> domain.markDelayedIfNeeded(parcel, evaluatedAt) }
             .filter { it.status == RelayParcelStatus.Delayed || it.status == RelayParcelStatus.ReturnToSellerReview }
             .map(persistence::save)
+
+    @Transactional
+    fun evaluateDelayedForAllRelayPoints(evaluatedAt: java.time.Instant): List<RelayParcel> =
+        persistence.relayPointIds()
+            .flatMap { relayPointId -> evaluateDelayed(relayPointId, evaluatedAt) }
 
     @Transactional
     fun reportProblem(
