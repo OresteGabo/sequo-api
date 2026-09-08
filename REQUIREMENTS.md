@@ -77,7 +77,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 ### Priority 0 - Security and startup safety
 
-- [ ] Production startup guardrails for missing JWT secrets, wallet secrets, CORS origins, and database configuration.
+- [ ] Production startup guardrails for missing JWT secrets, notification token encryption secrets, OAuth placeholders, and unsafe database configuration. Wallet secrets and CORS origins remain pending.
 - [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
 - [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources.
