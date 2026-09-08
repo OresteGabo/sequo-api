@@ -16,6 +16,7 @@ class StartupSecurityChecksTest {
                 facebookAppId = "facebook_dev_app_id",
                 appleClientId = "apple_dev_client_id",
                 datasourceUrl = "jdbc:h2:mem:sequodb",
+                datasourcePassword = "sequo_dev_password",
                 hibernateDdlAuto = "update",
                 h2ConsoleEnabled = true,
             )
@@ -48,6 +49,7 @@ class StartupSecurityChecksTest {
                 facebookAppId = "facebook_docker_dev_app_id",
                 appleClientId = "apple_docker_dev_client_id",
                 datasourceUrl = "jdbc:postgresql://postgres:5432/sequo",
+                datasourcePassword = "sequo_dev_password",
             )
         )
 
@@ -66,6 +68,7 @@ class StartupSecurityChecksTest {
                 facebookAppId = "facebook_docker_dev_app_id",
                 appleClientId = "apple_docker_dev_client_id",
                 datasourceUrl = "jdbc:h2:mem:sequodb",
+                datasourcePassword = "sequo_dev_password",
                 hibernateDdlAuto = "update",
                 h2ConsoleEnabled = true,
             )
@@ -147,13 +150,33 @@ class StartupSecurityChecksTest {
     }
 
     @Test
-    fun productionProfileAcceptsExplicitHttpsCorsOrigins() {
+    fun productionProfileRejectsTrackedPlaceholderValues() {
+        val findings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                googleClientId = "1234567890-sequo.apps.googleusercontent.com",
+                facebookAppId = "123456789012345",
+                corsAllowedOrigins = listOf("https://app.sequo.example"),
+                datasourceUrl = "jdbc:postgresql://localhost:5432/sequo",
+                datasourcePassword = "sequo_dev_password",
+            )
+        )
+
+        assertTrue(findings.any { it.contains("sequo.auth.google.client-id") })
+        assertTrue(findings.any { it.contains("sequo.auth.facebook.app-id") })
+        assertTrue(findings.any { it.contains("sequo.security.cors.allowed-origins") })
+        assertTrue(findings.any { it.contains("spring.datasource.url") })
+        assertTrue(findings.any { it.contains("spring.datasource.password") })
+    }
+
+    @Test
+    fun productionProfileAcceptsExplicitHttpsNonPlaceholderCorsOrigins() {
         val findings = StartupSecurityChecks.unsafeProductionFindings(
             secureSettings(
                 activeProfiles = setOf("prod"),
                 corsAllowedOrigins = listOf(
-                    "https://app.sequo.example",
-                    "https://admin.sequo.example",
+                    "https://app.sequo.tg",
+                    "https://admin.sequo.tg",
                 ),
             )
         )
@@ -175,15 +198,17 @@ class StartupSecurityChecksTest {
         allowDevDefaults: Boolean = false,
         jwtSecret: String? = "realistic_prod_jwt_secret_2026_value_64_chars_minimum",
         notificationTokenEncryptionSecret: String? = "realistic_notification_secret_2026_value_64_chars_minimum",
-        googleClientId: String? = "1234567890-sequo.apps.googleusercontent.com",
-        facebookAppId: String? = "123456789012345",
-        appleClientId: String? = "com.sequo.service.signin",
+        googleClientId: String? = "7643198250-prod.apps.googleusercontent.com",
+        facebookAppId: String? = "581049273650184",
+        appleClientId: String? = "com.sequo.service.signin.production",
         yasTogoApiKey: String? = "realistic_yas_togo_api_key_2026_value_64_chars_minimum",
         yasTogoWebhookSecret: String? = "realistic_yas_togo_webhook_secret_2026_value_64_chars_minimum",
         moovAfricaApiKey: String? = "realistic_moov_africa_api_key_2026_value_64_chars_minimum",
         moovAfricaWebhookSecret: String? = "realistic_moov_africa_webhook_secret_2026_value_64_chars_minimum",
-        corsAllowedOrigins: List<String> = listOf("https://app.sequo.example"),
+        corsAllowedOrigins: List<String> = listOf("https://app.sequo.tg"),
         datasourceUrl: String? = "jdbc:postgresql://postgres:5432/sequo",
+        datasourceUsername: String? = "sequo_app",
+        datasourcePassword: String? = "realistic_database_password_2026_value_64_chars_minimum",
         hibernateDdlAuto: String? = "validate",
         h2ConsoleEnabled: Boolean = false,
     ): StartupSecuritySettings =
@@ -201,6 +226,8 @@ class StartupSecurityChecksTest {
             moovAfricaWebhookSecret = moovAfricaWebhookSecret,
             corsAllowedOrigins = corsAllowedOrigins,
             datasourceUrl = datasourceUrl,
+            datasourceUsername = datasourceUsername,
+            datasourcePassword = datasourcePassword,
             hibernateDdlAuto = hibernateDdlAuto,
             h2ConsoleEnabled = h2ConsoleEnabled,
         )
