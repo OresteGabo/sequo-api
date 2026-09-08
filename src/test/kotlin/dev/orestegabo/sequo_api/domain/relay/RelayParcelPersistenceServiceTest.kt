@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.relay
 
 import java.time.Instant
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import dev.orestegabo.sequo_api.domain.settlement.SettlementSourceType
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotEquals
@@ -18,6 +20,7 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
     private val parcelRepository: RelayParcelRecordRepository,
     private val pickupCodeRepository: RelayPickupCodeRecordRepository,
     private val eventRepository: RelayCustodyEventRecordRepository,
+    private val settlements: SettlementPersistenceService,
 ) {
     private val now = Instant.parse("2026-09-08T10:00:00Z")
 
@@ -134,6 +137,33 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         )
         assertEquals(RelayParcelStatus.Delayed, parcelRepository.findById("parcel-delayed-all-1").orElseThrow().status)
         assertEquals(RelayParcelStatus.ReturnToSellerReview, parcelRepository.findById("parcel-delayed-all-2").orElseThrow().status)
+    }
+
+    @Test
+    fun assessesStorageFeesCumulativelyAndPostsOnlyLedgerDeltas() {
+        application.createParcel(
+            createCommand(
+                parcelId = "parcel-storage-fee-1",
+                depositCode = "deposit-storage-fee-1",
+                createdAt = now.minusSeconds(16 * 24 * 60 * 60),
+            )
+        )
+
+        val first = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 250, evaluatedAt = now)
+        val repeated = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 250, evaluatedAt = now)
+        val nextDay = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 250, evaluatedAt = now.plusSeconds(24 * 60 * 60))
+        val ledgerEntries = settlements.listLedgerEntries(SettlementSourceType.RelayParcel, "parcel-storage-fee-1")
+
+        assertEquals(1, first.size)
+        assertEquals(2, first.single().chargeableDays)
+        assertEquals(500, first.single().totalFeeCfa)
+        assertEquals(500, first.single().lastIncrementCfa)
+        assertEquals(500, repeated.single().totalFeeCfa)
+        assertEquals(0, repeated.single().lastIncrementCfa)
+        assertEquals(3, nextDay.single().chargeableDays)
+        assertEquals(750, nextDay.single().totalFeeCfa)
+        assertEquals(250, nextDay.single().lastIncrementCfa)
+        assertEquals(listOf(500, 250), ledgerEntries.map { it.amountCfa })
     }
 
     private fun createCommand(
