@@ -1,5 +1,8 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.auth.hasRole
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -52,7 +55,7 @@ class RelayParcelController(
 
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody command: RelayParcelCreateCommand): ResponseEntity<Any> =
-        roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_COURIER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+        roleRequired(authentication, setOf(RoleCode.RELAY_PARTNER, RoleCode.COURIER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
             service.createParcel(command).toResponse()
         }
 
@@ -61,16 +64,16 @@ class RelayParcelController(
         authentication: Authentication?,
         @RequestParam relayPointId: String,
         @RequestParam(required = false) status: RelayParcelStatus?,
-    ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+    ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
         ResponseEntity.ok(service.listParcels(relayPointId, status).map { toResponse(it) })
     }
 
     @GetMapping("/{parcelId}")
     fun get(authentication: Authentication?, @PathVariable parcelId: String, @RequestParam(required = false) relayPointId: String?): ResponseEntity<Any> =
-        roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+        roleRequired(authentication, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
             val parcel = service.getParcel(parcelId)
                 ?: return@roleRequired ResponseEntity.notFound().build()
-            if (authentication!!.authorities.any { it.authority == "ROLE_RELAY_PARTNER" } && parcel.relayPointId != relayPointId) {
+            if (authentication!!.hasRole(RoleCode.RELAY_PARTNER) && parcel.relayPointId != relayPointId) {
                 return@roleRequired ResponseEntity.status(403).build()
             }
             ResponseEntity.ok(toResponse(parcel))
@@ -81,7 +84,7 @@ class RelayParcelController(
         authentication: Authentication?,
         @PathVariable parcelId: String,
         @RequestBody request: PickupCodeRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+    ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
         service.createPickupCode(
             parcelId = parcelId,
             codeId = request.codeId,
@@ -97,7 +100,7 @@ class RelayParcelController(
         authentication: Authentication?,
         @PathVariable parcelId: String,
         @RequestBody request: ReleaseRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+    ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
         service.verifyPickup(
             parcelId = parcelId,
             relayPointId = request.relayPointId,
@@ -115,13 +118,13 @@ class RelayParcelController(
         authentication: Authentication?,
         @PathVariable parcelId: String,
         @RequestBody request: ProblemRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+    ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
         service.reportProblem(parcelId, authentication!!.name, request.eventId, request.idempotencyKey, request.metadata).toResponse()
     }
 
-    private fun roleRequired(authentication: Authentication?, roles: Set<String>, operation: () -> ResponseEntity<Any>): ResponseEntity<Any> =
+    private fun roleRequired(authentication: Authentication?, roles: Set<RoleCode>, operation: () -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
-        else if (authentication.authorities.none { it.authority in roles }) ResponseEntity.status(403).build()
+        else if (!authentication.hasAnyRole(roles)) ResponseEntity.status(403).build()
         else try { operation() } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(ErrorResponse("invalid_relay_request", e.message ?: "Invalid relay request."))
         }
