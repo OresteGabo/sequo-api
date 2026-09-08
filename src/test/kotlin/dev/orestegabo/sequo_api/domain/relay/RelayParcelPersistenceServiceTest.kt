@@ -72,6 +72,24 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         assertTrue(parcelRepository.findById("parcel-persistence-1").isEmpty)
     }
 
+    @Test
+    fun listsOnlyParcelsFromRequestedRelayPointAndStatus() {
+        application.createParcel(createCommand(parcelId = "parcel-list-1", depositCode = "deposit-list-1"))
+        application.createParcel(
+            createCommand(
+                parcelId = "parcel-list-2",
+                depositCode = "deposit-list-2",
+            ).copy(
+                relayPointId = "relay-other",
+                availableLockers = listOf(RelayLocker("locker-other", "relay-other", active = true, occupied = false)),
+            ),
+        )
+
+        val listed = application.listParcels("relay-persistence-1", RelayParcelStatus.Deposited)
+
+        assertEquals(listOf("parcel-list-1"), listed.map { it.id })
+    }
+
     private fun createCommand(
         parcelId: String = "parcel-persistence-1",
         depositCode: String = "deposit-persistence-1",
