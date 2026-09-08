@@ -115,7 +115,7 @@ Not implemented yet:
 | [x] | Implemented | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | `RelayParcelPersistenceService` and `RelayParcelController` persist hashed numeric/QR credentials, expiry, usage counters, and safe public responses that never return raw secrets. |
 | [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | `RelayParcelPersistenceService` persists deposit and release events with actor and idempotency data; broader event handling remains. |
 | [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
-| [ ] | Partial | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | `SettlementLedgerService` creates immutable merchant payout, shortfall, hold, and adjustment snapshots; persistence schema/repository remains. |
+| [x] | Implemented | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | `SettlementPersistenceService` persists immutable ledger entries, idempotently records delivery shortfalls and adjustments, and reads entries by source. Automatic payout execution remains. |
 
 ## API Surface Required Before Delivery Apps Work
 
