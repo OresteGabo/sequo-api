@@ -125,6 +125,15 @@ data class DeliveryShortfallCommand(
     val createdAt: Instant,
 )
 
+data class RelayStorageFeeLedgerCommand(
+    val entryId: String,
+    val relayParcelId: String,
+    val relayPointId: String,
+    val amountCfa: Int,
+    val chargeableDays: Long,
+    val createdAt: Instant,
+)
+
 data class SettlementAdjustmentCommand(
     val adjustmentEntryId: String,
     val originalEntry: SettlementLedgerEntry,
@@ -268,6 +277,28 @@ class SettlementLedgerService(
                 sourceType = SettlementSourceType.DeliveryMission,
                 sourceId = command.deliveryMissionId,
                 description = "Sequo delivery shortfall expense.",
+                createdAt = command.createdAt,
+            )
+        )
+    }
+
+    fun postRelayStorageFee(command: RelayStorageFeeLedgerCommand): SettlementResult {
+        if (command.entryId.isBlank()) return rejected("missing_entry_id", "Ledger entry id is required.")
+        if (command.relayParcelId.isBlank()) return rejected("missing_relay_parcel_id", "Relay parcel id is required.")
+        if (command.relayPointId.isBlank()) return rejected("missing_relay_point_id", "Relay point id is required.")
+        if (command.amountCfa <= 0) return rejected("invalid_storage_fee", "Storage fee amount must be positive.")
+        if (command.chargeableDays <= 0) return rejected("invalid_chargeable_days", "Chargeable days must be positive.")
+
+        return SettlementResult.Posted(
+            SettlementLedgerEntry(
+                id = command.entryId,
+                account = SettlementLedgerAccount.RelayPayable,
+                direction = SettlementLedgerDirection.Credit,
+                amountCfa = command.amountCfa,
+                relayPointId = command.relayPointId,
+                sourceType = SettlementSourceType.RelayParcel,
+                sourceId = command.relayParcelId,
+                description = "Relay storage fee accrued for ${command.chargeableDays} chargeable day(s).",
                 createdAt = command.createdAt,
             )
         )
