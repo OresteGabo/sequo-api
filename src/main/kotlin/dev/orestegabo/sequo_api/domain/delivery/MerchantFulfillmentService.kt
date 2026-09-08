@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.delivery
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.Duration
 
 data class CreateMerchantSubOrderCommand(
     val subOrderCode: String,
@@ -36,7 +37,18 @@ data class MerchantSubOrderSnapshot(
     val packedReadyAt: Instant?,
     val handedToCourierAt: Instant?,
     val rejectionReason: String?,
+    val sellerResponseDueAt: Instant?,
+    val packingDueAt: Instant?,
     val updatedAt: Instant,
+)
+
+data class MerchantFulfillmentSlaSnapshot(
+    val subOrderId: String,
+    val status: MerchantSubOrderStatus,
+    val sellerResponseDueAt: Instant?,
+    val packingDueAt: Instant?,
+    val overdue: Boolean,
+    val overdueReason: String?,
 )
 
 sealed class MerchantFulfillmentServiceResult {
@@ -55,7 +67,14 @@ sealed class MerchantFulfillmentServiceResult {
 class MerchantFulfillmentService(
     private val repository: MerchantSubOrderRepository,
     private val workflow: MerchantFulfillmentWorkflow,
+    private val sellerResponseSla: Duration = Duration.ofHours(24),
+    private val packingSla: Duration = Duration.ofHours(48),
 ) {
+    init {
+        require(!sellerResponseSla.isNegative && !sellerResponseSla.isZero) { "sellerResponseSla must be positive." }
+        require(!packingSla.isNegative && !packingSla.isZero) { "packingSla must be positive." }
+    }
+
     @Transactional
     fun create(command: CreateMerchantSubOrderCommand): MerchantSubOrderSnapshot {
         val now = Instant.now()
@@ -67,11 +86,36 @@ class MerchantFulfillmentService(
             commissionRateBps = command.commissionRateBps,
             commissionCfa = command.commissionCfa,
             merchantNetCfa = command.merchantNetCfa,
+            sellerResponseDueAt = now.plus(sellerResponseSla),
+            packingDueAt = now.plus(packingSla),
             createdAt = now,
             updatedAt = now,
         )
 
         return repository.save(subOrder).toSnapshot()
+    }
+
+    @Transactional(readOnly = true)
+    fun sla(subOrderId: String, at: Instant = Instant.now()): MerchantFulfillmentSlaSnapshot? {
+        val subOrder = repository.findById(subOrderId).orElse(null) ?: return null
+        val responseOverdue = subOrder.status == MerchantSubOrderStatus.MERCHANT_PENDING &&
+            subOrder.sellerResponseDueAt?.isBefore(at) == true
+        val packingOverdue = subOrder.status in setOf(
+            MerchantSubOrderStatus.ACCEPTED,
+            MerchantSubOrderStatus.PREPARING,
+        ) && subOrder.packingDueAt?.isBefore(at) == true
+        return MerchantFulfillmentSlaSnapshot(
+            subOrderId = requireNotNull(subOrder.id),
+            status = subOrder.status,
+            sellerResponseDueAt = subOrder.sellerResponseDueAt,
+            packingDueAt = subOrder.packingDueAt,
+            overdue = responseOverdue || packingOverdue,
+            overdueReason = when {
+                responseOverdue -> "seller_response_sla_exceeded"
+                packingOverdue -> "packing_sla_exceeded"
+                else -> null
+            },
+        )
     }
 
     @Transactional
@@ -234,6 +278,8 @@ private fun MerchantSubOrder.toSnapshot(): MerchantSubOrderSnapshot =
         packedReadyAt = packedReadyAt,
         handedToCourierAt = handedToCourierAt,
         rejectionReason = rejectionReason,
+        sellerResponseDueAt = sellerResponseDueAt,
+        packingDueAt = packingDueAt,
         updatedAt = updatedAt,
     )
 
