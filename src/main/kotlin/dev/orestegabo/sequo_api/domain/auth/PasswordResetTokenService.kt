@@ -10,6 +10,15 @@ data class PasswordResetToken(
     val tokenHash: String
 )
 
+interface PasswordResetTokenNotifier {
+    fun send(userId: String, email: String, rawToken: String)
+}
+
+@Service
+class NoopPasswordResetTokenNotifier : PasswordResetTokenNotifier {
+    override fun send(userId: String, email: String, rawToken: String) = Unit
+}
+
 @Service
 class PasswordResetTokenService {
     private val secureRandom = SecureRandom()
