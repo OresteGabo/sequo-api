@@ -4,6 +4,7 @@ import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.auth.hasRole
+import dev.orestegabo.sequo_api.domain.order.OrderDeliveryLifecycleService
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -22,6 +23,7 @@ class DeliveryMissionController(
     private val service: DeliveryMissionService,
     private val pinService: DeliveryPinService,
     private val dispatchService: DeliveryReadinessDispatchService,
+    private val orderLifecycle: OrderDeliveryLifecycleService,
 ) {
     data class AssignCourierRequest(val courierId: String)
     data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null)
@@ -183,13 +185,14 @@ class DeliveryMissionController(
                 is DeliveryPinResult.Rejected -> return@roleActorRequired result.toResponse()
             }
         } ?: false
-        service.transition(
+        val result = service.transition(
             missionId,
             it,
             DeliveryMissionEvent.CourierDeliversToCustomer,
             proof = request.proofMetadata,
             deliveryPinValidated = pinValidated,
-        ).toResponse()
+        )
+        result.markOrderDelivered(actorUserId = it).toResponse()
     }
 
     @PostMapping("/{missionId}/relay-deposit")
@@ -209,14 +212,15 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: RelayReleaseRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.RelayOperators) {
-        service.transition(
+        val result = service.transition(
             missionId = missionId,
             actorId = it,
             event = DeliveryMissionEvent.RelayReleasesToCustomer,
             proof = request.proofMetadata,
             relayPickupValidated = request.pickupCodeValidated,
             identityValidated = request.identityValidated,
-        ).toResponse()
+        )
+        result.markOrderDelivered(actorUserId = it).toResponse()
     }
 
     @PostMapping("/{missionId}/problem")
@@ -279,6 +283,13 @@ class DeliveryMissionController(
 
     private fun badRequest(error: IllegalArgumentException): ResponseEntity<Any> =
         ResponseEntity.badRequest().body(ErrorResponse("invalid_delivery_request", error.message ?: "Invalid delivery request."))
+
+    private fun DeliveryMissionServiceResult.markOrderDelivered(actorUserId: String): DeliveryMissionServiceResult {
+        if (this is DeliveryMissionServiceResult.Success) {
+            orderLifecycle.markDeliveredFromMission(mission, actorUserId)
+        }
+        return this
+    }
 }
 
 private fun DeliveryMissionServiceResult.toResponse(): ResponseEntity<Any> =
