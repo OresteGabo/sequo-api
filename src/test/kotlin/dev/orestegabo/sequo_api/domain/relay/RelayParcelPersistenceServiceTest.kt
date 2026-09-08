@@ -106,6 +106,36 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         assertEquals(RelayParcelStatus.Delayed, parcelRepository.findById("parcel-delayed-1").orElseThrow().status)
     }
 
+    @Test
+    fun evaluatesDelayedParcelsAcrossAllRelayPoints() {
+        application.createParcel(
+            createCommand(
+                parcelId = "parcel-delayed-all-1",
+                depositCode = "deposit-delayed-all-1",
+                createdAt = now.minusSeconds(15 * 24 * 60 * 60),
+            )
+        )
+        application.createParcel(
+            createCommand(
+                parcelId = "parcel-delayed-all-2",
+                depositCode = "deposit-delayed-all-2",
+                createdAt = now.minusSeconds(29 * 24 * 60 * 60),
+            ).copy(
+                relayPointId = "relay-persistence-2",
+                availableLockers = listOf(RelayLocker("locker-persistence-2", "relay-persistence-2", active = true, occupied = false)),
+            )
+        )
+
+        val evaluated = application.evaluateDelayedForAllRelayPoints(now)
+
+        assertEquals(
+            setOf("parcel-delayed-all-1", "parcel-delayed-all-2"),
+            evaluated.map { it.id }.toSet(),
+        )
+        assertEquals(RelayParcelStatus.Delayed, parcelRepository.findById("parcel-delayed-all-1").orElseThrow().status)
+        assertEquals(RelayParcelStatus.ReturnToSellerReview, parcelRepository.findById("parcel-delayed-all-2").orElseThrow().status)
+    }
+
     private fun createCommand(
         parcelId: String = "parcel-persistence-1",
         depositCode: String = "deposit-persistence-1",
