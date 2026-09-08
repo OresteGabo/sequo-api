@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import dev.orestegabo.sequo_api.domain.settlement.RelayStorageFeeLedgerCommand
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import jakarta.persistence.Column
 import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Convert
@@ -61,6 +63,23 @@ class RelayCustodyEventRecord(
     @Column(name = "created_at", nullable = false) val createdAt: java.time.Instant,
 )
 
+@Entity
+@Table(name = "relay_storage_fee_assessments")
+class RelayStorageFeeAssessmentRecord(
+    @Id val id: String,
+    @Column(name = "relay_parcel_id", nullable = false) val relayParcelId: String,
+    @Column(name = "relay_point_id", nullable = false) val relayPointId: String,
+    @Column(name = "daily_fee_cfa", nullable = false) val dailyFeeCfa: Int,
+    @Column(name = "chargeable_days", nullable = false) var chargeableDays: Long,
+    @Column(name = "total_fee_cfa", nullable = false) var totalFeeCfa: Int,
+    @Column(name = "last_increment_cfa", nullable = false) var lastIncrementCfa: Int,
+    @Column(name = "fee_starts_at", nullable = false) var feeStartsAt: java.time.Instant,
+    @Column(name = "measured_until", nullable = false) var measuredUntil: java.time.Instant,
+    @Column(name = "created_at", nullable = false) val createdAt: java.time.Instant,
+    @Column(name = "updated_at", nullable = false) var updatedAt: java.time.Instant,
+    @Version @Column(nullable = false) var version: Long = 0,
+)
+
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayParcelRecord>
     fun countByStatusIn(statuses: Collection<RelayParcelStatus>): Long
@@ -75,12 +94,31 @@ interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord,
 interface RelayCustodyEventRecordRepository : JpaRepository<RelayCustodyEventRecord, String> {
     fun findByRelayParcelIdOrderByCreatedAtAsc(relayParcelId: String): List<RelayCustodyEventRecord>
 }
+interface RelayStorageFeeAssessmentRecordRepository : JpaRepository<RelayStorageFeeAssessmentRecord, String> {
+    fun findByRelayParcelId(relayParcelId: String): RelayStorageFeeAssessmentRecord?
+    fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayStorageFeeAssessmentRecord>
+}
+
+data class RelayStorageFeeAssessment(
+    val id: String,
+    val relayParcelId: String,
+    val relayPointId: String,
+    val dailyFeeCfa: Int,
+    val chargeableDays: Long,
+    val totalFeeCfa: Int,
+    val lastIncrementCfa: Int,
+    val feeStartsAt: java.time.Instant,
+    val measuredUntil: java.time.Instant,
+    val createdAt: java.time.Instant,
+    val updatedAt: java.time.Instant,
+)
 
 @Service
 class RelayParcelPersistenceService(
     private val parcels: RelayParcelRecordRepository,
     private val pickupCodes: RelayPickupCodeRecordRepository,
     private val events: RelayCustodyEventRecordRepository,
+    private val storageFees: RelayStorageFeeAssessmentRecordRepository,
 ) {
     fun findParcel(id: String): RelayParcel? = parcels.findById(id).orElse(null)?.toDomain(
         events.findByRelayParcelIdOrderByCreatedAtAsc(id).map { it.toDomain() }
@@ -96,6 +134,9 @@ class RelayParcelPersistenceService(
             .toList()
 
     fun relayPointIds(): List<String> = parcels.findDistinctRelayPointIds()
+
+    fun listStorageFeeAssessments(relayPointId: String): List<RelayStorageFeeAssessment> =
+        storageFees.findByRelayPointIdOrderByUpdatedAtDesc(relayPointId).map { it.toDomain() }
 
     @Transactional
     fun save(parcel: RelayParcel): RelayParcel = parcels.save(parcel.toRecord()).toDomain()
@@ -124,13 +165,53 @@ class RelayParcelPersistenceService(
         parcels.save(it.toRecord())
         events.save(event.toRecord())
     }
+
+    @Transactional
+    fun saveStorageFeeAssessment(
+        parcel: RelayParcel,
+        fee: RelayStorageFeeSnapshot,
+        assessedAt: java.time.Instant,
+    ): Pair<RelayStorageFeeAssessment, Int> {
+        val id = "${parcel.id}:storage-fee"
+        val existing = storageFees.findByRelayParcelId(parcel.id)
+        val previousTotal = existing?.totalFeeCfa ?: 0
+        val increment = fee.totalFeeCfa - previousTotal
+        val saved = if (existing == null) {
+            RelayStorageFeeAssessmentRecord(
+                id = id,
+                relayParcelId = parcel.id,
+                relayPointId = parcel.relayPointId,
+                dailyFeeCfa = fee.dailyFeeCfa,
+                chargeableDays = fee.chargeableDays,
+                totalFeeCfa = fee.totalFeeCfa,
+                lastIncrementCfa = increment.coerceAtLeast(0),
+                feeStartsAt = fee.feeStartsAt,
+                measuredUntil = fee.measuredUntil,
+                createdAt = assessedAt,
+                updatedAt = assessedAt,
+            )
+        } else {
+            existing.apply {
+                chargeableDays = fee.chargeableDays
+                totalFeeCfa = maxOf(totalFeeCfa, fee.totalFeeCfa)
+                lastIncrementCfa = increment.coerceAtLeast(0)
+                feeStartsAt = fee.feeStartsAt
+                measuredUntil = fee.measuredUntil
+                updatedAt = assessedAt
+            }
+        }
+        return storageFees.save(saved).toDomain() to increment.coerceAtLeast(0)
+    }
 }
 
 @Service
 class RelayParcelApplicationService(
     private val domain: RelayParcelService,
     private val persistence: RelayParcelPersistenceService,
+    private val settlements: SettlementPersistenceService,
 ) {
+    private val storageFeeService = RelayStorageFeeService()
+
     @Transactional
     fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
         val result = domain.createParcel(command)
@@ -222,6 +303,23 @@ class RelayParcelApplicationService(
             .flatMap { relayPointId -> evaluateDelayed(relayPointId, evaluatedAt) }
 
     @Transactional
+    fun assessStorageFees(
+        relayPointId: String,
+        dailyFeeCfa: Int,
+        evaluatedAt: java.time.Instant = java.time.Instant.now(),
+    ): List<RelayStorageFeeAssessment> {
+        require(relayPointId.isNotBlank()) { "relayPointId is required." }
+        return persistence.listParcels(relayPointId)
+            .mapNotNull { parcel -> parcel.assessStorageFee(dailyFeeCfa, evaluatedAt) }
+    }
+
+    @Transactional(readOnly = true)
+    fun listStorageFeeAssessments(relayPointId: String): List<RelayStorageFeeAssessment> {
+        require(relayPointId.isNotBlank()) { "relayPointId is required." }
+        return persistence.listStorageFeeAssessments(relayPointId)
+    }
+
+    @Transactional
     fun reportProblem(
         parcelId: String,
         actorUserId: String,
@@ -244,6 +342,41 @@ class RelayParcelApplicationService(
         val updated = parcel.copy(status = RelayParcelStatus.Problem, updatedAt = reportedAt, custodyEvents = parcel.custodyEvents + event)
         persistence.saveProblem(updated, event)
         return RelayParcelServiceResult.Accepted(RelayParcelAccepted(updated, event = event))
+    }
+
+    private fun RelayParcel.assessStorageFee(
+        dailyFeeCfa: Int,
+        evaluatedAt: java.time.Instant,
+    ): RelayStorageFeeAssessment? {
+        val depositedAt = depositedAt ?: return null
+        if (status == RelayParcelStatus.PickedUp || status == RelayParcelStatus.CollectedBySequo || status == RelayParcelStatus.ReturnedToSeller) {
+            return null
+        }
+        val fee = storageFeeService.calculate(
+            RelayStorageFeeRequest(
+                depositedAt = depositedAt,
+                evaluatedAt = evaluatedAt,
+                pickedUpAt = pickedUpAt,
+                collectedAt = collectedAt,
+                dailyFeeCfa = dailyFeeCfa,
+            )
+        )
+        if (!fee.eligible || fee.totalFeeCfa <= 0) return null
+
+        val (assessment, increment) = persistence.saveStorageFeeAssessment(this, fee, evaluatedAt)
+        if (increment > 0) {
+            settlements.postRelayStorageFee(
+                RelayStorageFeeLedgerCommand(
+                    entryId = "${id}:storage-fee:${assessment.totalFeeCfa}",
+                    relayParcelId = id,
+                    relayPointId = relayPointId,
+                    amountCfa = increment,
+                    chargeableDays = assessment.chargeableDays,
+                    createdAt = evaluatedAt,
+                )
+            )
+        }
+        return assessment
     }
 }
 
@@ -269,6 +402,19 @@ private fun RelayParcelRecord.toDomain(custodyEvents: List<RelayCustodyEvent> = 
 )
 private fun RelayPickupCodeRecord.toDomain() = RelayPickupCode(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
 private fun RelayCustodyEventRecord.toDomain() = RelayCustodyEvent(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
+private fun RelayStorageFeeAssessmentRecord.toDomain() = RelayStorageFeeAssessment(
+    id = id,
+    relayParcelId = relayParcelId,
+    relayPointId = relayPointId,
+    dailyFeeCfa = dailyFeeCfa,
+    chargeableDays = chargeableDays,
+    totalFeeCfa = totalFeeCfa,
+    lastIncrementCfa = lastIncrementCfa,
+    feeStartsAt = feeStartsAt,
+    measuredUntil = measuredUntil,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
 
 @Converter
 class RelayParcelStatusConverter : AttributeConverter<RelayParcelStatus, String> {
