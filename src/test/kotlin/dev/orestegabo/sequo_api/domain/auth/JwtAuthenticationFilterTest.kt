@@ -47,8 +47,8 @@ class JwtAuthenticationFilterTest {
         val authentication = SecurityContextHolder.getContext().authentication
         assertNotNull(authentication)
         assertEquals("courier-1", authentication.name)
-        assertTrue(authentication.authorities.any { it.authority == "ROLE_COURIER" })
-        assertTrue(authentication.authorities.any { it.authority == "ROLE_RELAY_PARTNER" })
+        assertTrue(authentication.authorities.any { it.authority == RoleCode.COURIER.authority })
+        assertTrue(authentication.authorities.any { it.authority == RoleCode.RELAY_PARTNER.authority })
     }
 
     @Test
