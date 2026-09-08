@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class RelayParcelPersistenceServiceTest @Autowired constructor(
     private val persistence: RelayParcelPersistenceService,
+    private val application: RelayParcelApplicationService,
     private val parcelRepository: RelayParcelRecordRepository,
     private val pickupCodeRepository: RelayPickupCodeRecordRepository,
     private val eventRepository: RelayCustodyEventRecordRepository,
@@ -59,12 +60,27 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         assertTrue(record.codeHash.startsWith("sha256:"))
     }
 
-    private fun createCommand() = RelayParcelCreateCommand(
-        parcelId = "parcel-persistence-1",
+    @Test
+    fun applicationServicePersistsOnlyAcceptedParcelCreation() {
+        val rejected = application.createParcel(createCommand(category = RelayParcelCategory.Food))
+        val accepted = application.createParcel(createCommand(parcelId = "parcel-application-1", depositCode = "deposit-application-1"))
+
+        assertTrue(rejected is RelayParcelServiceResult.Rejected)
+        assertTrue(accepted is RelayParcelServiceResult.Accepted)
+        assertTrue(parcelRepository.findById("parcel-application-1").isPresent)
+        assertTrue(parcelRepository.findById("parcel-persistence-1").isEmpty)
+    }
+
+    private fun createCommand(
+        parcelId: String = "parcel-persistence-1",
+        depositCode: String = "deposit-persistence-1",
+        category: RelayParcelCategory = RelayParcelCategory.GeneralGoods,
+    ) = RelayParcelCreateCommand(
+        parcelId = parcelId,
         relayPointId = "relay-persistence-1",
         orderId = "order-persistence-1",
-        category = RelayParcelCategory.GeneralGoods,
-        depositCode = "deposit-persistence-1",
+        category = category,
+        depositCode = depositCode,
         availableLockers = listOf(RelayLocker("locker-persistence", "relay-persistence-1", active = true, occupied = false)),
         createdAt = now,
     )
