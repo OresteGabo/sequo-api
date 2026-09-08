@@ -42,7 +42,7 @@ Not implemented yet:
 
 | Done | State | Mode | Backend rule | Evidence or gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | `MerchantFulfillmentController`, `DeliveryMissionController`, and `DeliveryTrackingController` expose the operational path with hashed PIN creation/validation; order-readiness dispatch and ETA remain. |
+| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | `MerchantFulfillmentController`, `DeliveryMissionController`, `DeliveryTrackingController`, and `DeliveryReadinessDispatchService` expose the operational path with hashed PIN creation/validation and ready-suborder dispatch; ETA remains. |
 | [ ] | Partial | Express delivery | Non-subscriber express orders prefer freelance moto couriers. | `DeliveryAssignmentPolicy` implements selection; dispatch queue missing. |
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
@@ -60,7 +60,7 @@ Not implemented yet:
 | [x] | Implemented | Seller accepts order | Seller must explicitly accept before packing. | `MerchantFulfillmentService` persists acceptance and tests cover merchant scope checks. |
 | [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentService` persists preparation timestamp. |
 | [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentService` requires `packageCount > 0` and persists packed state. |
-| [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `DeliveryMissionService` and `DeliveryMissionController` persist and expose mission creation/assignment; order-readiness trigger and dispatch queue remain. |
+| [x] | Implemented | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `DeliveryReadinessDispatchService` and `/api/delivery/missions/dispatch-ready` create idempotent unassigned missions from packed merchant sub-orders, choosing customer, relay, or Sequo-consolidation destination from the persisted order route. |
 | [x] | Implemented | Courier assignment policy | Selects eligible courier based on subscriber/order channel/workforce/vehicle rules. | `DeliveryAssignmentPolicy` and tests. |
 | [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionController` exposes role-protected accept and tests verify assigned-courier scope. |
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionController` exposes pickup with proof and persists actor metadata. |
