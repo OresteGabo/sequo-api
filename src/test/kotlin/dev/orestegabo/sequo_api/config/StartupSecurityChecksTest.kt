@@ -86,6 +86,10 @@ class StartupSecurityChecksTest {
                 googleClientId = "google_dev_client_id",
                 facebookAppId = "facebook_dev_app_id",
                 appleClientId = "apple_dev_client_id",
+                yasTogoApiKey = "yas_togo_dev_api_key_2026_change_before_prod",
+                yasTogoWebhookSecret = "yas_togo_dev_webhook_secret_2026_change_before_prod",
+                moovAfricaApiKey = "moov_africa_dev_api_key_2026_change_before_prod",
+                moovAfricaWebhookSecret = "moov_africa_dev_webhook_secret_2026_change_before_prod",
             )
         )
 
@@ -94,6 +98,10 @@ class StartupSecurityChecksTest {
         assertTrue(findings.any { it.contains("sequo.auth.google.client-id") })
         assertTrue(findings.any { it.contains("sequo.auth.facebook.app-id") })
         assertTrue(findings.any { it.contains("sequo.auth.apple.client-id") })
+        assertTrue(findings.any { it.contains("sequo.wallets.yas-togo.api-key") })
+        assertTrue(findings.any { it.contains("sequo.wallets.yas-togo.webhook-secret") })
+        assertTrue(findings.any { it.contains("sequo.wallets.moov-africa.api-key") })
+        assertTrue(findings.any { it.contains("sequo.wallets.moov-africa.webhook-secret") })
     }
 
     @Test
@@ -113,6 +121,47 @@ class StartupSecurityChecksTest {
     }
 
     @Test
+    fun productionProfileRejectsMissingWildcardOrNonHttpsCorsOrigins() {
+        val missingFindings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                corsAllowedOrigins = emptyList(),
+            )
+        )
+        val wildcardFindings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                corsAllowedOrigins = listOf("https://app.sequo.example", "*"),
+            )
+        )
+        val insecureFindings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                corsAllowedOrigins = listOf("http://app.sequo.example"),
+            )
+        )
+
+        assertTrue(missingFindings.any { it.contains("sequo.security.cors.allowed-origins") })
+        assertTrue(wildcardFindings.any { it.contains("wildcard origins") })
+        assertTrue(insecureFindings.any { it.contains("HTTPS origins") })
+    }
+
+    @Test
+    fun productionProfileAcceptsExplicitHttpsCorsOrigins() {
+        val findings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                corsAllowedOrigins = listOf(
+                    "https://app.sequo.example",
+                    "https://admin.sequo.example",
+                ),
+            )
+        )
+
+        assertTrue(findings.isEmpty())
+    }
+
+    @Test
     fun productionProfileAcceptsSecureConfig() {
         val findings = StartupSecurityChecks.unsafeProductionFindings(
             secureSettings(activeProfiles = setOf("prod"))
@@ -129,6 +178,11 @@ class StartupSecurityChecksTest {
         googleClientId: String? = "1234567890-sequo.apps.googleusercontent.com",
         facebookAppId: String? = "123456789012345",
         appleClientId: String? = "com.sequo.service.signin",
+        yasTogoApiKey: String? = "realistic_yas_togo_api_key_2026_value_64_chars_minimum",
+        yasTogoWebhookSecret: String? = "realistic_yas_togo_webhook_secret_2026_value_64_chars_minimum",
+        moovAfricaApiKey: String? = "realistic_moov_africa_api_key_2026_value_64_chars_minimum",
+        moovAfricaWebhookSecret: String? = "realistic_moov_africa_webhook_secret_2026_value_64_chars_minimum",
+        corsAllowedOrigins: List<String> = listOf("https://app.sequo.example"),
         datasourceUrl: String? = "jdbc:postgresql://postgres:5432/sequo",
         hibernateDdlAuto: String? = "validate",
         h2ConsoleEnabled: Boolean = false,
@@ -141,6 +195,11 @@ class StartupSecurityChecksTest {
             googleClientId = googleClientId,
             facebookAppId = facebookAppId,
             appleClientId = appleClientId,
+            yasTogoApiKey = yasTogoApiKey,
+            yasTogoWebhookSecret = yasTogoWebhookSecret,
+            moovAfricaApiKey = moovAfricaApiKey,
+            moovAfricaWebhookSecret = moovAfricaWebhookSecret,
+            corsAllowedOrigins = corsAllowedOrigins,
             datasourceUrl = datasourceUrl,
             hibernateDdlAuto = hibernateDdlAuto,
             h2ConsoleEnabled = h2ConsoleEnabled,
