@@ -38,4 +38,6 @@ interface NotificationDeliveryRepository : JpaRepository<NotificationDelivery, S
 
 interface NotificationOutboxRepository : JpaRepository<NotificationOutbox, String> {
     fun findByEventId(eventId: String): NotificationOutbox?
+    fun countByStatusIn(statuses: Collection<NotificationOutboxStatus>): Long
+    fun findTop20ByStatusInOrderByUpdatedAtAsc(statuses: Collection<NotificationOutboxStatus>): List<NotificationOutbox>
 }
