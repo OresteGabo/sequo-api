@@ -14,6 +14,11 @@ data class StartupSecuritySettings(
     val googleClientId: String?,
     val facebookAppId: String?,
     val appleClientId: String?,
+    val yasTogoApiKey: String?,
+    val yasTogoWebhookSecret: String?,
+    val moovAfricaApiKey: String?,
+    val moovAfricaWebhookSecret: String?,
+    val corsAllowedOrigins: List<String>,
     val datasourceUrl: String?,
     val hibernateDdlAuto: String?,
     val h2ConsoleEnabled: Boolean,
@@ -54,6 +59,31 @@ object StartupSecurityChecks {
             unsafePrefixes = setOf("apple_", "ci_apple_"),
             findings = findings,
         )
+        requireSecret(
+            propertyName = "sequo.wallets.yas-togo.api-key",
+            value = settings.yasTogoApiKey,
+            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
+            findings = findings,
+        )
+        requireSecret(
+            propertyName = "sequo.wallets.yas-togo.webhook-secret",
+            value = settings.yasTogoWebhookSecret,
+            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
+            findings = findings,
+        )
+        requireSecret(
+            propertyName = "sequo.wallets.moov-africa.api-key",
+            value = settings.moovAfricaApiKey,
+            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
+            findings = findings,
+        )
+        requireSecret(
+            propertyName = "sequo.wallets.moov-africa.webhook-secret",
+            value = settings.moovAfricaWebhookSecret,
+            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
+            findings = findings,
+        )
+        requireSafeCorsSettings(settings.corsAllowedOrigins, findings)
         requireSafeDatabaseSettings(settings, findings)
 
         return findings
@@ -110,6 +140,26 @@ object StartupSecurityChecks {
         }
     }
 
+    private fun requireSafeCorsSettings(
+        allowedOrigins: List<String>,
+        findings: MutableList<String>,
+    ) {
+        val normalizedOrigins = allowedOrigins.map { it.trim() }.filter { it.isNotBlank() }
+        if (normalizedOrigins.isEmpty()) {
+            findings += "sequo.security.cors.allowed-origins must list explicit HTTPS origins for production-like profiles."
+            return
+        }
+
+        normalizedOrigins.forEach { origin ->
+            if (origin == "*" || origin.contains("*")) {
+                findings += "sequo.security.cors.allowed-origins must not contain wildcard origins in production-like profiles."
+            }
+            if (!origin.startsWith("https://")) {
+                findings += "sequo.security.cors.allowed-origins must use HTTPS origins in production-like profiles."
+            }
+        }
+    }
+
     private const val MIN_SECRET_LENGTH = 32
     private val DEV_DEFAULT_ALLOWANCE_PROFILES = setOf("docker")
     private val STRICT_SECURITY_PROFILES = setOf("docker", "prod", "production", "stage", "staging")
@@ -123,6 +173,16 @@ object StartupSecurityChecks {
         "sequo_notifications_dev_encryption_key_2026_change_before_prod",
         "sequo_compose_notification_token_secret_2026_change_before_prod",
         "ci_only_sequo_notification_secret_2026_change_me",
+    )
+    private val KNOWN_UNSAFE_WALLET_SECRETS = setOf(
+        "yas_togo_dev_api_key_2026_change_before_prod",
+        "yas_togo_dev_webhook_secret_2026_change_before_prod",
+        "moov_africa_dev_api_key_2026_change_before_prod",
+        "moov_africa_dev_webhook_secret_2026_change_before_prod",
+        "ci_only_yas_togo_api_key_2026_change_me",
+        "ci_only_yas_togo_webhook_secret_2026_change_me",
+        "ci_only_moov_africa_api_key_2026_change_me",
+        "ci_only_moov_africa_webhook_secret_2026_change_me",
     )
 }
 
@@ -141,6 +201,16 @@ class ProductionStartupGuardrails(
     private val facebookAppId: String?,
     @Value("\${sequo.auth.apple.client-id:}")
     private val appleClientId: String?,
+    @Value("\${sequo.wallets.yas-togo.api-key:}")
+    private val yasTogoApiKey: String?,
+    @Value("\${sequo.wallets.yas-togo.webhook-secret:}")
+    private val yasTogoWebhookSecret: String?,
+    @Value("\${sequo.wallets.moov-africa.api-key:}")
+    private val moovAfricaApiKey: String?,
+    @Value("\${sequo.wallets.moov-africa.webhook-secret:}")
+    private val moovAfricaWebhookSecret: String?,
+    @Value("\${sequo.security.cors.allowed-origins:}")
+    private val corsAllowedOrigins: List<String>,
     @Value("\${spring.datasource.url:}")
     private val datasourceUrl: String?,
     @Value("\${spring.jpa.hibernate.ddl-auto:}")
@@ -158,6 +228,11 @@ class ProductionStartupGuardrails(
                 googleClientId = googleClientId,
                 facebookAppId = facebookAppId,
                 appleClientId = appleClientId,
+                yasTogoApiKey = yasTogoApiKey,
+                yasTogoWebhookSecret = yasTogoWebhookSecret,
+                moovAfricaApiKey = moovAfricaApiKey,
+                moovAfricaWebhookSecret = moovAfricaWebhookSecret,
+                corsAllowedOrigins = corsAllowedOrigins,
                 datasourceUrl = datasourceUrl,
                 hibernateDdlAuto = hibernateDdlAuto,
                 h2ConsoleEnabled = h2ConsoleEnabled,
