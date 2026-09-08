@@ -49,7 +49,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Not implemented | Cooperatives | Merchants or cooperative actors request cooperative creation, then Sequo validates. | Requires request/approval workflow and scoped permissions. |
 | [ ] | Partial | Consolidation | Multi-merchant purchases pass through Sequo and arrive as one package to the customer. | Order processor marks multi-seller orders as requiring consolidation; fulfillment workflow remains. |
 | [ ] | Partial | Merchant fulfillment | Merchant prepares package in a reasonable delay and marks it ready for Sequo pickup. | Repository-backed `MerchantFulfillmentService` exists; controller, RBAC, order wiring, and SLA tracking remain. |
-| [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods. |
+| [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods; `ProductMediaPolicyService` validates live-camera metadata, safe filenames, image signatures, hashes, moderation, and storage handoff. |
 | [x] | Implemented | Catalog media | Generic sealed products can use reference/catalog images. | `GenericCatalogImage` is accepted only for `GenericSealedItem`. |
 | [x] | Implemented | Food catalog | Food items need toppings/customizations/options. | `FoodCustomizationService` validates required/optional choices, price deltas, unavailable options, and order snapshots with focused tests. |
 | [ ] | Partial | Returns | Customers drop returns at Point de Relai; Sequo later collects them. | Return and relay docs/schema exist; return intake service remains. |
@@ -102,6 +102,6 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Subscription billing tiers, renewal state, per-km discount caps, and multi-year loyalty multipliers.
 - [ ] Referral delivery credit wallet with expiry, non-cash constraints, and application only to delivery fees.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
-- [ ] Product media upload policy with live-camera metadata, generic catalog references, moderation, and storage integration.
+- [x] Product media upload policy with live-camera metadata, generic catalog references, safe filename/content validation, moderation, and storage integration.
 - [ ] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
 - [x] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
