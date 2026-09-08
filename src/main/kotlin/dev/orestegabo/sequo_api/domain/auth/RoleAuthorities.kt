@@ -13,3 +13,17 @@ fun Authentication.hasRole(role: RoleCode): Boolean =
 
 fun Authentication.hasAnyRole(roles: Set<RoleCode>): Boolean =
     roles.any(::hasRole)
+
+object RoleGroups {
+    val AdminOnly = setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
+    val AdminOperations = setOf(RoleCode.SUPPORT_AGENT, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
+    val RelayParcelCreators = setOf(RoleCode.RELAY_PARTNER, RoleCode.COURIER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
+    val RelayOperators = setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
+    val DeliveryProblemReporters = setOf(
+        RoleCode.COURIER,
+        RoleCode.RELAY_PARTNER,
+        RoleCode.SUPPORT_AGENT,
+        RoleCode.ADMIN,
+        RoleCode.SUPER_ADMIN,
+    )
+}
