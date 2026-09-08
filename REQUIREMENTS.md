@@ -53,8 +53,8 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Catalog media | Generic sealed products can use reference/catalog images. | `GenericCatalogImage` is accepted only for `GenericSealedItem`. |
 | [x] | Implemented | Food catalog | Food items need toppings/customizations/options. | `FoodCustomizationService` validates required/optional choices, price deltas, unavailable options, and order snapshots with focused tests. |
 | [ ] | Partial | Returns | Customers drop returns at Point de Relai; Sequo later collects them. | Return and relay docs/schema exist; return intake service remains. |
-| [ ] | Partial | Returns | Return window is 72 hours after delivery/customer receipt. | Docs/schema specify the rule; eligibility service remains. |
-| [ ] | Partial | Refunds | Refund is triggered only after Sequo physically receives the returned item. | Docs/API specify physical receipt; refund orchestration remains. |
+| [x] | Implemented | Returns | Return window is 72 hours after delivery/customer receipt. | `ReturnProcessingService` accepts requests at exactly 72 hours, rejects late requests, and has focused tests. |
+| [ ] | Partial | Refunds | Refund is triggered only after Sequo physically receives the returned item. | `ReturnProcessingService` blocks refund before physical receipt and handles idempotent refund trigger; wallet provider execution remains. |
 | [ ] | Partial | Settlements | Merchant payout should happen within 1 week after Sequo receives package/custody. | Settlement docs/schema specify schedule; payout scheduler remains. |
 | [ ] | Partial | Logistics platform | Sequo API owns logistics orchestration across customer, seller, courier, relay, and admin workflows. | Delivery workflow policy and Flyway delivery tables exist; controllers, repositories, dispatch, tracking, and settlement modules remain. |
 | [ ] | Decision needed | Routing cost | Google Maps or another routing provider cost must be controlled for courier distance estimation. | Routing abstraction now covers quota, cache, manual fallback, and audit; provider choice remains a product/ops decision. |
@@ -94,7 +94,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
 - [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow.
 - [ ] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
-- [ ] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
+- [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
 - [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting.
 - [ ] Real Yas Togo and Moov Africa adapters with signed callbacks, provider references, reconciliation, and webhook idempotency.
 
