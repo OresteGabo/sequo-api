@@ -52,6 +52,11 @@ class SettlementLedgerEntryRecord(
 
 interface MerchantPayoutAccrualRecordRepository : JpaRepository<MerchantPayoutAccrualRecord, String> {
     fun findByMerchantIdOrderByCreatedAtDesc(merchantId: String): List<MerchantPayoutAccrualRecord>
+    fun findByMerchantIdAndStatusOrderByCreatedAtDesc(
+        merchantId: String,
+        status: MerchantPayoutStatus,
+    ): List<MerchantPayoutAccrualRecord>
+    fun countByStatusIn(statuses: Collection<MerchantPayoutStatus>): Long
     fun findByStatusAndPayoutEligibleAtLessThanEqualOrderByPayoutEligibleAtAsc(
         status: MerchantPayoutStatus,
         evaluatedAt: Instant,
@@ -113,11 +118,29 @@ class SettlementPersistenceService(
             }
 
     @Transactional(readOnly = true)
-    fun listMerchantPayouts(merchantId: String): List<MerchantPayoutAccrual> {
+    fun listMerchantPayouts(
+        merchantId: String,
+        status: MerchantPayoutStatus? = null,
+    ): List<MerchantPayoutAccrual> {
         require(merchantId.isNotBlank()) { "merchantId is required." }
-        return payouts.findByMerchantIdOrderByCreatedAtDesc(merchantId).map { record ->
+        val records = status?.let {
+            payouts.findByMerchantIdAndStatusOrderByCreatedAtDesc(merchantId, it)
+        } ?: payouts.findByMerchantIdOrderByCreatedAtDesc(merchantId)
+        return records.map { record ->
             record.toDomain(ledger.findBySourceTypeAndSourceIdOrderByCreatedAtAsc(SettlementSourceType.OrderItem, record.sourceOrderItemId))
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun listLedgerEntries(sourceType: SettlementSourceType, sourceId: String): List<SettlementLedgerEntry> {
+        require(sourceId.isNotBlank()) { "sourceId is required." }
+        return ledger.findBySourceTypeAndSourceIdOrderByCreatedAtAsc(sourceType, sourceId).map { it.toDomain() }
+    }
+
+    @Transactional(readOnly = true)
+    fun countPayoutsByStatus(statuses: Collection<MerchantPayoutStatus>): Long {
+        require(statuses.isNotEmpty()) { "At least one payout status is required." }
+        return payouts.countByStatusIn(statuses)
     }
 }
 
