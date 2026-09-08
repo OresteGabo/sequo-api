@@ -26,7 +26,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Delivery assignment | Freelance delivery pool supports motos and bicycles. | Delivery assignment model supports moto and bicycle vehicle types. |
 | [ ] | Partial | Logistics | Amazon-like/non-urgent items can take days and should be handled through Sequo-controlled consolidation. | `GroupedSequo` order route and `ProgrammedConsolidation` assignment channel exist; scheduling, persistence, and admin tools remain. |
 | [x] | Implemented | Checkout | Customer must pay before order validation/handoff to merchant fulfillment. | `OrderProcessing` validates payment before confirmation and merchant handoff events. |
-| [ ] | Partial | Wallets | Integrate Yas Togo and Moov Africa digital wallets. | Provider abstractions exist; real adapters, signatures, callbacks, and reconciliation remain. |
+| [ ] | Partial | Wallets | Integrate Yas Togo and Moov Africa digital wallets. | Provider abstractions exist and the default app config now fails closed with `Pending` validation until real adapters are configured; real signatures, callbacks, and reconciliation remain. |
 | [x] | Implemented | Wallets | Do not implement cash withdrawal operations. | Payment model rejects cash withdrawal by design; docs and payment domain enforce zero-cash policy. |
 | [x] | Implemented | Referrals | Referral/parrainage rewards are delivery credits only, not withdrawable money. | `ReferralDeliveryCreditService` issues expiring delivery-only credits, applies them only to delivery fees, preserves source/remaining snapshots, and rejects cash, transfer, refund, item, margin, service-fee, tip, merchant-payout, and courier-payout uses. |
 | [x] | Implemented | Bargaining | Customer can propose a lower product price to a merchant. | `BargainingService` accepts lower customer offers, rejects non-discount offers, and records pending offer snapshots with focused tests. |
@@ -78,6 +78,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 ### Priority 0 - Security and startup safety
 
 - [x] Production startup guardrails for missing JWT secrets, notification token encryption secrets, OAuth placeholders, wallet secrets, explicit CORS origins, and unsafe database configuration.
+- [x] Safer default runtime config: Flyway owns schema creation, Hibernate validates mappings, and H2 console is disabled unless explicitly enabled for local development.
 - [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
 - [x] Placeholder replacement tracker and production readiness check for fake URLs, provider IDs, local defaults, and test-only secrets.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
@@ -96,7 +97,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
 - [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
 - [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting. Domain accrual, eligibility, adjustment, and shortfall ledger decisions are implemented; repository-backed scheduler remains.
-- [ ] Real Yas Togo and Moov Africa adapters with signed callbacks, provider references, reconciliation, and webhook idempotency.
+- [ ] Real Yas Togo and Moov Africa adapters with signed callbacks, provider references, reconciliation, and webhook idempotency. The current default configuration intentionally returns `Pending` instead of auto-validating fake wallet references.
 
 ### Priority 2 - Product and operations depth
 
