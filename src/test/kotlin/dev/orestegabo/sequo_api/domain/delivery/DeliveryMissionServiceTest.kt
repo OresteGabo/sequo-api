@@ -38,6 +38,8 @@ class DeliveryMissionServiceTest @Autowired constructor(
         assertTrue(delivered is DeliveryMissionServiceResult.Success)
         assertEquals(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, delivered.mission.status)
         assertEquals("pickup-proof", repository.findById(mission.id).orElseThrow().pickupProofMetadata)
+        assertEquals("courier-1", repository.findById(mission.id).orElseThrow().pickupProofActorId)
+        assertEquals("courier-1", repository.findById(mission.id).orElseThrow().dropoffProofActorId)
         assertEquals(300, delivered.mission.shortfallCfa)
     }
 
@@ -63,6 +65,7 @@ class DeliveryMissionServiceTest @Autowired constructor(
         assertTrue(deposited is DeliveryMissionServiceResult.Success)
         assertTrue(blocked is DeliveryMissionServiceResult.Rejected)
         assertEquals(DeliveryMissionRecordStatus.RELEASED_BY_RELAY, releasedSuccess.mission.status)
+        assertEquals("relay-1", repository.findById(mission.id).orElseThrow().dropoffProofActorId)
     }
 
     @Test
