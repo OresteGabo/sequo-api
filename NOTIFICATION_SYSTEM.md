@@ -87,7 +87,7 @@ Still pending:
 | `WebSocketNotificationGateway` | Adapter | Send active-session realtime messages through Spring STOMP. |
 | `SmsFallbackGateway` | Adapter | Send critical fallback SMS through a provider abstraction. |
 | `NotificationDeliveryAuditService` | Service | Record per-channel delivery attempts, provider references, failures, and retry state. |
-| `NotificationReadService` | Service | List in-app notifications and mark them read/archived. |
+| `NotificationReadService` | Service | Implemented foundation. List an owner's in-app notifications and mark them read, archived, or restored; HTTP API remains. |
 | `NotificationMetrics` | Observability | Expose counters for sent, failed, retried, stale token, preference-suppressed, and SMS fallback. |
 
 ## Event-Driven Trigger Model
