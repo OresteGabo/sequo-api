@@ -31,6 +31,7 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
 
         assertEquals(saved.id, record.id)
         assertEquals(RelayParcelStatus.Deposited, record.status)
+        assertEquals(RelayParcelCategory.GeneralGoods, record.category)
         assertEquals("locker-persistence", record.lockerId)
         assertEquals(RelayCustodyEventType.Deposit, event.type)
         assertEquals("deposit-persistence-1", event.idempotencyKey)
