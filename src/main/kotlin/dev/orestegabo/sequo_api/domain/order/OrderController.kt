@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/orders")
 class OrderController(
     private val paymentProcessor: PaymentProcessor,
-    private val pricingService: DeliveryPricingService
+    private val pricingService: DeliveryPricingService,
+    private val fulfillmentPersistence: OrderFulfillmentPersistenceService,
 ) {
     private val factory = OrderProcessorFactory(
         RegularOrderProcessor(paymentProcessor, pricingService),
@@ -21,7 +22,7 @@ class OrderController(
     fun processOrder(
         @AuthenticationPrincipal userId: String?,
         @RequestBody request: OrderProcessingRequest
-    ): ResponseEntity<OrderProcessingResult> {
+    ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
 
         val secureRequest = request.copy(customerId = userId)
@@ -30,7 +31,12 @@ class OrderController(
         val result = processor.process(secureRequest)
         
         return when (result) {
-            is OrderProcessingResult.AcceptedForFulfillment -> ResponseEntity.ok(result)
+            is OrderProcessingResult.AcceptedForFulfillment -> ResponseEntity.ok(
+                OrderFulfillmentResponse(
+                    processing = result,
+                    fulfillment = fulfillmentPersistence.persistAcceptedOrder(secureRequest, result),
+                )
+            )
             is OrderProcessingResult.AwaitingPaymentValidation -> ResponseEntity.accepted().body(result)
             is OrderProcessingResult.Rejected -> ResponseEntity.badRequest().body(result)
         }
