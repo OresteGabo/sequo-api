@@ -8,3 +8,8 @@ interface UserRepository : JpaRepository<User, String> {
     fun findByProviderAndProviderId(provider: AuthProvider, providerId: String): User?
     fun findByResetTokenHash(resetTokenHash: String): User?
 }
+
+interface SocialIdentityRepository : JpaRepository<SocialIdentity, String> {
+    fun findByProviderAndProviderSubject(provider: AuthProvider, providerSubject: String): SocialIdentity?
+    fun existsByUserIdAndProvider(userId: String, provider: AuthProvider): Boolean
+}
