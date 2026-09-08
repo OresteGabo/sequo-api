@@ -35,7 +35,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Bargaining | Track historical minimum accepted prices. | `BargainingService` stores historical minimum accepted prices on the session model and keeps them after lock expiry; persistence remains future repository work. |
 | [x] | Implemented | Bargaining | Merchant can disable bargaining per product. | `BargainingService` enforces `bargainingEnabled=false`; product controller wiring remains future API work. |
 | [ ] | Partial | Apps and roles | Support separate customer, seller, courier, and future relay apps against one API. | Delivery mission routes now enforce courier, relay, support, and admin roles; broader scoped permissions and app-specific claims remain incomplete. |
-| [ ] | Partial | Admin operations | Admin can use a web monitoring surface instead of a desktop app. | Monitoring endpoints are now specified; implementation remains. |
+| [x] | Implemented | Admin operations | Admin can use a web monitoring surface instead of a desktop app. | `/api/admin/monitoring/operations` exposes admin/support metrics for delivery capacity, merchant fulfillment backlog, delayed relay parcels, payout candidates, return bottlenecks, and notification outbox attention items. |
 | [x] | Implemented | Relay logistics | Point de Relai is not allowed for food or perishable products. | `OrderProcessing` rejects relay routing and `RelayParcelPolicy` rejects relay pickup for food/perishable lines. |
 | [ ] | Partial | Relay logistics | Customers can choose relay pickup for eligible deliveries. | `PointDeRelai` route, relay release policy, and relay parcel migration exist; relay availability, assignment service, and customer pickup service remain. |
 | [x] | Implemented | Relay logistics | Relay locations manage lockers/cases for parcels. | `RelayParcelService` assigns active free lockers at the requested relay point and rejects relay parcel creation when no locker is available. |
@@ -104,6 +104,6 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] Referral delivery credit wallet with expiry, non-cash constraints, and application only to delivery fees.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [x] Product media upload policy with live-camera metadata, generic catalog references, safe filename/content validation, moderation, and storage integration.
-- [ ] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
+- [x] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
 - [ ] Consolidation persistence and workflow integration for seller readiness, Sequo custody, final package dispatch, and customer tracking.
 - [x] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
