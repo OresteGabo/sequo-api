@@ -14,9 +14,10 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/delivery/missions")
 class DeliveryMissionController(
     private val service: DeliveryMissionService,
+    private val pinService: DeliveryPinService,
 ) {
     data class AssignCourierRequest(val courierId: String)
-    data class ProofRequest(val proofMetadata: String? = null)
+    data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null)
     data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null)
     data class ProblemRequest(val reason: String)
     data class ErrorResponse(val code: String, val message: String)
@@ -69,7 +70,19 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
     ): ResponseEntity<Any> = actorRequired(userId) {
-        service.transition(missionId, it, DeliveryMissionEvent.CourierDeliversToCustomer, proof = request.proofMetadata).toResponse()
+        val pinValidated = request.deliveryPin?.takeIf(String::isNotBlank)?.let { rawPin ->
+            when (val result = pinService.verify(missionId, rawPin)) {
+                is DeliveryPinResult.Accepted -> true
+                is DeliveryPinResult.Rejected -> return@actorRequired result.toResponse()
+            }
+        } ?: false
+        service.transition(
+            missionId,
+            it,
+            DeliveryMissionEvent.CourierDeliversToCustomer,
+            proof = request.proofMetadata,
+            deliveryPinValidated = pinValidated,
+        ).toResponse()
     }
 
     @PostMapping("/{missionId}/relay-deposit")
@@ -124,3 +137,6 @@ private fun DeliveryMissionServiceResult.toResponse(): ResponseEntity<Any> =
         is DeliveryMissionServiceResult.Success -> ResponseEntity.ok(mission)
         is DeliveryMissionServiceResult.Rejected -> ResponseEntity.badRequest().body(DeliveryMissionController.ErrorResponse(code, message))
     }
+
+private fun DeliveryPinResult.Rejected.toResponse(): ResponseEntity<Any> =
+    ResponseEntity.badRequest().body(DeliveryMissionController.ErrorResponse(code, message))
