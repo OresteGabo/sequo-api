@@ -59,7 +59,7 @@ Not implemented yet:
 | [x] | Implemented | Seller accepts order | Seller must explicitly accept before packing. | `MerchantFulfillmentService` persists acceptance and tests cover merchant scope checks. |
 | [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentService` persists preparation timestamp. |
 | [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentService` requires `packageCount > 0` and persists packed state. |
-| [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `delivery_missions` migration exists; mission service/repository missing. |
+| [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `DeliveryMissionService` now persists mission creation and assignment; order-readiness trigger, dispatch queue, and controller remain. |
 | [x] | Implemented | Courier assignment policy | Selects eligible courier based on subscriber/order channel/workforce/vehicle rules. | `DeliveryAssignmentPolicy` and tests. |
 | [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionWorkflow` covers transition; no endpoint. |
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionWorkflow` requires proof. |
@@ -108,7 +108,7 @@ Not implemented yet:
 | Done | State | Data | Purpose | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table, JPA entity, repository, and service exist. |
-| [ ] | Partial | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | Flyway table exists; JPA entity/repository missing. |
+| [x] | Implemented | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | `DeliveryMission`, `DeliveryMissionRepository`, and `DeliveryMissionService` persist assignments, statuses, proof metadata, relay release checks, and shortfall values. |
 | [ ] | Partial | `delivery_pins` | Direct delivery PIN validation and attempt control. | Flyway table exists; PIN service missing. |
 | [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
 | [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
