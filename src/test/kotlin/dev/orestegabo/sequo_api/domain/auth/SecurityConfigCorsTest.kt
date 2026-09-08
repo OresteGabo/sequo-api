@@ -27,9 +27,9 @@ class SecurityConfigCorsTest {
             configuration.allowedOrigins,
         )
         assertEquals(true, configuration.allowCredentials)
-        assertTrue(configuration.allowedMethods!!.contains("OPTIONS"))
-        assertTrue(configuration.allowedHeaders!!.contains("Authorization"))
-        assertTrue(configuration.exposedHeaders!!.contains("Retry-After"))
+        assertTrue(requireNotNull(configuration.allowedMethods).contains("OPTIONS"))
+        assertTrue(requireNotNull(configuration.allowedHeaders).contains("Authorization"))
+        assertTrue(requireNotNull(configuration.exposedHeaders).contains("Retry-After"))
     }
 
     private fun jwtService(): JwtService =
