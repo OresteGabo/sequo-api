@@ -49,7 +49,7 @@ Not implemented yet:
 | [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `SequoConsolidationService` validates seller packages, waits for readiness, records Sequo custody, and creates the final package ID; persistence, pickup missions, and final dispatch remain. |
 | [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService`, repository persistence, and `RelayParcelController` cover eligible parcel creation, pickup-code creation, listing/detail, validated release, delayed-parcel evaluation, and admin monitoring; scheduler/fee automation remain. |
 | [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
-| [x] | Implemented | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | `ReturnProcessingService`, `ReturnPersistenceService`, `ReturnController`, and `return_requests` persist customer return requests, validate relay PINs, record physical receipt/responsibility, and block refund before receipt. |
+| [x] | Implemented | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | `ReturnProcessingService`, `ReturnPersistenceService`, `ReturnController`, and `return_requests` persist customer return requests, validate relay PINs, record physical receipt/responsibility, block refund before receipt, and publish return/refund outbox events. |
 
 ## Happy Path: Direct Customer Delivery
 
@@ -145,5 +145,5 @@ Not implemented yet:
 3. [x] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
 4. [x] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
 5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks. Merchant, courier, relay, customer tracking, and first admin-dispatch endpoints are implemented; courier pause/resolution and persisted merchant memberships remain.
-6. [ ] Add notification/outbox events and settlement ledger posting. Delivery completion now publishes workflow-specific outbox events; broader workflow publishers and provider delivery remain.
+6. [ ] Add notification/outbox events and settlement ledger posting. Delivery completion and return/refund workflows now publish workflow-specific outbox events; broader workflow publishers and provider delivery remain.
 7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized. Problem states and pre-pickup re-assignment exist; expiry/fees/return automation remain.
