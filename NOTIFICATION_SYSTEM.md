@@ -75,7 +75,7 @@ Still pending:
 | `DomainEventPublisher` | Service/helper | Publish strongly typed domain events from order, delivery, bargaining, return, wallet, and settlement services. |
 | `NotificationDomainEventListener` | `@TransactionalEventListener(phase = AFTER_COMMIT)` | Convert committed domain events into notification outbox records. |
 | `NotificationOutboxRepository` | Repository | Persist pending notification work with idempotency keys and retry counters. |
-| `NotificationOutboxWorker` | Scheduled/job worker | Claim pending outbox rows, execute delivery, retry failures, and dead-letter terminal failures. |
+| `NotificationOutboxWorker` | Scheduled/job worker | Domain lease/retry behavior is implemented by `NotificationOutboxService`; scheduled delivery execution and dead-letter operations remain. |
 | `NotificationOrchestrator` | Service | High-level dispatch pipeline: route, preferences, template, persist, deliver, audit. |
 | `NotificationRoutingService` | Service | Implemented foundation. Resolve event recipients by customer, merchant, relay, courier, support, admin, and super-admin scope; event listener integration remains. |
 | `NotificationPreferenceService` | Service | Apply user/app/channel preferences, quiet hours, and critical override policy. |
@@ -412,7 +412,7 @@ This keeps local development and early production from spending money on SMS for
 3. [x] Implement token hash/encryption protection for FCM tokens at rest.
 4. [x] Implement notification channel cost policy and delivery planning foundation.
 5. [ ] Add notification dependencies: Firebase Admin SDK, Spring WebSocket, validation, and optional scheduler lock library.
-6. [ ] Implement notification outbox worker and `NotificationDomainEventListener`.
+6. [ ] Implement scheduled notification outbox worker and `NotificationDomainEventListener`. `NotificationOutboxService` already provides idempotent enqueue, leases, retry backoff, and terminal failure state.
 7. [x] Implement domain `NotificationRoutingService` for customer, merchant, rider, relay, support, and admin scopes. Wire it to committed domain events in the next integration step.
 8. [ ] Implement WebSocket/STOMP infrastructure from [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
 9. [ ] Implement FCM sender adapter and provider delivery audit.
