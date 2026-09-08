@@ -16,7 +16,8 @@ class AuthService(
     private val appleVerifier: AppleTokenVerifier,
     private val jwtService: JwtService,
     private val passwordPolicy: PasswordPolicy,
-    private val passwordResetTokenService: PasswordResetTokenService
+    private val passwordResetTokenService: PasswordResetTokenService,
+    private val passwordResetTokenNotifier: PasswordResetTokenNotifier,
 ) {
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
         val email = normalizeEmail(request.email)
@@ -127,9 +128,12 @@ class AuthService(
         val token = passwordResetTokenService.generate()
         user.resetTokenHash = token.tokenHash
         user.resetTokenExpiry = Instant.now().plus(30, ChronoUnit.MINUTES)
-        userRepository.save(user)
-
-        // TODO(sequo-auth): Send token.rawToken through the approved email/SMS provider.
+        val savedUser = userRepository.save(user)
+        passwordResetTokenNotifier.send(
+            userId = requireNotNull(savedUser.id) { "Persisted user id is required before password reset notification." },
+            email = savedUser.email,
+            rawToken = token.rawToken,
+        )
     }
 
     fun resetPassword(request: AuthController.ResetPasswordRequest): Boolean {
@@ -152,7 +156,7 @@ class AuthService(
 
     private fun generateTokensForUser(user: User): AuthTokens {
         val session = UserSession(
-            userId = user.id!!,
+            userId = requireNotNull(user.id) { "Persisted user id is required before token generation." },
             email = user.email,
             provider = user.provider
         )
