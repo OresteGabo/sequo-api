@@ -60,7 +60,7 @@ Ineligible by default:
 6. Relay partner validates return reference and PIN.
 7. Relay creates custody event and assigns locker/case.
 8. Sequo collects item from relay.
-9. Admin or automated intake confirms physical receipt.
+9. Admin or automated intake confirms physical receipt through `ReturnProcessingService`.
 10. Refund responsibility is assigned.
 11. Wallet refund is triggered through Yas Togo or Moov Africa.
 12. Settlement ledger posts refund and payout adjustment.
@@ -69,7 +69,7 @@ Ineligible by default:
 
 Automated refunds must not be triggered merely because the customer opened a return or relay accepted a parcel. The refund trigger is Sequo physical receipt.
 
-Required physical receipt data:
+The domain service validates and records the following physical receipt data:
 
 - Return ID.
 - Receiving operator or automated intake ID.
