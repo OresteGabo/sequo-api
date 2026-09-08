@@ -25,7 +25,7 @@ Not implemented yet:
 - Merchant, courier, relay, and admin delivery controllers.
 - RBAC and ownership checks for seller/courier/relay delivery actions.
 - Real assignment queue, courier availability, dispatch locking, and re-assignment.
-- PIN/QR generation, hashing, verification, expiry, and attempt limits.
+- Direct delivery PIN generation. Relay pickup code/QR generation, hashing, verification, expiry, identity checks, and attempt limits are covered by `RelayParcelService`.
 - Proof photo/signature/geolocation storage.
 - Notifications, tracking, ETA, route provider integration, and maps cost controls.
 - Settlement ledger posting for courier payable, relay payable, and shortfalls.
@@ -46,7 +46,7 @@ Not implemented yet:
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
 | [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `OrderProcessing` marks consolidation; manifest, hub custody, and final dispatch missing. |
-| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | Relay route/policy/schema/API target exist; code generation, locker assignment, and relay controllers missing. |
+| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService` covers locker assignment, hashed pickup code/QR, relay scope, identity validation, one-time release, and custody event snapshots; repository/controllers remain. |
 | [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
 | [ ] | Partial | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | Return docs/API/schema exist; service implementation missing. |
 
@@ -72,11 +72,11 @@ Not implemented yet:
 | Done | State | Step | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | Reject food/perishable relay route | Food and perishables cannot be routed to Point de Relai by default. | `OrderProcessing` and `RelayParcelPolicy` enforce the rule. |
-| [ ] | Partial | Create relay parcel | Eligible relay order creates parcel record and assigns relay point/locker. | `relay_parcels` migration exists; relay parcel service and locker assignment missing. |
+| [x] | Implemented | Create relay parcel | Eligible relay order creates parcel record and assigns relay point/locker. | `RelayParcelService` creates deposited relay parcels, assigns active free lockers, records deposit custody events, and rejects food/perishable categories. |
 | [x] | Implemented | Courier deposits at relay | Relay mission can move to deposited only with proof. | `DeliveryMissionWorkflow` covers transition. |
-| [ ] | Partial | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | `relay_pickup_codes` migration exists; generation/verification service missing. |
+| [x] | Implemented | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | `RelayParcelService` generates hashed numeric codes and QR nonces, verifies either credential, enforces expiry, one-time use, and attempt limits. |
 | [x] | Implemented | Release requires code and identity validation | Relay release requires pickup code and identity validation. | `DeliveryMissionWorkflow` enforces both flags at policy level. |
-| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy` identifies threshold; scheduler/fee ledger missing. |
+| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy` and `RelayParcelService` mark delayed/review states; scheduler/fee ledger missing. |
 | [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | Product decision required before automation. |
 
 ## Grouped Sequo And Cooperative Delivery
@@ -110,9 +110,9 @@ Not implemented yet:
 | [x] | Implemented | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table, JPA entity, repository, and service exist. |
 | [ ] | Partial | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | Flyway table exists; JPA entity/repository missing. |
 | [ ] | Partial | `delivery_pins` | Direct delivery PIN validation and attempt control. | Flyway table exists; PIN service missing. |
-| [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | Flyway table exists; relay service/repository missing. |
-| [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | Flyway table exists; pickup-code service missing. |
-| [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | Flyway table exists; custody-event service/repository missing. |
+| [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
+| [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
+| [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | Flyway table and relay deposit/release event snapshots exist; repository and broader event handling missing. |
 | [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
 | [ ] | Partial | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | Target schema only. |
 
@@ -132,17 +132,17 @@ Not implemented yet:
 | --- | --- | --- | --- |
 | [ ] | Partial | Merchant ownership checks | Service rejects wrong merchant scope; controller/RBAC enforcement remains. |
 | [ ] | Not implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. |
-| [ ] | Not implemented | Relay scope checks | A relay partner must not release parcels from another relay. |
-| [ ] | Not implemented | One-time pickup/delivery credentials | PIN/QR cannot be reused or brute-forced. |
+| [x] | Implemented | Relay scope checks | `RelayParcelService` rejects release when the relay actor is operating on another relay point's parcel. |
+| [ ] | Partial | One-time pickup/delivery credentials | Relay pickup credentials are one-time, hashed, expiring, and attempt-limited in `RelayParcelService`; direct delivery PIN service remains. |
 | [ ] | Not implemented | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. |
-| [ ] | Not implemented | Idempotency | Pickup, delivery, relay release, and problem reports must not duplicate side effects. |
+| [ ] | Partial | Idempotency | Relay release is idempotent by key in `RelayParcelService`; pickup, delivery, and problem endpoints remain. |
 
 ## Recommended Implementation Order
 
 1. [x] Add Flyway migrations for `merchant_sub_orders`, `delivery_missions`, `delivery_pins`, `relay_parcels`, `relay_pickup_codes`, `relay_custody_events`, and required status constraints.
 2. [x] Implement repository-backed merchant fulfillment service using `MerchantFulfillmentWorkflow`.
 3. [ ] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
-4. [ ] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
+4. [ ] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events. Domain service is implemented; repository-backed persistence and endpoints remain.
 5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks.
 6. [ ] Add notification/outbox events and settlement ledger posting.
 7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized.
