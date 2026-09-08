@@ -72,8 +72,8 @@ class JwtService(
             UserSession(
                 userId = claims.subject?.takeIf { it.isNotBlank() } ?: return null,
                 email = claims["email"] as? String,
-                provider = AuthProvider.valueOf(claims["provider"] as String),
-                roles = parseRoles(claims["roles"]),
+                provider = parseProvider(claims["provider"]) ?: return null,
+                roles = parseRoles(claims["roles"]) ?: return null,
             )
         } catch (e: Exception) {
             null
@@ -88,25 +88,30 @@ class JwtService(
             if (!claimsMatchTokenUse(claims, TokenUse.REFRESH)) return null
             
             UserSession(
-                userId = claims.subject,
+                userId = claims.subject?.takeIf { it.isNotBlank() } ?: return null,
                 email = claims["email"] as? String,
-                provider = AuthProvider.valueOf(claims["provider"] as String)
+                provider = parseProvider(claims["provider"]) ?: return null,
             )
         } catch (e: Exception) {
             null
         }
     }
 
-    private fun parseRoles(rolesClaim: Any?): Set<RoleCode> {
+    private fun parseProvider(providerClaim: Any?): AuthProvider? {
+        val providerName = providerClaim as? String ?: return null
+        return AuthProvider.entries.firstOrNull { it.name == providerName }
+    }
+
+    private fun parseRoles(rolesClaim: Any?): Set<RoleCode>? {
         val roleNames = when (rolesClaim) {
             is Collection<*> -> rolesClaim.mapNotNull { it as? String }
             is String -> listOf(rolesClaim)
             null -> emptyList()
-            else -> throw IllegalArgumentException("Invalid roles claim")
+            else -> return null
         }
 
         return roleNames
-            .map { RoleCode.valueOf(it) }
+            .map { roleName -> RoleCode.entries.firstOrNull { it.name == roleName } ?: return null }
             .toSet()
             .ifEmpty { setOf(RoleCode.CUSTOMER) }
     }
