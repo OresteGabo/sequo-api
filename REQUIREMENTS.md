@@ -47,7 +47,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Pricing | Listing price is `(base price + platform margin) + service fees + delivery fee`. | Pricing docs/schema model this; full checkout quote persistence remains. |
 | [x] | Implemented | Cooperatives | Group merchants into market cooperatives such as Marche de Mulhouse. | `CooperativeMarketService` models active cooperative markets, members, storefront aggregation, and preserves each product's true merchant ownership with focused tests. |
 | [x] | Implemented | Cooperatives | Merchants or cooperative actors request cooperative creation, then Sequo validates. | `CooperativeMarketService` supports create/join requests, admin approval, rejection with reason, and duplicate-member protection. |
-| [ ] | Partial | Consolidation | Multi-merchant purchases pass through Sequo and arrive as one package to the customer. | Order processor marks multi-seller orders as requiring consolidation; fulfillment workflow remains. |
+| [ ] | Partial | Consolidation | Multi-merchant purchases pass through Sequo and arrive as one package to the customer. | `SequoConsolidationService` validates one package entry per seller, waits for every seller package, records Sequo custody, and creates one final package ID; persistence, pickup missions, and dispatch integration remain. |
 | [ ] | Partial | Merchant fulfillment | Merchant prepares package in a reasonable delay and marks it ready for Sequo pickup. | Repository-backed `MerchantFulfillmentService` exists; controller, RBAC, order wiring, and SLA tracking remain. |
 | [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods; `ProductMediaPolicyService` validates live-camera metadata, safe filenames, image signatures, hashes, moderation, and storage handoff. |
 | [x] | Implemented | Catalog media | Generic sealed products can use reference/catalog images. | `GenericCatalogImage` is accepted only for `GenericSealedItem`. |
@@ -105,4 +105,5 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [x] Product media upload policy with live-camera metadata, generic catalog references, safe filename/content validation, moderation, and storage integration.
 - [ ] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
+- [ ] Consolidation persistence and workflow integration for seller readiness, Sequo custody, final package dispatch, and customer tracking.
 - [x] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
