@@ -31,6 +31,7 @@ class RelayParcelController(
         val eventId: String,
         val idempotencyKey: String,
     )
+    data class ProblemRequest(val eventId: String, val idempotencyKey: String, val metadata: String)
 
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody command: RelayParcelCreateCommand): ResponseEntity<Any> =
@@ -79,6 +80,15 @@ class RelayParcelController(
             eventId = request.eventId,
             idempotencyKey = request.idempotencyKey,
         ).toResponse()
+    }
+
+    @PostMapping("/{parcelId}/problem")
+    fun reportProblem(
+        authentication: Authentication?,
+        @PathVariable parcelId: String,
+        @RequestBody request: ProblemRequest,
+    ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+        service.reportProblem(parcelId, authentication!!.name, request.eventId, request.idempotencyKey, request.metadata).toResponse()
     }
 
     private fun roleRequired(authentication: Authentication?, roles: Set<String>, operation: () -> ResponseEntity<Any>): ResponseEntity<Any> =
