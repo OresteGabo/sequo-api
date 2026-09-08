@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.notification
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import org.springframework.stereotype.Service
 
 data class NotificationRoutingContext(
     val customerUserId: String? = null,
@@ -34,6 +35,7 @@ data class NotificationRecipient(
     val appFamily: NotificationAppFamily,
 )
 
+@Service
 class NotificationRoutingService {
     fun route(
         eventType: NotificationEventType,
