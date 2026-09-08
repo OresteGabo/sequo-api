@@ -46,7 +46,7 @@ Not implemented yet:
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
 | [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `SequoConsolidationService` validates seller packages, waits for readiness, records Sequo custody, and creates the final package ID; persistence, pickup missions, and final dispatch remain. |
-| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService`, repository persistence, and `RelayParcelController` cover eligible parcel creation and pickup-code creation; release, tracking, and delayed-parcel operations remain. |
+| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService`, repository persistence, and `RelayParcelController` cover eligible parcel creation, pickup-code creation, and validated release; tracking and delayed-parcel operations remain. |
 | [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
 | [ ] | Partial | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | `ReturnProcessingService` validates relay PINs, records physical receipt and responsibility, and blocks refund before receipt; repository/controller integration remains. |
 
@@ -122,7 +122,7 @@ Not implemented yet:
 | --- | --- | --- | --- |
 | [ ] | Partial | Merchant order workflow | Accept, reject, start preparation, mark packed/ready, handoff verification. |
 | [ ] | Partial | Courier missions | List offers, accept, pickup with proof, deliver with proof/PIN, deposit at relay, report problem. |
-| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation and pickup-code endpoints are available; listing, validation/release, incident, and delayed-parcel endpoints remain. |
+| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation, pickup-code, and credential validation/release endpoints are available; listing, incident, and delayed-parcel endpoints remain. |
 | [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. |
 | [ ] | Partial | Admin dispatch | Reassign courier, pause courier, force problem state, view capacity, view delayed parcels, resolve failed deliveries. |
 
