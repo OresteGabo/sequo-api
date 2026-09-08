@@ -46,7 +46,7 @@ Not implemented yet:
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
 | [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `SequoConsolidationService` validates seller packages, waits for readiness, records Sequo custody, and creates the final package ID; persistence, pickup missions, and final dispatch remain. |
-| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService`, repository persistence, and `RelayParcelController` cover eligible parcel creation, pickup-code creation, and validated release; tracking and delayed-parcel operations remain. |
+| [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService`, repository persistence, and `RelayParcelController` cover eligible parcel creation, pickup-code creation, listing/detail, validated release, delayed-parcel evaluation, and admin monitoring; scheduler/fee automation remain. |
 | [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
 | [ ] | Partial | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | `ReturnProcessingService` validates relay PINs, records physical receipt and responsibility, and blocks refund before receipt; repository/controller integration remains. |
 
@@ -76,7 +76,7 @@ Not implemented yet:
 | [x] | Implemented | Courier deposits at relay | Relay mission can move to deposited only with proof. | `DeliveryMissionWorkflow` covers transition. |
 | [x] | Implemented | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | `RelayParcelService` generates hashed numeric codes and QR nonces, verifies either credential, enforces expiry, one-time use, and attempt limits. |
 | [x] | Implemented | Release requires code and identity validation | Relay release requires pickup code and identity validation. | `DeliveryMissionWorkflow` enforces both flags at policy level. |
-| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, and `RelayParcelApplicationService` evaluate and persist delayed/review states; scheduler, fee ledger, tariff decision, and notifications remain. |
+| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, `RelayParcelApplicationService`, and admin monitoring evaluate, persist, count, and list delayed/review parcels; scheduler, fee ledger, tariff decision, and notifications remain. |
 | [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | Product decision required before automation. |
 
 ## Grouped Sequo And Cooperative Delivery
@@ -95,7 +95,7 @@ Not implemented yet:
 | Done | State | Case | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [ ] | Partial | Seller rejects order | Customer must be refunded or rerouted according to policy. | Merchant fulfillment service can persist rejection reason; refund orchestration missing. |
-| [ ] | Partial | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | `MerchantFulfillmentService.sla` records 24-hour response and 48-hour packing deadlines and detects overdue pending/preparing sub-orders; monitoring, cancellation, reassignment, and notifications remain. |
+| [ ] | Partial | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | `MerchantFulfillmentService.sla` records 24-hour response and 48-hour packing deadlines, while admin monitoring exposes seller backlog/ready/rejected queues; cancellation, reassignment, and notifications remain. |
 | [ ] | Partial | Courier reports problem | Mission can be moved to problem with reason. | `DeliveryMissionController` and `RelayParcelController` persist role-protected problem reports with actor, metadata, and idempotency; notifications and support resolution remain. |
 | [ ] | Not implemented | Customer unavailable | Reschedule, fallback relay, support intervention, or failed delivery state. | Missing. |
 | [ ] | Not implemented | Relay locker unavailable | Alternative locker/relay/manual custody workflow. | Missing. |
@@ -110,8 +110,8 @@ Not implemented yet:
 | [x] | Implemented | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table, JPA entity, repository, and service exist. |
 | [x] | Implemented | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | `DeliveryMission`, `DeliveryMissionRepository`, and `DeliveryMissionService` persist assignments, statuses, proof metadata, relay release checks, and shortfall values. |
 | [x] | Implemented | `delivery_pins` | Direct delivery PIN validation and attempt control. | `DeliveryPinService` stores only hashed PINs and enforces expiry, one-time use, and a five-attempt limit; `/deliver` validates the PIN before the workflow transition. |
-| [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | `RelayParcelPersistenceService` persists parcel state, category, locker, and source references; lifecycle scheduler and controllers remain. |
-| [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | `RelayParcelPersistenceService` persists hashed numeric/QR credentials and usage counters; controllers remain. |
+| [x] | Implemented | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | `RelayParcelPersistenceService` and `RelayParcelController` persist and expose parcel state, category, locker, source references, listing/detail, release, problems, and delayed evaluation. |
+| [x] | Implemented | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | `RelayParcelPersistenceService` and `RelayParcelController` persist hashed numeric/QR credentials, expiry, usage counters, and safe public responses that never return raw secrets. |
 | [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | `RelayParcelPersistenceService` persists deposit and release events with actor and idempotency data; broader event handling remains. |
 | [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
 | [ ] | Partial | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | `SettlementLedgerService` creates immutable merchant payout, shortfall, hold, and adjustment snapshots; persistence schema/repository remains. |
