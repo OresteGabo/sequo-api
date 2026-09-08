@@ -26,6 +26,7 @@ data class NotificationOutboxSnapshot(
     val eventType: NotificationEventType,
     val aggregateType: String,
     val aggregateId: String,
+    val payload: String?,
     val status: NotificationOutboxStatus,
     val attemptCount: Int,
     val nextAttemptAt: Instant?,
@@ -62,6 +63,20 @@ class NotificationOutboxService(
                 updatedAt = createdAt,
             )
         ).toSnapshot()
+    }
+
+    @Transactional(readOnly = true)
+    fun listReady(limit: Int = 20, now: Instant = Instant.now()): List<NotificationOutboxSnapshot> {
+        require(limit in 1..20) { "limit must be between 1 and 20." }
+        return repository.findTop20ByStatusInOrderByUpdatedAtAsc(
+            setOf(NotificationOutboxStatus.PENDING, NotificationOutboxStatus.FAILED_RETRYABLE)
+        )
+            .asSequence()
+            .filter { it.nextAttemptAt?.isAfter(now) != true }
+            .filter { it.lockedUntil?.isAfter(now) != true }
+            .take(limit)
+            .map { it.toSnapshot() }
+            .toList()
     }
 
     @Transactional
@@ -121,6 +136,7 @@ private fun NotificationOutbox.toSnapshot(): NotificationOutboxSnapshot =
         eventType = eventType,
         aggregateType = aggregateType,
         aggregateId = aggregateId,
+        payload = payload,
         status = status,
         attemptCount = attemptCount,
         nextAttemptAt = nextAttemptAt,
