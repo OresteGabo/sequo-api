@@ -1,6 +1,9 @@
 package dev.orestegabo.sequo_api.domain.relay
 
 import jakarta.persistence.Column
+import jakarta.persistence.AttributeConverter
+import jakarta.persistence.Convert
+import jakarta.persistence.Converter
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -22,7 +25,7 @@ class RelayParcelRecord(
     @Column(name = "return_id") val returnId: String? = null,
     @Column(name = "deposit_code", unique = true) val depositCode: String? = null,
     @Enumerated(EnumType.STRING) @Column(nullable = false) val category: RelayParcelCategory,
-    @Enumerated(EnumType.STRING) @Column(nullable = false) var status: RelayParcelStatus,
+    @Convert(converter = RelayParcelStatusConverter::class) @Column(nullable = false) var status: RelayParcelStatus,
     @Column(name = "deposited_at") var depositedAt: java.time.Instant? = null,
     @Column(name = "picked_up_at") var pickedUpAt: java.time.Instant? = null,
     @Column(name = "collected_at") var collectedAt: java.time.Instant? = null,
@@ -51,13 +54,15 @@ class RelayCustodyEventRecord(
     @Id val id: String,
     @Column(name = "relay_parcel_id", nullable = false) val relayParcelId: String,
     @Column(name = "actor_user_id") val actorUserId: String? = null,
-    @Enumerated(EnumType.STRING) @Column(name = "event_type", nullable = false) val type: RelayCustodyEventType,
+    @Convert(converter = RelayCustodyEventTypeConverter::class) @Column(name = "event_type", nullable = false) val type: RelayCustodyEventType,
     @Column(nullable = false) val metadata: String,
     @Column(name = "idempotency_key") val idempotencyKey: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: java.time.Instant,
 )
 
-interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String>
+interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
+    fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayParcelRecord>
+}
 interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String> {
     fun findFirstByRelayParcelIdOrderByCreatedAtDesc(relayParcelId: String): RelayPickupCodeRecord?
 }
@@ -76,6 +81,13 @@ class RelayParcelPersistenceService(
     )
 
     fun findPickupCode(parcelId: String): RelayPickupCode? = pickupCodes.findFirstByRelayParcelIdOrderByCreatedAtDesc(parcelId)?.toDomain()
+
+    fun listParcels(relayPointId: String, status: RelayParcelStatus? = null): List<RelayParcel> =
+        parcels.findByRelayPointIdOrderByUpdatedAtDesc(relayPointId)
+            .asSequence()
+            .filter { status == null || it.status == status }
+            .map { it.toDomain() }
+            .toList()
 
     @Transactional
     fun saveCreated(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
@@ -169,6 +181,12 @@ class RelayParcelApplicationService(
         if (result is RelayParcelServiceResult.Accepted) persistence.saveVerification(result)
         return result
     }
+
+    @Transactional(readOnly = true)
+    fun listParcels(relayPointId: String, status: RelayParcelStatus? = null): List<RelayParcel> {
+        require(relayPointId.isNotBlank()) { "relayPointId is required." }
+        return persistence.listParcels(relayPointId, status)
+    }
 }
 
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
@@ -193,3 +211,18 @@ private fun RelayParcelRecord.toDomain(custodyEvents: List<RelayCustodyEvent> = 
 )
 private fun RelayPickupCodeRecord.toDomain() = RelayPickupCode(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
 private fun RelayCustodyEventRecord.toDomain() = RelayCustodyEvent(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
+
+@Converter
+class RelayParcelStatusConverter : AttributeConverter<RelayParcelStatus, String> {
+    override fun convertToDatabaseColumn(attribute: RelayParcelStatus?): String? = attribute?.name.toSqlEnum()
+    override fun convertToEntityAttribute(dbData: String?): RelayParcelStatus? = dbData?.let { RelayParcelStatus.valueOf(it.toCamelEnum()) }
+}
+
+@Converter
+class RelayCustodyEventTypeConverter : AttributeConverter<RelayCustodyEventType, String> {
+    override fun convertToDatabaseColumn(attribute: RelayCustodyEventType?): String? = attribute?.name.toSqlEnum()
+    override fun convertToEntityAttribute(dbData: String?): RelayCustodyEventType? = dbData?.let { RelayCustodyEventType.valueOf(it.toCamelEnum()) }
+}
+
+private fun String?.toSqlEnum(): String? = this?.replace(Regex("([a-z])([A-Z])"), "$1_$2")?.uppercase()
+private fun String.toCamelEnum(): String = lowercase().split('_').joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
