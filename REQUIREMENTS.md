@@ -45,8 +45,8 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Commissions | Default merchant commission is 15%. | `MerchantCommissionService` resolves the 15% default and snapshots commission, merchant net, and Sequo item revenue with focused tests. |
 | [ ] | Partial | Commissions | Merchant commission can be configured from 5% to 15%. | `MerchantCommissionService` validates 5%-15% overrides; admin API and persistence remain. |
 | [ ] | Partial | Pricing | Listing price is `(base price + platform margin) + service fees + delivery fee`. | Pricing docs/schema model this; full checkout quote persistence remains. |
-| [ ] | Partial | Cooperatives | Group merchants into market cooperatives such as Marche de Mulhouse. | Schema/API/docs exist; cooperative service implementation remains. |
-| [ ] | Not implemented | Cooperatives | Merchants or cooperative actors request cooperative creation, then Sequo validates. | Requires request/approval workflow and scoped permissions. |
+| [x] | Implemented | Cooperatives | Group merchants into market cooperatives such as Marche de Mulhouse. | `CooperativeMarketService` models active cooperative markets, members, storefront aggregation, and preserves each product's true merchant ownership with focused tests. |
+| [x] | Implemented | Cooperatives | Merchants or cooperative actors request cooperative creation, then Sequo validates. | `CooperativeMarketService` supports create/join requests, admin approval, rejection with reason, and duplicate-member protection. |
 | [ ] | Partial | Consolidation | Multi-merchant purchases pass through Sequo and arrive as one package to the customer. | Order processor marks multi-seller orders as requiring consolidation; fulfillment workflow remains. |
 | [ ] | Partial | Merchant fulfillment | Merchant prepares package in a reasonable delay and marks it ready for Sequo pickup. | Repository-backed `MerchantFulfillmentService` exists; controller, RBAC, order wiring, and SLA tracking remain. |
 | [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods; `ProductMediaPolicyService` validates live-camera metadata, safe filenames, image signatures, hashes, moderation, and storage handoff. |
@@ -93,7 +93,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
 - [x] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
 - [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow.
-- [ ] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
+- [x] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
 - [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
 - [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting.
 - [ ] Real Yas Togo and Moov Africa adapters with signed callbacks, provider references, reconciliation, and webhook idempotency.
