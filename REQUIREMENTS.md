@@ -51,7 +51,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Merchant fulfillment | Merchant prepares package in a reasonable delay and marks it ready for Sequo pickup. | Repository-backed `MerchantFulfillmentService` exists; controller, RBAC, order wiring, and SLA tracking remain. |
 | [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods. |
 | [x] | Implemented | Catalog media | Generic sealed products can use reference/catalog images. | `GenericCatalogImage` is accepted only for `GenericSealedItem`. |
-| [ ] | Not implemented | Food catalog | Food items need toppings/customizations/options. | Requires customization group/option model, price deltas, and order snapshots. |
+| [x] | Implemented | Food catalog | Food items need toppings/customizations/options. | `FoodCustomizationService` validates required/optional choices, price deltas, unavailable options, and order snapshots with focused tests. |
 | [ ] | Partial | Returns | Customers drop returns at Point de Relai; Sequo later collects them. | Return and relay docs/schema exist; return intake service remains. |
 | [ ] | Partial | Returns | Return window is 72 hours after delivery/customer receipt. | Docs/schema specify the rule; eligibility service remains. |
 | [ ] | Partial | Refunds | Refund is triggered only after Sequo physically receives the returned item. | Docs/API specify physical receipt; refund orchestration remains. |
@@ -101,7 +101,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 - [ ] Subscription billing tiers, renewal state, per-km discount caps, and multi-year loyalty multipliers.
 - [ ] Referral delivery credit wallet with expiry, non-cash constraints, and application only to delivery fees.
-- [ ] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
+- [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [ ] Product media upload policy with live-camera metadata, generic catalog references, moderation, and storage integration.
 - [ ] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
 - [ ] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
