@@ -85,6 +85,26 @@ class RelayParcelPersistenceService(
     }
 }
 
+@Service
+class RelayParcelApplicationService(
+    private val domain: RelayParcelService,
+    private val persistence: RelayParcelPersistenceService,
+) {
+    @Transactional
+    fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
+        val result = domain.createParcel(command)
+        if (result is RelayParcelServiceResult.Accepted) persistence.saveCreated(result)
+        return result
+    }
+
+    @Transactional
+    fun createPickupCode(command: RelayPickupCodeCreateCommand): RelayParcelServiceResult {
+        val result = domain.createPickupCode(command)
+        if (result is RelayParcelServiceResult.Accepted) persistence.savePickupCode(result)
+        return result
+    }
+}
+
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
 private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
 private fun RelayCustodyEvent.toRecord() = RelayCustodyEventRecord(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
