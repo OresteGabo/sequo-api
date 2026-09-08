@@ -64,7 +64,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | Done | State | Area | Requirement | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | FCM | Store and manage FCM device tokens per user, device, platform, and app family. | `V3__create_notification_tables.sql`, `DeviceTokenService`, `DeviceTokenController`, and tests register, rotate, revoke, encrypt, and list active tokens. Firebase sending remains separate. |
-| [ ] | Partial | Push routing | Route notifications separately for customer, merchant, relay, rider, support, admin, and super admin roles. | App-family channel planning exists; role/ownership recipient routing service remains. |
+| [ ] | Partial | Push routing | Route notifications separately for customer, merchant, relay, rider, support, admin, and super admin roles. | `NotificationRoutingService` maps event audiences to role/app-family recipients, validates IDs, and removes duplicates; domain-event integration, preferences, and provider delivery remain. |
 | [ ] | Partial | In-app inbox | Persist notification history with read/archive state. | `notification_messages` and `NotificationDispatchService` persist message history; read/list/archive APIs remain. |
 | [ ] | Partial | SMS fallback | Use SMS backup for critical PIN, blocked delivery, relay pickup, and urgent payment/refund events. | `NotificationChannelPolicy` gates SMS behind critical events, explicit fallback, user preference, push failure/unavailability, and remaining budget. Paid provider adapter is intentionally not wired yet. |
 | [ ] | Not implemented | WebSocket/STOMP | Configure `/ws` with JWT-authenticated STOMP for active mobile clients. | Architecture documented in [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md); dependencies/config not implemented. |
@@ -87,7 +87,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 ### Priority 1 - Owner-note core domain workflows
 
-- [ ] Notification routing service for customer, merchant, rider, relay, support, admin, and super-admin scopes.
+- [x] Notification routing service for customer, merchant, rider, relay, support, admin, and super-admin scopes. Domain routing is implemented; event listener and delivery integration remain.
 - [ ] Notification outbox worker plus `@TransactionalEventListener` hooks from order, merchant fulfillment, delivery, relay, return, refund, and settlement workflows.
 - [ ] Firebase Admin SDK adapter with stale-token pruning, retries, and provider delivery audit.
 - [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
