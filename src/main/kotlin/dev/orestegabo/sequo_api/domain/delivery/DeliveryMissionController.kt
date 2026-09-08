@@ -26,9 +26,9 @@ class DeliveryMissionController(
     private val orderLifecycle: OrderDeliveryLifecycleService,
 ) {
     data class AssignCourierRequest(val courierId: String)
-    data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null)
-    data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null)
-    data class ProblemRequest(val reason: String)
+    data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null, val idempotencyKey: String? = null)
+    data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null, val idempotencyKey: String? = null)
+    data class ProblemRequest(val reason: String, val idempotencyKey: String? = null)
     data class CreateDeliveryPinRequest(val rawPin: String, val expiresAt: Instant)
     data class ErrorResponse(val code: String, val message: String)
 
@@ -163,7 +163,13 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
-        service.transition(missionId, it, DeliveryMissionEvent.CourierPicksUpFromSeller, proof = request.proofMetadata).toResponse()
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = it,
+            event = DeliveryMissionEvent.CourierPicksUpFromSeller,
+            idempotencyKey = request.idempotencyKey,
+            proof = request.proofMetadata,
+        ).toResponse()
     }
 
     @PostMapping("/{missionId}/deliver")
@@ -173,6 +179,12 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
+        service.replayIdempotentOperation(
+            missionId = missionId,
+            actorId = it,
+            event = DeliveryMissionEvent.CourierDeliversToCustomer,
+            idempotencyKey = request.idempotencyKey,
+        )?.let { replayed -> return@roleActorRequired replayed.markOrderDelivered(actorUserId = it).toResponse() }
         if (!request.deliveryPin.isNullOrBlank()) {
             when (val validation = service.validateDirectDeliveryAttempt(missionId, it)) {
                 is DeliveryMissionServiceResult.Success -> Unit
@@ -185,10 +197,11 @@ class DeliveryMissionController(
                 is DeliveryPinResult.Rejected -> return@roleActorRequired result.toResponse()
             }
         } ?: false
-        val result = service.transition(
-            missionId,
-            it,
-            DeliveryMissionEvent.CourierDeliversToCustomer,
+        val result = service.transitionIdempotent(
+            missionId = missionId,
+            actorId = it,
+            event = DeliveryMissionEvent.CourierDeliversToCustomer,
+            idempotencyKey = request.idempotencyKey,
             proof = request.proofMetadata,
             deliveryPinValidated = pinValidated,
         )
@@ -202,7 +215,13 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
-        service.transition(missionId, it, DeliveryMissionEvent.CourierDepositsAtRelay, proof = request.proofMetadata).toResponse()
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = it,
+            event = DeliveryMissionEvent.CourierDepositsAtRelay,
+            idempotencyKey = request.idempotencyKey,
+            proof = request.proofMetadata,
+        ).toResponse()
     }
 
     @PostMapping("/{missionId}/relay-release")
@@ -212,10 +231,11 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: RelayReleaseRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.RelayOperators) {
-        val result = service.transition(
+        val result = service.transitionIdempotent(
             missionId = missionId,
             actorId = it,
             event = DeliveryMissionEvent.RelayReleasesToCustomer,
+            idempotencyKey = request.idempotencyKey,
             proof = request.proofMetadata,
             relayPickupValidated = request.pickupCodeValidated,
             identityValidated = request.identityValidated,
@@ -230,7 +250,13 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProblemRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.DeliveryProblemReporters) {
-        service.transition(missionId, it, DeliveryMissionEvent.ReportProblem, problemReason = request.reason).toResponse()
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = it,
+            event = DeliveryMissionEvent.ReportProblem,
+            idempotencyKey = request.idempotencyKey,
+            problemReason = request.reason,
+        ).toResponse()
     }
 
     private fun adminOnly(authentication: Authentication?, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
