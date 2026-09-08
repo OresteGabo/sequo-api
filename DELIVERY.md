@@ -66,7 +66,7 @@ Not implemented yet:
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionController` exposes pickup with proof and persists actor metadata. |
 | [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionController` validates direct delivery PINs before delivery transitions and keeps the raw PIN out of responses. |
 | [ ] | Partial | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | Target docs/schema exist; no persisted workflow service. |
-| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | `SettlementLedgerService` posts merchant accrual, return/dispute holds, adjustments, and Sequo delivery shortfall snapshots; repository-backed courier/relay ledger posting remains. |
+| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | Settlement now persists merchant accruals, immutable ledger entries, idempotent delivery shortfalls/adjustments, secured payout reads, admin ledger inspection, and eligibility promotion; provider payout execution remains. |
 
 ## Happy Path: Relay Delivery
 
