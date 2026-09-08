@@ -49,31 +49,34 @@ class DeliveryMissionController(
 
     @PostMapping("/{missionId}/accept")
     fun accept(
+        authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
-    ): ResponseEntity<Any> = actorRequired(userId) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
         service.transition(missionId, it, DeliveryMissionEvent.CourierAccepts).toResponse()
     }
 
     @PostMapping("/{missionId}/pickup")
     fun pickup(
+        authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
-    ): ResponseEntity<Any> = actorRequired(userId) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
         service.transition(missionId, it, DeliveryMissionEvent.CourierPicksUpFromSeller, proof = request.proofMetadata).toResponse()
     }
 
     @PostMapping("/{missionId}/deliver")
     fun deliver(
+        authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
-    ): ResponseEntity<Any> = actorRequired(userId) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
         val pinValidated = request.deliveryPin?.takeIf(String::isNotBlank)?.let { rawPin ->
             when (val result = pinService.verify(missionId, rawPin)) {
                 is DeliveryPinResult.Accepted -> true
-                is DeliveryPinResult.Rejected -> return@actorRequired result.toResponse()
+                is DeliveryPinResult.Rejected -> return@roleActorRequired result.toResponse()
             }
         } ?: false
         service.transition(
@@ -87,19 +90,21 @@ class DeliveryMissionController(
 
     @PostMapping("/{missionId}/relay-deposit")
     fun relayDeposit(
+        authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
-    ): ResponseEntity<Any> = actorRequired(userId) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
         service.transition(missionId, it, DeliveryMissionEvent.CourierDepositsAtRelay, proof = request.proofMetadata).toResponse()
     }
 
     @PostMapping("/{missionId}/relay-release")
     fun relayRelease(
+        authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: RelayReleaseRequest,
-    ): ResponseEntity<Any> = actorRequired(userId) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
         service.transition(
             missionId = missionId,
             actorId = it,
@@ -112,10 +117,11 @@ class DeliveryMissionController(
 
     @PostMapping("/{missionId}/problem")
     fun reportProblem(
+        authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProblemRequest,
-    ): ResponseEntity<Any> = actorRequired(userId) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER", "ROLE_RELAY_PARTNER", "ROLE_SUPPORT_AGENT", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
         service.transition(missionId, it, DeliveryMissionEvent.ReportProblem, problemReason = request.reason).toResponse()
     }
 
@@ -126,6 +132,16 @@ class DeliveryMissionController(
 
     private fun actorRequired(userId: String?, operation: (String) -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (userId == null) ResponseEntity.status(401).build()
+        else try { operation(userId) } catch (e: IllegalArgumentException) { badRequest(e) }
+
+    private fun roleActorRequired(
+        authentication: Authentication?,
+        userId: String?,
+        roles: Set<String>,
+        operation: (String) -> ResponseEntity<Any>,
+    ): ResponseEntity<Any> =
+        if (authentication == null || userId == null) ResponseEntity.status(401).build()
+        else if (authentication.authorities.none { it.authority in roles }) ResponseEntity.status(403).build()
         else try { operation(userId) } catch (e: IllegalArgumentException) { badRequest(e) }
 
     private fun badRequest(error: IllegalArgumentException): ResponseEntity<Any> =
