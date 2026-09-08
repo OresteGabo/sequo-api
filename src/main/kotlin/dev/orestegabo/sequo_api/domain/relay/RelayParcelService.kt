@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.relay
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
+import org.springframework.stereotype.Service
 
 enum class RelayParcelStatus {
     Created,
@@ -146,6 +147,7 @@ sealed class RelayParcelServiceResult {
     data class Rejected(val rejection: RelayParcelRejection) : RelayParcelServiceResult()
 }
 
+@Service
 class RelayParcelService(
     private val policy: RelayParcelPolicy = RelayParcelPolicy(),
     private val credentialHasher: RelayCredentialHasher = Sha256RelayCredentialHasher(),
