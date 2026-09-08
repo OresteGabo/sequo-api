@@ -56,7 +56,7 @@ Not implemented yet:
 | Done | State | Step | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | Customer pays before fulfillment | API must not create fulfillment handoff until wallet payment is validated. | `OrderProcessing` stops before seller handoff if payment is pending/failed. |
-| [ ] | Partial | Paid order creates merchant sub-order | Persist order, immutable snapshots, and one sub-order per merchant. | `merchant_sub_orders` migration and service exist; order creation is not wired to create sub-orders yet. |
+| [x] | Implemented | Paid order creates merchant sub-order | Persist order, immutable snapshots, and one sub-order per merchant. | `customer_orders`, `customer_order_lines`, `merchant_sub_orders`, and `OrderFulfillmentPersistenceService` persist paid orders, immutable line snapshots, and idempotent merchant sub-orders grouped by seller. |
 | [x] | Implemented | Seller accepts order | Seller must explicitly accept before packing. | `MerchantFulfillmentService` persists acceptance and tests cover merchant scope checks. |
 | [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentService` persists preparation timestamp. |
 | [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentService` requires `packageCount > 0` and persists packed state. |
