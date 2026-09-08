@@ -65,7 +65,7 @@ Not implemented yet:
 | [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionController` exposes role-protected accept and tests verify assigned-courier scope. |
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionController` exposes pickup with proof and persists actor metadata. |
 | [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionController` validates direct delivery PINs before delivery transitions and keeps the raw PIN out of responses. |
-| [ ] | Partial | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | Target docs/schema exist; no persisted workflow service. |
+| [x] | Implemented | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | `OrderDeliveryLifecycleService` marks persisted orders delivered from completed missions, opens the 72-hour return window, writes immutable order events, and publishes a notification outbox event for customer/merchant recipients. |
 | [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | Settlement now persists merchant accruals, immutable ledger entries, idempotent delivery shortfalls/adjustments, secured payout reads, admin ledger inspection, and eligibility promotion; provider payout execution remains. |
 
 ## Happy Path: Relay Delivery
@@ -114,7 +114,7 @@ Not implemented yet:
 | [x] | Implemented | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | `RelayParcelPersistenceService` and `RelayParcelController` persist and expose parcel state, category, locker, source references, listing/detail, release, problems, and delayed evaluation. |
 | [x] | Implemented | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | `RelayParcelPersistenceService` and `RelayParcelController` persist hashed numeric/QR credentials, expiry, usage counters, and safe public responses that never return raw secrets. |
 | [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | `RelayParcelPersistenceService` persists deposit and release events with actor and idempotency data; broader event handling remains. |
-| [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
+| [x] | Implemented | `order_events` | Immutable audit trail for order and delivery state changes. | `V10__add_order_delivery_lifecycle.sql` and `CustomerOrderEventRecordRepository` persist accepted, delivered, and return-window-opened events with source and actor references. |
 | [x] | Implemented | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | `SettlementPersistenceService` persists immutable ledger entries, idempotently records delivery shortfalls and adjustments, and reads entries by source. Automatic payout execution remains. |
 
 ## API Surface Required Before Delivery Apps Work
@@ -145,5 +145,5 @@ Not implemented yet:
 3. [x] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
 4. [x] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
 5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks. Merchant, courier, relay, customer tracking, and first admin-dispatch endpoints are implemented; courier pause/resolution and persisted merchant memberships remain.
-6. [ ] Add notification/outbox events and settlement ledger posting. Outbox worker and after-commit event listener are implemented; workflow-specific publishers and repository-backed settlement posting remain.
+6. [ ] Add notification/outbox events and settlement ledger posting. Delivery completion now publishes workflow-specific outbox events; broader workflow publishers and provider delivery remain.
 7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized. Problem states and pre-pickup re-assignment exist; expiry/fees/return automation remain.
