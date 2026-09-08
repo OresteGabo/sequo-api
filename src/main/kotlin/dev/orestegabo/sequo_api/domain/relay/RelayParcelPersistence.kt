@@ -61,7 +61,9 @@ interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String>
 interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String> {
     fun findFirstByRelayParcelIdOrderByCreatedAtDesc(relayParcelId: String): RelayPickupCodeRecord?
 }
-interface RelayCustodyEventRecordRepository : JpaRepository<RelayCustodyEventRecord, String>
+interface RelayCustodyEventRecordRepository : JpaRepository<RelayCustodyEventRecord, String> {
+    fun findByRelayParcelIdOrderByCreatedAtAsc(relayParcelId: String): List<RelayCustodyEventRecord>
+}
 
 @Service
 class RelayParcelPersistenceService(
@@ -69,7 +71,11 @@ class RelayParcelPersistenceService(
     private val pickupCodes: RelayPickupCodeRecordRepository,
     private val events: RelayCustodyEventRecordRepository,
 ) {
-    fun findParcel(id: String): RelayParcel? = parcels.findById(id).orElse(null)?.toDomain()
+    fun findParcel(id: String): RelayParcel? = parcels.findById(id).orElse(null)?.toDomain(
+        events.findByRelayParcelIdOrderByCreatedAtAsc(id).map { it.toDomain() }
+    )
+
+    fun findPickupCode(parcelId: String): RelayPickupCode? = pickupCodes.findFirstByRelayParcelIdOrderByCreatedAtDesc(parcelId)?.toDomain()
 
     @Transactional
     fun saveCreated(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
@@ -140,12 +146,35 @@ class RelayParcelApplicationService(
             )
         )
     }
+
+    @Transactional
+    fun verifyPickup(
+        parcelId: String,
+        relayPointId: String,
+        actorUserId: String,
+        rawNumericCode: String?,
+        rawQrNonce: String?,
+        identityDocumentMatched: Boolean,
+        eventId: String,
+        idempotencyKey: String,
+        verifiedAt: java.time.Instant = java.time.Instant.now(),
+    ): RelayParcelServiceResult {
+        val parcel = persistence.findParcel(parcelId)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
+        val code = persistence.findPickupCode(parcelId)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("pickup_code_not_found", "Pickup code was not found."))
+        val result = domain.verifyPickup(
+            RelayPickupVerificationCommand(parcel, code, relayPointId, actorUserId, rawNumericCode, rawQrNonce, identityDocumentMatched, eventId, idempotencyKey, verifiedAt)
+        )
+        if (result is RelayParcelServiceResult.Accepted) persistence.saveVerification(result)
+        return result
+    }
 }
 
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
 private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
 private fun RelayCustodyEvent.toRecord() = RelayCustodyEventRecord(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
-private fun RelayParcelRecord.toDomain() = RelayParcel(
+private fun RelayParcelRecord.toDomain(custodyEvents: List<RelayCustodyEvent> = emptyList()) = RelayParcel(
     id = id,
     relayPointId = relayPointId,
     lockerId = lockerId,
@@ -158,6 +187,9 @@ private fun RelayParcelRecord.toDomain() = RelayParcel(
     depositedAt = depositedAt,
     pickedUpAt = pickedUpAt,
     collectedAt = collectedAt,
+    custodyEvents = custodyEvents,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
+private fun RelayPickupCodeRecord.toDomain() = RelayPickupCode(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
+private fun RelayCustodyEventRecord.toDomain() = RelayCustodyEvent(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
