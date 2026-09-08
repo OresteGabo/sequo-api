@@ -90,4 +90,48 @@ class DeliveryMissionServiceTest @Autowired constructor(
         assertEquals("courier_scope_mismatch", pickup.code)
         assertEquals("courier_scope_mismatch", problem.code)
     }
+
+    @Test
+    fun idempotentTransitionReplaysSuccessfulOperationAndRejectsKeyConflicts() {
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "MISSION-IDEMPOTENT-1",
+                orderId = "order-idempotent-1",
+                deliveryMode = DeliveryMissionRecordMode.EXPRESS,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            )
+        )
+        service.assignCourier(mission.id, "courier-idempotent")
+        service.transition(mission.id, "admin-1", DeliveryMissionEvent.OfferToCourier)
+        service.transition(mission.id, "courier-idempotent", DeliveryMissionEvent.CourierAccepts)
+
+        val first = service.transitionIdempotent(
+            missionId = mission.id,
+            actorId = "courier-idempotent",
+            event = DeliveryMissionEvent.CourierPicksUpFromSeller,
+            idempotencyKey = "pickup-idempotent-1",
+            proof = "pickup-proof",
+        )
+        val replay = service.transitionIdempotent(
+            missionId = mission.id,
+            actorId = "courier-idempotent",
+            event = DeliveryMissionEvent.CourierPicksUpFromSeller,
+            idempotencyKey = "pickup-idempotent-1",
+            proof = "different-proof",
+        )
+        val conflict = service.transitionIdempotent(
+            missionId = mission.id,
+            actorId = "courier-idempotent",
+            event = DeliveryMissionEvent.CourierDeliversToCustomer,
+            idempotencyKey = "pickup-idempotent-1",
+            proof = "dropoff-proof",
+        )
+
+        assertTrue(first is DeliveryMissionServiceResult.Success)
+        assertTrue(replay is DeliveryMissionServiceResult.Success)
+        assertEquals(DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER, replay.mission.status)
+        assertEquals("pickup-proof", repository.findById(mission.id).orElseThrow().pickupProofMetadata)
+        assertTrue(conflict is DeliveryMissionServiceResult.Rejected)
+        assertEquals("idempotency_key_conflict", conflict.code)
+    }
 }
