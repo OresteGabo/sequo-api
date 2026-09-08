@@ -81,7 +81,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
 - [x] Placeholder replacement tracker and production readiness check for fake URLs, provider IDs, local defaults, and test-only secrets.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
-- [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources.
+- [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources. `AuthorizationPolicy` now centralizes role, ownership, merchant-scope, assignment, and financial-access decisions; controller integration and persisted permissions remain.
 - [ ] Social identity linking table to safely handle Google login and password login for the same verified email. `AuthService` now reads and records provider-subject links while preserving explicit e-mail account-link rejection; explicit user-driven linking and migration of legacy rows remain.
 - [ ] Flyway migrations for roles, refresh sessions, social identities, and audit logs.
 
