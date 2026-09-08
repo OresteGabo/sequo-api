@@ -32,6 +32,23 @@ class RelayParcelController(
         val idempotencyKey: String,
     )
     data class ProblemRequest(val eventId: String, val idempotencyKey: String, val metadata: String)
+    data class ParcelResponse(
+        val id: String,
+        val relayPointId: String,
+        val lockerId: String?,
+        val orderId: String?,
+        val deliveryMissionId: String?,
+        val returnId: String?,
+        val category: RelayParcelCategory,
+        val status: RelayParcelStatus,
+        val depositedAt: Instant?,
+        val pickedUpAt: Instant?,
+        val collectedAt: Instant?,
+        val createdAt: Instant,
+        val updatedAt: Instant,
+    )
+    data class PickupCredentialResponse(val id: String, val parcelId: String, val identityCheckRequired: Boolean, val expiresAt: Instant, val usedAt: Instant?, val attemptCount: Int)
+    data class OperationResponse(val parcel: ParcelResponse, val pickupCode: PickupCredentialResponse?, val eventId: String?)
 
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody command: RelayParcelCreateCommand): ResponseEntity<Any> =
@@ -45,8 +62,19 @@ class RelayParcelController(
         @RequestParam relayPointId: String,
         @RequestParam(required = false) status: RelayParcelStatus?,
     ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
-        ResponseEntity.ok(service.listParcels(relayPointId, status))
+        ResponseEntity.ok(service.listParcels(relayPointId, status).map { toResponse(it) })
     }
+
+    @GetMapping("/{parcelId}")
+    fun get(authentication: Authentication?, @PathVariable parcelId: String, @RequestParam(required = false) relayPointId: String?): ResponseEntity<Any> =
+        roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+            val parcel = service.getParcel(parcelId)
+                ?: return@roleRequired ResponseEntity.notFound().build()
+            if (authentication!!.authorities.any { it.authority == "ROLE_RELAY_PARTNER" } && parcel.relayPointId != relayPointId) {
+                return@roleRequired ResponseEntity.status(403).build()
+            }
+            ResponseEntity.ok(toResponse(parcel))
+        }
 
     @PostMapping("/{parcelId}/pickup-code")
     fun createPickupCode(
@@ -102,6 +130,28 @@ class RelayParcelController(
 }
 
 private fun RelayParcelServiceResult.toResponse(): ResponseEntity<Any> = when (this) {
-    is RelayParcelServiceResult.Accepted -> ResponseEntity.ok(value)
+    is RelayParcelServiceResult.Accepted -> ResponseEntity.ok(
+        RelayParcelController.OperationResponse(
+            parcel = toResponse(value.parcel),
+            pickupCode = value.pickupCode?.let { RelayParcelController.PickupCredentialResponse(it.id, it.relayParcelId, it.identityCheckRequired, it.expiresAt, it.usedAt, it.attemptCount) },
+            eventId = value.event?.id,
+        )
+    )
     is RelayParcelServiceResult.Rejected -> ResponseEntity.badRequest().body(RelayParcelController.ErrorResponse(rejection.code, rejection.message))
 }
+
+private fun toResponse(parcel: RelayParcel) = RelayParcelController.ParcelResponse(
+    id = parcel.id,
+    relayPointId = parcel.relayPointId,
+    lockerId = parcel.lockerId,
+    orderId = parcel.orderId,
+    deliveryMissionId = parcel.deliveryMissionId,
+    returnId = parcel.returnId,
+    category = parcel.category,
+    status = parcel.status,
+    depositedAt = parcel.depositedAt,
+    pickedUpAt = parcel.pickedUpAt,
+    collectedAt = parcel.collectedAt,
+    createdAt = parcel.createdAt,
+    updatedAt = parcel.updatedAt,
+)
