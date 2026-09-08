@@ -94,9 +94,18 @@ class DeliveryFulfillmentWorkflowTest {
                 proofProvided = true,
             )
         )
+        val deliveredWithPin = deliveryWorkflow.transition(
+            DeliveryMissionTransitionRequest(
+                currentStatus = pickedUp.nextStatus,
+                event = DeliveryMissionEvent.CourierDeliversToCustomer,
+                destinationType = DeliveryDestinationType.CustomerAddress,
+                deliveryPinValidated = true,
+            )
+        )
 
         assertFalse(deliveredWithoutProof.accepted)
         assertTrue(delivered.accepted)
+        assertTrue(deliveredWithPin.accepted)
         assertEquals(DeliveryMissionStatus.DeliveredToCustomer, delivered.nextStatus)
     }
 
