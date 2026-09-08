@@ -49,7 +49,7 @@ Not implemented yet:
 | [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `SequoConsolidationService` validates seller packages, waits for readiness, records Sequo custody, and creates the final package ID; persistence, pickup missions, and final dispatch remain. |
 | [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService`, repository persistence, and `RelayParcelController` cover eligible parcel creation, pickup-code creation, listing/detail, validated release, delayed-parcel evaluation, and admin monitoring; scheduler/fee automation remain. |
 | [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
-| [ ] | Partial | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | `ReturnProcessingService` validates relay PINs, records physical receipt and responsibility, and blocks refund before receipt; repository/controller integration remains. |
+| [x] | Implemented | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | `ReturnProcessingService`, `ReturnPersistenceService`, `ReturnController`, and `return_requests` persist customer return requests, validate relay PINs, record physical receipt/responsibility, and block refund before receipt. |
 
 ## Happy Path: Direct Customer Delivery
 
