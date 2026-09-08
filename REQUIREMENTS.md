@@ -92,7 +92,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Firebase Admin SDK adapter with stale-token pruning, retries, and provider delivery audit.
 - [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
 - [x] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
-- [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow. Locker/credential/delay domain behavior is implemented; persistence, scheduler, fees, and return-to-seller automation remain.
+- [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow. Locker/credential/delay domain behavior and repository-backed parcel, credential, and custody-event persistence are implemented; controllers, scheduler, fees, and return-to-seller automation remain.
 - [x] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
 - [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
 - [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting. Domain accrual, eligibility, adjustment, and shortfall ledger decisions are implemented; repository-backed scheduler remains.
