@@ -58,6 +58,17 @@ class DeliveryMission(
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
     fun findByCourierIdAndStatusIn(courierId: String, statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
+    fun countByStatusIn(statuses: Collection<DeliveryMissionRecordStatus>): Long
+    fun countByCourierIdIsNullAndStatusIn(statuses: Collection<DeliveryMissionRecordStatus>): Long
+    fun countByDestinationTypeAndStatusIn(
+        destinationType: DeliveryMissionRecordDestination,
+        statuses: Collection<DeliveryMissionRecordStatus>,
+    ): Long
+    fun countByShortfallCfaGreaterThanAndStatusIn(
+        shortfallCfa: Int,
+        statuses: Collection<DeliveryMissionRecordStatus>,
+    ): Long
+    fun findTop20ByStatusInOrderByUpdatedAtDesc(statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
 }
 
 data class CreateDeliveryMissionCommand(
