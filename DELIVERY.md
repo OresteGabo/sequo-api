@@ -102,7 +102,7 @@ Not implemented yet:
 | [ ] | Not implemented | Relay locker unavailable | Alternative locker/relay/manual custody workflow. | Missing. |
 | [ ] | Not implemented | Package lost/damaged | Responsibility assignment, evidence, support investigation, ledger liability. | Return/settlement docs only. |
 | [ ] | Partial | Courier no-show | Mission expiry, reassign, courier penalty/support workflow. | Admin can reassign missions before pickup and force a support problem state; expiry scheduler and penalty workflow remain. |
-| [ ] | Partial | Duplicate pickup/delivery submission | Idempotency key plus state guard prevents duplicate side effects. | Delivery mission service rejects duplicate proof submissions; endpoint idempotency keys remain. |
+| [x] | Implemented | Duplicate pickup/delivery submission | Idempotency key plus state guard prevents duplicate side effects. | `delivery_mission_idempotency_keys` and `DeliveryMissionService.transitionIdempotent` replay successful pickup, delivery, relay-deposit, relay-release, and problem operations while rejecting reused keys for different operations. Delivery PIN retries replay before consuming the PIN again. |
 
 ## Delivery Data That Must Be Persisted
 
@@ -136,7 +136,7 @@ Not implemented yet:
 | [x] | Implemented | Relay scope checks | `RelayParcelService` rejects release when the relay actor is operating on another relay point's parcel. |
 | [x] | Implemented | One-time pickup/delivery credentials | Relay pickup credentials and direct delivery PINs are one-time, hashed, expiring, and attempt-limited, with direct PIN validation integrated into `/deliver`. |
 | [ ] | Partial | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. | Proof actor IDs and timestamps are persisted separately for pickup, relay deposit, and customer drop-off; service transitions reject duplicate proof submissions, while database-level audit/immutability remains. |
-| [ ] | Partial | Idempotency | Relay release is idempotent by key in `RelayParcelService`; pickup, delivery, and problem endpoints remain. |
+| [x] | Implemented | Idempotency | Relay release is idempotent by key in `RelayParcelService`; delivery mission pickup, delivery, relay-deposit, relay-release, and problem endpoints use persisted idempotency keys. |
 
 ## Recommended Implementation Order
 
