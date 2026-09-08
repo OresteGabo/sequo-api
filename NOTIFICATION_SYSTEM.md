@@ -77,7 +77,7 @@ Still pending:
 | `NotificationOutboxRepository` | Repository | Persist pending notification work with idempotency keys and retry counters. |
 | `NotificationOutboxWorker` | Scheduled/job worker | Claim pending outbox rows, execute delivery, retry failures, and dead-letter terminal failures. |
 | `NotificationOrchestrator` | Service | High-level dispatch pipeline: route, preferences, template, persist, deliver, audit. |
-| `NotificationRoutingService` | Service | Resolve recipients by role, ownership, merchant scope, relay scope, courier assignment, and admin scope. |
+| `NotificationRoutingService` | Service | Implemented foundation. Resolve event recipients by customer, merchant, relay, courier, support, admin, and super-admin scope; event listener integration remains. |
 | `NotificationPreferenceService` | Service | Apply user/app/channel preferences, quiet hours, and critical override policy. |
 | `NotificationTemplateService` | Service | Render localized title/body/action labels and construct safe payload data. |
 | `DeviceTokenService` | Service | Implemented. Register, update, revoke, and prune FCM tokens per user/device/app. |
@@ -413,7 +413,7 @@ This keeps local development and early production from spending money on SMS for
 4. [x] Implement notification channel cost policy and delivery planning foundation.
 5. [ ] Add notification dependencies: Firebase Admin SDK, Spring WebSocket, validation, and optional scheduler lock library.
 6. [ ] Implement notification outbox worker and `NotificationDomainEventListener`.
-7. [ ] Implement `NotificationRoutingService` for customer, merchant, rider, relay, and admin scopes.
+7. [x] Implement domain `NotificationRoutingService` for customer, merchant, rider, relay, support, and admin scopes. Wire it to committed domain events in the next integration step.
 8. [ ] Implement WebSocket/STOMP infrastructure from [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md).
 9. [ ] Implement FCM sender adapter and provider delivery audit.
 10. [ ] Add SMS fallback provider abstraction for critical events with monthly spend caps and provider-level rate limits.
