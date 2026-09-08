@@ -46,5 +46,5 @@ Do not replace every test fixture blindly. Values under "Test-only fixtures" are
 
 - Move local-only defaults out of shared runtime config where possible.
 - Add explicit provider enable/disable flags for Google, Facebook, Apple, Yas Togo, and Moov Africa.
-- Add a production readiness check that fails if any value from this tracker appears in a deployed environment.
+- Production-like startup now rejects tracked placeholder/test/local markers such as `.example`, `.test`, `.local`, `localhost`, `sequo_dev_password`, `change_before_prod`, `change_me`, and known fake OAuth IDs.
 - Update this tracker whenever a new `.example`, fake numeric ID, local URL, test domain, or `change_before_prod` value is introduced.
