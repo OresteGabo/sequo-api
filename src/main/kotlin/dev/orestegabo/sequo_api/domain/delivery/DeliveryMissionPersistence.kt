@@ -210,6 +210,35 @@ class DeliveryMissionService(
 }
 
 private fun DeliveryMission.toSnapshot() = DeliveryMissionSnapshot(requireNotNull(id), deliveryCode, orderId, merchantSubOrderId, courierId, status, destinationType, pickupAt, deliveredAt, relayDepositedAt, shortfallCfa, pickupProofMetadata, pickupProofActorId, dropoffProofMetadata, dropoffProofActorId, problemMetadata)
-private fun DeliveryMissionRecordStatus.toWorkflowStatus() = DeliveryMissionStatus.valueOf(name.split('_').joinToString("") { it.lowercase().replaceFirstChar(Char::uppercaseChar) })
-private fun DeliveryMissionStatus.toRecordStatus() = DeliveryMissionRecordStatus.valueOf(name.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase())
-private fun DeliveryMissionRecordDestination.toWorkflowType() = DeliveryDestinationType.valueOf(name.split('_').joinToString("") { it.lowercase().replaceFirstChar(Char::uppercaseChar) })
+private fun DeliveryMissionRecordStatus.toWorkflowStatus(): DeliveryMissionStatus =
+    when (this) {
+        DeliveryMissionRecordStatus.CREATED -> DeliveryMissionStatus.Created
+        DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> DeliveryMissionStatus.OfferedToCourier
+        DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> DeliveryMissionStatus.AcceptedByCourier
+        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> DeliveryMissionStatus.PickedUpFromSeller
+        DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY -> DeliveryMissionStatus.DepositedAtRelay
+        DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER -> DeliveryMissionStatus.DeliveredToCustomer
+        DeliveryMissionRecordStatus.RELEASED_BY_RELAY -> DeliveryMissionStatus.ReleasedByRelay
+        DeliveryMissionRecordStatus.PROBLEM_REPORTED -> DeliveryMissionStatus.ProblemReported
+        DeliveryMissionRecordStatus.CANCELLED -> DeliveryMissionStatus.Cancelled
+    }
+
+private fun DeliveryMissionStatus.toRecordStatus(): DeliveryMissionRecordStatus =
+    when (this) {
+        DeliveryMissionStatus.Created -> DeliveryMissionRecordStatus.CREATED
+        DeliveryMissionStatus.OfferedToCourier -> DeliveryMissionRecordStatus.OFFERED_TO_COURIER
+        DeliveryMissionStatus.AcceptedByCourier -> DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER
+        DeliveryMissionStatus.PickedUpFromSeller -> DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER
+        DeliveryMissionStatus.DepositedAtRelay -> DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY
+        DeliveryMissionStatus.DeliveredToCustomer -> DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER
+        DeliveryMissionStatus.ReleasedByRelay -> DeliveryMissionRecordStatus.RELEASED_BY_RELAY
+        DeliveryMissionStatus.ProblemReported -> DeliveryMissionRecordStatus.PROBLEM_REPORTED
+        DeliveryMissionStatus.Cancelled -> DeliveryMissionRecordStatus.CANCELLED
+    }
+
+private fun DeliveryMissionRecordDestination.toWorkflowType(): DeliveryDestinationType =
+    when (this) {
+        DeliveryMissionRecordDestination.CUSTOMER_ADDRESS -> DeliveryDestinationType.CustomerAddress
+        DeliveryMissionRecordDestination.RELAY_POINT -> DeliveryDestinationType.RelayPoint
+        DeliveryMissionRecordDestination.SEQUO_CONSOLIDATION -> DeliveryDestinationType.SequoConsolidation
+    }
