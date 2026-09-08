@@ -261,6 +261,52 @@ class DeliveryMissionControllerTest @Autowired constructor(
     }
 
     @Test
+    fun duplicateDeliveryWithSameIdempotencyKeyDoesNotConsumePinAgain() {
+        val admin = auth("admin-deliver-idempotent", RoleCode.ADMIN)
+        val courier = auth("courier-deliver-idempotent", RoleCode.COURIER)
+        val mission = createAssignedAndOfferedMission(
+            deliveryCode = "CTRL-DELIVER-IDEMPOTENT",
+            orderId = "order-deliver-idempotent",
+            courierId = "courier-deliver-idempotent",
+            admin = admin,
+        )
+        controller.accept(courier, "courier-deliver-idempotent", mission.id)
+        controller.pickup(
+            courier,
+            "courier-deliver-idempotent",
+            mission.id,
+            DeliveryMissionController.ProofRequest(proofMetadata = "pickup-photo-ref"),
+        )
+        controller.createDeliveryPin(
+            admin,
+            mission.id,
+            DeliveryMissionController.CreateDeliveryPinRequest(
+                rawPin = "777888",
+                expiresAt = Instant.now().plusSeconds(3600),
+            )
+        )
+
+        val delivered = controller.deliver(
+            courier,
+            "courier-deliver-idempotent",
+            mission.id,
+            DeliveryMissionController.ProofRequest(deliveryPin = "777888", idempotencyKey = "delivery-idempotent-1"),
+        )
+        val replayed = controller.deliver(
+            courier,
+            "courier-deliver-idempotent",
+            mission.id,
+            DeliveryMissionController.ProofRequest(deliveryPin = "777888", idempotencyKey = "delivery-idempotent-1"),
+        )
+        val usedPins = pinRepository.findAll().filter { it.deliveryMissionId == mission.id && it.usedAt != null }
+
+        assertEquals(HttpStatus.OK, delivered.statusCode)
+        assertEquals(HttpStatus.OK, replayed.statusCode)
+        assertEquals(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, replayed.bodyAs<DeliveryMissionSnapshot>().status)
+        assertEquals(1, usedPins.size)
+    }
+
+    @Test
     fun wrongCourierCannotConsumeValidDeliveryPin() {
         val admin = auth("admin-pin-scope", RoleCode.ADMIN)
         val assignedCourier = auth("courier-pin-owner", RoleCode.COURIER)
