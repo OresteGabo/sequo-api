@@ -21,6 +21,8 @@ class DeliveryMissionControllerTest @Autowired constructor(
     private val controller: DeliveryMissionController,
     private val trackingController: DeliveryTrackingController,
     private val service: DeliveryMissionService,
+    private val merchantFulfillment: MerchantFulfillmentService,
+    private val dispatchService: DeliveryReadinessDispatchService,
     private val pinRepository: DeliveryPinRepository,
 ) {
     @Test
@@ -94,6 +96,32 @@ class DeliveryMissionControllerTest @Autowired constructor(
         val pin = created.bodyAs<DeliveryPinSnapshot>()
         assertTrue(pinRepository.findById(pin.id).orElseThrow().pinHash.startsWith("sha256:"))
         assertEquals(HttpStatus.BAD_REQUEST, relayRejected.statusCode)
+    }
+
+    @Test
+    fun adminCanDispatchPackedMerchantSubOrders() {
+        val admin = auth("admin-dispatch-ready", RoleCode.ADMIN)
+        val subOrder = merchantFulfillment.create(
+            CreateMerchantSubOrderCommand(
+                subOrderCode = "sub-order-dispatch-ready",
+                orderId = "missing-order-for-controller-dispatch",
+                merchantId = "merchant-dispatch-ready",
+                itemSubtotalCfa = 2_000,
+                commissionCfa = 300,
+                merchantNetCfa = 1_700,
+            )
+        )
+        merchantFulfillment.accept(subOrder.id, subOrder.merchantId)
+        merchantFulfillment.startPreparation(subOrder.id, subOrder.merchantId)
+        merchantFulfillment.markPacked(subOrder.id, subOrder.merchantId, packageCount = 1)
+
+        val dispatched = controller.dispatchReady(admin, limit = 10)
+
+        assertEquals(HttpStatus.OK, dispatched.statusCode)
+        dispatched.bodyAs<DeliveryDispatchRunResult>().also {
+            assertTrue(it.skippedSubOrders.any { skipped -> skipped.subOrderId == subOrder.id })
+        }
+        assertEquals(0, dispatchService.dispatchReadySubOrders().createdMissions.size)
     }
 
     @Test
