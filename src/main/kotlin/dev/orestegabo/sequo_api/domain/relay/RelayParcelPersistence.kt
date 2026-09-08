@@ -1,5 +1,8 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
+import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.settlement.RelayStorageFeeLedgerCommand
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import jakarta.persistence.Column
@@ -12,6 +15,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Service
@@ -139,7 +143,17 @@ class RelayParcelPersistenceService(
         storageFees.findByRelayPointIdOrderByUpdatedAtDesc(relayPointId).map { it.toDomain() }
 
     @Transactional
-    fun save(parcel: RelayParcel): RelayParcel = parcels.save(parcel.toRecord()).toDomain()
+    fun save(parcel: RelayParcel): RelayParcel {
+        val existing = parcels.findById(parcel.id).orElse(null)
+        val record = existing?.apply {
+            status = parcel.status
+            depositedAt = parcel.depositedAt
+            pickedUpAt = parcel.pickedUpAt
+            collectedAt = parcel.collectedAt
+            updatedAt = parcel.updatedAt
+        } ?: parcel.toRecord()
+        return parcels.save(record).toDomain()
+    }
 
     @Transactional
     fun saveCreated(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
@@ -155,14 +169,14 @@ class RelayParcelPersistenceService(
 
     @Transactional
     fun saveVerification(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
-        parcels.save(parcel.toRecord())
+        save(parcel)
         result.value.pickupCode?.let { pickupCodes.save(it.toRecord()) }
         result.value.event?.let { events.save(it.toRecord()) }
     }
 
     @Transactional
     fun saveProblem(parcel: RelayParcel, event: RelayCustodyEvent): RelayParcel = parcel.also {
-        parcels.save(it.toRecord())
+        save(it)
         events.save(event.toRecord())
     }
 
@@ -209,8 +223,10 @@ class RelayParcelApplicationService(
     private val domain: RelayParcelService,
     private val persistence: RelayParcelPersistenceService,
     private val settlements: SettlementPersistenceService,
+    private val publisher: ApplicationEventPublisher,
 ) {
     private val storageFeeService = RelayStorageFeeService()
+    private val objectMapper = ObjectMapper()
 
     @Transactional
     fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
@@ -293,9 +309,14 @@ class RelayParcelApplicationService(
     @Transactional
     fun evaluateDelayed(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcel> =
         persistence.listParcels(relayPointId)
-            .map { parcel -> domain.markDelayedIfNeeded(parcel, evaluatedAt) }
-            .filter { it.status == RelayParcelStatus.Delayed || it.status == RelayParcelStatus.ReturnToSellerReview }
-            .map(persistence::save)
+            .mapNotNull { parcel ->
+                val updated = domain.markDelayedIfNeeded(parcel, evaluatedAt)
+                if (updated.status in delayedNotificationStatuses && updated.status != parcel.status) {
+                    persistence.save(updated).also { publishRelayDelayEvent(it) }
+                } else {
+                    null
+                }
+            }
 
     @Transactional
     fun evaluateDelayedForAllRelayPoints(evaluatedAt: java.time.Instant): List<RelayParcel> =
@@ -377,6 +398,42 @@ class RelayParcelApplicationService(
             )
         }
         return assessment
+    }
+
+    private fun publishRelayDelayEvent(parcel: RelayParcel) {
+        publisher.publishEvent(
+            NotificationWorkflowEvent(
+                eventId = "${parcel.id}:relay-delay:${parcel.status.name}",
+                eventType = NotificationEventType.RELAY_PARCEL_DELAYED,
+                aggregateType = "RELAY_PARCEL",
+                aggregateId = parcel.id,
+                payload = objectMapper.writeValueAsString(
+                    mapOf(
+                        "relayUserIds" to setOf(parcel.relayPointId),
+                        "title" to "Relay parcel delay",
+                        "body" to parcel.delayNotificationBody(),
+                        "actionUrl" to "/relay/parcels/${parcel.id}",
+                        "messagePayload" to mapOf(
+                            "parcelId" to parcel.id,
+                            "relayPointId" to parcel.relayPointId,
+                            "orderId" to parcel.orderId,
+                            "returnId" to parcel.returnId,
+                            "status" to parcel.status.name,
+                        ),
+                    )
+                ),
+            )
+        )
+    }
+
+    private fun RelayParcel.delayNotificationBody(): String =
+        when (status) {
+            RelayParcelStatus.ReturnToSellerReview -> "Relay parcel $id needs return-to-seller review."
+            else -> "Relay parcel $id has exceeded the normal pickup window."
+        }
+
+    private companion object {
+        val delayedNotificationStatuses = setOf(RelayParcelStatus.Delayed, RelayParcelStatus.ReturnToSellerReview)
     }
 }
 
