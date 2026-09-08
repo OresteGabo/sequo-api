@@ -59,7 +59,7 @@ Not implemented yet:
 | [x] | Implemented | Seller accepts order | Seller must explicitly accept before packing. | `MerchantFulfillmentService` persists acceptance and tests cover merchant scope checks. |
 | [x] | Implemented | Seller starts preparing | Accepted order can move to preparing. | `MerchantFulfillmentService` persists preparation timestamp. |
 | [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentService` requires `packageCount > 0` and persists packed state. |
-| [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `DeliveryMissionService` now persists mission creation and assignment; order-readiness trigger, dispatch queue, and controller remain. |
+| [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `DeliveryMissionService` and `DeliveryMissionController` persist and expose mission creation/assignment; order-readiness trigger and dispatch queue remain. |
 | [x] | Implemented | Courier assignment policy | Selects eligible courier based on subscriber/order channel/workforce/vehicle rules. | `DeliveryAssignmentPolicy` and tests. |
 | [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionWorkflow` covers transition; no endpoint. |
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionWorkflow` requires proof. |
