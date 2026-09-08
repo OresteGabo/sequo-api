@@ -11,6 +11,8 @@ interface MerchantSubOrderRepository : JpaRepository<MerchantSubOrder, String> {
 
     fun findTop20ByStatusInOrderByUpdatedAtAsc(statuses: Collection<MerchantSubOrderStatus>): List<MerchantSubOrder>
 
+    fun findTop200ByStatusOrderByUpdatedAtAsc(status: MerchantSubOrderStatus): List<MerchantSubOrder>
+
     fun findByMerchantIdAndStatusInOrderByUpdatedAtDesc(
         merchantId: String,
         statuses: Collection<MerchantSubOrderStatus>,
