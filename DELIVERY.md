@@ -28,7 +28,7 @@ Not implemented yet:
 - Direct delivery PIN generation. Relay pickup code/QR generation, hashing, verification, expiry, identity checks, and attempt limits are covered by `RelayParcelService`.
 - Proof photo/signature/geolocation storage.
 - Notifications, tracking, ETA, route provider integration, and maps cost controls.
-- Settlement ledger posting for courier payable, relay payable, and shortfalls.
+- Repository-backed settlement ledger posting for courier payable, relay payable, and shortfalls.
 
 ## Status Legend
 
@@ -65,7 +65,7 @@ Not implemented yet:
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionWorkflow` requires proof. |
 | [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionWorkflow` blocks direct delivery without proof. |
 | [ ] | Partial | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | Target docs/schema exist; no persisted workflow service. |
-| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | Shortfall calculation exists; ledger posting missing. |
+| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | `SettlementLedgerService` posts merchant accrual, return/dispute holds, adjustments, and Sequo delivery shortfall snapshots; repository-backed courier/relay ledger posting remains. |
 
 ## Happy Path: Relay Delivery
 
@@ -114,7 +114,7 @@ Not implemented yet:
 | [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
 | [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | Flyway table and relay deposit/release event snapshots exist; repository and broader event handling missing. |
 | [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
-| [ ] | Partial | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | Target schema only. |
+| [ ] | Partial | `settlement_ledger_entries` | Courier/relay payable, shortfalls, holds, adjustments. | `SettlementLedgerService` creates immutable merchant payout, shortfall, hold, and adjustment snapshots; persistence schema/repository remains. |
 
 ## API Surface Required Before Delivery Apps Work
 
@@ -144,5 +144,5 @@ Not implemented yet:
 3. [ ] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
 4. [ ] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events. Domain service is implemented; repository-backed persistence and endpoints remain.
 5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks.
-6. [ ] Add notification/outbox events and settlement ledger posting.
+6. [ ] Add notification/outbox events and settlement ledger posting. Domain settlement decisions are implemented; persistence and outbox wiring remain.
 7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized.
