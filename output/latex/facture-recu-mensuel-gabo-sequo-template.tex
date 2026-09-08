@@ -1,0 +1,151 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.6cm]{geometry}
+\usepackage{helvet}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{hyperref}
+
+\renewcommand{\familydefault}{\sfdefault}
+\pagestyle{empty}
+
+\definecolor{GaboOlive}{HTML}{6D5E0F}
+\definecolor{GaboCream}{HTML}{FFF9EE}
+\definecolor{GaboInk}{HTML}{1F2933}
+\definecolor{GaboMuted}{HTML}{5F6B76}
+\definecolor{GaboLine}{HTML}{D7CCB0}
+\definecolor{GaboGreen}{HTML}{1F7A5B}
+
+% Update these values for the next receipt.
+\newcommand{\moisConcerne}{Ao\^ut 2026}
+\newcommand{\dateReception}{8 ao\^ut 2026}
+\newcommand{\montantRwf}{829\,000}
+
+\hypersetup{
+  colorlinks=true,
+  urlcolor=GaboInk
+}
+
+\newcommand{\gabologo}{%
+  \begin{tikzpicture}[x=0.62pt,y=0.62pt]
+    \fill[GaboCream, rounded corners=24pt] (0,0) rectangle (100,100);
+    \draw[
+      color=GaboOlive,
+      line width=9pt,
+      line join=round,
+      line cap=round
+    ] (70,72) -- (42,72) -- (25,50) -- (42,28) -- (70,28);
+    \draw[color=GaboOlive, line width=9pt, line cap=round] (58,50) -- (80,50);
+    \fill[GaboOlive] (80,50) circle (4.5pt);
+  \end{tikzpicture}%
+}
+
+\newcommand{\sectionTitle}[1]{%
+  \vspace{1.35cm}
+  {\large\bfseries\color{GaboOlive}#1}\par
+  \vspace{0.12cm}
+  {\color{GaboLine}\hrule height 0.7pt}
+  \vspace{0.55cm}
+}
+
+\newcommand{\labelValue}[2]{%
+  {\color{GaboMuted}\bfseries #1:} & {\color{GaboInk}#2}\\[0.13cm]
+}
+
+\newcommand{\fieldValue}[2]{%
+  \begin{tabularx}{\linewidth}{@{}p{3.6cm}X@{}}
+    {\color{GaboMuted}\bfseries #1} &
+    {\color{GaboInk}#2}\par
+    {\color{GaboLine}\hrule height 0.6pt}
+  \end{tabularx}
+}
+
+\begin{document}
+\color{GaboInk}
+
+\noindent
+\begin{minipage}[t]{0.46\textwidth}
+  \gabologo\hspace{0.55cm}
+  \begin{minipage}[b]{0.55\textwidth}
+    {\Huge\color{GaboOlive}GABO}\par
+    \vspace{0.15cm}
+    {\large Facture - re\c{c}u de paiement mensuel}
+  \end{minipage}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.50\textwidth}
+  \raggedleft
+  {\Huge\bfseries FACTURE - RE\c{C}U}\par
+  \vspace{0.18cm}
+  {\large\color{GaboMuted}Preuve de r\'eception d'argent}\par
+  \vspace{0.25cm}
+  {\large\bfseries\color{GaboGreen}Montant contractuel: 500 EUR / mois}
+\end{minipage}
+
+\sectionTitle{INFORMATIONS MENSUELLES}
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+  \fieldValue{Mois concern\'e}{\moisConcerne}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+  \fieldValue{Date r\'eception}{\dateReception}
+\end{minipage}
+
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+  \sectionTitle{LE COMMANDITAIRE / CLIENT}
+  {\LARGE SEQUO}\par
+  \vspace{0.35cm}
+  {\color{GaboMuted}Entreprise situ\'ee au Togo, repr\'esent\'ee par Monsieur Gamal Tchadenu, fondateur et dirigeant.}\par
+  \vspace{0.45cm}
+  Email: \href{mailto:gamaltchadenou@sequoservice.com}{gamaltchadenou@sequoservice.com}\par
+  Site web: \href{https://sequoservice.com}{sequoservice.com}\par
+  T\'el\'ephone: +33 7 80 43 46 90
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+  \sectionTitle{LE PRESTATAIRE}
+  {\LARGE GABO}\par
+  \vspace{0.35cm}
+  {\color{GaboMuted}Entreprise enregistr\'ee au Rwanda et bas\'ee \`a Kigali, repr\'esent\'ee par Monsieur Muhirwa Gabo Oreste.}\par
+  \vspace{0.45cm}
+  \begin{tabularx}{\linewidth}{@{}p{3.2cm}X@{}}
+    \labelValue{R\'ef\'erence ID}{REG-2022-1829159}
+    \labelValue{TIN}{120387596}
+    \labelValue{Immatriculation}{16 juin 2022}
+    \labelValue{Email}{\href{mailto:orestegabo@icloud.com}{orestegabo@icloud.com}}
+    \labelValue{Site web}{\href{https://orestegabo.dev}{orestegabo.dev}}
+    \labelValue{Adresse}{Kigali, Rwanda}
+    \labelValue{T\'el\'ephone}{+33 7 69 09 79 91}
+    \labelValue{Secr\'etariat}{Emmanuella Karemera, +250 786 123 384}
+  \end{tabularx}
+\end{minipage}
+
+\sectionTitle{PAIEMENT MENSUEL}
+\noindent
+Prestation mensuelle GABO pour SEQUO\par
+\vspace{0.38cm}
+\noindent
+\begin{minipage}[t]{0.45\textwidth}
+  {\large\bfseries\color{GaboGreen}Montant convenu: 500 EUR / mois}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+  \fieldValue{Montant re\c{c}u en RWF}{\montantRwf}
+\end{minipage}
+
+\sectionTitle{ATTESTATION DE R\'ECEPTION}
+\noindent
+{\large GABO, atteste avoir re\c{c}u de SEQUO le montant indiqu\'e ci-dessus au titre de la p\'eriode mentionn\'ee.}
+
+\vfill
+{\color{GaboLine}\hrule height 0.7pt}
+\vspace{0.25cm}
+{\small\color{GaboMuted}GABO - Kigali, Rwanda - Reference ID REG-2022-1829159 - TIN 120387596 - orestegabo@icloud.com - orestegabo.dev}
+
+\end{document}
