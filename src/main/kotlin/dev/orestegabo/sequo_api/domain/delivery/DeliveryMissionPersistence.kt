@@ -130,7 +130,7 @@ class DeliveryMissionService(
     @Transactional
     fun transition(missionId: String, actorId: String, event: DeliveryMissionEvent, proof: String? = null, relayPickupValidated: Boolean = false, identityValidated: Boolean = false, problemReason: String? = null, at: Instant = Instant.now()): DeliveryMissionServiceResult {
         val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
-        if (event in setOf(DeliveryMissionEvent.CourierAccepts, DeliveryMissionEvent.CourierPicksUpFromSeller) && mission.courierId != actorId) {
+        if (event in courierScopedEvents && mission.courierId != actorId) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
         }
         val result = workflow.transition(
@@ -162,6 +162,16 @@ class DeliveryMissionService(
     private fun find(id: String) = repository.findById(id).orElse(null)
     private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(mission.toSnapshot(), message)
     private fun rejected(code: String, message: String) = DeliveryMissionServiceResult.Rejected(code, message)
+
+    private companion object {
+        val courierScopedEvents = setOf(
+            DeliveryMissionEvent.CourierAccepts,
+            DeliveryMissionEvent.CourierPicksUpFromSeller,
+            DeliveryMissionEvent.CourierDeliversToCustomer,
+            DeliveryMissionEvent.CourierDepositsAtRelay,
+            DeliveryMissionEvent.ReportProblem,
+        )
+    }
 }
 
 private fun DeliveryMission.toSnapshot() = DeliveryMissionSnapshot(requireNotNull(id), deliveryCode, orderId, merchantSubOrderId, courierId, status, destinationType, pickupAt, deliveredAt, relayDepositedAt, shortfallCfa, pickupProofMetadata, dropoffProofMetadata, problemMetadata)
