@@ -64,4 +64,27 @@ class DeliveryMissionServiceTest @Autowired constructor(
         assertTrue(blocked is DeliveryMissionServiceResult.Rejected)
         assertEquals(DeliveryMissionRecordStatus.RELEASED_BY_RELAY, releasedSuccess.mission.status)
     }
+
+    @Test
+    fun courierScopedActionsRejectAnotherCourier() {
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "MISSION-3",
+                orderId = "order-3",
+                deliveryMode = DeliveryMissionRecordMode.EXPRESS,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            )
+        )
+        service.assignCourier(mission.id, "courier-3")
+        service.transition(mission.id, "admin-1", DeliveryMissionEvent.OfferToCourier)
+        service.transition(mission.id, "courier-3", DeliveryMissionEvent.CourierAccepts)
+
+        val pickup = service.transition(mission.id, "other-courier", DeliveryMissionEvent.CourierPicksUpFromSeller, proof = "pickup-proof")
+        val problem = service.transition(mission.id, "other-courier", DeliveryMissionEvent.ReportProblem, problemReason = "Not assigned")
+
+        assertTrue(pickup is DeliveryMissionServiceResult.Rejected)
+        assertTrue(problem is DeliveryMissionServiceResult.Rejected)
+        assertEquals("courier_scope_mismatch", pickup.code)
+        assertEquals("courier_scope_mismatch", problem.code)
+    }
 }
