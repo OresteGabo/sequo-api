@@ -21,6 +21,7 @@ class RelayParcelRecord(
     @Column(name = "delivery_mission_id") val deliveryMissionId: String? = null,
     @Column(name = "return_id") val returnId: String? = null,
     @Column(name = "deposit_code", unique = true) val depositCode: String? = null,
+    @Enumerated(EnumType.STRING) @Column(nullable = false) val category: RelayParcelCategory,
     @Enumerated(EnumType.STRING) @Column(nullable = false) var status: RelayParcelStatus,
     @Column(name = "deposited_at") var depositedAt: java.time.Instant? = null,
     @Column(name = "picked_up_at") var pickedUpAt: java.time.Instant? = null,
@@ -105,6 +106,6 @@ class RelayParcelApplicationService(
     }
 }
 
-private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
+private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
 private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
 private fun RelayCustodyEvent.toRecord() = RelayCustodyEventRecord(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
