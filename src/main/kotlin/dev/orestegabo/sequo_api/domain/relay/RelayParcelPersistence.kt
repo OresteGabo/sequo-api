@@ -109,6 +109,12 @@ class RelayParcelPersistenceService(
         result.value.pickupCode?.let { pickupCodes.save(it.toRecord()) }
         result.value.event?.let { events.save(it.toRecord()) }
     }
+
+    @Transactional
+    fun saveProblem(parcel: RelayParcel, event: RelayCustodyEvent): RelayParcel = parcel.also {
+        parcels.save(it.toRecord())
+        events.save(event.toRecord())
+    }
 }
 
 @Service
@@ -197,6 +203,31 @@ class RelayParcelApplicationService(
             .map { parcel -> domain.markDelayedIfNeeded(parcel, evaluatedAt) }
             .filter { it.status == RelayParcelStatus.Delayed || it.status == RelayParcelStatus.ReturnToSellerReview }
             .map(persistence::save)
+
+    @Transactional
+    fun reportProblem(
+        parcelId: String,
+        actorUserId: String,
+        eventId: String,
+        idempotencyKey: String,
+        metadata: String,
+        reportedAt: java.time.Instant = java.time.Instant.now(),
+    ): RelayParcelServiceResult {
+        require(actorUserId.isNotBlank() && eventId.isNotBlank() && idempotencyKey.isNotBlank()) { "Actor, event id, and idempotency key are required." }
+        require(metadata.isNotBlank()) { "Problem metadata is required." }
+        val parcel = persistence.findParcel(parcelId)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
+        parcel.custodyEvents.firstOrNull { it.type == RelayCustodyEventType.Problem && it.idempotencyKey == idempotencyKey }?.let {
+            return RelayParcelServiceResult.Accepted(RelayParcelAccepted(parcel, event = it))
+        }
+        if (parcel.status == RelayParcelStatus.PickedUp || parcel.status == RelayParcelStatus.CollectedBySequo || parcel.status == RelayParcelStatus.ReturnedToSeller) {
+            return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_reportable", "Resolved parcel cannot be reported as a problem."))
+        }
+        val event = RelayCustodyEvent(eventId, parcelId, actorUserId, RelayCustodyEventType.Problem, metadata, idempotencyKey, reportedAt)
+        val updated = parcel.copy(status = RelayParcelStatus.Problem, updatedAt = reportedAt, custodyEvents = parcel.custodyEvents + event)
+        persistence.saveProblem(updated, event)
+        return RelayParcelServiceResult.Accepted(RelayParcelAccepted(updated, event = event))
+    }
 }
 
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
