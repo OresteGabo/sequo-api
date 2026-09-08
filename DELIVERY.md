@@ -41,7 +41,7 @@ Not implemented yet:
 
 | Done | State | Mode | Backend rule | Evidence or gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | Delivery workflow policy exists; mission persistence/controllers/proof storage missing. |
+| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | `DeliveryMissionService` persists proof and enforces assigned-courier ownership; PIN endpoint integration and order-readiness dispatch remain. |
 | [ ] | Partial | Express delivery | Non-subscriber express orders prefer freelance moto couriers. | `DeliveryAssignmentPolicy` implements selection; dispatch queue missing. |
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
@@ -131,7 +131,7 @@ Not implemented yet:
 | Done | State | Requirement | Why it matters |
 | --- | --- | --- | --- |
 | [ ] | Partial | Merchant ownership checks | Service rejects wrong merchant scope; controller/RBAC enforcement remains. |
-| [ ] | Not implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. |
+| [x] | Implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. | `DeliveryMissionService` rejects accept, pickup, delivery, relay deposit, and problem updates from a non-assigned courier. |
 | [x] | Implemented | Relay scope checks | `RelayParcelService` rejects release when the relay actor is operating on another relay point's parcel. |
 | [ ] | Partial | One-time pickup/delivery credentials | Relay pickup credentials and the direct delivery PIN service are one-time, hashed, expiring, and attempt-limited; endpoint integration remains. |
 | [ ] | Not implemented | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. |
