@@ -20,6 +20,8 @@ data class StartupSecuritySettings(
     val moovAfricaWebhookSecret: String?,
     val corsAllowedOrigins: List<String>,
     val datasourceUrl: String?,
+    val datasourceUsername: String?,
+    val datasourcePassword: String?,
     val hibernateDdlAuto: String?,
     val h2ConsoleEnabled: Boolean,
 )
@@ -85,6 +87,7 @@ object StartupSecurityChecks {
         )
         requireSafeCorsSettings(settings.corsAllowedOrigins, findings)
         requireSafeDatabaseSettings(settings, findings)
+        requireNoTrackedPlaceholders(settings, findings)
 
         return findings
     }
@@ -140,6 +143,34 @@ object StartupSecurityChecks {
         }
     }
 
+    private fun requireNoTrackedPlaceholders(
+        settings: StartupSecuritySettings,
+        findings: MutableList<String>,
+    ) {
+        mapOf(
+            "sequo.auth.jwt.secret" to listOf(settings.jwtSecret),
+            "sequo.notifications.token-encryption-secret" to listOf(settings.notificationTokenEncryptionSecret),
+            "sequo.auth.google.client-id" to listOf(settings.googleClientId),
+            "sequo.auth.facebook.app-id" to listOf(settings.facebookAppId),
+            "sequo.auth.apple.client-id" to listOf(settings.appleClientId),
+            "sequo.wallets.yas-togo.api-key" to listOf(settings.yasTogoApiKey),
+            "sequo.wallets.yas-togo.webhook-secret" to listOf(settings.yasTogoWebhookSecret),
+            "sequo.wallets.moov-africa.api-key" to listOf(settings.moovAfricaApiKey),
+            "sequo.wallets.moov-africa.webhook-secret" to listOf(settings.moovAfricaWebhookSecret),
+            "sequo.security.cors.allowed-origins" to settings.corsAllowedOrigins,
+            "spring.datasource.url" to listOf(settings.datasourceUrl),
+            "spring.datasource.username" to listOf(settings.datasourceUsername),
+            "spring.datasource.password" to listOf(settings.datasourcePassword),
+        ).forEach { (propertyName, values) ->
+            values.filterNotNull().forEach { value ->
+                val normalized = value.trim().lowercase()
+                if (TRACKED_PLACEHOLDER_MARKERS.any { it in normalized }) {
+                    findings += "$propertyName must not contain tracked placeholder, test, local, or example values in production-like profiles."
+                }
+            }
+        }
+    }
+
     private fun requireSafeCorsSettings(
         allowedOrigins: List<String>,
         findings: MutableList<String>,
@@ -184,6 +215,23 @@ object StartupSecurityChecks {
         "ci_only_moov_africa_api_key_2026_change_me",
         "ci_only_moov_africa_webhook_secret_2026_change_me",
     )
+    private val TRACKED_PLACEHOLDER_MARKERS = setOf(
+        ".example",
+        ".test",
+        ".local",
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "sequo_dev_password",
+        "replace_this",
+        "change_before_prod",
+        "change_me",
+        "dev_client_id",
+        "docker_dev",
+        "ci_only",
+        "1234567890-sequo.apps.googleusercontent.com",
+        "123456789012345",
+    )
 }
 
 @Component
@@ -213,6 +261,10 @@ class ProductionStartupGuardrails(
     private val corsAllowedOrigins: List<String>,
     @Value("\${spring.datasource.url:}")
     private val datasourceUrl: String?,
+    @Value("\${spring.datasource.username:}")
+    private val datasourceUsername: String?,
+    @Value("\${spring.datasource.password:}")
+    private val datasourcePassword: String?,
     @Value("\${spring.jpa.hibernate.ddl-auto:}")
     private val hibernateDdlAuto: String?,
     @Value("\${spring.h2.console.enabled:false}")
@@ -234,6 +286,8 @@ class ProductionStartupGuardrails(
                 moovAfricaWebhookSecret = moovAfricaWebhookSecret,
                 corsAllowedOrigins = corsAllowedOrigins,
                 datasourceUrl = datasourceUrl,
+                datasourceUsername = datasourceUsername,
+                datasourcePassword = datasourcePassword,
                 hibernateDdlAuto = hibernateDdlAuto,
                 h2ConsoleEnabled = h2ConsoleEnabled,
             )
