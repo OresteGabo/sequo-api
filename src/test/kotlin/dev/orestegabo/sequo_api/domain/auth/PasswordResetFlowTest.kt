@@ -21,6 +21,9 @@ class PasswordResetFlowTest {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var socialIdentityRepository: SocialIdentityRepository
+
+    @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
     @Autowired
@@ -28,6 +31,7 @@ class PasswordResetFlowTest {
 
     @BeforeEach
     fun cleanDatabase() {
+        socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
     }
 
