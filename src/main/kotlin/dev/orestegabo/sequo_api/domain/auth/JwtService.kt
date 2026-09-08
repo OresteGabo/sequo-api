@@ -61,10 +61,20 @@ class JwtService(
     }
 
     fun validateAccessToken(token: String): String? {
+        return parseAccessToken(token)?.userId
+    }
+
+    fun parseAccessToken(token: String): UserSession? {
         return try {
             val claims = parseClaims(token) ?: return null
             if (!claimsMatchTokenUse(claims, TokenUse.ACCESS)) return null
-            claims.subject?.takeIf { it.isNotBlank() }
+
+            UserSession(
+                userId = claims.subject?.takeIf { it.isNotBlank() } ?: return null,
+                email = claims["email"] as? String,
+                provider = AuthProvider.valueOf(claims["provider"] as String),
+                roles = parseRoles(claims["roles"]),
+            )
         } catch (e: Exception) {
             null
         }
@@ -85,6 +95,20 @@ class JwtService(
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun parseRoles(rolesClaim: Any?): Set<RoleCode> {
+        val roleNames = when (rolesClaim) {
+            is Collection<*> -> rolesClaim.mapNotNull { it as? String }
+            is String -> listOf(rolesClaim)
+            null -> emptyList()
+            else -> throw IllegalArgumentException("Invalid roles claim")
+        }
+
+        return roleNames
+            .map { RoleCode.valueOf(it) }
+            .toSet()
+            .ifEmpty { setOf(RoleCode.CUSTOMER) }
     }
 
     private fun parseClaims(token: String) = try {
