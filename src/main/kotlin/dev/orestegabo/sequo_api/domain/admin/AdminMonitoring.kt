@@ -1,6 +1,6 @@
 package dev.orestegabo.sequo_api.domain.admin
 
-import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
@@ -257,13 +257,9 @@ class AdminMonitoringController(
     private fun adminRequired(authentication: Authentication?, operation: () -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) {
             ResponseEntity.status(401).build()
-        } else if (!authentication.hasAnyRole(adminRoles)) {
+        } else if (!authentication.hasAnyRole(RoleGroups.AdminOperations)) {
             ResponseEntity.status(403).build()
         } else {
             operation()
         }
-
-    private companion object {
-        val adminRoles = setOf(RoleCode.SUPPORT_AGENT, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
-    }
 }
