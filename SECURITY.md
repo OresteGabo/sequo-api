@@ -201,7 +201,7 @@ Production hardening still required:
 Current implementation:
 
 - Production-like profiles (`docker`, `prod`, `production`, `stage`, `staging`) fail startup when development defaults are still active.
-- Guardrails cover JWT signing secret, notification token encryption secret, Google/Facebook/Apple placeholder IDs, Yas/Moov wallet secrets, explicit HTTPS CORS origins, H2 usage, H2 console, and unsafe Hibernate DDL modes.
+- Guardrails cover JWT signing secret, notification token encryption secret, Google/Facebook/Apple placeholder IDs, Yas/Moov wallet secrets, explicit HTTPS CORS origins, tracked placeholder/test/local markers, H2 usage, H2 console, and unsafe Hibernate DDL modes.
 - Local Docker Compose and CI explicitly opt into development defaults with `SEQUO_ALLOW_DEV_DEFAULTS=true`; named `prod`, `production`, `stage`, and `staging` profiles still enforce strict checks even if that flag is set.
 
 ## Operational Alerts
