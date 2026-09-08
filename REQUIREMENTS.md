@@ -29,11 +29,11 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Wallets | Integrate Yas Togo and Moov Africa digital wallets. | Provider abstractions exist; real adapters, signatures, callbacks, and reconciliation remain. |
 | [x] | Implemented | Wallets | Do not implement cash withdrawal operations. | Payment model rejects cash withdrawal by design; docs and payment domain enforce zero-cash policy. |
 | [x] | Implemented | Referrals | Referral/parrainage rewards are delivery credits only, not withdrawable money. | Pricing input applies delivery-only referral credit; durable referral credit ledger remains. |
-| [ ] | Partial | Bargaining | Customer can propose a lower product price to a merchant. | API and schema are documented; bargaining domain service is not implemented yet. |
-| [ ] | Not implemented | Bargaining | Enforce 3 bargaining attempts per customer/seller/product context. | Requires bargaining service, persistence, and tests. |
-| [ ] | Not implemented | Bargaining | Accepted minimum price locks for 24 hours. | Requires accepted price lock service and checkout consumption. |
-| [ ] | Not implemented | Bargaining | Track historical minimum accepted prices. | Target schema exists; no persistence/service implementation yet. |
-| [ ] | Partial | Bargaining | Merchant can disable bargaining per product. | Catalog docs/schema include `bargaining_enabled`; product controller and enforcement remain. |
+| [x] | Implemented | Bargaining | Customer can propose a lower product price to a merchant. | `BargainingService` accepts lower customer offers, rejects non-discount offers, and records pending offer snapshots with focused tests. |
+| [x] | Implemented | Bargaining | Enforce 3 bargaining attempts per customer/seller/product context. | `BargainingService` counts customer attempts per session scope and locks the session after the third rejected attempt. |
+| [x] | Implemented | Bargaining | Accepted minimum price locks for 24 hours. | `BargainingService` creates accepted price locks for merchant-accepted offers and customer-accepted counters, with 24-hour expiry tests. Checkout consumption remains future integration work. |
+| [x] | Implemented | Bargaining | Track historical minimum accepted prices. | `BargainingService` stores historical minimum accepted prices on the session model and keeps them after lock expiry; persistence remains future repository work. |
+| [x] | Implemented | Bargaining | Merchant can disable bargaining per product. | `BargainingService` enforces `bargainingEnabled=false`; product controller wiring remains future API work. |
 | [ ] | Partial | Apps and roles | Support separate customer, seller, courier, and future relay apps against one API. | Roles are documented; RBAC, scoped permissions, and app-specific claims remain incomplete. |
 | [ ] | Partial | Admin operations | Admin can use a web monitoring surface instead of a desktop app. | Monitoring endpoints are now specified; implementation remains. |
 | [x] | Implemented | Relay logistics | Point de Relai is not allowed for food or perishable products. | `OrderProcessing` rejects relay routing and `RelayParcelPolicy` rejects relay pickup for food/perishable lines. |
@@ -91,7 +91,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Notification outbox worker plus `@TransactionalEventListener` hooks from order, merchant fulfillment, delivery, relay, return, refund, and settlement workflows.
 - [ ] Firebase Admin SDK adapter with stale-token pruning, retries, and provider delivery audit.
 - [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
-- [ ] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
+- [x] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
 - [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow.
 - [ ] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
 - [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
