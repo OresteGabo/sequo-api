@@ -38,7 +38,11 @@ class DeliveryMission(
     @Column(name = "relay_deposited_at") var relayDepositedAt: Instant? = null,
     @Column(name = "delivered_at") var deliveredAt: Instant? = null,
     @Column(name = "pickup_proof_metadata") var pickupProofMetadata: String? = null,
+    @Column(name = "pickup_proof_actor_id") var pickupProofActorId: String? = null,
     @Column(name = "dropoff_proof_metadata") var dropoffProofMetadata: String? = null,
+    @Column(name = "dropoff_proof_actor_id") var dropoffProofActorId: String? = null,
+    @Column(name = "relay_deposit_proof_metadata") var relayDepositProofMetadata: String? = null,
+    @Column(name = "relay_deposit_proof_actor_id") var relayDepositProofActorId: String? = null,
     @Column(name = "problem_metadata") var problemMetadata: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = createdAt,
@@ -85,7 +89,9 @@ data class DeliveryMissionSnapshot(
     val relayDepositedAt: Instant?,
     val shortfallCfa: Int,
     val pickupProofMetadata: String?,
+    val pickupProofActorId: String?,
     val dropoffProofMetadata: String?,
+    val dropoffProofActorId: String?,
     val problemMetadata: String?,
 )
 
@@ -133,6 +139,9 @@ class DeliveryMissionService(
         if (event in courierScopedEvents && mission.courierId != actorId) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
         }
+        if (proof != null && proof.isNotBlank() && event in proofEvents && proofAlreadySubmitted(mission, event)) {
+            return rejected("proof_already_submitted", "Proof for this delivery step was already submitted.")
+        }
         val result = workflow.transition(
             DeliveryMissionTransitionRequest(
                 currentStatus = mission.status.toWorkflowStatus(),
@@ -150,10 +159,10 @@ class DeliveryMissionService(
         mission.updatedAt = at
         when (event) {
             DeliveryMissionEvent.CourierAccepts -> mission.acceptedAt = at
-            DeliveryMissionEvent.CourierPicksUpFromSeller -> { mission.pickupAt = at; mission.pickupProofMetadata = proof }
+            DeliveryMissionEvent.CourierPicksUpFromSeller -> { mission.pickupAt = at; mission.pickupProofMetadata = proof; mission.pickupProofActorId = actorId }
             DeliveryMissionEvent.CourierDeliversToCustomer,
-            DeliveryMissionEvent.RelayReleasesToCustomer -> { mission.deliveredAt = at; mission.dropoffProofMetadata = proof }
-            DeliveryMissionEvent.CourierDepositsAtRelay -> { mission.relayDepositedAt = at; mission.dropoffProofMetadata = proof }
+            DeliveryMissionEvent.RelayReleasesToCustomer -> { mission.deliveredAt = at; mission.dropoffProofMetadata = proof; mission.dropoffProofActorId = actorId }
+            DeliveryMissionEvent.CourierDepositsAtRelay -> { mission.relayDepositedAt = at; mission.relayDepositProofMetadata = proof; mission.relayDepositProofActorId = actorId }
             DeliveryMissionEvent.ReportProblem -> mission.problemMetadata = problemReason
             DeliveryMissionEvent.OfferToCourier, DeliveryMissionEvent.Cancel -> Unit
         }
@@ -161,6 +170,14 @@ class DeliveryMissionService(
     }
 
     private fun find(id: String) = repository.findById(id).orElse(null)
+    private fun proofAlreadySubmitted(mission: DeliveryMission, event: DeliveryMissionEvent) =
+        when (event) {
+            DeliveryMissionEvent.CourierPicksUpFromSeller -> mission.pickupProofMetadata != null
+            DeliveryMissionEvent.CourierDeliversToCustomer,
+            DeliveryMissionEvent.RelayReleasesToCustomer -> mission.dropoffProofMetadata != null
+            DeliveryMissionEvent.CourierDepositsAtRelay -> mission.relayDepositProofMetadata != null
+            else -> false
+        }
     private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(mission.toSnapshot(), message)
     private fun rejected(code: String, message: String) = DeliveryMissionServiceResult.Rejected(code, message)
 
@@ -172,10 +189,16 @@ class DeliveryMissionService(
             DeliveryMissionEvent.CourierDepositsAtRelay,
             DeliveryMissionEvent.ReportProblem,
         )
+        val proofEvents = setOf(
+            DeliveryMissionEvent.CourierPicksUpFromSeller,
+            DeliveryMissionEvent.CourierDeliversToCustomer,
+            DeliveryMissionEvent.CourierDepositsAtRelay,
+            DeliveryMissionEvent.RelayReleasesToCustomer,
+        )
     }
 }
 
-private fun DeliveryMission.toSnapshot() = DeliveryMissionSnapshot(requireNotNull(id), deliveryCode, orderId, merchantSubOrderId, courierId, status, destinationType, pickupAt, deliveredAt, relayDepositedAt, shortfallCfa, pickupProofMetadata, dropoffProofMetadata, problemMetadata)
+private fun DeliveryMission.toSnapshot() = DeliveryMissionSnapshot(requireNotNull(id), deliveryCode, orderId, merchantSubOrderId, courierId, status, destinationType, pickupAt, deliveredAt, relayDepositedAt, shortfallCfa, pickupProofMetadata, pickupProofActorId, dropoffProofMetadata, dropoffProofActorId, problemMetadata)
 private fun DeliveryMissionRecordStatus.toWorkflowStatus() = DeliveryMissionStatus.valueOf(name.split('_').joinToString("") { it.lowercase().replaceFirstChar(Char::uppercaseChar) })
 private fun DeliveryMissionStatus.toRecordStatus() = DeliveryMissionRecordStatus.valueOf(name.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase())
 private fun DeliveryMissionRecordDestination.toWorkflowType() = DeliveryDestinationType.valueOf(name.split('_').joinToString("") { it.lowercase().replaceFirstChar(Char::uppercaseChar) })
