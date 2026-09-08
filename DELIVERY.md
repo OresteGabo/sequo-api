@@ -95,7 +95,7 @@ Not implemented yet:
 | Done | State | Case | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [ ] | Partial | Seller rejects order | Customer must be refunded or rerouted according to policy. | Merchant fulfillment service can persist rejection reason; refund orchestration missing. |
-| [ ] | Not implemented | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | Missing. |
+| [ ] | Partial | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | `MerchantFulfillmentService.sla` records 24-hour response and 48-hour packing deadlines and detects overdue pending/preparing sub-orders; monitoring, cancellation, reassignment, and notifications remain. |
 | [ ] | Partial | Courier reports problem | Mission can be moved to problem with reason. | Delivery workflow policy exists; endpoint/audit/notification missing. |
 | [ ] | Not implemented | Customer unavailable | Reschedule, fallback relay, support intervention, or failed delivery state. | Missing. |
 | [ ] | Not implemented | Relay locker unavailable | Alternative locker/relay/manual custody workflow. | Missing. |
