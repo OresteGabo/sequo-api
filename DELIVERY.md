@@ -122,8 +122,8 @@ Not implemented yet:
 | --- | --- | --- | --- |
 | [ ] | Partial | Merchant order workflow | Accept, reject, start preparation, mark packed/ready, handoff verification. |
 | [ ] | Partial | Courier missions | List offers, accept, pickup with proof, deliver with proof/PIN, deposit at relay, report problem. |
-| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation, pickup-code, validation/release, listing, delayed evaluation, and incident endpoints are available; scheduler and support resolution remain. |
-| [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. |
+| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation, pickup-code, validation/release, detail/listing, delayed evaluation, and incident endpoints are available; scheduler and support resolution remain. |
+| [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. | Relay parcel detail/list responses expose operational status and timestamps without deposit codes, credential hashes, or internal proof metadata; customer order tracking remains. |
 | [ ] | Partial | Admin dispatch | Reassign courier, pause courier, force problem state, view capacity, view delayed parcels, resolve failed deliveries. |
 
 ## Security Requirements For Delivery
