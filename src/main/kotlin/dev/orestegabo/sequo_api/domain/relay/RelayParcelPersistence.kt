@@ -115,6 +115,31 @@ class RelayParcelApplicationService(
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
         return createPickupCode(command.copy(parcel = parcel))
     }
+
+    @Transactional
+    fun createPickupCode(
+        parcelId: String,
+        codeId: String,
+        rawNumericCode: String,
+        rawQrNonce: String?,
+        identityCheckRequired: Boolean,
+        expiresAt: java.time.Instant,
+        createdAt: java.time.Instant = java.time.Instant.now(),
+    ): RelayParcelServiceResult {
+        val parcel = persistence.findParcel(parcelId)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
+        return createPickupCode(
+            RelayPickupCodeCreateCommand(
+                codeId = codeId,
+                parcel = parcel,
+                rawNumericCode = rawNumericCode,
+                rawQrNonce = rawQrNonce,
+                identityCheckRequired = identityCheckRequired,
+                expiresAt = expiresAt,
+                createdAt = createdAt,
+            )
+        )
+    }
 }
 
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
