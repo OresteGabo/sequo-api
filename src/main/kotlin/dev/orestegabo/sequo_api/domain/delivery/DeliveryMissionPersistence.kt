@@ -57,7 +57,13 @@ class DeliveryMission(
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
-    fun findByCourierIdAndStatusIn(courierId: String, statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
+    fun findByDeliveryCodeAndOrderId(deliveryCode: String, orderId: String): DeliveryMission?
+    fun findByCourierIdOrderByUpdatedAtDesc(courierId: String): List<DeliveryMission>
+    fun findByCourierIdAndStatusInOrderByUpdatedAtDesc(
+        courierId: String,
+        statuses: Collection<DeliveryMissionRecordStatus>,
+    ): List<DeliveryMission>
+    fun findByStatusInOrderByUpdatedAtDesc(statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
     fun countByStatusIn(statuses: Collection<DeliveryMissionRecordStatus>): Long
     fun countByCourierIdIsNullAndStatusIn(statuses: Collection<DeliveryMissionRecordStatus>): Long
     fun countByDestinationTypeAndStatusIn(
@@ -93,8 +99,11 @@ data class DeliveryMissionSnapshot(
     val orderId: String,
     val merchantSubOrderId: String?,
     val courierId: String?,
+    val deliveryMode: DeliveryMissionRecordMode,
     val status: DeliveryMissionRecordStatus,
     val destinationType: DeliveryMissionRecordDestination,
+    val assignedAt: Instant?,
+    val acceptedAt: Instant?,
     val pickupAt: Instant?,
     val deliveredAt: Instant?,
     val relayDepositedAt: Instant?,
@@ -104,6 +113,25 @@ data class DeliveryMissionSnapshot(
     val dropoffProofMetadata: String?,
     val dropoffProofActorId: String?,
     val problemMetadata: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+data class DeliveryTrackingSnapshot(
+    val deliveryCode: String,
+    val orderId: String,
+    val status: DeliveryMissionRecordStatus,
+    val deliveryMode: DeliveryMissionRecordMode,
+    val destinationType: DeliveryMissionRecordDestination,
+    val courierAssigned: Boolean,
+    val currentStep: String,
+    val nextStep: String?,
+    val terminal: Boolean,
+    val acceptedAt: Instant?,
+    val pickupAt: Instant?,
+    val relayDepositedAt: Instant?,
+    val deliveredAt: Instant?,
+    val updatedAt: Instant,
 )
 
 sealed class DeliveryMissionServiceResult {
@@ -116,6 +144,40 @@ class DeliveryMissionService(
     private val repository: DeliveryMissionRepository,
     private val workflow: DeliveryMissionWorkflow,
 ) {
+    @Transactional(readOnly = true)
+    fun get(missionId: String): DeliveryMissionSnapshot? {
+        require(missionId.isNotBlank()) { "missionId cannot be blank." }
+        return find(missionId)?.toSnapshot()
+    }
+
+    @Transactional(readOnly = true)
+    fun listForCourier(
+        courierId: String,
+        statuses: Set<DeliveryMissionRecordStatus> = activeCourierStatuses,
+    ): List<DeliveryMissionSnapshot> {
+        require(courierId.isNotBlank()) { "courierId cannot be blank." }
+        return if (statuses.isEmpty()) {
+            repository.findByCourierIdOrderByUpdatedAtDesc(courierId)
+        } else {
+            repository.findByCourierIdAndStatusInOrderByUpdatedAtDesc(courierId, statuses)
+        }.map { it.toSnapshot() }
+    }
+
+    @Transactional(readOnly = true)
+    fun listOperational(
+        statuses: Set<DeliveryMissionRecordStatus> = activeOperationalStatuses,
+    ): List<DeliveryMissionSnapshot> {
+        require(statuses.isNotEmpty()) { "At least one mission status is required." }
+        return repository.findByStatusInOrderByUpdatedAtDesc(statuses).map { it.toSnapshot() }
+    }
+
+    @Transactional(readOnly = true)
+    fun track(deliveryCode: String, orderId: String): DeliveryTrackingSnapshot? {
+        require(deliveryCode.isNotBlank()) { "deliveryCode cannot be blank." }
+        require(orderId.isNotBlank()) { "orderId cannot be blank." }
+        return repository.findByDeliveryCodeAndOrderId(deliveryCode, orderId)?.toTrackingSnapshot()
+    }
+
     @Transactional
     fun create(command: CreateDeliveryMissionCommand, at: Instant = Instant.now()): DeliveryMissionSnapshot =
         repository.save(
@@ -142,6 +204,76 @@ class DeliveryMissionService(
         mission.assignedAt = at
         mission.updatedAt = at
         return success(repository.save(mission), "Courier assigned to delivery mission.")
+    }
+
+    @Transactional
+    fun reassignCourier(
+        missionId: String,
+        courierId: String,
+        at: Instant = Instant.now(),
+    ): DeliveryMissionServiceResult {
+        if (courierId.isBlank()) return rejected("missing_courier", "Courier id is required.")
+        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.status !in reassignableStatuses) {
+            return rejected("mission_not_reassignable", "Only missions that have not been picked up can be reassigned.")
+        }
+
+        mission.courierId = courierId
+        mission.assignedAt = at
+        mission.acceptedAt = null
+        mission.status = DeliveryMissionRecordStatus.CREATED
+        mission.updatedAt = at
+        return success(repository.save(mission), "Courier reassigned; mission must be offered again.")
+    }
+
+    @Transactional
+    fun cancel(
+        missionId: String,
+        actorId: String,
+        reason: String,
+        at: Instant = Instant.now(),
+    ): DeliveryMissionServiceResult =
+        adminTransition(
+            missionId = missionId,
+            actorId = actorId,
+            event = DeliveryMissionEvent.Cancel,
+            reason = reason,
+            at = at,
+            metadataPrefix = "cancelled",
+        )
+
+    @Transactional
+    fun forceProblem(
+        missionId: String,
+        actorId: String,
+        reason: String,
+        at: Instant = Instant.now(),
+    ): DeliveryMissionServiceResult =
+        adminTransition(
+            missionId = missionId,
+            actorId = actorId,
+            event = DeliveryMissionEvent.ReportProblem,
+            reason = reason,
+            at = at,
+            metadataPrefix = "admin_problem",
+        )
+
+    @Transactional(readOnly = true)
+    fun validateDirectDeliveryAttempt(
+        missionId: String,
+        actorId: String,
+    ): DeliveryMissionServiceResult {
+        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.courierId != actorId) {
+            return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
+        }
+        if (mission.status != DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER) {
+            return rejected("invalid_mission_transition", "Package must be picked up before direct delivery.")
+        }
+        if (mission.destinationType != DeliveryMissionRecordDestination.CUSTOMER_ADDRESS) {
+            return rejected("invalid_mission_transition", "Only customer-address missions can be delivered directly.")
+        }
+        return success(mission, "Direct delivery attempt can proceed.")
     }
 
     @Transactional
@@ -180,6 +312,33 @@ class DeliveryMissionService(
         return success(repository.save(mission), result.reason)
     }
 
+    private fun adminTransition(
+        missionId: String,
+        actorId: String,
+        event: DeliveryMissionEvent,
+        reason: String,
+        at: Instant,
+        metadataPrefix: String,
+    ): DeliveryMissionServiceResult {
+        if (actorId.isBlank()) return rejected("missing_actor", "Actor id is required.")
+        if (reason.isBlank()) return rejected("missing_reason", "A reason is required.")
+        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        val result = workflow.transition(
+            DeliveryMissionTransitionRequest(
+                currentStatus = mission.status.toWorkflowStatus(),
+                event = event,
+                destinationType = mission.destinationType.toWorkflowType(),
+                problemReason = reason,
+            )
+        )
+        if (!result.accepted) return rejected("invalid_mission_transition", result.reason)
+
+        mission.status = result.nextStatus.toRecordStatus()
+        mission.problemMetadata = "$metadataPrefix by $actorId: $reason"
+        mission.updatedAt = at
+        return success(repository.save(mission), result.reason)
+    }
+
     private fun find(id: String) = repository.findById(id).orElse(null)
     private fun proofAlreadySubmitted(mission: DeliveryMission, event: DeliveryMissionEvent) =
         when (event) {
@@ -192,7 +351,21 @@ class DeliveryMissionService(
     private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(mission.toSnapshot(), message)
     private fun rejected(code: String, message: String) = DeliveryMissionServiceResult.Rejected(code, message)
 
-    private companion object {
+    companion object {
+        val activeCourierStatuses = setOf(
+            DeliveryMissionRecordStatus.CREATED,
+            DeliveryMissionRecordStatus.OFFERED_TO_COURIER,
+            DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER,
+            DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER,
+            DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY,
+            DeliveryMissionRecordStatus.PROBLEM_REPORTED,
+        )
+        val activeOperationalStatuses = activeCourierStatuses
+        val reassignableStatuses = setOf(
+            DeliveryMissionRecordStatus.CREATED,
+            DeliveryMissionRecordStatus.OFFERED_TO_COURIER,
+            DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER,
+        )
         val courierScopedEvents = setOf(
             DeliveryMissionEvent.CourierAccepts,
             DeliveryMissionEvent.CourierPicksUpFromSeller,
@@ -209,7 +382,89 @@ class DeliveryMissionService(
     }
 }
 
-private fun DeliveryMission.toSnapshot() = DeliveryMissionSnapshot(requireNotNull(id), deliveryCode, orderId, merchantSubOrderId, courierId, status, destinationType, pickupAt, deliveredAt, relayDepositedAt, shortfallCfa, pickupProofMetadata, pickupProofActorId, dropoffProofMetadata, dropoffProofActorId, problemMetadata)
+private fun DeliveryMission.toSnapshot() =
+    DeliveryMissionSnapshot(
+        id = requireNotNull(id),
+        deliveryCode = deliveryCode,
+        orderId = orderId,
+        merchantSubOrderId = merchantSubOrderId,
+        courierId = courierId,
+        deliveryMode = deliveryMode,
+        status = status,
+        destinationType = destinationType,
+        assignedAt = assignedAt,
+        acceptedAt = acceptedAt,
+        pickupAt = pickupAt,
+        deliveredAt = deliveredAt,
+        relayDepositedAt = relayDepositedAt,
+        shortfallCfa = shortfallCfa,
+        pickupProofMetadata = pickupProofMetadata,
+        pickupProofActorId = pickupProofActorId,
+        dropoffProofMetadata = dropoffProofMetadata,
+        dropoffProofActorId = dropoffProofActorId,
+        problemMetadata = problemMetadata,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
+
+private fun DeliveryMission.toTrackingSnapshot() =
+    DeliveryTrackingSnapshot(
+        deliveryCode = deliveryCode,
+        orderId = orderId,
+        status = status,
+        deliveryMode = deliveryMode,
+        destinationType = destinationType,
+        courierAssigned = courierId != null,
+        currentStep = status.customerFacingStep(destinationType),
+        nextStep = status.nextCustomerFacingStep(destinationType),
+        terminal = status in trackingTerminalStatuses,
+        acceptedAt = acceptedAt,
+        pickupAt = pickupAt,
+        relayDepositedAt = relayDepositedAt,
+        deliveredAt = deliveredAt,
+        updatedAt = updatedAt,
+    )
+
+private val trackingTerminalStatuses = setOf(
+    DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER,
+    DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
+    DeliveryMissionRecordStatus.PROBLEM_REPORTED,
+    DeliveryMissionRecordStatus.CANCELLED,
+)
+
+private fun DeliveryMissionRecordStatus.customerFacingStep(destination: DeliveryMissionRecordDestination): String =
+    when (this) {
+        DeliveryMissionRecordStatus.CREATED -> "Preparing dispatch"
+        DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> "Waiting for courier acceptance"
+        DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> "Courier assigned"
+        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> if (destination == DeliveryMissionRecordDestination.RELAY_POINT) {
+            "On the way to relay point"
+        } else {
+            "On the way to customer"
+        }
+        DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY -> "Available at relay point"
+        DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER -> "Delivered"
+        DeliveryMissionRecordStatus.RELEASED_BY_RELAY -> "Collected from relay point"
+        DeliveryMissionRecordStatus.PROBLEM_REPORTED -> "Delivery needs support"
+        DeliveryMissionRecordStatus.CANCELLED -> "Delivery cancelled"
+    }
+
+private fun DeliveryMissionRecordStatus.nextCustomerFacingStep(destination: DeliveryMissionRecordDestination): String? =
+    when (this) {
+        DeliveryMissionRecordStatus.CREATED -> "Courier offer"
+        DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> "Courier acceptance"
+        DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> "Seller pickup"
+        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> if (destination == DeliveryMissionRecordDestination.RELAY_POINT) {
+            "Relay deposit"
+        } else {
+            "Customer delivery"
+        }
+        DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY -> "Customer pickup at relay"
+        DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER,
+        DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
+        DeliveryMissionRecordStatus.PROBLEM_REPORTED,
+        DeliveryMissionRecordStatus.CANCELLED -> null
+    }
 private fun DeliveryMissionRecordStatus.toWorkflowStatus(): DeliveryMissionStatus =
     when (this) {
         DeliveryMissionRecordStatus.CREATED -> DeliveryMissionStatus.Created
