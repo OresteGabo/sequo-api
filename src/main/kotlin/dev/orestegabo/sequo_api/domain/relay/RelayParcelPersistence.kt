@@ -197,6 +197,9 @@ class RelayParcelApplicationService(
         return persistence.listParcels(relayPointId, status)
     }
 
+    @Transactional(readOnly = true)
+    fun getParcel(parcelId: String): RelayParcel? = persistence.findParcel(parcelId)
+
     @Transactional
     fun evaluateDelayed(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcel> =
         persistence.listParcels(relayPointId)
