@@ -74,6 +74,7 @@ data class MerchantPayoutAccrual(
     val id: String,
     val merchantId: String,
     val orderId: String,
+    val sourceOrderItemId: String,
     val merchantNetCfa: Int,
     val commissionCfa: Int,
     val platformMarginCfa: Int,
@@ -90,6 +91,7 @@ data class MerchantPayoutAccrual(
         require(id.isNotBlank()) { "id is required." }
         require(merchantId.isNotBlank()) { "merchantId is required." }
         require(orderId.isNotBlank()) { "orderId is required." }
+        require(sourceOrderItemId.isNotBlank()) { "sourceOrderItemId is required." }
         require(merchantNetCfa >= 0) { "merchantNetCfa cannot be negative." }
         require(commissionCfa >= 0) { "commissionCfa cannot be negative." }
         require(platformMarginCfa >= 0) { "platformMarginCfa cannot be negative." }
@@ -218,6 +220,7 @@ class SettlementLedgerService(
                 id = command.accrualId,
                 merchantId = command.merchantId,
                 orderId = command.orderId,
+                sourceOrderItemId = command.sourceOrderItemId,
                 merchantNetCfa = command.merchantNetCfa,
                 commissionCfa = command.commissionCfa,
                 platformMarginCfa = command.platformMarginCfa,
