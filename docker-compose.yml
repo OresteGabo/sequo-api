@@ -31,6 +31,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sequo}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sequo_dev_password}
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-validate}
+      SEQUO_ALLOW_DEV_DEFAULTS: ${SEQUO_ALLOW_DEV_DEFAULTS:-true}
       JWT_SECRET: ${JWT_SECRET:-sequo_compose_dev_secret_key_2026_change_before_prod}
       NOTIFICATION_TOKEN_ENCRYPTION_SECRET: ${NOTIFICATION_TOKEN_ENCRYPTION_SECRET:-sequo_compose_notification_token_secret_2026_change_before_prod}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google_docker_dev_client_id}
