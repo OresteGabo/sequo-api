@@ -62,6 +62,9 @@ class RelayCustodyEventRecord(
 
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayParcelRecord>
+    fun countByStatusIn(statuses: Collection<RelayParcelStatus>): Long
+    fun countByReturnIdIsNotNullAndStatusIn(statuses: Collection<RelayParcelStatus>): Long
+    fun findTop50ByStatusInOrderByUpdatedAtAsc(statuses: Collection<RelayParcelStatus>): List<RelayParcelRecord>
 }
 interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String> {
     fun findFirstByRelayParcelIdOrderByCreatedAtDesc(relayParcelId: String): RelayPickupCodeRecord?
