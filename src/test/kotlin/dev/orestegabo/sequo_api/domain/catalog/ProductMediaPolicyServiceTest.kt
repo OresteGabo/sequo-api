@@ -4,6 +4,7 @@ import java.security.MessageDigest
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ProductMediaPolicyServiceTest {
@@ -208,6 +209,44 @@ class ProductMediaPolicyServiceTest {
     }
 
     @Test
+    fun rejectsUnsafeProductAndCatalogIdentifiers() {
+        val service = service()
+
+        val unsafeProduct = service.accept(
+            liveCapture(productId = "../attieke-1")
+        )
+        val unsafeCatalogImage = service.accept(
+            ProductMediaSubmission.GenericCatalogReference(
+                productId = "sealed-rice-1",
+                productKind = CatalogProductKind.GenericSealedItem,
+                catalogImageId = "../catalog-rice-photo",
+                sourceUrl = "https://cdn.sequo.example/catalog/rice.webp",
+            )
+        )
+
+        assertTrue(unsafeProduct is ProductMediaUploadResult.Rejected)
+        assertEquals("unsafe_product_id", unsafeProduct.error.code)
+        assertTrue(unsafeCatalogImage is ProductMediaUploadResult.Rejected)
+        assertEquals("unsafe_catalog_image_id", unsafeCatalogImage.error.code)
+    }
+
+    @Test
+    fun rejectsUnsafeStorageResults() {
+        assertFailsWith<IllegalArgumentException> {
+            StoredProductMedia(
+                storageKey = "/absolute/path/live-photo.webp",
+                publicUrl = "https://cdn.sequo.example/products/attieke-1/live-photo.webp",
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            StoredProductMedia(
+                storageKey = "products/attieke-1/live-photo.webp",
+                publicUrl = "http://cdn.sequo.example/products/attieke-1/live-photo.webp",
+            )
+        }
+    }
+
+    @Test
     fun rejectsLiveCaptureWhenModerationFails() {
         val storage = RecordingStorage()
         val service = service(
@@ -238,6 +277,7 @@ class ProductMediaPolicyServiceTest {
         )
 
     private fun liveCapture(
+        productId: String = "attieke-1",
         fileName: String = "live-photo.webp",
         contentType: String = "image/webp",
         contentBytes: ByteArray = webpSample(),
@@ -245,7 +285,7 @@ class ProductMediaPolicyServiceTest {
         contentHash: String = contentBytes.sha256Hash(),
     ): ProductMediaSubmission.LiveCameraCapture =
         ProductMediaSubmission.LiveCameraCapture(
-            productId = "attieke-1",
+            productId = productId,
             productKind = CatalogProductKind.SellerSpecific,
             fileName = fileName,
             contentType = contentType,
