@@ -77,7 +77,7 @@ Not implemented yet:
 | [x] | Implemented | Courier deposits at relay | Relay mission can move to deposited only with proof. | `DeliveryMissionWorkflow` covers transition. |
 | [x] | Implemented | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | `RelayParcelService` generates hashed numeric codes and QR nonces, verifies either credential, enforces expiry, one-time use, and attempt limits. |
 | [x] | Implemented | Release requires code and identity validation | Relay release requires pickup code and identity validation. | `DeliveryMissionWorkflow` enforces both flags at policy level. |
-| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, `RelayParcelApplicationService`, opt-in scheduler, and admin monitoring evaluate, persist, count, and list delayed/review parcels. Storage-fee assessments and idempotent ledger deltas are persisted; final tariff decision and notifications remain. |
+| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, `RelayParcelApplicationService`, opt-in scheduler, and admin monitoring evaluate, persist, count, and list delayed/review parcels. Delay/review outbox events, storage-fee assessments, and idempotent ledger deltas are persisted; final tariff decision remains. |
 | [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | Product decision required before automation. |
 
 ## Grouped Sequo And Cooperative Delivery
@@ -145,5 +145,5 @@ Not implemented yet:
 3. [x] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
 4. [x] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
 5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks. Merchant, courier, relay, customer tracking, and first admin-dispatch endpoints are implemented; courier pause/resolution and persisted merchant memberships remain.
-6. [ ] Add notification/outbox events and settlement ledger posting. Delivery completion and return/refund workflows now publish workflow-specific outbox events; broader workflow publishers and provider delivery remain.
+6. [ ] Add notification/outbox events and settlement ledger posting. Delivery completion, relay delay/review, and return/refund workflows now publish workflow-specific outbox events; broader workflow publishers and provider delivery remain.
 7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized. Problem states and pre-pickup re-assignment exist; expiry/fees/return automation remain.
