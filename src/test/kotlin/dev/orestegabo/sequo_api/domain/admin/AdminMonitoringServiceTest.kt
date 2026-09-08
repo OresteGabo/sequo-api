@@ -16,6 +16,9 @@ import dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecord
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus
+import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualCommand
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import dev.orestegabo.sequo_api.domain.settlement.SettlementWorkflowType
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,6 +36,7 @@ class AdminMonitoringServiceTest @Autowired constructor(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val relayParcels: RelayParcelRecordRepository,
     private val notificationOutbox: NotificationOutboxRepository,
+    private val settlements: SettlementPersistenceService,
 ) {
     private val now = Instant.parse("2026-09-08T10:00:00Z")
 
@@ -41,8 +45,20 @@ class AdminMonitoringServiceTest @Autowired constructor(
         val old = now.minusSeconds(3600)
         merchantSubOrders.save(subOrder("admin-sub-1", MerchantSubOrderStatus.MERCHANT_PENDING, old))
         merchantSubOrders.save(subOrder("admin-sub-2", MerchantSubOrderStatus.PACKED_READY, now))
-        merchantSubOrders.save(subOrder("admin-sub-3", MerchantSubOrderStatus.HANDED_TO_COURIER, now))
         merchantSubOrders.save(subOrder("admin-sub-4", MerchantSubOrderStatus.REJECTED, now))
+        settlements.accrueMerchantPayout(
+            MerchantPayoutAccrualCommand(
+                accrualId = "admin-payout-1",
+                merchantId = "admin-sub-3-merchant",
+                orderId = "admin-sub-3-order",
+                sourceOrderItemId = "admin-sub-3-item",
+                merchantNetCfa = 900,
+                commissionCfa = 100,
+                platformMarginCfa = 50,
+                packageReceivedAt = now,
+                workflowType = SettlementWorkflowType.DeliveryConfirmed,
+            )
+        )
 
         deliveryMissions.save(mission("admin-mission-1", DeliveryMissionRecordStatus.CREATED, null, old))
         deliveryMissions.save(
