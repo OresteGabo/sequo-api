@@ -42,8 +42,8 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Relay logistics | Pickup uses numeric code or QR code plus identity validation. | Delivery workflow and `relay_pickup_codes` table exist; hashed code generation, QR payload, attempt limits, and relay endpoint remain. |
 | [ ] | Partial | Relay logistics | Parcels staying more than 2 weeks can start storage fees. | `RelayParcelPolicy` identifies fee-eligible parcels; scheduler, fee ledger, and notification workflow remain. |
 | [ ] | Decision needed | Relay logistics | After another 2 weeks, parcel can be returned to seller; 1-month timing is still discussable. | Owner decision needed before final threshold and fee policy are locked. |
-| [ ] | Partial | Commissions | Default merchant commission is 15%. | Commission docs and schema constrain default; service/controller implementation remains. |
-| [ ] | Partial | Commissions | Merchant commission can be configured from 5% to 15%. | Schema constraint and admin API are specified; implementation remains. |
+| [x] | Implemented | Commissions | Default merchant commission is 15%. | `MerchantCommissionService` resolves the 15% default and snapshots commission, merchant net, and Sequo item revenue with focused tests. |
+| [ ] | Partial | Commissions | Merchant commission can be configured from 5% to 15%. | `MerchantCommissionService` validates 5%-15% overrides; admin API and persistence remain. |
 | [ ] | Partial | Pricing | Listing price is `(base price + platform margin) + service fees + delivery fee`. | Pricing docs/schema model this; full checkout quote persistence remains. |
 | [ ] | Partial | Cooperatives | Group merchants into market cooperatives such as Marche de Mulhouse. | Schema/API/docs exist; cooperative service implementation remains. |
 | [ ] | Not implemented | Cooperatives | Merchants or cooperative actors request cooperative creation, then Sequo validates. | Requires request/approval workflow and scoped permissions. |
