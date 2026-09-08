@@ -57,7 +57,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Partial | Refunds | Refund is triggered only after Sequo physically receives the returned item. | Docs/API specify physical receipt; refund orchestration remains. |
 | [ ] | Partial | Settlements | Merchant payout should happen within 1 week after Sequo receives package/custody. | Settlement docs/schema specify schedule; payout scheduler remains. |
 | [ ] | Partial | Logistics platform | Sequo API owns logistics orchestration across customer, seller, courier, relay, and admin workflows. | Delivery workflow policy and Flyway delivery tables exist; controllers, repositories, dispatch, tracking, and settlement modules remain. |
-| [ ] | Decision needed | Routing cost | Google Maps or another routing provider cost must be controlled for courier distance estimation. | Need provider choice, quota policy, caching strategy, and fallback/manual distance policy. |
+| [ ] | Decision needed | Routing cost | Google Maps or another routing provider cost must be controlled for courier distance estimation. | Routing abstraction now covers quota, cache, manual fallback, and audit; provider choice remains a product/ops decision. |
 
 ## Notification And Realtime Requirements
 
@@ -104,4 +104,4 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [ ] Product media upload policy with live-camera metadata, generic catalog references, moderation, and storage integration.
 - [ ] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
-- [ ] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
+- [x] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
