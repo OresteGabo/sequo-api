@@ -70,7 +70,7 @@ class NotificationOutboxService(
         require(workerId.isNotBlank()) { "workerId cannot be blank." }
         val event = repository.findByEventId(eventId) ?: return null
         if (event.status !in setOf(NotificationOutboxStatus.PENDING, NotificationOutboxStatus.FAILED_RETRYABLE)) return null
-        if (event.nextAttemptAt != null && event.nextAttemptAt!!.isAfter(now)) return null
+        if (event.nextAttemptAt?.isAfter(now) == true) return null
         if (event.lockedUntil?.isAfter(now) == true) return null
         event.status = NotificationOutboxStatus.PROCESSING
         event.attemptCount += 1
