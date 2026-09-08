@@ -1,0 +1,387 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{lmodern}
+\usepackage{longtable}
+\usepackage{ragged2e}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usepackage[table]{xcolor}
+\usepackage{hyperref}
+
+\renewcommand{\familydefault}{\sfdefault}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlength{\LTpre}{0.35em}
+\setlength{\LTpost}{0.35em}
+\setlist[itemize]{label=\textbullet,leftmargin=1.2em,itemsep=0.12em,topsep=0.15em}
+\setlist[enumerate]{leftmargin=1.3em,itemsep=0.12em,topsep=0.15em}
+
+\definecolor{SequoInk}{HTML}{1F2933}
+\definecolor{SequoMuted}{HTML}{59636F}
+\definecolor{SequoGreen}{HTML}{1F7A5B}
+\definecolor{SequoBlue}{HTML}{164E63}
+\definecolor{SequoPale}{HTML}{F3F7F5}
+\definecolor{SequoLine}{HTML}{D9E2DE}
+\definecolor{SequoHeader}{HTML}{E9F1EE}
+\definecolor{GaboOlive}{HTML}{6D5E0F}
+\definecolor{GaboCream}{HTML}{FFF9EE}
+\arrayrulecolor{SequoLine}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\hypersetup{
+  colorlinks=true,
+  urlcolor=SequoBlue,
+  linkcolor=SequoBlue
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[L]{\small\color{SequoMuted}Premier compte rendu - Sequo}
+\fancyfoot[R]{\small\color{SequoMuted}Page \thepage\ sur \pageref{LastPage}}
+
+\newcommand{\gabologo}{%
+  \begin{tikzpicture}[x=0.85pt,y=0.85pt]
+    \fill[GaboCream, rounded corners=32pt] (0,0) rectangle (150,150);
+    \draw[color=GaboOlive,line width=13pt,line join=round,line cap=round]
+      (106,108) -- (64,108) -- (37,75) -- (64,42) -- (106,42);
+    \draw[color=GaboOlive,line width=13pt,line cap=round] (88,75) -- (124,75);
+    \fill[GaboOlive] (126,75) circle (6.5pt);
+  \end{tikzpicture}%
+}
+
+\newcommand{\sectiontitle}[1]{%
+  \vspace{0.55em}
+  {\Large\bfseries\color{SequoInk}#1}\par
+  \vspace{0.1em}
+}
+
+\newcommand{\subsectiontitle}[1]{%
+  \vspace{0.35em}
+  {\large\bfseries\color{SequoInk}#1}\par
+}
+
+\newcommand{\simpleexplanation}[1]{%
+  {\small\textbf{\color{SequoBlue}Explication simple.} \color{SequoMuted}#1\par}
+}
+
+\newcommand{\metric}[2]{%
+  \begin{minipage}[t]{0.30\linewidth}
+    {\LARGE\bfseries\color{SequoGreen}#1}\par
+    {\small\color{SequoMuted}#2}
+  \end{minipage}
+}
+
+\newcommand{\statusdone}{\textbf{\color{SequoGreen}Réalisé}}
+\newcommand{\statuspartial}{\textbf{\color{SequoBlue}Partiel}}
+\newcommand{\statuspending}{\textbf{\color{SequoMuted}À faire}}
+
+\begin{document}
+\pagenumbering{roman}
+\color{SequoInk}
+\thispagestyle{empty}
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[SequoPale] (current page.north west) rectangle ([yshift=-4.8cm]current page.north east);
+    \fill[GaboOlive] (current page.north west) rectangle ([xshift=0.38cm]current page.south west);
+    \fill[SequoHeader] ([yshift=4.1cm]current page.south west) rectangle (current page.south east);
+  \end{tikzpicture}
+
+  \vspace*{0.7cm}
+  \begin{minipage}[t]{0.52\linewidth}
+    \resizebox{1.65cm}{!}{\gabologo}\hspace{0.35cm}%
+    \raisebox{0.48cm}{\Large\bfseries\color{GaboOlive}GABO}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.38\linewidth}
+    \raggedleft
+    {\small\bfseries PREMIER RAPPORT}\par
+    {\small Écosystème Sequo}\par
+    {\small\color{SequoMuted}7 septembre 2026}
+  \end{minipage}
+
+  \vspace{2.0cm}
+  {\small\bfseries\color{SequoMuted}Période de suivi}\par
+  {\LARGE\bfseries\color{GaboOlive}Préparation + août 2026}\par
+  \vspace{0.45cm}
+  {\fontsize{31}{34}\selectfont\bfseries Premier compte rendu mensuel\\du travail accompli}\par
+  \vspace{0.35cm}
+  {\Large Projet Sequo}\par
+  \vspace{0.15cm}
+  {\large\color{SequoMuted}Backend API, application client, application livreur et application point relais}\par
+
+  \vfill
+  {\renewcommand{\arraystretch}{1.22}
+  \begin{tabularx}{0.88\linewidth}{@{}L{4.0cm}Y@{}}
+    \toprule
+    \textbf{Période couverte} & Travaux préparatoires du 26 au 31 juillet 2026 + mois d'août 2026 \\
+    \textbf{Démarrage officiel} & Août 2026 \\
+    \textbf{Destinataire} & Gamal Tchadenu / SEQUO \\
+    \textbf{Préparé par} & Muhirwa Gabo Oreste \\
+    \textbf{Objet} & Premier bilan d'avancement et travail prévu pour le prochain cycle \\
+    \textbf{Format} & Rapport technique avec explications simples \\
+    \bottomrule
+  \end{tabularx}}
+
+  \vspace{0.55cm}
+  {\small
+  \textbf{Notice de lecture.} Ce rapport conserve les informations techniques nécessaires au suivi du projet. Les passages intitulés \textit{Explication simple} reformulent certains points pour un lecteur non développeur. Ces explications sont volontairement moins complètes et moins précises que les détails techniques : elles servent à faciliter la compréhension, pas à remplacer les spécifications ou le code.
+  }
+\end{titlepage}
+
+\pagenumbering{arabic}
+\pagestyle{fancy}
+
+\sectiontitle{Périmètre de ce premier rendu}
+Le démarrage officiel du contrat est en août 2026. Comme il s'agit du premier compte rendu, ce document inclut aussi les travaux préparatoires réalisés du 26 au 31 juillet 2026, avant le démarrage officiel, car les dépôts avaient déjà été créés en anticipation de la signature du contrat.
+
+\rowcolors{2}{SequoPale}{white}
+{\small
+\begin{tabularx}{\linewidth}{@{}L{3.4cm}L{3.2cm}Y@{}}
+\toprule
+\rowcolor{SequoHeader}
+\textbf{Catégorie} & \textbf{Période} & \textbf{Lecture} \\
+\midrule
+Travaux préparatoires & Du 26 au 31 juillet 2026 & Création et structuration initiale des dépôts Sequo API, sequo, SequoRider et SequoHub, en anticipation de la signature du contrat. \\
+Démarrage officiel & Août 2026 & Période contractuelle principale du présent compte rendu, avec l'avancement le plus important sur Sequo API. \\
+Raison de l'inclusion & Premier rendu & Comme il s'agit du premier rapport, les travaux préparatoires sont inclus pour donner à SEQUO une vision complète du socle existant au lancement. \\
+\bottomrule
+\end{tabularx}
+}
+
+\simpleexplanation{En simple, ce rapport distingue le démarrage officiel d'août et les bases préparées avant août. Ces bases sont incluses car elles existaient déjà au lancement du projet.}
+
+\sectiontitle{Résumé exécutif}
+Ce premier compte rendu consolide les travaux préparatoires réalisés à partir du 26 juillet 2026 et les travaux du mois d'août 2026. Le démarrage officiel est en août, mais les dépôts avaient déjà été créés en amont, en anticipation de la signature du contrat. Le travail principal sur Sequo API a porté sur l'authentification, la sécurité, les workflows de commande et de livraison, les règles de prix, les migrations de base de données, l'environnement d'exécution, les contrôles automatiques de qualité, les notifications et la documentation d'architecture.
+
+L'état général est positif : les fondations techniques et plusieurs règles métiers critiques sont maintenant codées et testées. L'ensemble représente 260 commits consolidés sur quatre dépôts suivis : 204 commits pour Sequo API, dont 10 préparatoires avant août et 194 en août, et 56 commits préparatoires pour les applications sequo, SequoRider et SequoHub. Le projet n'est toutefois pas encore prêt pour une mise en production complète. Les chantiers encore ouverts concernent surtout les permissions par rôle, les intégrations externes réelles, le temps réel, les paiements mobiles, les services de relay, le settlement financier et les garde-fous de production.
+
+\simpleexplanation{En langage simple, une grande partie du travail a consisté à construire les fondations invisibles de Sequo : sécurité des comptes, règles de paiement, règles de livraison, structure de base de données et préparation pour les applications mobiles. Pour ce premier rendu, le bilan présente donc les bases préparées avant août tout en indiquant leur période réelle. L'application n'est pas encore prête à être utilisée par de vrais clients, mais le socle devient beaucoup plus solide.}
+
+\vspace{0.45em}
+\noindent
+\metric{260}{commits consolidés tous dépôts}
+\hfill
+\metric{204}{commits Sequo API}
+\hfill
+\metric{56}{commits applications préparatoires}
+\par\vspace{0.65em}
+\noindent
+\metric{21}{fichiers de tests Kotlin ciblés}
+\hfill
+\metric{3}{migrations Flyway structurantes}
+\hfill
+\metric{19}{diagrammes PlantUML source}
+
+\sectiontitle{Repères non techniques}
+Ce tableau traduit les principaux termes informatiques utilisés dans le rapport. Les définitions sont simplifiées pour aider la lecture.
+
+\rowcolors{2}{SequoPale}{white}
+{\small
+\begin{tabularx}{\linewidth}{@{}L{3.4cm}Y Y@{}}
+\toprule
+\rowcolor{SequoHeader}
+\textbf{Terme} & \textbf{Explication simple} & \textbf{Pourquoi c'est important pour Sequo} \\
+\midrule
+Backend / API & La partie serveur qui garde les règles, les données et les décisions importantes. & C'est le moteur fiable derrière les applications client, marchand, livreur, relay et admin. \\
+Dépôt GitHub & Un dossier de projet en ligne qui garde le code, l'historique et les documents associés. & Cela permet de suivre ce qui existe pour chaque application et de prouver les changements réalisés. \\
+Commit & Un enregistrement d'un changement dans le code ou la documentation. & C'est une trace datée du travail effectué, utile pour mesurer l'avancement. \\
+Docker & Une manière d'emballer l'application pour qu'elle démarre de façon identique sur plusieurs machines. & Cela réduit les problèmes du type ``ça marche chez moi mais pas ailleurs''. \\
+CI/CD & Des contrôles automatiques qui construisent le projet et lancent les tests avant d'accepter des changements. & Cela aide à éviter qu'une nouvelle modification casse une partie déjà fonctionnelle. \\
+Pipeline & Une suite d'étapes automatiques : construire, tester, vérifier, préparer. & Cela rend le travail plus régulier et plus contrôlable. \\
+Migration de base de données & Un script qui change la structure des tables de façon suivie et reproductible. & Cela permet de faire évoluer les données sans improviser en production. \\
+JWT / token & Un badge numérique remis à un utilisateur connecté. & Il permet de savoir qui fait une action et si cette action est autorisée. \\
+RBAC et ownership & Les règles qui disent quel rôle peut faire quoi, et sur quelles données. & Un marchand ne doit voir que ses commandes, un livreur ses missions, un admin ses outils. \\
+FCM & Le service de Google utilisé pour envoyer des notifications push aux téléphones. & Il permettra d'alerter clients, marchands et livreurs au bon moment. \\
+WebSocket / STOMP & Un canal de communication en direct entre l'application mobile et le serveur. & Utile pour le suivi live des commandes, des livreurs et des alertes. \\
+Outbox & Une file d'attente interne pour envoyer les notifications après validation d'une action. & Cela évite d'envoyer une notification pour une action annulée ou échouée. \\
+Settlement / ledger & Le suivi comptable des commissions, remboursements, paiements livreurs et ajustements. & C'est essentiel pour savoir qui doit recevoir quoi, et quand. \\
+\bottomrule
+\end{tabularx}
+}
+
+\newpage
+\sectiontitle{Travaux accomplis}
+
+\subsectiontitle{1. Cadrage backend et architecture}
+\begin{itemize}
+  \item Consolidation du périmètre backend de Sequo autour du commerce local, de la logistique, du wallet, des commissions, des retours et des settlements.
+  \item Mise à jour des documents d'architecture, des services de domaine, du schéma de base de données, de la spécification API et des règles de sécurité.
+  \item Production de diagrammes pour les flux principaux : commande, paiement, pricing, retour, settlement, authentification, base de données, temps réel et notifications.
+\end{itemize}
+\simpleexplanation{Cela veut dire que le projet a maintenant une carte plus claire : quelles parties existent, quelles règles doivent être respectées, et comment les futurs modules devront communiquer.}
+
+\subsectiontitle{2. Authentification et sécurité applicative}
+\begin{itemize}
+  \item Mise en place des flux email/password : inscription, connexion, mot de passe oublié et réinitialisation.
+  \item Ajout des services JWT avec séparation access token / refresh token, claims renforcés, issuer, audience, token use, jti et not-before.
+  \item Durcissement du reset password : jetons non retournés par l'API, stockage sous forme de hash, usage unique et durée courte.
+  \item Ajout d'une politique de mot de passe plus stricte : longueur, complexité, termes faibles, suites numériques, répétitions, éléments personnels et variantes en leetspeak.
+  \item Ajout d'une première limitation de débit en mémoire sur les endpoints d'authentification afin de réduire le risque de brute force et d'abus.
+  \item Ajout de tests ciblés sur JWT, password policy, reset password, collisions de fournisseurs sociaux et rate limiting.
+\end{itemize}
+\simpleexplanation{En clair, ces travaux renforcent la porte d'entrée de la plateforme : création de compte, connexion, mot de passe oublié, qualité des mots de passe et limitation des tentatives abusives.}
+
+\subsectiontitle{3. Environnement fiable, Docker, CI/CD et migrations}
+\begin{itemize}
+  \item Ajout d'un Dockerfile multi-stage pour construire et exécuter l'API en Java 21.
+  \item Mise en place de Docker Compose avec PostgreSQL, service API et Adminer pour l'environnement local.
+  \item Ajout d'Actuator et d'un healthcheck pour contrôler l'état du conteneur.
+  \item Mise en place de Flyway et création des migrations pour les utilisateurs, le fulfillment/livraison et les notifications.
+  \item Ajout d'un pipeline GitHub Actions pour build/test, validation des dépendances et jobs liés à Docker.
+  \item Ajout d'un test de validation des migrations afin de vérifier la cohérence entre les migrations et le modèle JPA.
+\end{itemize}
+\simpleexplanation{Cette partie sert à rendre le projet plus facile à démarrer, tester et contrôler. Les mots Docker, CI/CD et pipeline désignent surtout des outils qui évitent les erreurs manuelles et rendent les livraisons plus prévisibles.}
+
+\subsectiontitle{4. Domaines commande, paiement, prix et livraison}
+\begin{itemize}
+  \item Implémentation du calcul de prix de livraison : minimum de 400 CFA jusqu'à 5 km, puis 100 CFA par kilomètre supplémentaire arrondi.
+  \item Modélisation des remises liées aux abonnements et des crédits de parrainage limités aux frais de livraison.
+  \item Ajout du traitement de commande avec validation du paiement avant handoff au marchand.
+  \item Implémentation des règles de paiement zéro cash et des abstractions pour Yas Togo et Moov Africa.
+  \item Ajout de règles d'affectation de livraison : priorité aux livreurs salariés Sequo pour abonnés, préférence moto freelance pour express, fallback freelancer et calcul du shortfall supporté par Sequo.
+  \item Ajout du workflow marchand : acceptation, préparation, colis prêt, rejet, handoff.
+  \item Ajout des règles Point de Relai : interdiction pour les produits alimentaires ou périssables, règles de garde et identification des colis retardés.
+\end{itemize}
+\simpleexplanation{Ici, on parle du coeur métier : comment une commande est validée, comment le prix de livraison est calculé, comment un marchand prépare le colis, et comment Sequo choisit le bon mode de livraison.}
+
+\subsectiontitle{5. Notifications et temps réel}
+\begin{itemize}
+  \item Création des tables pour les tokens FCM, préférences, messages, livraisons et outbox de notifications.
+  \item Implémentation de la gestion des tokens FCM : enregistrement, rotation, révocation, liste des tokens actifs.
+  \item Protection des tokens FCM par hash de recherche SHA-256 et chiffrement AES-GCM du token brut.
+  \item Ajout de la politique de choix de canal : in-app et push d'abord, SMS uniquement comme fallback critique et contrôlé par budget.
+  \item Ajout du service de dispatch qui persiste les messages in-app et les lignes d'audit de livraison.
+  \item Documentation de l'architecture WebSocket/STOMP pour les mises à jour temps réel des applications mobiles.
+\end{itemize}
+\simpleexplanation{Cette partie prépare les alertes : prévenir un client, un marchand ou un livreur au bon moment. L'envoi réel vers Firebase, le SMS payant et le direct complet ne sont pas encore finalisés.}
+
+\subsectiontitle{6. Socles applicatifs préparatoires}
+\begin{itemize}
+  \item Création des dépôts applicatifs sequo, SequoRider et SequoHub le 26 juillet 2026, avant le démarrage officiel, pour préparer le lancement attendu du projet.
+  \item Mise en place de bases Kotlin Multiplatform Android/iOS pour les applications client, livreur et point relais.
+  \item Sur sequo : 50 commits préparatoires, avec cadrage produit, documentation métier, premières règles partagées, tests, écrans marketplace, panier et suivi de commande.
+  \item Sur SequoRider : 5 commits préparatoires, avec cadrage du dispatch, des itinéraires, des preuves de livraison, des incidents, des revenus livreurs et des payouts.
+  \item Sur SequoHub : 1 commit préparatoire, avec le socle Kotlin Multiplatform de départ pour l'application point relais.
+\end{itemize}
+\simpleexplanation{En clair, les trois applications visibles par les utilisateurs n'ont pas été terminées, mais leurs dossiers de projet et leurs premières bases ont été posés avant août. Cette information donne à SEQUO une vision complète, tout en précisant qu'elles restent à connecter et compléter.}
+
+\newpage
+\sectiontitle{État synthétique par chantier}
+\rowcolors{2}{SequoPale}{white}
+{\small
+\begin{tabularx}{\linewidth}{@{}L{3.3cm}L{1.9cm}Y@{}}
+\toprule
+\rowcolor{SequoHeader}
+\textbf{Chantier} & \textbf{État} & \textbf{Commentaire} \\
+\midrule
+Architecture et documentation & \statusdone & Périmètre, API, schéma, domaines et diagrammes fortement clarifiés. Lecture simple : le plan global du serveur est maintenant beaucoup plus net. \\
+Authentification de base & \statuspartial & Les flux principaux existent, mais les sessions refresh, logout, RBAC et audit restent incomplets. Lecture simple : la connexion existe, mais la gestion avancée des accès doit encore être sécurisée. \\
+Sécurité opérationnelle & \statuspartial & Password policy, rate limit et premières validations existent. Il reste les garde-fous production complets, CORS, audit et secrets externes. Lecture simple : plusieurs protections sont en place, mais le verrouillage final reste nécessaire avant production. \\
+Environnement et automatisation & \statuspartial & Docker, CI/CD, healthcheck et migrations existent. Lecture simple : le projet est plus facile à lancer et vérifier, mais la mise en production reste à préparer. \\
+Pricing et commandes & \statuspartial & Les règles de pricing, paiement avant fulfillment et routes principales sont modélisées et testées. Les endpoints complets restent à finaliser. \\
+Livraison et relay & \statuspartial & Workflows et migrations existent. Les services repository-backed de mission, relay, PIN/QR, preuves et dispatch restent à construire. Lecture simple : les règles sont dessinées, mais tout le suivi terrain n'est pas encore branché. \\
+Notifications & \statuspartial & FCM tokens, stockage sécurisé, canal policy et dispatch foundation existent. Firebase, SMS réel, worker outbox, inbox API et événements restent à brancher. \\
+Applications client, livreur et relay & \statuspartial & Les dépôts sequo, SequoRider et SequoHub ont été créés le 26 juillet 2026 et totalisent 56 commits préparatoires avant août. Lecture simple : les bases des applications ont été posées avant le démarrage officiel, mais l'expérience utilisable reste à construire. \\
+Temps réel mobile & \statuspending & Architecture WebSocket/STOMP documentée, mais runtime non implémenté. Lecture simple : le suivi en direct est prévu, pas encore actif. \\
+Wallets Yas/Moov & \statuspending & Abstractions et règles zéro cash définies, mais adaptateurs réels et callbacks signés non branchés. \\
+Settlements et payouts & \statuspending & Règles documentées, mais ledger, scheduler et réconciliation restent à implémenter. Lecture simple : le calcul de qui doit être payé reste à construire. \\
+\bottomrule
+\end{tabularx}
+}
+
+\sectiontitle{Autres dépôts applicatifs Sequo}
+Ces dépôts sont inclus parce qu'il s'agit du premier compte rendu. Même si le démarrage officiel est en août, ils ont été créés le 26 juillet 2026 en anticipation de la signature du contrat. Ils représentent 56 commits préparatoires : 50 pour sequo, 5 pour SequoRider et 1 pour SequoHub.
+
+\simpleexplanation{Un dépôt GitHub peut être vu comme un dossier de projet en ligne. Ici, les dossiers des applications client, livreur et point relais existent déjà, mais ils ne sont pas encore des applications prêtes à être utilisées sur le terrain.}
+
+\rowcolors{2}{SequoPale}{white}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}L{3.3cm}Y Y@{}}
+\toprule
+\rowcolor{SequoHeader}
+\textbf{Dépôt / application} & \textbf{Ce qui existe déjà} & \textbf{État actuel et travail restant} \\
+\midrule
+sequo -- application client & 50 commits préparatoires du 26 au 27 juillet 2026. Socle Kotlin Multiplatform Android/iOS, documentation produit détaillée, règles de catalogue, commande, prix de livraison, paiement, parrainage, négociation, retours et premiers écrans marketplace/panier. & À faire : connexion réelle à Sequo API, comptes client, catalogue dynamique, paiement Yas/Moov, suivi de commande, retours et états hors ligne. \\
+SequoRider -- application livreur & 5 commits préparatoires du 26 juillet 2026. Socle Kotlin Multiplatform Android/iOS, cadrage des types de livreurs, règles de dispatch, itinéraires, preuves de livraison, incidents, revenus livreurs et paiements digitaux. & À faire : écrans opérationnels, acceptation/refus de mission, GPS, preuves, incidents, revenus, payouts et connexion complète au backend. \\
+SequoHub -- application point relais & 1 commit préparatoire du 26 juillet 2026. Socle Kotlin Multiplatform Android/iOS présent. Le dépôt existe surtout comme base technique de départ pour l'application relai. & À faire : réception de colis, scan QR/PIN, remise client, retours, stockage relai, historique et intégration backend. \\
+\bottomrule
+\end{tabularx}
+}
+
+\sectiontitle{Travaux non accomplis ou non finalisés}
+Les éléments ci-dessous ne sont pas des échecs du mois : ce sont les parties du MVP qui restent hors du périmètre terminé à ce stade et qui doivent être planifiées avant production.
+
+\rowcolors{2}{SequoPale}{white}
+{\footnotesize
+\begin{longtable}{@{}L{3.35cm}L{6.15cm}L{6.7cm}@{}}
+\toprule
+\rowcolor{SequoHeader}
+\textbf{Sujet} & \textbf{Ce qui manque techniquement} & \textbf{Explication simple / impact} \\
+\midrule
+\endfirsthead
+\toprule
+\rowcolor{SequoHeader}
+\textbf{Sujet} & \textbf{Ce qui manque techniquement} & \textbf{Explication simple / impact} \\
+\midrule
+\endhead
+RBAC et ownership & Permissions par rôle client, marchand, livreur, relay, support et admin. Contrôles d'accès par ressource. & Indispensable pour éviter qu'un utilisateur voie ou modifie les données d'un autre. Priorité haute avant ouverture des endpoints métier. \\
+Refresh sessions et logout & Stockage serveur des refresh tokens, rotation, révocation, logout et logout-all. & Permet de couper une session compromise, de déconnecter un appareil et de mieux contrôler la durée de connexion. \\
+Audit sécurité & Journalisation des connexions, resets, actions admin, remboursements, payouts et événements sensibles. & Permet de savoir qui a fait quoi, quand, et d'enquêter en cas de litige ou incident. \\
+Wallets réels & Adaptateurs Yas Togo et Moov Africa, signatures, webhooks, idempotence, reconciliation. & Les règles de paiement sont préparées, mais les vrais paiements mobile money ne sont pas encore connectés. \\
+Temps réel WebSocket/STOMP & Configuration runtime, handshake JWT, autorisation des topics et gestion des sessions actives. & Nécessaire pour voir les mises à jour en direct dans les applications, par exemple livraison ou nouvelle commande. \\
+Notifications complètes & Firebase Admin SDK, worker outbox, listeners de domaine, inbox read/archive, SMS provider réel. & Les bases des notifications existent, mais l'envoi réel et tout le parcours de suivi restent à finaliser. \\
+Livraison opérationnelle & Delivery mission service, endpoints courier, relay, tracking client, dispatch admin, preuves photo/signature/GPS. & Le suivi concret des colis, des livreurs, des preuves et des actions relay reste à brancher. \\
+PIN et QR pickup & Génération, hash, expiration, limite d'essais, validation relay et direct delivery. & Les codes de retrait doivent être sûrs, temporaires et impossibles à réutiliser abusivement. \\
+Settlements & Ledger, shortfall posting, payout scheduler, ajustements, remboursements et réconciliation. & Le suivi financier complet reste à construire : commissions, remboursements, paiements marchands, livreurs et écarts payés par Sequo. \\
+Bargaining & Service marchand/client, limite de 3 tentatives, lock 24h, historique des prix minimum acceptés. & La négociation client-marchand est prévue, mais pas encore utilisable dans le backend. \\
+Cooperatives & Demande de création, validation Sequo, permissions et consolidation multi-marchands. & Les marchés groupés sont prévus, mais les demandes, validations et droits associés restent à construire. \\
+Food customization & Options, toppings, suppléments de prix, snapshots de commande. & Les plats avec options ou suppléments nécessitent un modèle catalogue plus détaillé. \\
+Applications mobiles & Connexion des dépôts sequo, SequoRider et SequoHub au backend, écrans terrain, appels API, navigation, états d'erreur et tests mobiles. & Les dossiers applicatifs existent, mais les expériences client, livreur et point relais restent à rendre réellement utilisables. \\
+Production readiness & Secrets réels, CORS explicite, HSTS, monitoring, smoke tests, OpenAPI publié. & Il reste la préparation sérieuse de l'environnement qui recevra de vrais utilisateurs. \\
+\bottomrule
+\end{longtable}
+}
+
+\sectiontitle{Points à sécuriser avant mise en production}
+\begin{itemize}
+  \item Finaliser les droits d'accès par rôle afin qu'un client, marchand, livreur, relay ou administrateur ne voie que les données qui le concernent.
+  \item Valider les paiements mobiles et le suivi financier avec des contrôles fiables : opérations non dupliquées, historique clair, signatures des prestataires et tests de réconciliation.
+  \item Brancher les notifications et le suivi en direct sur des événements validés côté serveur, pour éviter des alertes envoyées trop tôt ou à la mauvaise personne.
+  \item Couvrir les cas terrain de livraison : retard marchand, livreur absent, client absent, locker indisponible, colis perdu ou endommagé.
+\end{itemize}
+\simpleexplanation{Avant l'ouverture publique, les accès, les paiements et les preuves de livraison doivent être sécurisés.}
+
+\sectiontitle{Travail prévu pour le prochain mois}
+Pour le prochain mois, le travail prévu est de transformer les fondations actuelles en premières fonctionnalités utilisables, avec un effort principal sur la sécurité, la livraison, les notifications, les paiements et la connexion des applications.
+
+\begin{enumerate}
+  \item Finaliser la sécurité minimale de production : RBAC, ownership, refresh sessions, logout, audit logs et validation stricte des configurations.
+  \item Terminer les services persistants de livraison : delivery missions, relay parcels, pickup codes, preuves et endpoints par rôle.
+  \item Brancher la chaîne de notifications : outbox worker, listeners de domaine, Firebase adapter et inbox API.
+  \item Démarrer l'intégration wallet sur un provider prioritaire avec callbacks signés et idempotence.
+  \item Préparer une première version staging avec build reproductible, migrations validées, smoke tests et variables de production documentées.
+  \item Connecter les premiers écrans des applications sequo, SequoRider et SequoHub aux endpoints backend prioritaires.
+\end{enumerate}
+\simpleexplanation{En simple, le prochain mois sera consacré à rendre les bases déjà posées plus utilisables : accès sécurisés, opérations de livraison, notifications réelles, paiements mobile money et premiers écrans connectés.}
+
+\sectiontitle{Conclusion}
+Le mois d'août a surtout servi à poser le socle sérieux de Sequo API : architecture, sécurité de base, règles métier, migrations, automatisation des contrôles et premières briques opérationnelles. Les dépôts applicatifs client, livreur et point relais ont aussi été préparés avant août et sont inclus ici pour donner une vision complète du socle de lancement. Le projet avance dans la bonne direction, mais il reste encore des parties essentielles avant un usage production : permissions, intégrations réelles, livraison complète, notifications événementielles, wallets, settlements et intégration mobile.
+
+% Commentaire conservé hors document :
+% La recommandation est de concentrer le prochain cycle sur la sécurisation des accès et la finalisation des workflows
+% opérationnels, afin de passer d'un backend structuré et testé à un MVP exploitable par les applications Sequo.
+
+\end{document}
