@@ -71,7 +71,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [ ] | Not implemented | Realtime authorization | Authorize every STOMP subscription by role and ownership. | Topic policy documented; interceptors not implemented. |
 | [ ] | Not implemented | Rider radar | Publish live mission offers and high-priority subscriber orders to eligible riders. | Topics and payloads documented; service not implemented. |
 | [ ] | Not implemented | Bargaining realtime | Publish active offer/counter/accept/reject updates to bargaining participants. | Topics documented; bargaining service not implemented. |
-| [ ] | Partial | Event-driven triggers | Fire notifications from committed domain events/outbox, not controller side effects. | Notification outbox table and idempotent dispatch service exist; event listener hooks and worker remain. |
+| [ ] | Partial | Event-driven triggers | Fire notifications from committed domain events/outbox, not controller side effects. | `NotificationOutboxService` provides idempotent enqueue, worker leases, retry backoff, and final failure state; committed-event listeners and delivery worker remain. |
 
 ## Immediate Implementation Backlog
 
@@ -88,7 +88,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 ### Priority 1 - Owner-note core domain workflows
 
 - [x] Notification routing service for customer, merchant, rider, relay, support, admin, and super-admin scopes. Domain routing is implemented; event listener and delivery integration remain.
-- [ ] Notification outbox worker plus `@TransactionalEventListener` hooks from order, merchant fulfillment, delivery, relay, return, refund, and settlement workflows.
+- [ ] Notification outbox worker plus `@TransactionalEventListener` hooks from order, merchant fulfillment, delivery, relay, return, refund, and settlement workflows. Outbox enqueue/lease/retry domain behavior is implemented.
 - [ ] Firebase Admin SDK adapter with stale-token pruning, retries, and provider delivery audit.
 - [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
 - [x] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
