@@ -21,6 +21,14 @@ class RelayParcelController(
         val identityCheckRequired: Boolean = true,
         val expiresAt: Instant,
     )
+    data class ReleaseRequest(
+        val relayPointId: String,
+        val rawNumericCode: String? = null,
+        val rawQrNonce: String? = null,
+        val identityDocumentMatched: Boolean,
+        val eventId: String,
+        val idempotencyKey: String,
+    )
 
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody command: RelayParcelCreateCommand): ResponseEntity<Any> =
@@ -41,6 +49,24 @@ class RelayParcelController(
             rawQrNonce = request.rawQrNonce,
             identityCheckRequired = request.identityCheckRequired,
             expiresAt = request.expiresAt,
+        ).toResponse()
+    }
+
+    @PostMapping("/{parcelId}/release")
+    fun release(
+        authentication: Authentication?,
+        @PathVariable parcelId: String,
+        @RequestBody request: ReleaseRequest,
+    ): ResponseEntity<Any> = roleRequired(authentication, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+        service.verifyPickup(
+            parcelId = parcelId,
+            relayPointId = request.relayPointId,
+            actorUserId = authentication!!.name,
+            rawNumericCode = request.rawNumericCode,
+            rawQrNonce = request.rawQrNonce,
+            identityDocumentMatched = request.identityDocumentMatched,
+            eventId = request.eventId,
+            idempotencyKey = request.idempotencyKey,
         ).toResponse()
     }
 
