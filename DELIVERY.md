@@ -109,7 +109,7 @@ Not implemented yet:
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table, JPA entity, repository, and service exist. |
 | [x] | Implemented | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | `DeliveryMission`, `DeliveryMissionRepository`, and `DeliveryMissionService` persist assignments, statuses, proof metadata, relay release checks, and shortfall values. |
-| [ ] | Partial | `delivery_pins` | Direct delivery PIN validation and attempt control. | Flyway table exists; PIN service missing. |
+| [ ] | Partial | `delivery_pins` | Direct delivery PIN validation and attempt control. | `DeliveryPinService` stores only hashed PINs and enforces expiry, one-time use, and a five-attempt limit; the delivery endpoint still needs to call it. |
 | [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
 | [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | Flyway table and `RelayParcelService` exist; JPA entity/repository missing. |
 | [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | Flyway table and relay deposit/release event snapshots exist; repository and broader event handling missing. |
@@ -133,7 +133,7 @@ Not implemented yet:
 | [ ] | Partial | Merchant ownership checks | Service rejects wrong merchant scope; controller/RBAC enforcement remains. |
 | [ ] | Not implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. |
 | [x] | Implemented | Relay scope checks | `RelayParcelService` rejects release when the relay actor is operating on another relay point's parcel. |
-| [ ] | Partial | One-time pickup/delivery credentials | Relay pickup credentials are one-time, hashed, expiring, and attempt-limited in `RelayParcelService`; direct delivery PIN service remains. |
+| [ ] | Partial | One-time pickup/delivery credentials | Relay pickup credentials and the direct delivery PIN service are one-time, hashed, expiring, and attempt-limited; endpoint integration remains. |
 | [ ] | Not implemented | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. |
 | [ ] | Partial | Idempotency | Relay release is idempotent by key in `RelayParcelService`; pickup, delivery, and problem endpoints remain. |
 
