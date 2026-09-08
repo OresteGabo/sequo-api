@@ -2,12 +2,14 @@ package dev.orestegabo.sequo_api.domain.auth
 
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 @Service
 class AuthService(
     private val userRepository: UserRepository,
+    private val socialIdentityRepository: SocialIdentityRepository,
     private val passwordEncoder: PasswordEncoder,
     private val googleVerifier: GoogleTokenVerifier,
     private val facebookVerifier: FacebookTokenVerifier,
@@ -53,6 +55,7 @@ class AuthService(
         return generateTokensForUser(user)
     }
 
+    @Transactional
     fun loginWithSocialToken(provider: AuthProvider, token: String): AuthTokens? {
         val verifier = when (provider) {
             AuthProvider.GOOGLE -> googleVerifier
@@ -65,7 +68,13 @@ class AuthService(
         if (socialUser.provider != provider) return null
         if (socialUser.email != null && !socialUser.emailVerified) return null
         
-        var user = userRepository.findByProviderAndProviderId(provider, socialUser.providerId)
+        val now = Instant.now()
+        val linkedIdentity = socialIdentityRepository.findByProviderAndProviderSubject(provider, socialUser.providerId)
+        var user = linkedIdentity?.let { userRepository.findById(it.userId).orElse(null) }
+        if (linkedIdentity != null && user == null) return null
+
+        // Keep reading the legacy column while existing accounts are migrated to the identity table.
+        user = user ?: userRepository.findByProviderAndProviderId(provider, socialUser.providerId)
         if (user == null) {
             val email = socialUser.email?.let(::normalizeEmail)
             val existingUser = email?.let { userRepository.findByEmail(it) }
@@ -85,6 +94,21 @@ class AuthService(
         }
 
         if (!user.status.canAuthenticate()) return null
+
+        if (linkedIdentity == null) {
+            socialIdentityRepository.save(
+                SocialIdentity(
+                    userId = requireNotNull(user.id),
+                    provider = provider,
+                    providerSubject = socialUser.providerId,
+                    verifiedEmail = socialUser.email?.let(::normalizeEmail),
+                    lastLoginAt = now,
+                )
+            )
+        } else {
+            linkedIdentity.lastLoginAt = now
+            socialIdentityRepository.save(linkedIdentity)
+        }
 
         return generateTokensForUser(user)
     }
