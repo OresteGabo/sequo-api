@@ -26,6 +26,10 @@ interface NotificationMessageRepository : JpaRepository<NotificationMessage, Str
         appFamily: NotificationAppFamily,
         eventType: NotificationEventType,
     ): NotificationMessage?
+
+    fun findByRecipientUserIdOrderByCreatedAtDesc(recipientUserId: String): List<NotificationMessage>
+
+    fun findByIdAndRecipientUserId(id: String, recipientUserId: String): NotificationMessage?
 }
 
 interface NotificationDeliveryRepository : JpaRepository<NotificationDelivery, String> {
