@@ -55,7 +55,11 @@ class AuthorizationPolicy {
             return allow("Admin operational access.")
         }
         if (resource == ProtectedResource.ADMIN_OPERATION) {
-            return deny("Only admin or super admin can access administrative operations.")
+            return if (action == AuthorizationAction.READ && RoleCode.SUPPORT_AGENT in subject.roles) {
+                allow("Support agent can read administrative monitoring.")
+            } else {
+                deny("Only support, admin, or super admin can access administrative operations.")
+            }
         }
         if (action == AuthorizationAction.FINANCIAL && subject.roles.none { it in FINANCIAL_ROLES }) {
             return deny("Financial access requires an authorized operational role.")
