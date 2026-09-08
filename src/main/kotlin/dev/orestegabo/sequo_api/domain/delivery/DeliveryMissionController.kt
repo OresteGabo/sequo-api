@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 class DeliveryMissionController(
     private val service: DeliveryMissionService,
     private val pinService: DeliveryPinService,
+    private val dispatchService: DeliveryReadinessDispatchService,
 ) {
     data class AssignCourierRequest(val courierId: String)
     data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null)
@@ -35,6 +36,14 @@ class DeliveryMissionController(
         @RequestBody request: CreateDeliveryMissionCommand,
     ): ResponseEntity<Any> = adminOnly(authentication) {
         ResponseEntity.ok(service.create(request))
+    }
+
+    @PostMapping("/dispatch-ready")
+    fun dispatchReady(
+        authentication: Authentication?,
+        @RequestParam(defaultValue = "50") limit: Int,
+    ): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok(dispatchService.dispatchReadySubOrders(limit))
     }
 
     @GetMapping
