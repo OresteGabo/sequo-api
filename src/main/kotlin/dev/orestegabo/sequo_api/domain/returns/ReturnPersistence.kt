@@ -1,5 +1,8 @@
 package dev.orestegabo.sequo_api.domain.returns
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
+import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderLineRecordRepository
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
@@ -13,6 +16,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.time.Instant
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -111,8 +115,10 @@ class ReturnPersistenceService(
     private val returns: ReturnRequestRecordRepository,
     private val orders: CustomerOrderRecordRepository,
     private val orderLines: CustomerOrderLineRecordRepository,
+    private val publisher: ApplicationEventPublisher,
 ) {
     private val domain = ReturnProcessingService()
+    private val objectMapper = ObjectMapper()
 
     @Transactional
     fun requestReturn(command: PersistedReturnRequestCommand): PersistedReturnResult {
@@ -153,6 +159,8 @@ class ReturnPersistenceService(
                 order.orderStatus = CustomerOrderStatus.RETURN_REQUESTED
                 order.updatedAt = command.requestedAt
                 orders.save(order)
+                publishReturnRequested(saved, order)
+                publishReturnPinCreated(saved)
                 accepted(saved)
             }
             is ReturnProcessingResult.Rejected -> PersistedReturnResult.Rejected(result.rejection)
@@ -187,7 +195,9 @@ class ReturnPersistenceService(
                     responsibility = command.responsibility,
                     idempotencyKey = command.idempotencyKey,
                 )
-            ).persist(record, command.receivedAt)
+            ).persist(record, command.receivedAt) { saved ->
+                publishReturnReceivedBySequo(saved)
+            }
         }
 
     @Transactional
@@ -202,7 +212,9 @@ class ReturnPersistenceService(
                     amountCfa = command.amountCfa,
                     idempotencyKey = command.idempotencyKey,
                 )
-            ).persist(record, Instant.now(), refundAmountCfa = command.amountCfa)
+            ).persist(record, Instant.now(), refundAmountCfa = command.amountCfa) { saved ->
+                publishRefundTriggered(saved)
+            }
         }
 
     @Transactional(readOnly = true)
@@ -248,10 +260,13 @@ class ReturnPersistenceService(
         record: ReturnRequestRecord,
         updatedAt: Instant,
         refundAmountCfa: Int? = null,
+        afterSave: (ReturnRequestRecord) -> Unit = {},
     ): PersistedReturnResult = when (this) {
         is ReturnProcessingResult.Accepted -> {
             record.apply(returnRequest, updatedAt, refundAmountCfa)
-            accepted(returns.save(record))
+            val saved = returns.save(record)
+            afterSave(saved)
+            accepted(saved)
         }
         is ReturnProcessingResult.Rejected -> PersistedReturnResult.Rejected(rejection)
     }
@@ -260,6 +275,87 @@ class ReturnPersistenceService(
 
     private fun rejected(code: String, message: String) =
         PersistedReturnResult.Rejected(ReturnRejection(code, message))
+
+    private fun publishReturnRequested(record: ReturnRequestRecord, order: CustomerOrderRecord) {
+        publisher.publishEvent(
+            record.toNotificationEvent(
+                eventId = "${record.id}:return-requested",
+                eventType = NotificationEventType.RETURN_REQUESTED,
+                title = "Return requested",
+                body = "Return ${record.id} was requested for order ${record.orderId}.",
+                merchantUserIds = order.merchantUserIds(),
+            )
+        )
+    }
+
+    private fun publishReturnPinCreated(record: ReturnRequestRecord) {
+        publisher.publishEvent(
+            record.toNotificationEvent(
+                eventId = "${record.id}:return-pin-created",
+                eventType = NotificationEventType.RETURN_PIN_CREATED,
+                title = "Return PIN ready",
+                body = "Your return PIN is ready for relay drop-off.",
+            )
+        )
+    }
+
+    private fun publishReturnReceivedBySequo(record: ReturnRequestRecord) {
+        publisher.publishEvent(
+            record.toNotificationEvent(
+                eventId = "${record.id}:received-by-sequo",
+                eventType = NotificationEventType.RETURN_RECEIVED_BY_SEQUO,
+                title = "Return received by Sequo",
+                body = "Return ${record.id} was received by Sequo and can move toward refund review.",
+                merchantUserIds = record.orderMerchantUserIds(),
+            )
+        )
+    }
+
+    private fun publishRefundTriggered(record: ReturnRequestRecord) {
+        publisher.publishEvent(
+            record.toNotificationEvent(
+                eventId = "${record.id}:refund-triggered",
+                eventType = NotificationEventType.REFUND_TRIGGERED,
+                title = "Refund started",
+                body = "Refund processing has started for return ${record.id}.",
+                merchantUserIds = record.orderMerchantUserIds(),
+            )
+        )
+    }
+
+    private fun ReturnRequestRecord.toNotificationEvent(
+        eventId: String,
+        eventType: NotificationEventType,
+        title: String,
+        body: String,
+        merchantUserIds: Set<String> = emptySet(),
+    ): NotificationWorkflowEvent =
+        NotificationWorkflowEvent(
+            eventId = eventId,
+            eventType = eventType,
+            aggregateType = "RETURN_REQUEST",
+            aggregateId = id,
+            payload = objectMapper.writeValueAsString(
+                mapOf(
+                    "customerUserId" to customerId,
+                    "merchantUserIds" to merchantUserIds,
+                    "title" to title,
+                    "body" to body,
+                    "actionUrl" to "/returns/$id",
+                    "messagePayload" to mapOf(
+                        "returnId" to id,
+                        "orderId" to orderId,
+                        "status" to status.name,
+                    ),
+                )
+            ),
+        )
+
+    private fun CustomerOrderRecord.merchantUserIds(): Set<String> =
+        orderLines.findByOrderIdOrderByLineIndexAsc(id).map { it.sellerId }.toSet()
+
+    private fun ReturnRequestRecord.orderMerchantUserIds(): Set<String> =
+        orderLines.findByOrderIdOrderByLineIndexAsc(orderId).map { it.sellerId }.toSet()
 }
 
 private fun ReturnRequest.toRecord(reason: String, createdAt: Instant) = ReturnRequestRecord(
