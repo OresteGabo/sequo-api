@@ -96,6 +96,21 @@ class MerchantFulfillmentService(
     }
 
     @Transactional(readOnly = true)
+    fun get(subOrderId: String): MerchantSubOrderSnapshot? =
+        repository.findById(subOrderId).orElse(null)?.toSnapshot()
+
+    @Transactional(readOnly = true)
+    fun listForMerchant(
+        merchantId: String,
+        statuses: Set<MerchantSubOrderStatus> = activeMerchantStatuses,
+    ): List<MerchantSubOrderSnapshot> {
+        require(merchantId.isNotBlank()) { "merchantId cannot be blank." }
+        require(statuses.isNotEmpty()) { "At least one merchant sub-order status is required." }
+        return repository.findByMerchantIdAndStatusInOrderByUpdatedAtDesc(merchantId, statuses)
+            .map { it.toSnapshot() }
+    }
+
+    @Transactional(readOnly = true)
     fun sla(subOrderId: String, at: Instant = Instant.now()): MerchantFulfillmentSlaSnapshot? {
         val subOrder = repository.findById(subOrderId).orElse(null) ?: return null
         val responseOverdue = subOrder.status == MerchantSubOrderStatus.MERCHANT_PENDING &&
@@ -239,6 +254,15 @@ class MerchantFulfillmentService(
         return MerchantFulfillmentServiceResult.Success(
             subOrder = repository.save(subOrder).toSnapshot(),
             message = transition.reason,
+        )
+    }
+
+    companion object {
+        val activeMerchantStatuses = setOf(
+            MerchantSubOrderStatus.MERCHANT_PENDING,
+            MerchantSubOrderStatus.ACCEPTED,
+            MerchantSubOrderStatus.PREPARING,
+            MerchantSubOrderStatus.PACKED_READY,
         )
     }
 }
