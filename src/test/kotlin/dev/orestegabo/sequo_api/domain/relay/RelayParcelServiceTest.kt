@@ -180,7 +180,7 @@ class RelayParcelServiceTest {
         val duplicate = service.verifyPickup(
             verificationCommand(
                 parcel = released.value.parcel,
-                pickupCode = released.value.pickupCode!!,
+                pickupCode = requireNotNull(released.value.pickupCode),
                 rawNumericCode = "000000",
                 identityDocumentMatched = false,
             )
@@ -205,19 +205,19 @@ class RelayParcelServiceTest {
     private fun depositedParcel(): RelayParcel =
         (service.createParcel(createCommand()) as RelayParcelServiceResult.Accepted).value.parcel
 
-    private fun pickupCode(parcel: RelayParcel): RelayPickupCode =
-        (
-            service.createPickupCode(
-                RelayPickupCodeCreateCommand(
-                    codeId = "pickup-code-1",
-                    parcel = parcel,
-                    rawNumericCode = "123456",
-                    rawQrNonce = "qr-nonce-value-2026",
-                    expiresAt = now.plusSeconds(3600),
-                    createdAt = now,
-                )
-            ) as RelayParcelServiceResult.Accepted
-            ).value.pickupCode!!
+    private fun pickupCode(parcel: RelayParcel): RelayPickupCode {
+        val result = service.createPickupCode(
+            RelayPickupCodeCreateCommand(
+                codeId = "pickup-code-1",
+                parcel = parcel,
+                rawNumericCode = "123456",
+                rawQrNonce = "qr-nonce-value-2026",
+                expiresAt = now.plusSeconds(3600),
+                createdAt = now,
+            )
+        ) as RelayParcelServiceResult.Accepted
+        return requireNotNull(result.value.pickupCode)
+    }
 
     private fun verificationCommand(
         parcel: RelayParcel,
