@@ -58,7 +58,9 @@ class RelayCustodyEventRecord(
 )
 
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String>
-interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String>
+interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String> {
+    fun findFirstByRelayParcelIdOrderByCreatedAtDesc(relayParcelId: String): RelayPickupCodeRecord?
+}
 interface RelayCustodyEventRecordRepository : JpaRepository<RelayCustodyEventRecord, String>
 
 @Service
@@ -67,6 +69,8 @@ class RelayParcelPersistenceService(
     private val pickupCodes: RelayPickupCodeRecordRepository,
     private val events: RelayCustodyEventRecordRepository,
 ) {
+    fun findParcel(id: String): RelayParcel? = parcels.findById(id).orElse(null)?.toDomain()
+
     @Transactional
     fun saveCreated(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
         parcels.save(parcel.toRecord())
@@ -104,8 +108,31 @@ class RelayParcelApplicationService(
         if (result is RelayParcelServiceResult.Accepted) persistence.savePickupCode(result)
         return result
     }
+
+    @Transactional
+    fun createPickupCode(parcelId: String, command: RelayPickupCodeCreateCommand): RelayParcelServiceResult {
+        val parcel = persistence.findParcel(parcelId)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
+        return createPickupCode(command.copy(parcel = parcel))
+    }
 }
 
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
 private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
 private fun RelayCustodyEvent.toRecord() = RelayCustodyEventRecord(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
+private fun RelayParcelRecord.toDomain() = RelayParcel(
+    id = id,
+    relayPointId = relayPointId,
+    lockerId = lockerId,
+    orderId = orderId,
+    deliveryMissionId = deliveryMissionId,
+    returnId = returnId,
+    category = category,
+    depositCode = depositCode ?: "",
+    status = status,
+    depositedAt = depositedAt,
+    pickedUpAt = pickedUpAt,
+    collectedAt = collectedAt,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
