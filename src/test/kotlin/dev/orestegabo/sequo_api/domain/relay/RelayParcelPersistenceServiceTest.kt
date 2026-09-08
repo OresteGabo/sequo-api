@@ -90,10 +90,27 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         assertEquals(listOf("parcel-list-1"), listed.map { it.id })
     }
 
+    @Test
+    fun evaluatesAndPersistsDelayedParcelStatus() {
+        application.createParcel(
+            createCommand(
+                parcelId = "parcel-delayed-1",
+                depositCode = "deposit-delayed-1",
+                createdAt = now.minusSeconds(15 * 24 * 60 * 60),
+            )
+        )
+
+        val evaluated = application.evaluateDelayed("relay-persistence-1", now)
+
+        assertEquals(RelayParcelStatus.Delayed, evaluated.single().status)
+        assertEquals(RelayParcelStatus.Delayed, parcelRepository.findById("parcel-delayed-1").orElseThrow().status)
+    }
+
     private fun createCommand(
         parcelId: String = "parcel-persistence-1",
         depositCode: String = "deposit-persistence-1",
         category: RelayParcelCategory = RelayParcelCategory.GeneralGoods,
+        createdAt: Instant = now,
     ) = RelayParcelCreateCommand(
         parcelId = parcelId,
         relayPointId = "relay-persistence-1",
@@ -101,6 +118,6 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         category = category,
         depositCode = depositCode,
         availableLockers = listOf(RelayLocker("locker-persistence", "relay-persistence-1", active = true, occupied = false)),
-        createdAt = now,
+        createdAt = createdAt,
     )
 }
