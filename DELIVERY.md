@@ -77,7 +77,7 @@ Not implemented yet:
 | [x] | Implemented | Courier deposits at relay | Relay mission can move to deposited only with proof. | `DeliveryMissionWorkflow` covers transition. |
 | [x] | Implemented | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | `RelayParcelService` generates hashed numeric codes and QR nonces, verifies either credential, enforces expiry, one-time use, and attempt limits. |
 | [x] | Implemented | Release requires code and identity validation | Relay release requires pickup code and identity validation. | `DeliveryMissionWorkflow` enforces both flags at policy level. |
-| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, `RelayParcelApplicationService`, opt-in scheduler, and admin monitoring evaluate, persist, count, and list delayed/review parcels; fee ledger, tariff decision, and notifications remain. |
+| [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, `RelayParcelApplicationService`, opt-in scheduler, and admin monitoring evaluate, persist, count, and list delayed/review parcels. Storage-fee assessments and idempotent ledger deltas are persisted; final tariff decision and notifications remain. |
 | [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | Product decision required before automation. |
 
 ## Grouped Sequo And Cooperative Delivery
@@ -123,7 +123,7 @@ Not implemented yet:
 | --- | --- | --- | --- |
 | [x] | Implemented | Merchant order workflow | List/detail/SLA plus accept, reject, start preparation, mark packed/ready, and handoff verification with admin/merchant role checks. |
 | [x] | Implemented | Courier missions | List/detail assigned missions, accept, pickup with proof, deliver with proof/PIN, deposit at relay, relay release, and report problem. |
-| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation, pickup-code, validation/release, detail/listing, delayed evaluation, and incident endpoints are available; scheduler and support resolution remain. |
+| [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation, pickup-code, validation/release, detail/listing, delayed evaluation, storage-fee assessment/listing, and incident endpoints are available; scheduler and support resolution remain. |
 | [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. | `/api/delivery/tracking/{deliveryCode}?orderId=...` returns proof-redacted delivery status and timestamps; ETA, relay instructions, and pickup-code state remain. |
 | [ ] | Partial | Admin dispatch | Reassign courier, pause courier, force problem state, view capacity, view delayed parcels, resolve failed deliveries. | Admin can assign/reassign before pickup, cancel missions, force problem state, and view monitoring; courier pause and failed-delivery resolution remain. |
 
