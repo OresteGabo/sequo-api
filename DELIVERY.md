@@ -15,19 +15,20 @@ Implemented today:
 - Courier assignment policy for subscriber priority, express freelance moto preference, freelancer fallback, and Sequo shortfall calculation.
 - Merchant packing workflow policy.
 - Repository-backed merchant sub-order service for seller acceptance, preparation, packing, rejection, and courier handoff.
-- Delivery mission transition policy for pickup, direct delivery, relay deposit, and relay release.
+- Merchant, courier, relay, customer-tracking, and first admin-dispatch controllers with role checks and scoped reads.
+- Repository-backed delivery mission service for list/detail, courier assignment, re-assignment before pickup, pickup, direct delivery, relay deposit/release, cancellation, and problem states.
+- Direct delivery PIN creation and validation with hashed, one-time, expiring credentials.
+- Proof-redacted customer delivery tracking by delivery code plus order reference.
 - Relay policy blocking food/perishable relay pickup and identifying delayed parcels.
 - Flyway migration for merchant sub-orders, delivery missions, delivery PINs, relay parcels, pickup codes, and relay custody events.
+- Notification outbox worker, retry-ready listing, and after-commit workflow-event listener for committed notification enqueue.
 
 Not implemented yet:
 
-- Repository-backed delivery missions, relay parcels, pickup codes, and custody events.
-- Merchant, courier, relay, and admin delivery controllers.
-- RBAC and ownership checks for seller/courier/relay delivery actions.
-- Real assignment queue, courier availability, dispatch locking, and re-assignment.
-- Direct delivery PIN generation. Relay pickup code/QR generation, hashing, verification, expiry, identity checks, and attempt limits are covered by `RelayParcelService`.
+- Persisted merchant account-to-merchant/staff membership mapping beyond the current principal-to-merchant guard.
+- Real assignment queue, courier availability, dispatch locking, and courier pause/penalty operations.
 - Proof photo/signature/geolocation storage.
-- Notifications, tracking, ETA, route provider integration, and maps cost controls.
+- Workflow-specific notification publishers, Firebase/WebSocket delivery, ETA, and route provider integration.
 - Repository-backed settlement ledger posting for courier payable, relay payable, and shortfalls.
 
 ## Status Legend
@@ -41,7 +42,7 @@ Not implemented yet:
 
 | Done | State | Mode | Backend rule | Evidence or gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | `DeliveryMissionService` persists proof and enforces assigned-courier ownership; PIN endpoint integration and order-readiness dispatch remain. |
+| [ ] | Partial | Fast direct delivery | Seller prepares package, courier picks it up, courier delivers to customer address with proof/PIN. | `MerchantFulfillmentController`, `DeliveryMissionController`, and `DeliveryTrackingController` expose the operational path with hashed PIN creation/validation; order-readiness dispatch and ETA remain. |
 | [ ] | Partial | Express delivery | Non-subscriber express orders prefer freelance moto couriers. | `DeliveryAssignmentPolicy` implements selection; dispatch queue missing. |
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
@@ -61,9 +62,9 @@ Not implemented yet:
 | [x] | Implemented | Seller marks package packed | Package cannot be picked up until seller marks at least one package ready. | `MerchantFulfillmentService` requires `packageCount > 0` and persists packed state. |
 | [ ] | Partial | Courier mission is created | API creates a delivery mission after package readiness or according to dispatch policy. | `DeliveryMissionService` and `DeliveryMissionController` persist and expose mission creation/assignment; order-readiness trigger and dispatch queue remain. |
 | [x] | Implemented | Courier assignment policy | Selects eligible courier based on subscriber/order channel/workforce/vehicle rules. | `DeliveryAssignmentPolicy` and tests. |
-| [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionWorkflow` covers transition; no endpoint. |
-| [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionWorkflow` requires proof. |
-| [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionWorkflow` blocks direct delivery without proof. |
+| [x] | Implemented | Courier accepts mission | Mission transition policy requires offer before acceptance. | `DeliveryMissionController` exposes role-protected accept and tests verify assigned-courier scope. |
+| [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionController` exposes pickup with proof and persists actor metadata. |
+| [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionController` validates direct delivery PINs before delivery transitions and keeps the raw PIN out of responses. |
 | [ ] | Partial | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | Target docs/schema exist; no persisted workflow service. |
 | [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | `SettlementLedgerService` posts merchant accrual, return/dispute holds, adjustments, and Sequo delivery shortfall snapshots; repository-backed courier/relay ledger posting remains. |
 
@@ -95,13 +96,13 @@ Not implemented yet:
 | Done | State | Case | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [ ] | Partial | Seller rejects order | Customer must be refunded or rerouted according to policy. | Merchant fulfillment service can persist rejection reason; refund orchestration missing. |
-| [ ] | Partial | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | `MerchantFulfillmentService.sla` records 24-hour response and 48-hour packing deadlines, while admin monitoring exposes seller backlog/ready/rejected queues; cancellation, reassignment, and notifications remain. |
+| [ ] | Partial | Seller delays packing | SLA timers, warnings, cancellation, reassign/support escalation. | `MerchantFulfillmentService.sla` records 24-hour response and 48-hour packing deadlines, while admin monitoring exposes seller backlog/ready/rejected queues; delivery missions can be cancelled/reassigned/forced to problem, but automated SLA actions and notifications remain. |
 | [ ] | Partial | Courier reports problem | Mission can be moved to problem with reason. | `DeliveryMissionController` and `RelayParcelController` persist role-protected problem reports with actor, metadata, and idempotency; notifications and support resolution remain. |
 | [ ] | Not implemented | Customer unavailable | Reschedule, fallback relay, support intervention, or failed delivery state. | Missing. |
 | [ ] | Not implemented | Relay locker unavailable | Alternative locker/relay/manual custody workflow. | Missing. |
 | [ ] | Not implemented | Package lost/damaged | Responsibility assignment, evidence, support investigation, ledger liability. | Return/settlement docs only. |
-| [ ] | Not implemented | Courier no-show | Mission expiry, reassign, courier penalty/support workflow. | Missing. |
-| [ ] | Not implemented | Duplicate pickup/delivery submission | Idempotency key plus state guard prevents duplicate side effects. | Idempotency docs exist; delivery endpoints missing. |
+| [ ] | Partial | Courier no-show | Mission expiry, reassign, courier penalty/support workflow. | Admin can reassign missions before pickup and force a support problem state; expiry scheduler and penalty workflow remain. |
+| [ ] | Partial | Duplicate pickup/delivery submission | Idempotency key plus state guard prevents duplicate side effects. | Delivery mission service rejects duplicate proof submissions; endpoint idempotency keys remain. |
 
 ## Delivery Data That Must Be Persisted
 
@@ -120,17 +121,17 @@ Not implemented yet:
 
 | Done | State | Endpoint family | Needed endpoints |
 | --- | --- | --- | --- |
-| [ ] | Partial | Merchant order workflow | Accept, reject, start preparation, mark packed/ready, handoff verification. |
-| [ ] | Partial | Courier missions | List offers, accept, pickup with proof, deliver with proof/PIN, deposit at relay, report problem. |
+| [x] | Implemented | Merchant order workflow | List/detail/SLA plus accept, reject, start preparation, mark packed/ready, and handoff verification with admin/merchant role checks. |
+| [x] | Implemented | Courier missions | List/detail assigned missions, accept, pickup with proof, deliver with proof/PIN, deposit at relay, relay release, and report problem. |
 | [ ] | Partial | Relay operations | List parcels, deposit, validate pickup code/QR, release to customer, report problem, delayed parcel list. | Parcel creation, pickup-code, validation/release, detail/listing, delayed evaluation, and incident endpoints are available; scheduler and support resolution remain. |
-| [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. | Relay parcel detail/list responses expose operational status and timestamps without deposit codes, credential hashes, or internal proof metadata; customer order tracking remains. |
-| [ ] | Partial | Admin dispatch | Reassign courier, pause courier, force problem state, view capacity, view delayed parcels, resolve failed deliveries. |
+| [ ] | Partial | Customer tracking | Read order delivery status, ETA, relay instructions, pickup code state, proof-safe delivery confirmation. | `/api/delivery/tracking/{deliveryCode}?orderId=...` returns proof-redacted delivery status and timestamps; ETA, relay instructions, and pickup-code state remain. |
+| [ ] | Partial | Admin dispatch | Reassign courier, pause courier, force problem state, view capacity, view delayed parcels, resolve failed deliveries. | Admin can assign/reassign before pickup, cancel missions, force problem state, and view monitoring; courier pause and failed-delivery resolution remain. |
 
 ## Security Requirements For Delivery
 
 | Done | State | Requirement | Why it matters |
 | --- | --- | --- | --- |
-| [ ] | Partial | Merchant ownership checks | Service rejects wrong merchant scope; controller/RBAC enforcement remains. |
+| [ ] | Partial | Merchant ownership checks | Service rejects wrong merchant scope and controller requires non-admin merchant requests to match the authenticated merchant principal; persisted staff membership/merchant-scope claims remain. |
 | [x] | Implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. | `DeliveryMissionService` rejects accept, pickup, delivery, relay deposit, and problem updates from a non-assigned courier. |
 | [x] | Implemented | Relay scope checks | `RelayParcelService` rejects release when the relay actor is operating on another relay point's parcel. |
 | [x] | Implemented | One-time pickup/delivery credentials | Relay pickup credentials and direct delivery PINs are one-time, hashed, expiring, and attempt-limited, with direct PIN validation integrated into `/deliver`. |
@@ -141,8 +142,8 @@ Not implemented yet:
 
 1. [x] Add Flyway migrations for `merchant_sub_orders`, `delivery_missions`, `delivery_pins`, `relay_parcels`, `relay_pickup_codes`, `relay_custody_events`, and required status constraints.
 2. [x] Implement repository-backed merchant fulfillment service using `MerchantFulfillmentWorkflow`.
-3. [ ] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
-4. [ ] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events. Domain service is implemented; repository-backed persistence and endpoints remain.
-5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks.
-6. [ ] Add notification/outbox events and settlement ledger posting. Domain settlement decisions are implemented; persistence and outbox wiring remain.
-7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized.
+3. [x] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
+4. [x] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
+5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks. Merchant, courier, relay, customer tracking, and first admin-dispatch endpoints are implemented; courier pause/resolution and persisted merchant memberships remain.
+6. [ ] Add notification/outbox events and settlement ledger posting. Outbox worker and after-commit event listener are implemented; workflow-specific publishers and repository-backed settlement posting remain.
+7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized. Problem states and pre-pickup re-assignment exist; expiry/fees/return automation remain.
