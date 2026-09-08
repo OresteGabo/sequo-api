@@ -14,6 +14,8 @@ import dev.orestegabo.sequo_api.domain.payment.PaymentValidationResult
 import dev.orestegabo.sequo_api.domain.payment.SequoPaymentProviders
 import dev.orestegabo.sequo_api.domain.payment.YasTogoPaymentMethod
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
+import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutStatus
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,6 +34,7 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val lines: CustomerOrderLineRecordRepository,
     private val events: CustomerOrderEventRecordRepository,
     private val merchantSubOrders: MerchantSubOrderRepository,
+    private val settlements: SettlementPersistenceService,
 ) {
     @Test
     fun `accepted paid order is persisted and split into merchant sub-orders idempotently`() {
@@ -102,6 +105,7 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         val first = lifecycle.markDeliveredFromMission(delivered.mission, "courier-lifecycle")
         val second = lifecycle.markDeliveredFromMission(delivered.mission, "courier-lifecycle")
         val order = orders.findById("SQ-checkout-order-persistence").orElseThrow()
+        val payout = settlements.listMerchantPayouts("merchant-food").single { it.orderId == order.id }
 
         assertEquals(CustomerOrderStatus.DELIVERED, first?.orderStatus)
         assertEquals(first, second)
@@ -116,6 +120,13 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
             events.findByOrderIdOrderByCreatedAtAsc(order.id).map { it.eventType },
         )
         assertEquals(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, delivered.mission.status)
+        assertEquals(MerchantPayoutStatus.HeldReturnWindow, payout.status)
+        assertEquals(4_250, payout.merchantNetCfa)
+        assertEquals(750, payout.commissionCfa)
+        assertEquals(Instant.parse("2026-09-09T12:00:00Z"), payout.packageReceivedAt)
+        assertEquals(Instant.parse("2026-09-12T12:00:00Z"), payout.payoutEligibleAt)
+        assertTrue(payout.activeReturnHold)
+        assertEquals(2, payout.ledgerEntries.size)
     }
 
     private fun acceptedOrder(request: OrderProcessingRequest): OrderProcessingResult.AcceptedForFulfillment {
