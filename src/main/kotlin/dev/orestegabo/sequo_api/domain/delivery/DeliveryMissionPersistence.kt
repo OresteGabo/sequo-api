@@ -128,7 +128,7 @@ class DeliveryMissionService(
     }
 
     @Transactional
-    fun transition(missionId: String, actorId: String, event: DeliveryMissionEvent, proof: String? = null, relayPickupValidated: Boolean = false, identityValidated: Boolean = false, problemReason: String? = null, at: Instant = Instant.now()): DeliveryMissionServiceResult {
+    fun transition(missionId: String, actorId: String, event: DeliveryMissionEvent, proof: String? = null, deliveryPinValidated: Boolean = false, relayPickupValidated: Boolean = false, identityValidated: Boolean = false, problemReason: String? = null, at: Instant = Instant.now()): DeliveryMissionServiceResult {
         val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (event in courierScopedEvents && mission.courierId != actorId) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
@@ -139,6 +139,7 @@ class DeliveryMissionService(
                 event = event,
                 destinationType = mission.destinationType.toWorkflowType(),
                 proofProvided = !proof.isNullOrBlank(),
+                deliveryPinValidated = deliveryPinValidated,
                 relayPickupCodeValidated = relayPickupValidated,
                 identityValidated = identityValidated,
                 problemReason = problemReason,
