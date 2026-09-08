@@ -39,7 +39,7 @@ Main files:
 | Password hashing | Treated | BCrypt is used. |
 | Basic route authentication | Treated | `/api/auth/**` is public; other routes require authentication. |
 | Stateless server sessions | Treated | Spring session creation is stateless. |
-| JWT signing | Partially treated | Tokens are signed and now include stronger claims, but key rotation and production secret validation are still missing. |
+| JWT signing | Partially treated | Tokens are signed and now include stronger claims; production-like startup rejects unsafe secrets, but key rotation is still missing. |
 | Access/refresh token separation | Treated | Bearer authentication now accepts only access tokens. Refresh storage/rotation is still pending. |
 | Refresh revocation/rotation | Not treated | Refresh tokens are stateless JWTs, not stored or rotated server-side. |
 | Logout/logout-all | Not treated | No endpoint or token/session revocation exists. |
@@ -49,7 +49,7 @@ Main files:
 | Rate limiting | Partially treated | Signup, login, social login, refresh, forgot-password, and reset-password have single-node in-memory limits. Distributed/gateway limits, audit, and lockout remain pending. |
 | Social login hardening | Partially treated | Google is strongest; same-email social login no longer silently links accounts; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
-| Production config hardening | Partially treated | Docker profile now uses Flyway and Hibernate validation; dev fallback secrets, H2 console, and default local `ddl-auto=update` still need isolation. |
+| Production config hardening | Partially treated | Production-like profiles now fail on dev JWT/notification secrets, placeholder OAuth IDs, H2, H2 console, and unsafe Hibernate DDL modes. Wallet secrets, explicit CORS, and key rotation remain pending. |
 | CI/CD security gates | Partially treated | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
 
 ## Radio-Style Implementation Matrix
@@ -131,8 +131,8 @@ Legend:
 | 65 | HTTPS/HSTS enforcement | [ ] | [ ] | [x] | Not enforced in app config. |
 | 66 | H2 console restricted to local/test | [ ] | [ ] | [x] | Enabled in default properties. |
 | 67 | Production-safe schema migration policy | [ ] | [x] | [ ] | Flyway baseline exists and Docker profile defaults to Hibernate `validate`; default local properties still use `ddl-auto=update`. |
-| 68 | Production startup rejects default JWT secret | [ ] | [ ] | [x] | No startup validation. |
-| 69 | Production startup rejects placeholder OAuth IDs | [ ] | [ ] | [x] | No startup validation. |
+| 68 | Production startup rejects default JWT secret | [x] | [ ] | [ ] | `ProductionStartupGuardrails` blocks known dev/CI JWT defaults and short secrets in production-like profiles. |
+| 69 | Production startup rejects placeholder OAuth IDs | [x] | [ ] | [ ] | `ProductionStartupGuardrails` blocks known Google, Facebook, and Apple placeholder IDs in production-like profiles. |
 | 70 | JWT key rotation strategy | [ ] | [ ] | [x] | No `kid`, key versioning, or rotation procedure. |
 | 71 | Device/session tracking | [ ] | [ ] | [x] | No device ID, IP hint, or user-agent hash persistence. |
 | 72 | Provider HTTP client timeouts | [ ] | [ ] | [x] | Facebook `RestTemplate` has no explicit timeout. |
@@ -147,7 +147,7 @@ Legend:
 | 81 | Mass-assignment protection | [ ] | [x] | [ ] | `OrderController` protects `customerId`; broader DTO hardening is missing. |
 | 82 | Cross-tenant query protections | [ ] | [ ] | [x] | Needs scoped repository/service checks. |
 | 83 | Append-only audit tamper resistance | [ ] | [ ] | [x] | No audit table/service yet. |
-| 84 | Unsafe local config deployment guard | [ ] | [ ] | [x] | H2, dev secret, placeholders, and `ddl-auto=update` need profile isolation. |
+| 84 | Unsafe local config deployment guard | [ ] | [x] | [ ] | Production-like profiles reject H2, H2 console, `ddl-auto=update`, dev secrets, and provider placeholders; CORS and external provider secrets remain. |
 | 85 | Optional on-device AI password coach | [ ] | [ ] | [x] | Future KMP/mobile-only UX helper; must be open-source, local-only, and never replace server validation. |
 | 86 | CI executes auth and security tests | [x] | [ ] | [ ] | GitHub Actions runs `./gradlew clean build --no-daemon --stacktrace` on PRs and protected branch pushes. |
 | 87 | PR dependency vulnerability review | [ ] | [x] | [ ] | Dependency Review fails high-severity vulnerable dependency changes; broader SAST and secret scanning are still pending. |
@@ -346,7 +346,7 @@ Severity: Critical for production
 Observed problem:
 
 - `application.properties` defines `sequo.auth.jwt.secret=${JWT_SECRET:sequo_auth_dev_secret_key_2026_v1}`.
-- If production starts without `JWT_SECRET`, it uses a known repository value.
+- If production starts without `JWT_SECRET`, local defaults could be selected unless startup guardrails reject them.
 
 Expected secure behavior:
 
@@ -356,8 +356,8 @@ Expected secure behavior:
 
 Treatment:
 
-- Move dev defaults to `application-local.properties` or test config.
-- Add startup validation that rejects known dev/default secrets when profile is not local/test.
+- Production-like startup now rejects known dev/default secrets, short secrets, placeholder provider IDs, H2, H2 console, and unsafe Hibernate DDL modes.
+- Keep improving profile isolation by moving dev defaults to `application-local.properties` or test config later.
 
 ### 7. Missing User Status Enforcement
 
@@ -852,7 +852,7 @@ Expected secure behavior:
 Treatment:
 
 - Add provider-enabled config flags.
-- Add startup validation.
+- Startup validation now rejects placeholder provider IDs in production-like profiles; add provider-enabled config flags next.
 
 ### 31. No Device/Session Awareness
 
@@ -1183,7 +1183,7 @@ Priority 0, production blockers:
 - [x] Hash reset tokens.
 - [x] Add JWT issuer, audience, JWT ID, token-use, and not-before claims.
 - [ ] Add JWT session ID after refresh sessions exist.
-- [ ] Remove production fallback JWT secret.
+- [x] Reject production-like startup with fallback JWT secrets.
 - [x] Add user status and block locked/suspended users.
 - [ ] Add user roles and authorities.
 - [x] Add first-pass in-memory rate limiting on auth endpoints.
