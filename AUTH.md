@@ -49,7 +49,7 @@ Main files:
 | Rate limiting | Partially treated | Signup, login, social login, refresh, forgot-password, and reset-password have single-node in-memory limits. Distributed/gateway limits, audit, and lockout remain pending. |
 | Social login hardening | Partially treated | Google is strongest; same-email social login no longer silently links accounts; Facebook and Apple are incomplete. |
 | Audit logging | Not treated | No auth/security audit events are persisted. |
-| Production config hardening | Partially treated | Production-like profiles now fail on dev JWT/notification secrets, placeholder OAuth IDs, H2, H2 console, and unsafe Hibernate DDL modes. Wallet secrets, explicit CORS, and key rotation remain pending. |
+| Production config hardening | Partially treated | Production-like profiles now fail on dev JWT/notification secrets, placeholder OAuth IDs, missing Yas/Moov wallet secrets, unsafe CORS origins, H2, H2 console, and unsafe Hibernate DDL modes. Key rotation remains pending. |
 | CI/CD security gates | Partially treated | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
 
 ## Radio-Style Implementation Matrix
@@ -127,7 +127,7 @@ Legend:
 | 61 | Global exception handler | [ ] | [ ] | [x] | Not implemented. |
 | 62 | Auth audit logging | [ ] | [ ] | [x] | No login/reset/refresh/security event audit trail. |
 | 63 | Privacy-safe logging/redaction policy | [ ] | [ ] | [x] | No redaction filter or documented logger guard in code. |
-| 64 | CORS policy | [ ] | [ ] | [x] | No explicit CORS configuration. |
+| 64 | CORS policy | [ ] | [x] | [ ] | Spring Security now uses explicit configured origins, and production-like profiles reject missing, wildcard, or non-HTTPS origins. |
 | 65 | HTTPS/HSTS enforcement | [ ] | [ ] | [x] | Not enforced in app config. |
 | 66 | H2 console restricted to local/test | [ ] | [ ] | [x] | Enabled in default properties. |
 | 67 | Production-safe schema migration policy | [ ] | [x] | [ ] | Flyway baseline exists and Docker profile defaults to Hibernate `validate`; default local properties still use `ddl-auto=update`. |
@@ -147,7 +147,7 @@ Legend:
 | 81 | Mass-assignment protection | [ ] | [x] | [ ] | `OrderController` protects `customerId`; broader DTO hardening is missing. |
 | 82 | Cross-tenant query protections | [ ] | [ ] | [x] | Needs scoped repository/service checks. |
 | 83 | Append-only audit tamper resistance | [ ] | [ ] | [x] | No audit table/service yet. |
-| 84 | Unsafe local config deployment guard | [ ] | [x] | [ ] | Production-like profiles reject H2, H2 console, `ddl-auto=update`, dev secrets, and provider placeholders; CORS and external provider secrets remain. |
+| 84 | Unsafe local config deployment guard | [ ] | [x] | [ ] | Production-like profiles reject H2, H2 console, `ddl-auto=update`, dev secrets, provider placeholders, missing wallet secrets, and unsafe CORS origins. |
 | 85 | Optional on-device AI password coach | [ ] | [ ] | [x] | Future KMP/mobile-only UX helper; must be open-source, local-only, and never replace server validation. |
 | 86 | CI executes auth and security tests | [x] | [ ] | [ ] | GitHub Actions runs `./gradlew clean build --no-daemon --stacktrace` on PRs and protected branch pushes. |
 | 87 | PR dependency vulnerability review | [ ] | [x] | [ ] | Dependency Review fails high-severity vulnerable dependency changes; broader SAST and secret scanning are still pending. |
@@ -356,7 +356,7 @@ Expected secure behavior:
 
 Treatment:
 
-- Production-like startup now rejects known dev/default secrets, short secrets, placeholder provider IDs, H2, H2 console, and unsafe Hibernate DDL modes.
+- Production-like startup now rejects known dev/default secrets, short secrets, placeholder provider IDs, missing wallet secrets, unsafe CORS origins, H2, H2 console, and unsafe Hibernate DDL modes.
 - Keep improving profile isolation by moving dev defaults to `application-local.properties` or test config later.
 
 ### 7. Missing User Status Enforcement
