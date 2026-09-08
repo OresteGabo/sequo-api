@@ -96,7 +96,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow. Locker/category eligibility, credential/delay/problem behavior, repository-backed persistence, parcel/pickup-code/release/listing/detail endpoints, and secret-safe responses are implemented; scheduler, fees, support resolution, and return-to-seller automation remain.
 - [x] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
 - [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
-- [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting. Domain accrual, eligibility, adjustment, and shortfall ledger decisions are implemented; repository-backed scheduler remains.
+- [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting. Merchant payout and ledger persistence, idempotent accrual/shortfall/adjustment writes, and eligibility evaluation are implemented in `SettlementPersistenceService`; an automatic scheduled runner and provider payout execution remain.
 - [ ] Real Yas Togo and Moov Africa adapters with signed callbacks, provider references, reconciliation, and webhook idempotency. The current default configuration intentionally returns `Pending` instead of auto-validating fake wallet references.
 
 ### Priority 2 - Product and operations depth
