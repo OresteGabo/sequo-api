@@ -28,7 +28,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Checkout | Customer must pay before order validation/handoff to merchant fulfillment. | `OrderProcessing` validates payment before confirmation and merchant handoff events. |
 | [ ] | Partial | Wallets | Integrate Yas Togo and Moov Africa digital wallets. | Provider abstractions exist; real adapters, signatures, callbacks, and reconciliation remain. |
 | [x] | Implemented | Wallets | Do not implement cash withdrawal operations. | Payment model rejects cash withdrawal by design; docs and payment domain enforce zero-cash policy. |
-| [x] | Implemented | Referrals | Referral/parrainage rewards are delivery credits only, not withdrawable money. | Pricing input applies delivery-only referral credit; durable referral credit ledger remains. |
+| [x] | Implemented | Referrals | Referral/parrainage rewards are delivery credits only, not withdrawable money. | `ReferralDeliveryCreditService` issues expiring delivery-only credits, applies them only to delivery fees, preserves source/remaining snapshots, and rejects cash, transfer, refund, item, margin, service-fee, tip, merchant-payout, and courier-payout uses. |
 | [x] | Implemented | Bargaining | Customer can propose a lower product price to a merchant. | `BargainingService` accepts lower customer offers, rejects non-discount offers, and records pending offer snapshots with focused tests. |
 | [x] | Implemented | Bargaining | Enforce 3 bargaining attempts per customer/seller/product context. | `BargainingService` counts customer attempts per session scope and locks the session after the third rejected attempt. |
 | [x] | Implemented | Bargaining | Accepted minimum price locks for 24 hours. | `BargainingService` creates accepted price locks for merchant-accepted offers and customer-accepted counters, with 24-hour expiry tests. Checkout consumption remains future integration work. |
@@ -101,7 +101,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 ### Priority 2 - Product and operations depth
 
 - [ ] Subscription billing tiers, renewal state, per-km discount caps, and multi-year loyalty multipliers.
-- [ ] Referral delivery credit wallet with expiry, non-cash constraints, and application only to delivery fees.
+- [x] Referral delivery credit wallet with expiry, non-cash constraints, and application only to delivery fees.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [x] Product media upload policy with live-camera metadata, generic catalog references, safe filename/content validation, moderation, and storage integration.
 - [ ] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
