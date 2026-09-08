@@ -11,6 +11,8 @@ import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxRepository
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxStatus
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus
+import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutStatus
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
@@ -113,6 +115,7 @@ class AdminMonitoringService(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val relayParcels: RelayParcelRecordRepository,
     private val notificationOutbox: NotificationOutboxRepository,
+    private val settlements: SettlementPersistenceService,
 ) {
     @Transactional(readOnly = true)
     fun operationsSnapshot(generatedAt: Instant = Instant.now()): AdminOperationsSnapshot =
@@ -226,7 +229,9 @@ class AdminMonitoringService(
 
     private fun payoutQueue(): PayoutQueueSnapshot =
         PayoutQueueSnapshot(
-            merchantPayoutCandidates = merchantSubOrders.countByStatusIn(setOf(MerchantSubOrderStatus.HANDED_TO_COURIER)),
+            merchantPayoutCandidates = settlements.countPayoutsByStatus(
+                setOf(MerchantPayoutStatus.Accrued, MerchantPayoutStatus.Eligible, MerchantPayoutStatus.Failed)
+            ),
             deliveryShortfallMissions = deliveryMissions.countByShortfallCfaGreaterThanAndStatusIn(
                 0,
                 setOf(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, DeliveryMissionRecordStatus.RELEASED_BY_RELAY)
