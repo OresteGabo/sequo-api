@@ -66,7 +66,7 @@ Not implemented yet:
 | [x] | Implemented | Courier picks up package | Pickup requires proof before package leaves seller. | `DeliveryMissionController` exposes pickup with proof and persists actor metadata. |
 | [x] | Implemented | Courier delivers to customer | Direct customer-address mission requires delivery proof/PIN. | `DeliveryMissionController` validates direct delivery PINs before delivery transitions and keeps the raw PIN out of responses. |
 | [x] | Implemented | Order becomes delivered | Delivery completion should set order delivered, open 72-hour return window, and notify customer/merchant. | `OrderDeliveryLifecycleService` marks persisted orders delivered from completed missions, opens the 72-hour return window, writes immutable order events, and publishes a notification outbox event for customer/merchant recipients. |
-| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | Settlement now persists merchant accruals, immutable ledger entries, idempotent delivery shortfalls/adjustments, secured payout reads, admin ledger inspection, and eligibility promotion; provider payout execution remains. |
+| [ ] | Partial | Settlement starts | Courier payable, shortfall, merchant payout timing, and return hold are posted. | Delivery completion now starts idempotent merchant payout accruals with a 72-hour return hold and immutable ledger entries. Settlement also persists delivery shortfalls/adjustments, secured payout reads, admin ledger inspection, and eligibility promotion; courier/relay payout posting and provider payout execution remain. |
 
 ## Happy Path: Relay Delivery
 
