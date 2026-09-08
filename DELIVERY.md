@@ -110,7 +110,7 @@ Not implemented yet:
 | [x] | Implemented | `merchant_sub_orders` | Seller acceptance/preparation/ready state per merchant. | Flyway table, JPA entity, repository, and service exist. |
 | [x] | Implemented | `delivery_missions` | Courier assignment, pickup, delivery, route, cost, proof. | `DeliveryMission`, `DeliveryMissionRepository`, and `DeliveryMissionService` persist assignments, statuses, proof metadata, relay release checks, and shortfall values. |
 | [x] | Implemented | `delivery_pins` | Direct delivery PIN validation and attempt control. | `DeliveryPinService` stores only hashed PINs and enforces expiry, one-time use, and a five-attempt limit; `/deliver` validates the PIN before the workflow transition. |
-| [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | `RelayParcelPersistenceService` persists parcel state and locker/source references; lifecycle scheduler and controllers remain. |
+| [ ] | Partial | `relay_parcels` | Parcel custody at relay, locker, delay, pickup/release. | `RelayParcelPersistenceService` persists parcel state, category, locker, and source references; lifecycle scheduler and controllers remain. |
 | [ ] | Partial | `relay_pickup_codes` | Hashed numeric/QR pickup credentials. | `RelayParcelPersistenceService` persists hashed numeric/QR credentials and usage counters; controllers remain. |
 | [ ] | Partial | `relay_custody_events` | Deposit, pickup, Sequo collection, lost/damaged evidence. | `RelayParcelPersistenceService` persists deposit and release events with actor and idempotency data; broader event handling remains. |
 | [ ] | Partial | `order_events` | Immutable audit trail for order and delivery state changes. | Target schema only. |
