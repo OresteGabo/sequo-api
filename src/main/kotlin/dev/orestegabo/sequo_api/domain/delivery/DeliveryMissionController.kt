@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -45,8 +46,8 @@ class DeliveryMissionController(
     fun offer(
         authentication: Authentication?,
         @PathVariable missionId: String,
-    ): ResponseEntity<Any> = adminOnly(authentication) {
-        service.transition(missionId, requireNotNull(authentication).name, DeliveryMissionEvent.OfferToCourier).toResponse()
+    ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
+        service.transition(missionId, authenticated.name, DeliveryMissionEvent.OfferToCourier).toResponse()
     }
 
     @PostMapping("/{missionId}/accept")
@@ -106,7 +107,7 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: RelayReleaseRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.RelayOperators) {
         service.transition(
             missionId = missionId,
             actorId = it,
@@ -123,18 +124,14 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProblemRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER, RoleCode.RELAY_PARTNER, RoleCode.SUPPORT_AGENT, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.DeliveryProblemReporters) {
         service.transition(missionId, it, DeliveryMissionEvent.ReportProblem, problemReason = request.reason).toResponse()
     }
 
-    private fun adminOnly(authentication: Authentication?, operation: () -> ResponseEntity<Any>): ResponseEntity<Any> =
+    private fun adminOnly(authentication: Authentication?, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
-        else if (!authentication.hasAnyRole(setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN))) ResponseEntity.status(403).build()
-        else try { operation() } catch (e: IllegalArgumentException) { badRequest(e) }
-
-    private fun actorRequired(userId: String?, operation: (String) -> ResponseEntity<Any>): ResponseEntity<Any> =
-        if (userId == null) ResponseEntity.status(401).build()
-        else try { operation(userId) } catch (e: IllegalArgumentException) { badRequest(e) }
+        else if (!authentication.hasAnyRole(RoleGroups.AdminOnly)) ResponseEntity.status(403).build()
+        else try { operation(authentication) } catch (e: IllegalArgumentException) { badRequest(e) }
 
     private fun roleActorRequired(
         authentication: Authentication?,
