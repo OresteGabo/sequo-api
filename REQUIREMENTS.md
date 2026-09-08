@@ -16,8 +16,8 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | Done | State | Area | Requirement | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [x] | Implemented | Pricing | Standard delivery price is 400 CFA for trips up to 5 km, then 100 CFA per extra rounded-up km. | `DeliveryPricingService` and tests cover the rule. |
-| [ ] | Partial | Pricing | Monthly subscribers receive percentage discounts on eligible delivery per-km fees. | Prime monthly discount exists in order pricing; subscription billing, tier persistence, and customer subscription APIs remain. |
-| [ ] | Partial | Pricing | Multi-year subscribers receive stronger loyalty discounts than monthly subscribers. | Multi-year discount policy exists; loyalty tenure rules and billing renewal are target-schema work. |
+| [x] | Implemented | Pricing | Monthly subscribers receive percentage discounts on eligible delivery per-km fees. | `SubscriptionBenefitsService` applies configurable tier discounts to eligible delivery modes, enforces monthly caps, and ignores inactive, expired, wrong-customer, or ineligible subscriptions. |
+| [x] | Implemented | Pricing | Multi-year subscribers receive stronger loyalty discounts than monthly subscribers. | `SubscriptionBenefitsService` applies configured loyalty multipliers after subscription discounts based on paid tenure, with per-order caps and renewal-state tests. |
 | [x] | Implemented | Delivery finance | If the customer delivery fee is lower than freelancer courier cost, Sequo pays the difference. | `DeliveryAssignmentPolicy` calculates `sequoShortfallCfa`; ledger persistence remains future settlement work. |
 | [x] | Implemented | Delivery assignment | Subscriber orders prefer Sequo salaried deliverers before freelancers. | `DeliveryAssignmentPolicy` selects salaried Sequo capacity first for subscriber orders. |
 | [x] | Implemented | Delivery assignment | Freelancers are the fallback when Sequo salaried capacity is unavailable. | Policy falls back to available freelancer capacity. |
@@ -100,7 +100,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 ### Priority 2 - Product and operations depth
 
-- [ ] Subscription billing tiers, renewal state, per-km discount caps, and multi-year loyalty multipliers.
+- [x] Subscription billing tiers, renewal state, per-km discount caps, and multi-year loyalty multipliers.
 - [x] Referral delivery credit wallet with expiry, non-cash constraints, and application only to delivery fees.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [x] Product media upload policy with live-camera metadata, generic catalog references, safe filename/content validation, moderation, and storage integration.
