@@ -79,6 +79,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 
 - [x] Production startup guardrails for missing JWT secrets, notification token encryption secrets, OAuth placeholders, wallet secrets, explicit CORS origins, and unsafe database configuration.
 - [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
+- [ ] Placeholder replacement tracker and production readiness check for fake URLs, provider IDs, local defaults, and test-only secrets.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
 - [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources.
 - [ ] Social identity linking table to safely handle Google login and password login for the same verified email.
