@@ -69,6 +69,7 @@ data class DeliveryMissionTransitionRequest(
     val event: DeliveryMissionEvent,
     val destinationType: DeliveryDestinationType,
     val proofProvided: Boolean = false,
+    val deliveryPinValidated: Boolean = false,
     val relayPickupCodeValidated: Boolean = false,
     val identityValidated: Boolean = false,
     val problemReason: String? = null,
@@ -255,7 +256,7 @@ class DeliveryMissionWorkflow {
         acceptedReason: String,
         rejectedReason: String,
     ): FulfillmentTransition<DeliveryMissionStatus> =
-        if (request.proofProvided) {
+        if (request.proofProvided || request.deliveryPinValidated) {
             accepted(nextStatus, acceptedReason)
         } else {
             rejected(request.currentStatus, rejectedReason)
