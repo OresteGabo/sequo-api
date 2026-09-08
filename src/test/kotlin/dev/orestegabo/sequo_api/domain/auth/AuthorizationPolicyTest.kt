@@ -52,7 +52,9 @@ class AuthorizationPolicyTest {
         assertFailsWith<IllegalArgumentException> {
             AuthorizationSubject(actorUserId = "user-1", roles = emptySet())
         }
-        assertEquals("Only admin or super admin can access administrative operations.", policy.decide(ProtectedResource.ADMIN_OPERATION, AuthorizationAction.READ, subject("user-1", RoleCode.CUSTOMER)).reason)
+        assertEquals("Only support, admin, or super admin can access administrative operations.", policy.decide(ProtectedResource.ADMIN_OPERATION, AuthorizationAction.READ, subject("user-1", RoleCode.CUSTOMER)).reason)
+        assertTrue(policy.decide(ProtectedResource.ADMIN_OPERATION, AuthorizationAction.READ, subject("support-1", RoleCode.SUPPORT_AGENT)).allowed)
+        assertFalse(policy.decide(ProtectedResource.ADMIN_OPERATION, AuthorizationAction.DELETE, subject("support-1", RoleCode.SUPPORT_AGENT)).allowed)
     }
 
     private fun subject(
