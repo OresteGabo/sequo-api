@@ -45,7 +45,7 @@ Not implemented yet:
 | [ ] | Partial | Express delivery | Non-subscriber express orders prefer freelance moto couriers. | `DeliveryAssignmentPolicy` implements selection; dispatch queue missing. |
 | [ ] | Partial | Subscriber delivery | Subscriber orders prefer salaried Sequo delivery capacity before freelancers. | `DeliveryAssignmentPolicy` implements selection; subscription persistence and dispatch integration missing. |
 | [ ] | Partial | Sequo direct delivery | Sequo salaried delivery capacity can handle priority or programmed deliveries without per-mission freelancer payable. | Assignment policy exists; payroll/capacity management missing. |
-| [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `OrderProcessing` marks consolidation; manifest, hub custody, and final dispatch missing. |
+| [ ] | Partial | Grouped Sequo consolidation | Multi-seller or programmed orders pass through Sequo and become one customer-facing package. | `SequoConsolidationService` validates seller packages, waits for readiness, records Sequo custody, and creates the final package ID; persistence, pickup missions, and final dispatch remain. |
 | [ ] | Partial | Point de Relai delivery | Eligible non-perishable package is deposited at relay and released to customer by code/QR plus ID validation. | `RelayParcelService` covers locker assignment, hashed pickup code/QR, relay scope, identity validation, one-time release, and custody event snapshots; repository/controllers remain. |
 | [ ] | Partial | Customer pickup/click collect | Customer pickup has zero delivery fee and requires seller readiness confirmation. | Pickup route pricing exists; pickup confirmation workflow missing. |
 | [ ] | Partial | Return relay intake | Returns are dropped at relay, collected by Sequo, then refunded after physical receipt. | Return docs/API/schema exist; service implementation missing. |
@@ -84,7 +84,7 @@ Not implemented yet:
 | Done | State | Step | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [ ] | Partial | Multi-seller checkout detected | Backend detects multiple sellers and marks consolidation required. | `OrderProcessing` does this. |
-| [ ] | Not implemented | Create consolidation manifest | API must create manifest with seller packages, Sequo hub custody, and final package ID. | Missing service/schema detail beyond target docs. |
+| [x] | Implemented | Create consolidation manifest | API must create manifest with seller packages, Sequo hub custody, and final package ID. | `SequoConsolidationService` models the manifest and validates unique seller entries, complete readiness, custody timestamp, and final package ID; repository/schema integration remains. |
 | [ ] | Not implemented | Sellers mark each sub-order ready | All merchants must accept and mark ready before Sequo pickup/consolidation. | Merchant workflow policy exists for one package; aggregate manifest workflow missing. |
 | [ ] | Not implemented | Sequo collects from sellers | Sequo/courier missions collect each seller package into consolidation custody. | Missing. |
 | [ ] | Not implemented | Final customer package dispatched | Consolidated package gets one final delivery or relay route. | Missing. |
