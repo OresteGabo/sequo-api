@@ -54,6 +54,6 @@ class AuthControllerRateLimitTest {
         assertEquals(429, blocked.statusCode.value())
         assertNotNull(blocked.headers["Retry-After"])
         assertEquals("rate_limited", blocked.body?.get("code"))
-        assertTrue(blocked.body?.get("message")!!.contains("Too many attempts"))
+        assertTrue(requireNotNull(blocked.body?.get("message")).contains("Too many attempts"))
     }
 }
