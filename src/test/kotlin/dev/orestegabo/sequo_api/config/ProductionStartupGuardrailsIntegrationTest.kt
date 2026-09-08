@@ -20,6 +20,11 @@ class ProductionStartupGuardrailsIntegrationTest {
                 "sequo.auth.google.client-id=google_dev_client_id",
                 "sequo.auth.facebook.app-id=facebook_dev_app_id",
                 "sequo.auth.apple.client-id=apple_dev_client_id",
+                "sequo.wallets.yas-togo.api-key=yas_togo_dev_api_key_2026_change_before_prod",
+                "sequo.wallets.yas-togo.webhook-secret=yas_togo_dev_webhook_secret_2026_change_before_prod",
+                "sequo.wallets.moov-africa.api-key=moov_africa_dev_api_key_2026_change_before_prod",
+                "sequo.wallets.moov-africa.webhook-secret=moov_africa_dev_webhook_secret_2026_change_before_prod",
+                "sequo.security.cors.allowed-origins=*",
                 "spring.datasource.url=jdbc:h2:mem:sequodb",
                 "spring.jpa.hibernate.ddl-auto=update",
                 "spring.h2.console.enabled=true",
@@ -29,6 +34,8 @@ class ProductionStartupGuardrailsIntegrationTest {
         val message = failure.fullMessage()
         assertTrue(message.contains("Unsafe production configuration"))
         assertTrue(message.contains("sequo.auth.jwt.secret"))
+        assertTrue(message.contains("sequo.wallets.yas-togo.api-key"))
+        assertTrue(message.contains("sequo.security.cors.allowed-origins"))
         assertTrue(message.contains("spring.datasource.url"))
     }
 
@@ -43,6 +50,11 @@ class ProductionStartupGuardrailsIntegrationTest {
                 "sequo.auth.google.client-id=google_docker_dev_client_id",
                 "sequo.auth.facebook.app-id=facebook_docker_dev_app_id",
                 "sequo.auth.apple.client-id=apple_docker_dev_client_id",
+                "sequo.wallets.yas-togo.api-key=yas_togo_dev_api_key_2026_change_before_prod",
+                "sequo.wallets.yas-togo.webhook-secret=yas_togo_dev_webhook_secret_2026_change_before_prod",
+                "sequo.wallets.moov-africa.api-key=moov_africa_dev_api_key_2026_change_before_prod",
+                "sequo.wallets.moov-africa.webhook-secret=moov_africa_dev_webhook_secret_2026_change_before_prod",
+                "sequo.security.cors.allowed-origins=*",
                 "spring.datasource.url=jdbc:h2:mem:sequodb",
                 "spring.jpa.hibernate.ddl-auto=update",
                 "spring.h2.console.enabled=true",
@@ -62,6 +74,11 @@ class ProductionStartupGuardrailsIntegrationTest {
             "sequo.auth.google.client-id=google_docker_dev_client_id",
             "sequo.auth.facebook.app-id=facebook_docker_dev_app_id",
             "sequo.auth.apple.client-id=apple_docker_dev_client_id",
+            "sequo.wallets.yas-togo.api-key=yas_togo_dev_api_key_2026_change_before_prod",
+            "sequo.wallets.yas-togo.webhook-secret=yas_togo_dev_webhook_secret_2026_change_before_prod",
+            "sequo.wallets.moov-africa.api-key=moov_africa_dev_api_key_2026_change_before_prod",
+            "sequo.wallets.moov-africa.webhook-secret=moov_africa_dev_webhook_secret_2026_change_before_prod",
+            "sequo.security.cors.allowed-origins=*",
             "spring.datasource.url=jdbc:postgresql://postgres:5432/sequo",
             "spring.jpa.hibernate.ddl-auto=validate",
             "spring.h2.console.enabled=false",
@@ -77,6 +94,11 @@ class ProductionStartupGuardrailsIntegrationTest {
             "sequo.auth.google.client-id=1234567890-sequo.apps.googleusercontent.com",
             "sequo.auth.facebook.app-id=123456789012345",
             "sequo.auth.apple.client-id=com.sequo.service.signin",
+            "sequo.wallets.yas-togo.api-key=realistic_yas_togo_api_key_2026_value_64_chars_minimum",
+            "sequo.wallets.yas-togo.webhook-secret=realistic_yas_togo_webhook_secret_2026_value_64_chars_minimum",
+            "sequo.wallets.moov-africa.api-key=realistic_moov_africa_api_key_2026_value_64_chars_minimum",
+            "sequo.wallets.moov-africa.webhook-secret=realistic_moov_africa_webhook_secret_2026_value_64_chars_minimum",
+            "sequo.security.cors.allowed-origins=https://app.sequo.example,https://admin.sequo.example",
             "spring.datasource.url=jdbc:postgresql://postgres:5432/sequo",
             "spring.jpa.hibernate.ddl-auto=validate",
             "spring.h2.console.enabled=false",
