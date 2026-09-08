@@ -3,7 +3,12 @@ package dev.orestegabo.sequo_api.domain.order
 import dev.orestegabo.sequo_api.domain.delivery.CreateMerchantSubOrderCommand
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderSnapshot
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
+import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
+import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
+import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -12,9 +17,24 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.time.Instant
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+
+enum class CustomerOrderStatus {
+    ACCEPTED_FOR_FULFILLMENT,
+    DELIVERED,
+    CANCELLED,
+    RETURN_REQUESTED,
+    REFUNDED,
+}
+
+enum class CustomerOrderEventType {
+    ACCEPTED_FOR_FULFILLMENT,
+    DELIVERED,
+    RETURN_WINDOW_OPENED,
+}
 
 @Entity
 @Table(name = "customer_orders")
@@ -34,9 +54,25 @@ class CustomerOrderRecord(
     @Column(name = "payment_reference", nullable = false) val paymentReference: String,
     @Column(name = "provider_reference") val providerReference: String?,
     @Enumerated(EnumType.STRING) @Column(name = "payment_status", nullable = false) val paymentStatus: PaymentValidationStatus,
+    @Enumerated(EnumType.STRING) @Column(name = "order_status", nullable = false) var orderStatus: CustomerOrderStatus,
+    @Column(name = "delivered_at") var deliveredAt: Instant? = null,
+    @Column(name = "return_window_ends_at") var returnWindowEndsAt: Instant? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
     @Version @Column(nullable = false) var version: Long = 0,
+)
+
+@Entity
+@Table(name = "order_events")
+class CustomerOrderEventRecord(
+    @Id val id: String,
+    @Column(name = "order_id", nullable = false) val orderId: String,
+    @Enumerated(EnumType.STRING) @Column(name = "event_type", nullable = false) val eventType: CustomerOrderEventType,
+    @Column(name = "source_type", nullable = false) val sourceType: String,
+    @Column(name = "source_id", nullable = false) val sourceId: String,
+    @Column(name = "actor_user_id") val actorUserId: String?,
+    @Column(nullable = true) val metadata: String?,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant,
 )
 
 @Entity
@@ -67,6 +103,10 @@ interface CustomerOrderLineRecordRepository : JpaRepository<CustomerOrderLineRec
     fun findByOrderIdOrderByLineIndexAsc(orderId: String): List<CustomerOrderLineRecord>
 }
 
+interface CustomerOrderEventRecordRepository : JpaRepository<CustomerOrderEventRecord, String> {
+    fun findByOrderIdOrderByCreatedAtAsc(orderId: String): List<CustomerOrderEventRecord>
+}
+
 data class PersistedOrderFulfillment(
     val order: CustomerOrderSnapshot,
     val lines: List<CustomerOrderLineSnapshot>,
@@ -89,6 +129,9 @@ data class CustomerOrderSnapshot(
     val paymentReference: String,
     val providerReference: String?,
     val paymentStatus: PaymentValidationStatus,
+    val orderStatus: CustomerOrderStatus,
+    val deliveredAt: Instant?,
+    val returnWindowEndsAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -110,6 +153,17 @@ data class CustomerOrderLineSnapshot(
     val lineIndex: Int,
 )
 
+data class CustomerOrderEventSnapshot(
+    val id: String,
+    val orderId: String,
+    val eventType: CustomerOrderEventType,
+    val sourceType: String,
+    val sourceId: String,
+    val actorUserId: String?,
+    val metadata: String?,
+    val createdAt: Instant,
+)
+
 data class OrderFulfillmentResponse(
     val processing: OrderProcessingResult.AcceptedForFulfillment,
     val fulfillment: PersistedOrderFulfillment,
@@ -119,6 +173,7 @@ data class OrderFulfillmentResponse(
 class OrderFulfillmentPersistenceService(
     private val orders: CustomerOrderRecordRepository,
     private val lines: CustomerOrderLineRecordRepository,
+    private val events: CustomerOrderEventRecordRepository,
     private val merchantFulfillment: MerchantFulfillmentService,
 ) {
     @Transactional
@@ -132,6 +187,18 @@ class OrderFulfillmentPersistenceService(
         if (existingOrder == null) {
             request.lines.mapIndexed { index, line -> line.toLineRecord(accepted.order.orderId, index, createdAt) }
                 .forEach(lines::save)
+            events.save(
+                CustomerOrderEventRecord(
+                    id = "${accepted.order.orderId}:accepted",
+                    orderId = accepted.order.orderId,
+                    eventType = CustomerOrderEventType.ACCEPTED_FOR_FULFILLMENT,
+                    sourceType = "CHECKOUT",
+                    sourceId = request.checkoutId,
+                    actorUserId = request.customerId,
+                    metadata = "Paid order accepted for merchant fulfillment.",
+                    createdAt = createdAt,
+                )
+            )
         }
         val merchantSubOrders = createMissingMerchantSubOrders(accepted.order.orderId, request.lines)
 
@@ -151,7 +218,97 @@ class OrderFulfillmentPersistenceService(
                 val subOrderCode = "$orderId:$merchantId"
                 merchantFulfillment.findBySubOrderCode(subOrderCode)
                     ?: merchantFulfillment.create(sellerLines.toSubOrderCommand(orderId, merchantId, subOrderCode))
-            }
+    }
+}
+
+@Service
+class OrderDeliveryLifecycleService(
+    private val orders: CustomerOrderRecordRepository,
+    private val lines: CustomerOrderLineRecordRepository,
+    private val events: CustomerOrderEventRecordRepository,
+    private val publisher: ApplicationEventPublisher,
+) {
+    private val objectMapper = ObjectMapper()
+
+    @Transactional
+    fun markDeliveredFromMission(
+        mission: DeliveryMissionSnapshot,
+        actorUserId: String,
+        deliveredAt: Instant = mission.deliveredAt ?: Instant.now(),
+    ): CustomerOrderSnapshot? {
+        if (mission.status !in deliveryTerminalStatuses) return null
+        val order = orders.findById(mission.orderId).orElse(null) ?: return null
+        if (order.orderStatus == CustomerOrderStatus.DELIVERED) return order.toSnapshot()
+
+        val returnWindowEndsAt = deliveredAt.plusSeconds(72 * 60 * 60)
+        order.orderStatus = CustomerOrderStatus.DELIVERED
+        order.deliveredAt = deliveredAt
+        order.returnWindowEndsAt = returnWindowEndsAt
+        order.updatedAt = deliveredAt
+        val saved = orders.save(order)
+
+        saveEvent(
+            CustomerOrderEventRecord(
+                id = "${order.id}:delivered:${mission.id}",
+                orderId = order.id,
+                eventType = CustomerOrderEventType.DELIVERED,
+                sourceType = "DELIVERY_MISSION",
+                sourceId = mission.id,
+                actorUserId = actorUserId,
+                metadata = "Delivery mission ${mission.deliveryCode} completed.",
+                createdAt = deliveredAt,
+            )
+        )
+        saveEvent(
+            CustomerOrderEventRecord(
+                id = "${order.id}:return-window:${mission.id}",
+                orderId = order.id,
+                eventType = CustomerOrderEventType.RETURN_WINDOW_OPENED,
+                sourceType = "DELIVERY_MISSION",
+                sourceId = mission.id,
+                actorUserId = actorUserId,
+                metadata = "Return window ends at $returnWindowEndsAt.",
+                createdAt = deliveredAt,
+            )
+        )
+        publisher.publishEvent(saved.deliveryNotificationEvent(mission, lines.findByOrderIdOrderByLineIndexAsc(order.id)))
+        return saved.toSnapshot()
+    }
+
+    @Transactional(readOnly = true)
+    fun listEvents(orderId: String): List<CustomerOrderEventSnapshot> {
+        require(orderId.isNotBlank()) { "orderId is required." }
+        return events.findByOrderIdOrderByCreatedAtAsc(orderId).map { it.toSnapshot() }
+    }
+
+    private fun saveEvent(event: CustomerOrderEventRecord) {
+        if (!events.existsById(event.id)) events.save(event)
+    }
+
+    private fun CustomerOrderRecord.deliveryNotificationEvent(
+        mission: DeliveryMissionSnapshot,
+        orderLines: List<CustomerOrderLineRecord>,
+    ): NotificationWorkflowEvent =
+        NotificationWorkflowEvent(
+            eventId = "${id}:delivery-completed",
+            eventType = NotificationEventType.DIRECT_DELIVERED,
+            aggregateType = "ORDER",
+            aggregateId = id,
+            payload = objectMapper.writeValueAsString(
+                mapOf(
+                    "customerUserId" to customerId,
+                    "merchantUserIds" to orderLines.map { it.sellerId }.distinct(),
+                    "title" to "Order delivered",
+                    "body" to "Order $id was delivered. The return window is open for 72 hours.",
+                    "actionUrl" to "/orders/$id",
+                    "messagePayload" to mapOf(
+                        "orderId" to id,
+                        "deliveryMissionId" to mission.id,
+                        "returnWindowEndsAt" to returnWindowEndsAt.toString(),
+                    ),
+                )
+            ),
+        )
 }
 
 private fun OrderProcessingResult.AcceptedForFulfillment.toOrderRecord(
@@ -173,6 +330,9 @@ private fun OrderProcessingResult.AcceptedForFulfillment.toOrderRecord(
     paymentReference = request.paymentReference,
     providerReference = order.payment.providerReference,
     paymentStatus = order.payment.status,
+    orderStatus = CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT,
+    deliveredAt = null,
+    returnWindowEndsAt = null,
     createdAt = createdAt,
     updatedAt = createdAt,
 )
@@ -241,6 +401,9 @@ private fun CustomerOrderRecord.toSnapshot() = CustomerOrderSnapshot(
     paymentReference = paymentReference,
     providerReference = providerReference,
     paymentStatus = paymentStatus,
+    orderStatus = orderStatus,
+    deliveredAt = deliveredAt,
+    returnWindowEndsAt = returnWindowEndsAt,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
@@ -260,4 +423,20 @@ private fun CustomerOrderLineRecord.toSnapshot() = CustomerOrderLineSnapshot(
     lineTotalCfa = lineTotalCfa,
     photoEvidenceType = photoEvidenceType,
     lineIndex = lineIndex,
+)
+
+private fun CustomerOrderEventRecord.toSnapshot() = CustomerOrderEventSnapshot(
+    id = id,
+    orderId = orderId,
+    eventType = eventType,
+    sourceType = sourceType,
+    sourceId = sourceId,
+    actorUserId = actorUserId,
+    metadata = metadata,
+    createdAt = createdAt,
+)
+
+private val deliveryTerminalStatuses = setOf(
+    DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER,
+    DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
 )
