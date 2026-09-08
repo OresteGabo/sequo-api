@@ -98,6 +98,16 @@ class SettlementPersistenceService(
     }
 
     @Transactional
+    fun postRelayStorageFee(command: RelayStorageFeeLedgerCommand): SettlementResult {
+        if (ledger.existsById(command.entryId)) {
+            return SettlementResult.Posted(ledger.findById(command.entryId).orElseThrow().toDomain())
+        }
+        val result = domain.postRelayStorageFee(command)
+        if (result is SettlementResult.Posted && result.entry != null) ledger.save(result.entry.toRecord())
+        return result
+    }
+
+    @Transactional
     fun adjust(command: SettlementAdjustmentCommand): SettlementResult {
         if (ledger.existsById(command.adjustmentEntryId)) {
             return SettlementResult.Posted(ledger.findById(command.adjustmentEntryId).orElseThrow().toDomain())
