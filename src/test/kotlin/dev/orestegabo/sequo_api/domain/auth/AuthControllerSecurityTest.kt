@@ -54,9 +54,9 @@ class AuthControllerSecurityTest {
         )
 
         assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body!!["message"]!!.contains("If the account exists"))
-        assertTrue("token" !in response.body!!.keys)
+        val body = requireNotNull(response.body)
+        assertTrue(requireNotNull(body["message"]).contains("If the account exists"))
+        assertTrue("token" !in body.keys)
     }
 
     @Test
@@ -66,9 +66,9 @@ class AuthControllerSecurityTest {
         )
 
         assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body!!["message"]!!.contains("If the account exists"))
-        assertTrue("token" !in response.body!!.keys)
+        val body = requireNotNull(response.body)
+        assertTrue(requireNotNull(body["message"]).contains("If the account exists"))
+        assertTrue("token" !in body.keys)
     }
 
     @Test
