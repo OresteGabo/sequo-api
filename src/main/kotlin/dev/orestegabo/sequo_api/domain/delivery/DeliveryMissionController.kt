@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -52,7 +54,7 @@ class DeliveryMissionController(
         authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
         service.transition(missionId, it, DeliveryMissionEvent.CourierAccepts).toResponse()
     }
 
@@ -62,7 +64,7 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
         service.transition(missionId, it, DeliveryMissionEvent.CourierPicksUpFromSeller, proof = request.proofMetadata).toResponse()
     }
 
@@ -72,7 +74,7 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
         val pinValidated = request.deliveryPin?.takeIf(String::isNotBlank)?.let { rawPin ->
             when (val result = pinService.verify(missionId, rawPin)) {
                 is DeliveryPinResult.Accepted -> true
@@ -94,7 +96,7 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER")) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
         service.transition(missionId, it, DeliveryMissionEvent.CourierDepositsAtRelay, proof = request.proofMetadata).toResponse()
     }
 
@@ -104,7 +106,7 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: RelayReleaseRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_RELAY_PARTNER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.RELAY_PARTNER, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
         service.transition(
             missionId = missionId,
             actorId = it,
@@ -121,13 +123,13 @@ class DeliveryMissionController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable missionId: String,
         @RequestBody request: ProblemRequest,
-    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf("ROLE_COURIER", "ROLE_RELAY_PARTNER", "ROLE_SUPPORT_AGENT", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")) {
+    ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER, RoleCode.RELAY_PARTNER, RoleCode.SUPPORT_AGENT, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)) {
         service.transition(missionId, it, DeliveryMissionEvent.ReportProblem, problemReason = request.reason).toResponse()
     }
 
     private fun adminOnly(authentication: Authentication?, operation: () -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
-        else if (authentication.authorities.none { it.authority in setOf("ROLE_ADMIN", "ROLE_SUPER_ADMIN") }) ResponseEntity.status(403).build()
+        else if (!authentication.hasAnyRole(setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN))) ResponseEntity.status(403).build()
         else try { operation() } catch (e: IllegalArgumentException) { badRequest(e) }
 
     private fun actorRequired(userId: String?, operation: (String) -> ResponseEntity<Any>): ResponseEntity<Any> =
@@ -137,11 +139,11 @@ class DeliveryMissionController(
     private fun roleActorRequired(
         authentication: Authentication?,
         userId: String?,
-        roles: Set<String>,
+        roles: Set<RoleCode>,
         operation: (String) -> ResponseEntity<Any>,
     ): ResponseEntity<Any> =
         if (authentication == null || userId == null) ResponseEntity.status(401).build()
-        else if (authentication.authorities.none { it.authority in roles }) ResponseEntity.status(403).build()
+        else if (!authentication.hasAnyRole(roles)) ResponseEntity.status(403).build()
         else try { operation(userId) } catch (e: IllegalArgumentException) { badRequest(e) }
 
     private fun badRequest(error: IllegalArgumentException): ResponseEntity<Any> =
