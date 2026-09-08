@@ -72,6 +72,12 @@ class MerchantSubOrder(
     @Column(name = "rejection_reason", length = 500)
     var rejectionReason: String? = null,
 
+    @Column(name = "seller_response_due_at")
+    val sellerResponseDueAt: Instant? = null,
+
+    @Column(name = "packing_due_at")
+    val packingDueAt: Instant? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 
