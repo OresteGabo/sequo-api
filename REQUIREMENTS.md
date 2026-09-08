@@ -52,7 +52,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Catalog media | Seller-specific product photos should be real-time camera captures, not gallery or web images. | `ProductPhotoEvidence` rejects gallery uploads for seller-specific goods; `ProductMediaPolicyService` validates live-camera metadata, safe filenames, image signatures, hashes, moderation, and storage handoff. |
 | [x] | Implemented | Catalog media | Generic sealed products can use reference/catalog images. | `GenericCatalogImage` is accepted only for `GenericSealedItem`. |
 | [x] | Implemented | Food catalog | Food items need toppings/customizations/options. | `FoodCustomizationService` validates required/optional choices, price deltas, unavailable options, and order snapshots with focused tests. |
-| [ ] | Partial | Returns | Customers drop returns at Point de Relai; Sequo later collects them. | Return and relay docs/schema exist; return intake service remains. |
+| [x] | Implemented | Returns | Customers drop returns at Point de Relai; Sequo later collects them. | `ReturnProcessingService` validates the return PIN at relay drop-off, records Sequo physical receipt with condition/responsibility data, and keeps refund blocked until receipt; repository/controller integration remains. |
 | [x] | Implemented | Returns | Return window is 72 hours after delivery/customer receipt. | `ReturnProcessingService` accepts requests at exactly 72 hours, rejects late requests, and has focused tests. |
 | [ ] | Partial | Refunds | Refund is triggered only after Sequo physically receives the returned item. | `ReturnProcessingService` blocks refund before physical receipt and handles idempotent refund trigger; wallet provider execution remains. |
 | [x] | Implemented | Settlements | Merchant payout should happen within 1 week after Sequo receives package/custody. | `SettlementLedgerService` accrues merchant payout after delivery/pickup/Sequo custody, calculates due-by within 7 days, applies return/dispute holds, and emits immutable ledger snapshots. Provider payout execution remains future integration work. |
@@ -92,7 +92,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Firebase Admin SDK adapter with stale-token pruning, retries, and provider delivery audit.
 - [ ] WebSocket/STOMP runtime with JWT handshake, authorized subscriptions, and mobile active-session tracking.
 - [x] Bargaining service with 3-attempt limit, accepted lock TTL, historical minimum price records, and merchant toggle enforcement.
-- [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow.
+- [ ] Relay parcel service with locker assignment, hashed pickup codes, QR payloads, ID validation events, delayed parcel fees, and return-to-seller workflow. Locker/credential/delay domain behavior is implemented; persistence, scheduler, fees, and return-to-seller automation remain.
 - [x] Cooperative request/approval workflow where sellers can request a cooperative and Sequo validates it.
 - [x] Return eligibility service enforcing 72-hour window, relay drop-off, Sequo physical receipt, and refund trigger idempotency.
 - [ ] Settlement scheduler for merchant payout eligibility within 1 week and shortfall ledger posting. Domain accrual, eligibility, adjustment, and shortfall ledger decisions are implemented; repository-backed scheduler remains.
