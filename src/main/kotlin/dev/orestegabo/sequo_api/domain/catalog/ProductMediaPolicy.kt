@@ -4,6 +4,19 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.Locale
 
+private val SAFE_IDENTIFIER_REGEX = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+
+private fun String.isSafeIdentifier(): Boolean =
+    matches(SAFE_IDENTIFIER_REGEX) && ".." !in this
+
+private fun String.isSafeStorageKey(): Boolean =
+    isNotBlank() &&
+        none { it.isISOControl() } &&
+        !startsWith("/") &&
+        "\\" !in this &&
+        ".." !in split("/") &&
+        split("/").all { it.isNotBlank() && it.isSafeIdentifier() }
+
 enum class CatalogProductKind {
     SellerSpecific,
     GenericSealedItem,
@@ -101,6 +114,8 @@ data class StoredProductMedia(
     init {
         require(storageKey.isNotBlank()) { "storageKey is required." }
         require(publicUrl.isNotBlank()) { "publicUrl is required." }
+        require(storageKey.isSafeStorageKey()) { "storageKey must be a relative safe object key." }
+        require(publicUrl.startsWith("https://")) { "publicUrl must use HTTPS." }
     }
 }
 
@@ -143,6 +158,9 @@ class ProductMediaPolicyService(
     fun accept(submission: ProductMediaSubmission): ProductMediaUploadResult {
         if (submission.productId.isBlank()) {
             return rejected("missing_product_id", "Product id is required.")
+        }
+        if (!submission.productId.isSafeIdentifier()) {
+            return rejected("unsafe_product_id", "Product id contains unsupported characters.")
         }
 
         return when (submission) {
@@ -196,6 +214,9 @@ class ProductMediaPolicyService(
         }
         if (submission.catalogImageId.isBlank()) {
             return rejected("missing_catalog_image_id", "Catalog image id is required.")
+        }
+        if (!submission.catalogImageId.isSafeIdentifier()) {
+            return rejected("unsafe_catalog_image_id", "Catalog image id contains unsupported characters.")
         }
         val sourceUrl = submission.sourceUrl?.trim()
         if (sourceUrl != null && !sourceUrl.startsWith("https://")) {
