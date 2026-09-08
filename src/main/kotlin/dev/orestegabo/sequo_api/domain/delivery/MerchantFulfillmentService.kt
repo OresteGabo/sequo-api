@@ -31,6 +31,10 @@ data class MerchantSubOrderSnapshot(
     val orderId: String,
     val merchantId: String,
     val status: MerchantSubOrderStatus,
+    val itemSubtotalCfa: Int,
+    val commissionRateBps: Int,
+    val commissionCfa: Int,
+    val merchantNetCfa: Int,
     val packageCount: Int,
     val acceptedAt: Instant?,
     val preparingAt: Instant?,
@@ -93,6 +97,12 @@ class MerchantFulfillmentService(
         )
 
         return repository.save(subOrder).toSnapshot()
+    }
+
+    @Transactional(readOnly = true)
+    fun findBySubOrderCode(subOrderCode: String): MerchantSubOrderSnapshot? {
+        require(subOrderCode.isNotBlank()) { "subOrderCode cannot be blank." }
+        return repository.findBySubOrderCode(subOrderCode)?.toSnapshot()
     }
 
     @Transactional(readOnly = true)
@@ -296,6 +306,10 @@ private fun MerchantSubOrder.toSnapshot(): MerchantSubOrderSnapshot =
         orderId = orderId,
         merchantId = merchantId,
         status = status,
+        itemSubtotalCfa = itemSubtotalCfa,
+        commissionRateBps = commissionRateBps,
+        commissionCfa = commissionCfa,
+        merchantNetCfa = merchantNetCfa,
         packageCount = packageCount,
         acceptedAt = acceptedAt,
         preparingAt = preparingAt,
