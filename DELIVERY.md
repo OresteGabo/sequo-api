@@ -134,7 +134,7 @@ Not implemented yet:
 | [x] | Implemented | Courier mission ownership checks | A courier must not pickup/deliver another courier's assigned mission. | `DeliveryMissionService` rejects accept, pickup, delivery, relay deposit, and problem updates from a non-assigned courier. |
 | [x] | Implemented | Relay scope checks | `RelayParcelService` rejects release when the relay actor is operating on another relay point's parcel. |
 | [x] | Implemented | One-time pickup/delivery credentials | Relay pickup credentials and direct delivery PINs are one-time, hashed, expiring, and attempt-limited, with direct PIN validation integrated into `/deliver`. |
-| [ ] | Not implemented | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. |
+| [ ] | Partial | Proof tamper controls | Proof photos, GPS hints, timestamps, and actor ID must be immutable after submission. | Proof actor IDs and timestamps are persisted separately for pickup, relay deposit, and customer drop-off; service transitions reject duplicate proof submissions, while database-level audit/immutability remains. |
 | [ ] | Partial | Idempotency | Relay release is idempotent by key in `RelayParcelService`; pickup, delivery, and problem endpoints remain. |
 
 ## Recommended Implementation Order
