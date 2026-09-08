@@ -29,18 +29,13 @@ class DomainConfig {
 
     @Bean
     fun paymentProcessor(): PaymentProcessor {
-        // Mock handlers - in production, these would call the actual carrier APIs
         val yasTogo = YasTogoPaymentMethod(
-            validateHandler = { req -> 
-                PaymentValidationResult.validated("YAS-${req.paymentReference}") 
-            }
+            validateHandler = { PaymentValidationResult.pending("Yas Togo payment validation adapter is not configured.") }
         )
         val moovAfrica = MoovAfricaPaymentMethod(
-            validateHandler = { req -> 
-                PaymentValidationResult.validated("MOOV-${req.paymentReference}") 
-            }
+            validateHandler = { PaymentValidationResult.pending("Moov Africa payment validation adapter is not configured.") }
         )
-        
+
         return PaymentProcessor(listOf(yasTogo, moovAfrica))
     }
 }
