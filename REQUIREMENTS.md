@@ -34,7 +34,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 | [x] | Implemented | Bargaining | Accepted minimum price locks for 24 hours. | `BargainingService` creates accepted price locks for merchant-accepted offers and customer-accepted counters, with 24-hour expiry tests. Checkout consumption remains future integration work. |
 | [x] | Implemented | Bargaining | Track historical minimum accepted prices. | `BargainingService` stores historical minimum accepted prices on the session model and keeps them after lock expiry; persistence remains future repository work. |
 | [x] | Implemented | Bargaining | Merchant can disable bargaining per product. | `BargainingService` enforces `bargainingEnabled=false`; product controller wiring remains future API work. |
-| [ ] | Partial | Apps and roles | Support separate customer, seller, courier, and future relay apps against one API. | Roles are documented; RBAC, scoped permissions, and app-specific claims remain incomplete. |
+| [ ] | Partial | Apps and roles | Support separate customer, seller, courier, and future relay apps against one API. | Delivery mission routes now enforce courier, relay, support, and admin roles; broader scoped permissions and app-specific claims remain incomplete. |
 | [ ] | Partial | Admin operations | Admin can use a web monitoring surface instead of a desktop app. | Monitoring endpoints are now specified; implementation remains. |
 | [x] | Implemented | Relay logistics | Point de Relai is not allowed for food or perishable products. | `OrderProcessing` rejects relay routing and `RelayParcelPolicy` rejects relay pickup for food/perishable lines. |
 | [ ] | Partial | Relay logistics | Customers can choose relay pickup for eligible deliveries. | `PointDeRelai` route, relay release policy, and relay parcel migration exist; relay availability, assignment service, and customer pickup service remain. |
@@ -81,7 +81,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
 - [x] Placeholder replacement tracker and production readiness check for fake URLs, provider IDs, local defaults, and test-only secrets.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
-- [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources. `AuthorizationPolicy` now centralizes role, ownership, merchant-scope, assignment, and financial-access decisions; controller integration and persisted permissions remain.
+- [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources. `AuthorizationPolicy` now centralizes role, ownership, merchant-scope, assignment, and financial-access decisions; delivery mission controller role/ownership checks are integrated, while broader controller integration and persisted permissions remain.
 - [ ] Social identity linking table to safely handle Google login and password login for the same verified email. `AuthService` now reads and records provider-subject links while preserving explicit e-mail account-link rejection; explicit user-driven linking and migration of legacy rows remain.
 - [ ] Flyway migrations for roles, refresh sessions, social identities, and audit logs.
 
