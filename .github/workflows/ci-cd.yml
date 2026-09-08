@@ -30,6 +30,7 @@ jobs:
     env:
       SPRING_PROFILES_ACTIVE: test
       JWT_SECRET: ci_only_sequo_auth_secret_2026_change_me
+      NOTIFICATION_TOKEN_ENCRYPTION_SECRET: ci_only_sequo_notification_secret_2026_change_me
       GOOGLE_CLIENT_ID: ci_google_client_id
       FACEBOOK_APP_ID: ci_facebook_app_id
       APPLE_CLIENT_ID: ci_apple_client_id
@@ -121,7 +122,9 @@ jobs:
       SPRING_DATASOURCE_USERNAME: sequo
       SPRING_DATASOURCE_PASSWORD: sequo_test_password
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SEQUO_ALLOW_DEV_DEFAULTS: true
       JWT_SECRET: ci_only_sequo_auth_secret_2026_change_me
+      NOTIFICATION_TOKEN_ENCRYPTION_SECRET: ci_only_sequo_notification_secret_2026_change_me
       GOOGLE_CLIENT_ID: ci_google_client_id
       FACEBOOK_APP_ID: ci_facebook_app_id
       APPLE_CLIENT_ID: ci_apple_client_id
