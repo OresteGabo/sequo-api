@@ -90,6 +90,9 @@ class RelayParcelPersistenceService(
             .toList()
 
     @Transactional
+    fun save(parcel: RelayParcel): RelayParcel = parcels.save(parcel.toRecord()).toDomain()
+
+    @Transactional
     fun saveCreated(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
         parcels.save(parcel.toRecord())
         result.value.event?.let { events.save(it.toRecord()) }
@@ -187,6 +190,13 @@ class RelayParcelApplicationService(
         require(relayPointId.isNotBlank()) { "relayPointId is required." }
         return persistence.listParcels(relayPointId, status)
     }
+
+    @Transactional
+    fun evaluateDelayed(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcel> =
+        persistence.listParcels(relayPointId)
+            .map { parcel -> domain.markDelayedIfNeeded(parcel, evaluatedAt) }
+            .filter { it.status == RelayParcelStatus.Delayed || it.status == RelayParcelStatus.ReturnToSellerReview }
+            .map(persistence::save)
 }
 
 private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
