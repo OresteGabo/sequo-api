@@ -55,6 +55,23 @@ class DeliveryMission(
     }
 }
 
+@Entity
+@Table(name = "delivery_mission_idempotency_keys")
+class DeliveryMissionIdempotencyKey(
+    @Id @GeneratedValue(strategy = GenerationType.UUID) val id: String? = null,
+    @Column(name = "idempotency_key", nullable = false, unique = true, length = 128) val idempotencyKey: String,
+    @Column(name = "mission_id", nullable = false) val missionId: String,
+    @Column(name = "actor_user_id", nullable = false) val actorUserId: String,
+    @Enumerated(EnumType.STRING) @Column(name = "event_type", nullable = false, length = 64) val eventType: DeliveryMissionEvent,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant,
+) {
+    init {
+        require(idempotencyKey.isNotBlank() && idempotencyKey.length <= 128) { "Idempotency key must be 1-128 characters." }
+        require(missionId.isNotBlank()) { "missionId cannot be blank." }
+        require(actorUserId.isNotBlank()) { "actorUserId cannot be blank." }
+    }
+}
+
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
     fun findByMerchantSubOrderId(merchantSubOrderId: String): DeliveryMission?
@@ -76,6 +93,10 @@ interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
         statuses: Collection<DeliveryMissionRecordStatus>,
     ): Long
     fun findTop20ByStatusInOrderByUpdatedAtDesc(statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
+}
+
+interface DeliveryMissionIdempotencyKeyRepository : JpaRepository<DeliveryMissionIdempotencyKey, String> {
+    fun findByIdempotencyKey(idempotencyKey: String): DeliveryMissionIdempotencyKey?
 }
 
 data class CreateDeliveryMissionCommand(
@@ -143,6 +164,7 @@ sealed class DeliveryMissionServiceResult {
 @Service
 class DeliveryMissionService(
     private val repository: DeliveryMissionRepository,
+    private val idempotencyKeys: DeliveryMissionIdempotencyKeyRepository,
     private val workflow: DeliveryMissionWorkflow,
 ) {
     @Transactional(readOnly = true)
@@ -275,6 +297,59 @@ class DeliveryMissionService(
             return rejected("invalid_mission_transition", "Only customer-address missions can be delivered directly.")
         }
         return success(mission, "Direct delivery attempt can proceed.")
+    }
+
+    @Transactional
+    fun transitionIdempotent(
+        missionId: String,
+        actorId: String,
+        event: DeliveryMissionEvent,
+        idempotencyKey: String?,
+        proof: String? = null,
+        deliveryPinValidated: Boolean = false,
+        relayPickupValidated: Boolean = false,
+        identityValidated: Boolean = false,
+        problemReason: String? = null,
+        at: Instant = Instant.now(),
+    ): DeliveryMissionServiceResult {
+        if (idempotencyKey.isNullOrBlank()) {
+            return transition(missionId, actorId, event, proof, deliveryPinValidated, relayPickupValidated, identityValidated, problemReason, at)
+        }
+        replayIdempotentOperation(missionId, actorId, event, idempotencyKey)?.let { return it }
+
+        val result = transition(missionId, actorId, event, proof, deliveryPinValidated, relayPickupValidated, identityValidated, problemReason, at)
+        if (result is DeliveryMissionServiceResult.Success) {
+            idempotencyKeys.save(
+                DeliveryMissionIdempotencyKey(
+                    idempotencyKey = idempotencyKey,
+                    missionId = missionId,
+                    actorUserId = actorId,
+                    eventType = event,
+                    createdAt = at,
+                )
+            )
+        }
+        return result
+    }
+
+    @Transactional(readOnly = true)
+    fun replayIdempotentOperation(
+        missionId: String,
+        actorId: String,
+        event: DeliveryMissionEvent,
+        idempotencyKey: String?,
+    ): DeliveryMissionServiceResult? {
+        if (idempotencyKey.isNullOrBlank()) return null
+        if (idempotencyKey.length > 128) {
+            return rejected("invalid_idempotency_key", "Idempotency key must be 1-128 characters.")
+        }
+        val existing = idempotencyKeys.findByIdempotencyKey(idempotencyKey) ?: return null
+        if (existing.missionId != missionId || existing.eventType != event || existing.actorUserId != actorId) {
+            return rejected("idempotency_key_conflict", "Idempotency key was already used for a different delivery operation.")
+        }
+        val mission = find(existing.missionId)
+            ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        return success(mission, "Idempotent delivery operation replayed.")
     }
 
     @Transactional
