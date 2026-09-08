@@ -36,6 +36,7 @@ class RelayParcelController(
         val idempotencyKey: String,
     )
     data class ProblemRequest(val eventId: String, val idempotencyKey: String, val metadata: String)
+    data class StorageFeeAssessmentRequest(val relayPointId: String, val dailyFeeCfa: Int, val evaluatedAt: Instant = Instant.now())
     data class ParcelResponse(
         val id: String,
         val relayPointId: String,
@@ -121,6 +122,22 @@ class RelayParcelController(
         @RequestBody request: ProblemRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
         service.reportProblem(parcelId, authenticated.name, request.eventId, request.idempotencyKey, request.metadata).toResponse()
+    }
+
+    @PostMapping("/storage-fees/assess")
+    fun assessStorageFees(
+        authentication: Authentication?,
+        @RequestBody request: StorageFeeAssessmentRequest,
+    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) {
+        ResponseEntity.ok(service.assessStorageFees(request.relayPointId, request.dailyFeeCfa, request.evaluatedAt))
+    }
+
+    @GetMapping("/storage-fees")
+    fun listStorageFees(
+        authentication: Authentication?,
+        @RequestParam relayPointId: String,
+    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) {
+        ResponseEntity.ok(service.listStorageFeeAssessments(relayPointId))
     }
 
     private fun roleRequired(authentication: Authentication?, roles: Set<RoleCode>, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
