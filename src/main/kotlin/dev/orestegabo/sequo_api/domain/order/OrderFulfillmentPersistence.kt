@@ -1,13 +1,17 @@
 package dev.orestegabo.sequo_api.domain.order
 
 import dev.orestegabo.sequo_api.domain.delivery.CreateMerchantSubOrderCommand
-import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
-import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderSnapshot
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
+import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
+import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
+import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderSnapshot
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
+import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualCommand
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import dev.orestegabo.sequo_api.domain.settlement.SettlementWorkflowType
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -226,6 +230,8 @@ class OrderDeliveryLifecycleService(
     private val orders: CustomerOrderRecordRepository,
     private val lines: CustomerOrderLineRecordRepository,
     private val events: CustomerOrderEventRecordRepository,
+    private val merchantSubOrders: MerchantSubOrderRepository,
+    private val settlements: SettlementPersistenceService,
     private val publisher: ApplicationEventPublisher,
 ) {
     private val objectMapper = ObjectMapper()
@@ -238,7 +244,10 @@ class OrderDeliveryLifecycleService(
     ): CustomerOrderSnapshot? {
         if (mission.status !in deliveryTerminalStatuses) return null
         val order = orders.findById(mission.orderId).orElse(null) ?: return null
-        if (order.orderStatus == CustomerOrderStatus.DELIVERED) return order.toSnapshot()
+        if (order.orderStatus == CustomerOrderStatus.DELIVERED) {
+            accrueMerchantPayouts(order, order.deliveredAt ?: deliveredAt)
+            return order.toSnapshot()
+        }
 
         val returnWindowEndsAt = deliveredAt.plusSeconds(72 * 60 * 60)
         order.orderStatus = CustomerOrderStatus.DELIVERED
@@ -271,6 +280,7 @@ class OrderDeliveryLifecycleService(
                 createdAt = deliveredAt,
             )
         )
+        accrueMerchantPayouts(saved, deliveredAt)
         publisher.publishEvent(saved.deliveryNotificationEvent(mission, lines.findByOrderIdOrderByLineIndexAsc(order.id)))
         return saved.toSnapshot()
     }
@@ -283,6 +293,26 @@ class OrderDeliveryLifecycleService(
 
     private fun saveEvent(event: CustomerOrderEventRecord) {
         if (!events.existsById(event.id)) events.save(event)
+    }
+
+    private fun accrueMerchantPayouts(order: CustomerOrderRecord, deliveredAt: Instant) {
+        merchantSubOrders.findByOrderId(order.id).forEach { subOrder ->
+            val subOrderId = checkNotNull(subOrder.id) { "Persisted merchant sub-order id is required for settlement." }
+            settlements.accrueMerchantPayout(
+                MerchantPayoutAccrualCommand(
+                    accrualId = "${order.id}:merchant-payout:$subOrderId",
+                    merchantId = subOrder.merchantId,
+                    orderId = order.id,
+                    sourceOrderItemId = subOrderId,
+                    merchantNetCfa = subOrder.merchantNetCfa,
+                    commissionCfa = subOrder.commissionCfa,
+                    platformMarginCfa = 0,
+                    packageReceivedAt = deliveredAt,
+                    workflowType = SettlementWorkflowType.DeliveryConfirmed,
+                    activeReturnHold = true,
+                )
+            )
+        }
     }
 
     private fun CustomerOrderRecord.deliveryNotificationEvent(
