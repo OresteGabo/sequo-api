@@ -1,0 +1,98 @@
+package dev.orestegabo.sequo_api.domain.operations
+
+import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
+import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorkerRunResult
+import dev.orestegabo.sequo_api.domain.relay.RelayParcel
+import dev.orestegabo.sequo_api.domain.relay.RelayParcelApplicationService
+import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrual
+import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import java.time.Instant
+import java.util.UUID
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Component
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.notifications.outbox-worker",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class NotificationOutboxScheduler(
+    private val worker: NotificationOutboxWorker,
+    @Value("\${sequo.notifications.outbox-worker.limit:20}") private val limit: Int,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+    private val workerId = "notification-outbox-${UUID.randomUUID()}"
+
+    @Scheduled(fixedDelayString = "\${sequo.notifications.outbox-worker.fixed-delay-ms:30000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): NotificationOutboxWorkerRunResult {
+        val result = worker.dispatchReady(workerId = workerId, limit = limit.coerceIn(1, 100))
+        if (result.claimedEvents > 0 || result.failedEventIds.isNotEmpty()) {
+            logger.info(
+                "Notification outbox run scanned={}, claimed={}, dispatched={}, failed={}",
+                result.scannedEvents,
+                result.claimedEvents,
+                result.dispatchedMessages,
+                result.failedEventIds.size,
+            )
+        }
+        return result
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.relay.delayed-parcel-scheduler",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class RelayDelayedParcelScheduler(
+    private val relayParcels: RelayParcelApplicationService,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.relay.delayed-parcel-scheduler.fixed-delay-ms:3600000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): List<RelayParcel> {
+        val updated = relayParcels.evaluateDelayedForAllRelayPoints(Instant.now())
+        if (updated.isNotEmpty()) {
+            logger.info("Relay delayed parcel scheduler updated {} parcels.", updated.size)
+        }
+        return updated
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.settlements.eligibility-scheduler",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class SettlementEligibilityScheduler(
+    private val settlements: SettlementPersistenceService,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.settlements.eligibility-scheduler.fixed-delay-ms:3600000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): List<MerchantPayoutAccrual> {
+        val promoted = settlements.evaluateEligible(Instant.now())
+        if (promoted.isNotEmpty()) {
+            logger.info("Settlement eligibility scheduler promoted {} merchant payouts.", promoted.size)
+        }
+        return promoted
+    }
+}
