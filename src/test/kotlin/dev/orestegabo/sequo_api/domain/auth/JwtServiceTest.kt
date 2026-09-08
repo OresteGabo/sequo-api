@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.Keys
+import java.util.Date
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -8,8 +12,9 @@ import kotlin.test.assertNull
 
 class JwtServiceTest {
 
+    private val secret = "12345678901234567890123456789012"
     private val jwtService = JwtService(
-        secret = "12345678901234567890123456789012",
+        secret = secret,
         accessExpiration = 60_000,
         refreshExpiration = 120_000,
         issuer = "sequo-api-test",
@@ -68,14 +73,14 @@ class JwtServiceTest {
     fun wrongIssuerOrAudienceIsRejected() {
         val tokens = jwtService.generateTokens(sampleSession())
         val wrongIssuerService = JwtService(
-            secret = "12345678901234567890123456789012",
+            secret = secret,
             accessExpiration = 60_000,
             refreshExpiration = 120_000,
             issuer = "other-issuer",
             audience = "sequo-mobile-test"
         )
         val wrongAudienceService = JwtService(
-            secret = "12345678901234567890123456789012",
+            secret = secret,
             accessExpiration = 60_000,
             refreshExpiration = 120_000,
             issuer = "sequo-api-test",
@@ -84,6 +89,17 @@ class JwtServiceTest {
 
         assertNull(wrongIssuerService.validateAccessToken(tokens.accessToken))
         assertNull(wrongAudienceService.validateAccessToken(tokens.accessToken))
+    }
+
+    @Test
+    fun unknownProviderOrRoleClaimsAreRejectedWithoutAuthenticating() {
+        val unknownProvider = signedToken(provider = "PASSWORD", roles = listOf(RoleCode.CUSTOMER.name))
+        val unknownRole = signedToken(provider = AuthProvider.EMAIL.name, roles = listOf("OPS_ADMIN"))
+        val invalidRolesShape = signedToken(provider = AuthProvider.EMAIL.name, roles = mapOf("role" to "CUSTOMER"))
+
+        assertNull(jwtService.parseAccessToken(unknownProvider))
+        assertNull(jwtService.parseAccessToken(unknownRole))
+        assertNull(jwtService.parseAccessToken(invalidRolesShape))
     }
 
     private fun sampleSession(
@@ -95,4 +111,25 @@ class JwtServiceTest {
             provider = AuthProvider.EMAIL,
             roles = roles
         )
+
+    private fun signedToken(
+        provider: String,
+        roles: Any,
+    ): String {
+        val now = Date()
+        return Jwts.builder()
+            .issuer("sequo-api-test")
+            .subject("user-1")
+            .id(UUID.randomUUID().toString())
+            .claim("aud", "sequo-mobile-test")
+            .claim("email", "customer@sequo.test")
+            .claim("provider", provider)
+            .claim("roles", roles)
+            .claim("token_use", TokenUse.ACCESS.name)
+            .issuedAt(now)
+            .notBefore(now)
+            .expiration(Date(now.time + 60_000))
+            .signWith(Keys.hmacShaKeyFor(secret.toByteArray()))
+            .compact()
+    }
 }
