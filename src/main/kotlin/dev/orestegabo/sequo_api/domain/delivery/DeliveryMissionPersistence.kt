@@ -57,6 +57,7 @@ class DeliveryMission(
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
+    fun findByMerchantSubOrderId(merchantSubOrderId: String): DeliveryMission?
     fun findByDeliveryCodeAndOrderId(deliveryCode: String, orderId: String): DeliveryMission?
     fun findByCourierIdOrderByUpdatedAtDesc(courierId: String): List<DeliveryMission>
     fun findByCourierIdAndStatusInOrderByUpdatedAtDesc(
@@ -382,7 +383,7 @@ class DeliveryMissionService(
     }
 }
 
-private fun DeliveryMission.toSnapshot() =
+fun DeliveryMission.toSnapshot() =
     DeliveryMissionSnapshot(
         id = requireNotNull(id),
         deliveryCode = deliveryCode,
