@@ -102,9 +102,10 @@ class RelayParcelPersistenceService(
     }
 
     @Transactional
-    fun savePickupCode(result: RelayParcelServiceResult.Accepted): RelayPickupCode = result.value.pickupCode!!.also { code ->
-        pickupCodes.save(code.toRecord())
-    }
+    fun savePickupCode(result: RelayParcelServiceResult.Accepted): RelayPickupCode =
+        requireNotNull(result.value.pickupCode) { "Accepted relay pickup result must contain a pickup code." }.also { code ->
+            pickupCodes.save(code.toRecord())
+        }
 
     @Transactional
     fun saveVerification(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
@@ -261,15 +262,58 @@ private fun RelayCustodyEventRecord.toDomain() = RelayCustodyEvent(id, relayParc
 
 @Converter
 class RelayParcelStatusConverter : AttributeConverter<RelayParcelStatus, String> {
-    override fun convertToDatabaseColumn(attribute: RelayParcelStatus?): String? = attribute?.name.toSqlEnum()
-    override fun convertToEntityAttribute(dbData: String?): RelayParcelStatus? = dbData?.let { RelayParcelStatus.valueOf(it.toCamelEnum()) }
+    override fun convertToDatabaseColumn(attribute: RelayParcelStatus?): String? = attribute?.toSqlValue()
+    override fun convertToEntityAttribute(dbData: String?): RelayParcelStatus? = dbData?.toRelayParcelStatus()
 }
 
 @Converter
 class RelayCustodyEventTypeConverter : AttributeConverter<RelayCustodyEventType, String> {
-    override fun convertToDatabaseColumn(attribute: RelayCustodyEventType?): String? = attribute?.name.toSqlEnum()
-    override fun convertToEntityAttribute(dbData: String?): RelayCustodyEventType? = dbData?.let { RelayCustodyEventType.valueOf(it.toCamelEnum()) }
+    override fun convertToDatabaseColumn(attribute: RelayCustodyEventType?): String? = attribute?.toSqlValue()
+    override fun convertToEntityAttribute(dbData: String?): RelayCustodyEventType? = dbData?.toRelayCustodyEventType()
 }
 
-private fun String?.toSqlEnum(): String? = this?.replace(Regex("([a-z])([A-Z])"), "$1_$2")?.uppercase()
-private fun String.toCamelEnum(): String = lowercase().split('_').joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
+private fun RelayParcelStatus.toSqlValue(): String =
+    when (this) {
+        RelayParcelStatus.Created -> "CREATED"
+        RelayParcelStatus.Deposited -> "DEPOSITED"
+        RelayParcelStatus.PickedUp -> "PICKED_UP"
+        RelayParcelStatus.CollectedBySequo -> "COLLECTED_BY_SEQUO"
+        RelayParcelStatus.Delayed -> "DELAYED"
+        RelayParcelStatus.ReturnToSellerReview -> "RETURN_TO_SELLER_REVIEW"
+        RelayParcelStatus.ReturnedToSeller -> "RETURNED_TO_SELLER"
+        RelayParcelStatus.Problem -> "PROBLEM"
+    }
+
+private fun String.toRelayParcelStatus(): RelayParcelStatus =
+    when (this) {
+        "CREATED" -> RelayParcelStatus.Created
+        "DEPOSITED" -> RelayParcelStatus.Deposited
+        "PICKED_UP" -> RelayParcelStatus.PickedUp
+        "COLLECTED_BY_SEQUO" -> RelayParcelStatus.CollectedBySequo
+        "DELAYED" -> RelayParcelStatus.Delayed
+        "RETURN_TO_SELLER_REVIEW" -> RelayParcelStatus.ReturnToSellerReview
+        "RETURNED_TO_SELLER" -> RelayParcelStatus.ReturnedToSeller
+        "PROBLEM" -> RelayParcelStatus.Problem
+        else -> error("Unknown relay parcel status: $this")
+    }
+
+private fun RelayCustodyEventType.toSqlValue(): String =
+    when (this) {
+        RelayCustodyEventType.Deposit -> "DEPOSIT"
+        RelayCustodyEventType.Pickup -> "PICKUP"
+        RelayCustodyEventType.RelayRelease -> "RELAY_RELEASE"
+        RelayCustodyEventType.SequoCollection -> "SEQUO_COLLECTION"
+        RelayCustodyEventType.ReturnDropoff -> "RETURN_DROPOFF"
+        RelayCustodyEventType.Problem -> "PROBLEM"
+    }
+
+private fun String.toRelayCustodyEventType(): RelayCustodyEventType =
+    when (this) {
+        "DEPOSIT" -> RelayCustodyEventType.Deposit
+        "PICKUP" -> RelayCustodyEventType.Pickup
+        "RELAY_RELEASE" -> RelayCustodyEventType.RelayRelease
+        "SEQUO_COLLECTION" -> RelayCustodyEventType.SequoCollection
+        "RETURN_DROPOFF" -> RelayCustodyEventType.ReturnDropoff
+        "PROBLEM" -> RelayCustodyEventType.Problem
+        else -> error("Unknown relay custody event type: $this")
+    }
