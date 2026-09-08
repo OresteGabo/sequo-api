@@ -19,10 +19,11 @@ class OrderController(
 
     @PostMapping("/process")
     fun processOrder(
-        @AuthenticationPrincipal userId: String,
+        @AuthenticationPrincipal userId: String?,
         @RequestBody request: OrderProcessingRequest
     ): ResponseEntity<OrderProcessingResult> {
-        // Ensure the order belongs to the authenticated user
+        if (userId == null) return ResponseEntity.status(401).build()
+
         val secureRequest = request.copy(customerId = userId)
         
         val processor = factory.processorFor(secureRequest.serviceLevel)
