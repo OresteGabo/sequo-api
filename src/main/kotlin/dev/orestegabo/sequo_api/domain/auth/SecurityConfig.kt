@@ -2,6 +2,7 @@ package dev.orestegabo.sequo_api.domain.auth
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -9,11 +10,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    @Value("\${sequo.security.cors.allowed-origins:}")
+    private val corsAllowedOrigins: List<String>
 ) {
 
     @Bean
@@ -22,6 +28,7 @@ class SecurityConfig(
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
+            .cors { }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
@@ -33,5 +40,22 @@ class SecurityConfig(
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         
         return http.build()
+    }
+
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        val origins = corsAllowedOrigins.map { it.trim() }.filter { it.isNotBlank() }
+        val configuration = CorsConfiguration().apply {
+            allowedOrigins = origins
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            allowedHeaders = listOf("Authorization", "Content-Type", "Accept", "X-Requested-With")
+            exposedHeaders = listOf("Retry-After")
+            allowCredentials = true
+            maxAge = 3600
+        }
+
+        return UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration("/**", configuration)
+        }
     }
 }
