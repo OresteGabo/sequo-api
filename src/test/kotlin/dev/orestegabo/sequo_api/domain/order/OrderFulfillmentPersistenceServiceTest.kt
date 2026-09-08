@@ -1,6 +1,13 @@
 package dev.orestegabo.sequo_api.domain.order
 
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
+import dev.orestegabo.sequo_api.domain.delivery.CreateDeliveryMissionCommand
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionEvent
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordMode
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionServiceResult
 import dev.orestegabo.sequo_api.domain.payment.PaymentProcessor
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationRequest
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationResult
@@ -19,8 +26,11 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val service: OrderFulfillmentPersistenceService,
+    private val lifecycle: OrderDeliveryLifecycleService,
+    private val deliveryMissions: DeliveryMissionService,
     private val orders: CustomerOrderRecordRepository,
     private val lines: CustomerOrderLineRecordRepository,
+    private val events: CustomerOrderEventRecordRepository,
     private val merchantSubOrders: MerchantSubOrderRepository,
 ) {
     @Test
@@ -31,8 +41,8 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         val first = service.persistAcceptedOrder(request, accepted, Instant.parse("2026-09-08T10:00:00Z"))
         val second = service.persistAcceptedOrder(request, accepted, Instant.parse("2026-09-08T10:05:00Z"))
 
-        assertEquals(1, orders.count())
-        assertEquals(3, lines.count())
+        assertTrue(orders.findByCheckoutId(request.checkoutId) != null)
+        assertEquals(3, lines.findByOrderIdOrderByLineIndexAsc(accepted.order.orderId).size)
         assertEquals(2, merchantSubOrders.findByOrderId(accepted.order.orderId).size)
         assertEquals(first.order, second.order)
         assertEquals(first.lines.map { it.id }, second.lines.map { it.id })
@@ -53,12 +63,59 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
             pricingService = DeliveryPricingService(),
         )
 
-        val result = processor.process(request(lines = listOf(foodLine())))
+        val pendingRequest = request(
+            checkoutId = "checkout-order-persistence-pending",
+            lines = listOf(foodLine()),
+        )
+        val result = processor.process(pendingRequest)
 
         assertTrue(result is OrderProcessingResult.AwaitingPaymentValidation)
-        assertEquals(0, orders.count())
-        assertEquals(0, lines.count())
-        assertEquals(0, merchantSubOrders.count())
+        assertEquals(null, orders.findByCheckoutId(pendingRequest.checkoutId))
+        assertEquals(0, lines.findByOrderIdOrderByLineIndexAsc("SQ-${pendingRequest.checkoutId}").size)
+        assertEquals(0, merchantSubOrders.findByOrderId("SQ-${pendingRequest.checkoutId}").size)
+    }
+
+    @Test
+    fun `delivery completion marks order delivered and opens return window with audit events`() {
+        val request = request(lines = listOf(foodLine()))
+        service.persistAcceptedOrder(request, acceptedOrder(request), Instant.parse("2026-09-08T10:00:00Z"))
+        val mission = deliveryMissions.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "ORDER-LIFECYCLE-1",
+                orderId = "SQ-checkout-order-persistence",
+                deliveryMode = DeliveryMissionRecordMode.EXPRESS,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            )
+        )
+        deliveryMissions.assignCourier(mission.id, "courier-lifecycle")
+        deliveryMissions.transition(mission.id, "admin-lifecycle", DeliveryMissionEvent.OfferToCourier)
+        deliveryMissions.transition(mission.id, "courier-lifecycle", DeliveryMissionEvent.CourierAccepts)
+        deliveryMissions.transition(mission.id, "courier-lifecycle", DeliveryMissionEvent.CourierPicksUpFromSeller, proof = "pickup")
+        val delivered = deliveryMissions.transition(
+            mission.id,
+            "courier-lifecycle",
+            DeliveryMissionEvent.CourierDeliversToCustomer,
+            proof = "dropoff",
+            at = Instant.parse("2026-09-09T12:00:00Z"),
+        ) as DeliveryMissionServiceResult.Success
+
+        val first = lifecycle.markDeliveredFromMission(delivered.mission, "courier-lifecycle")
+        val second = lifecycle.markDeliveredFromMission(delivered.mission, "courier-lifecycle")
+        val order = orders.findById("SQ-checkout-order-persistence").orElseThrow()
+
+        assertEquals(CustomerOrderStatus.DELIVERED, first?.orderStatus)
+        assertEquals(first, second)
+        assertEquals(Instant.parse("2026-09-09T12:00:00Z"), order.deliveredAt)
+        assertEquals(Instant.parse("2026-09-12T12:00:00Z"), order.returnWindowEndsAt)
+        assertEquals(
+            listOf(
+                CustomerOrderEventType.ACCEPTED_FOR_FULFILLMENT,
+                CustomerOrderEventType.DELIVERED,
+                CustomerOrderEventType.RETURN_WINDOW_OPENED,
+            ),
+            events.findByOrderIdOrderByCreatedAtAsc(order.id).map { it.eventType },
+        )
+        assertEquals(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, delivered.mission.status)
     }
 
     private fun acceptedOrder(request: OrderProcessingRequest): OrderProcessingResult.AcceptedForFulfillment {
@@ -74,9 +131,12 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private fun validatedPayment(request: PaymentValidationRequest): PaymentValidationResult =
         PaymentValidationResult.validated(request.paymentReference)
 
-    private fun request(lines: List<OrderLineRequest> = listOf(foodLine(), secondFoodLine(), groceryLine())) =
+    private fun request(
+        checkoutId: String = "checkout-order-persistence",
+        lines: List<OrderLineRequest> = listOf(foodLine(), secondFoodLine(), groceryLine()),
+    ) =
         OrderProcessingRequest(
-            checkoutId = "checkout-order-persistence",
+            checkoutId = checkoutId,
             customerId = "customer-order-persistence",
             serviceLevel = OrderServiceLevel.Regular,
             route = OrderRoute.FastDelivery,
