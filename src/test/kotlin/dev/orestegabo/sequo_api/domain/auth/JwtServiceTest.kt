@@ -24,10 +24,26 @@ class JwtServiceTest {
     }
 
     @Test
+    fun accessTokenParserRestoresSessionRoles() {
+        val tokens = jwtService.generateTokens(
+            sampleSession(roles = setOf(RoleCode.MERCHANT_OWNER, RoleCode.COURIER))
+        )
+
+        val session = jwtService.parseAccessToken(tokens.accessToken)
+
+        assertNotNull(session)
+        assertEquals("user-1", session.userId)
+        assertEquals("customer@sequo.test", session.email)
+        assertEquals(AuthProvider.EMAIL, session.provider)
+        assertEquals(setOf(RoleCode.MERCHANT_OWNER, RoleCode.COURIER), session.roles)
+    }
+
+    @Test
     fun refreshTokenCannotAuthenticateProtectedRequests() {
         val tokens = jwtService.generateTokens(sampleSession())
 
         assertNull(jwtService.validateAccessToken(tokens.refreshToken))
+        assertNull(jwtService.parseAccessToken(tokens.refreshToken))
     }
 
     @Test
@@ -70,11 +86,13 @@ class JwtServiceTest {
         assertNull(wrongAudienceService.validateAccessToken(tokens.accessToken))
     }
 
-    private fun sampleSession(): UserSession =
+    private fun sampleSession(
+        roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER)
+    ): UserSession =
         UserSession(
             userId = "user-1",
             email = "customer@sequo.test",
             provider = AuthProvider.EMAIL,
-            roles = setOf(RoleCode.CUSTOMER)
+            roles = roles
         )
 }
