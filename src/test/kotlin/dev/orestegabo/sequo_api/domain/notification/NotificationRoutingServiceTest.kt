@@ -41,13 +41,14 @@ class NotificationRoutingServiceTest {
     }
 
     @Test
-    fun routesDeliveryProblemToCustomerSupportAndOperations() {
+    fun routesDeliveryProblemToCustomerRiderSupportAndOperations() {
         val recipients = service.route(NotificationEventType.DELIVERY_PROBLEM_REPORTED, context)
 
         assertEquals(
-            setOf("customer-1", "support-1", "admin-1", "super-admin-1"),
+            setOf("customer-1", "rider-1", "support-1", "admin-1", "super-admin-1"),
             recipients.map { it.userId }.toSet(),
         )
+        assertEquals(1, recipients.count { it.role == RoleCode.COURIER })
         assertEquals(1, recipients.count { it.role == RoleCode.SUPPORT_AGENT })
     }
 
