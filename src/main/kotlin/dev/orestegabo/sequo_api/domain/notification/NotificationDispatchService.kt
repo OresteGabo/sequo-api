@@ -109,6 +109,7 @@ class NotificationDispatchService(
     private val deliveryRepository: NotificationDeliveryRepository,
     private val channelPolicy: NotificationChannelPolicy,
     private val preferenceService: NotificationPreferenceService,
+    private val realtimePublisher: RealtimeNotificationPublisher,
 ) {
     @Transactional
     fun createMessageAndPlanDeliveries(
@@ -180,6 +181,13 @@ class NotificationDispatchService(
                 )
             )
         }
+        if (NotificationChannel.WEBSOCKET in plan.channels) {
+            realtimePublisher.publishToUser(
+                userId = command.recipientUserId,
+                queue = command.eventType.realtimeQueue(),
+                message = message.toSnapshot(deliveries, plan.smsSuppressedReason),
+            )
+        }
 
         return message.toSnapshot(
             deliveries = deliveries,
@@ -187,6 +195,15 @@ class NotificationDispatchService(
         )
     }
 }
+
+private fun NotificationEventType.realtimeQueue(): RealtimeUserQueue =
+    when (this) {
+        NotificationEventType.RIDER_MISSION_OFFERED -> RealtimeUserQueue.RIDER_MISSIONS
+        NotificationEventType.BARGAINING_PROPOSAL_CREATED,
+        NotificationEventType.BARGAINING_COUNTERED,
+        NotificationEventType.BARGAINING_ACCEPTED -> RealtimeUserQueue.BARGAINING
+        else -> RealtimeUserQueue.NOTIFICATIONS
+    }
 
 private fun NotificationChannel.targetRef(
     recipientUserId: String,

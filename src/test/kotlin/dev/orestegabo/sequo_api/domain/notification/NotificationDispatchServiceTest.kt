@@ -3,8 +3,10 @@ package dev.orestegabo.sequo_api.domain.notification
 import dev.orestegabo.sequo_api.domain.auth.AuthProvider
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.auth.UserRepository
+import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.time.Instant
 import java.time.LocalTime
 import kotlin.test.BeforeTest
@@ -28,12 +30,16 @@ class NotificationDispatchServiceTest @Autowired constructor(
     private val preferenceRepository: NotificationPreferenceRepository,
     private val userRepository: UserRepository,
 ) {
+    @MockitoBean
+    private lateinit var realtimePublisher: RealtimeNotificationPublisher
+
     @BeforeTest
     fun cleanDatabase() {
         deliveryRepository.deleteAll()
         messageRepository.deleteAll()
         preferenceRepository.deleteAll()
         userRepository.deleteAll()
+        Mockito.reset(realtimePublisher)
     }
 
     @Test
@@ -159,6 +165,23 @@ class NotificationDispatchServiceTest @Autowired constructor(
         )
 
         assertFalse(snapshot.deliveries.any { it.channel == NotificationChannel.FCM })
+    }
+
+    @Test
+    fun activeWebSocketDeliveryPublishesRealtimeEnvelope() {
+        val userId = createUser("dispatch-websocket@sequo.test")
+
+        val snapshot = service.createMessageAndPlanDeliveries(
+            command = sampleCommand(
+                eventId = "event-websocket",
+                recipientUserId = userId,
+                eventType = NotificationEventType.ORDER_CREATED,
+                severity = NotificationSeverity.INFO,
+            ),
+            context = NotificationDeliveryContext(activeWebSocketSessions = 1),
+        )
+
+        Mockito.verify(realtimePublisher).publishToUser(userId, RealtimeUserQueue.NOTIFICATIONS, snapshot)
     }
 
     @Test
