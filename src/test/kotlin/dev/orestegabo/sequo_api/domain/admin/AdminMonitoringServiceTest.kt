@@ -5,6 +5,7 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordMode
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRepository
+import dev.orestegabo.sequo_api.domain.delivery.CourierAvailabilityService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrder
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderStatus
@@ -33,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional
 class AdminMonitoringServiceTest @Autowired constructor(
     private val service: AdminMonitoringService,
     private val deliveryMissions: DeliveryMissionRepository,
+    private val courierAvailability: CourierAvailabilityService,
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val relayParcels: RelayParcelRecordRepository,
     private val notificationOutbox: NotificationOutboxRepository,
@@ -79,6 +81,20 @@ class AdminMonitoringServiceTest @Autowired constructor(
                 shortfallCfa = 250,
             )
         )
+        courierAvailability.pause(
+            courierId = "courier-admin-paused",
+            actorUserId = "admin-monitor",
+            reason = "Temporary support pause.",
+            pausedUntil = now.plusSeconds(3600),
+            at = now.minusSeconds(120),
+        )
+        courierAvailability.pause(
+            courierId = "courier-admin-expired-pause",
+            actorUserId = "admin-monitor",
+            reason = "Expired support pause.",
+            pausedUntil = now.minusSeconds(60),
+            at = now.minusSeconds(3600),
+        )
 
         relayParcels.save(parcel("admin-parcel-1", RelayParcelStatus.Delayed, returnId = null, updatedAt = old))
         relayParcels.save(parcel("admin-parcel-2", RelayParcelStatus.Problem, returnId = "return-admin-1", updatedAt = now))
@@ -103,6 +119,7 @@ class AdminMonitoringServiceTest @Autowired constructor(
         assertAll(
             { assertEquals(2, snapshot.deliveryCapacity.activeMissions) },
             { assertEquals(1, snapshot.deliveryCapacity.unassignedMissions) },
+            { assertEquals(1, snapshot.deliveryCapacity.pausedCouriers) },
             { assertEquals(1, snapshot.deliveryCapacity.problemMissions.size) },
             { assertEquals(1, snapshot.merchantFulfillment.sellerBacklog) },
             { assertEquals(1, snapshot.merchantFulfillment.readyForPickup) },
@@ -114,6 +131,7 @@ class AdminMonitoringServiceTest @Autowired constructor(
             { assertEquals(1, snapshot.payoutQueue.deliveryShortfallMissions) },
             { assertEquals(1, snapshot.returnBottlenecks.returnsWaitingSequoCollection) },
             { assertEquals(1, snapshot.returnBottlenecks.returnsInProblem) },
+            { assertEquals("courier-admin-paused", snapshot.deliveryCapacity.pausedCourierAlerts.single().courierId) },
             { assertTrue(snapshot.relayOperations.oldestAttentionItems.any { it.parcelId == "admin-parcel-1" }) },
         )
     }
