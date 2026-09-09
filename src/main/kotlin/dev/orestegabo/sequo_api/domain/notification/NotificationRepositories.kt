@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.notification
 
+import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface DeviceFcmTokenRepository : JpaRepository<DeviceFcmToken, String> {
@@ -17,6 +18,8 @@ interface DeviceFcmTokenRepository : JpaRepository<DeviceFcmToken, String> {
         appFamily: NotificationAppFamily,
         status: DeviceFcmTokenStatus,
     ): List<DeviceFcmToken>
+
+    fun deleteByStatusInAndUpdatedAtBefore(statuses: Collection<DeviceFcmTokenStatus>, updatedAt: Instant): Int
 }
 
 interface NotificationMessageRepository : JpaRepository<NotificationMessage, String> {

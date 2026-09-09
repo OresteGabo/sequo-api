@@ -161,6 +161,32 @@ class DeviceTokenServiceTest @Autowired constructor(
         assertTrue(service.activeTokens(userId, NotificationAppFamily.SEQUO_CUSTOMER).isEmpty())
     }
 
+    @Test
+    fun prunesOnlyOldInactiveTokens() {
+        val userId = createUser("prune-customer@sequo.test")
+        val active = service.registerOrRotate(
+            sampleCommand(userId = userId, deviceId = "device-active", fcmToken = "fcm_" + "a".repeat(64)),
+            occurredAt = Instant.parse("2026-08-02T14:00:00Z"),
+        )
+        val revoked = service.registerOrRotate(
+            sampleCommand(userId = userId, deviceId = "device-revoked", fcmToken = "fcm_" + "r".repeat(64)),
+            occurredAt = Instant.parse("2026-08-02T14:00:00Z"),
+        )
+        val stale = service.registerOrRotate(
+            sampleCommand(userId = userId, deviceId = "device-stale", fcmToken = "fcm_" + "s".repeat(64)),
+            occurredAt = Instant.parse("2026-08-02T14:00:00Z"),
+        )
+        service.revokeDevice(userId, "device-revoked", NotificationAppFamily.SEQUO_CUSTOMER, Instant.parse("2026-08-03T00:00:00Z"))
+        service.markStaleByTokenHash(stale.tokenHash, Instant.parse("2026-08-03T00:00:00Z"))
+
+        val deleted = service.pruneInactiveTokens(Instant.parse("2026-08-04T00:00:00Z"))
+
+        assertEquals(2, deleted)
+        assertTrue(tokenRepository.existsById(active.id))
+        assertTrue(!tokenRepository.existsById(revoked.id))
+        assertTrue(!tokenRepository.existsById(stale.id))
+    }
+
     private fun createUser(email: String): String =
         requireNotNull(
             userRepository.save(

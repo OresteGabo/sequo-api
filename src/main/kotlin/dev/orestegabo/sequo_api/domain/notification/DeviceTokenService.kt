@@ -180,6 +180,13 @@ class DeviceTokenService(
         return repository.findByUserIdAndAppFamilyAndStatus(userId, appFamily, DeviceFcmTokenStatus.ACTIVE)
             .map { it.toSnapshot() }
     }
+
+    @Transactional
+    fun pruneInactiveTokens(updatedBefore: Instant): Int =
+        repository.deleteByStatusInAndUpdatedAtBefore(
+            statuses = listOf(DeviceFcmTokenStatus.REVOKED, DeviceFcmTokenStatus.STALE),
+            updatedAt = updatedBefore,
+        )
 }
 
 private fun DeviceFcmToken.touch(command: RegisterFcmTokenCommand, occurredAt: Instant) {
