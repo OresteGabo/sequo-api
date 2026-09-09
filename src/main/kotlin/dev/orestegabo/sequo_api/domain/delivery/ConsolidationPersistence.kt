@@ -9,6 +9,8 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
@@ -34,9 +36,17 @@ interface ConsolidationManifestRepository : JpaRepository<ConsolidationManifestR
     fun findByStatusOrderByUpdatedAtAsc(status: ConsolidationStatus): List<ConsolidationManifestRecord>
 }
 
+data class FinalPackageDispatchResult(
+    val manifest: SequoConsolidationManifest,
+    val mission: DeliveryMissionSnapshot,
+    val alreadyDispatched: Boolean,
+)
+
 @Service
 class ConsolidationPersistenceService(
     private val manifests: ConsolidationManifestRepository,
+    private val missions: DeliveryMissionRepository,
+    private val deliveryMissionService: DeliveryMissionService,
 ) {
     private val objectMapper = ObjectMapper()
     private val transitionService = SequoConsolidationService()
@@ -144,6 +154,46 @@ class ConsolidationPersistenceService(
         return transition
     }
 
+    @Transactional
+    fun dispatchFinalPackage(
+        manifestId: String,
+        customerDeliveryFeeCfa: Int = 0,
+        courierFeeCfa: Int = 0,
+        at: Instant = Instant.now(),
+    ): FinalPackageDispatchResult {
+        require(customerDeliveryFeeCfa >= 0) { "Customer delivery fee cannot be negative." }
+        require(courierFeeCfa >= 0) { "Courier fee cannot be negative." }
+        val record = manifests.findById(manifestId).orElse(null)
+            ?: throw IllegalArgumentException("Consolidation manifest was not found.")
+        val manifest = record.toDomain()
+        require(manifest.status == ConsolidationStatus.Consolidated || manifest.status == ConsolidationStatus.Dispatched) {
+            "A final package can only be dispatched after consolidation."
+        }
+        val deliveryCode = finalDeliveryCode(manifest.manifestId)
+        val existingMission = missions.findByDeliveryCode(deliveryCode)
+        val mission = existingMission?.toSnapshot() ?: deliveryMissionService.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = deliveryCode,
+                orderId = manifest.orderId,
+                deliveryMode = DeliveryMissionRecordMode.STANDARD,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+                customerDeliveryFeeCfa = customerDeliveryFeeCfa,
+                courierFeeCfa = courierFeeCfa,
+            ),
+            at,
+        )
+        if (manifest.status == ConsolidationStatus.Consolidated) {
+            val transition = transitionService.transition(
+                ConsolidationTransitionRequest(manifest, ConsolidationEvent.DispatchesFinalPackage, at)
+            )
+            require(transition.accepted) { transition.reason }
+            record.apply(transition.manifest, at)
+            manifests.save(record)
+            return FinalPackageDispatchResult(transition.manifest, mission, alreadyDispatched = false)
+        }
+        return FinalPackageDispatchResult(manifest, mission, alreadyDispatched = true)
+    }
+
     private fun SequoConsolidationManifest.toRecord(at: Instant) = ConsolidationManifestRecord(
         id = manifestId,
         orderId = orderId,
@@ -186,6 +236,12 @@ class ConsolidationPersistenceService(
         updatedAt = at
     }
 }
+
+private fun finalDeliveryCode(manifestId: String): String =
+    "SEQ-FINAL-${MessageDigest.getInstance("SHA-256")
+        .digest(manifestId.toByteArray(StandardCharsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+        .take(24)}"
 
 private fun JsonNode.requiredText(name: String): String =
     get(name)?.takeIf { it.isTextual && it.textValue().isNotBlank() }?.textValue()
