@@ -85,9 +85,9 @@ Not implemented yet:
 | Done | State | Step | Required backend behavior | Evidence or gap |
 | --- | --- | --- | --- | --- |
 | [ ] | Partial | Multi-seller checkout detected | Backend detects multiple sellers and marks consolidation required. | `OrderProcessing` does this. |
-| [x] | Implemented | Create consolidation manifest | API must create manifest with seller packages, Sequo hub custody, and final package ID. | `SequoConsolidationService` models the manifest and validates unique seller entries, complete readiness, custody timestamp, and final package ID; repository/schema integration remains. |
-| [ ] | Not implemented | Sellers mark each sub-order ready | All merchants must accept and mark ready before Sequo pickup/consolidation. | Merchant workflow policy exists for one package; aggregate manifest workflow missing. |
-| [ ] | Not implemented | Sequo collects from sellers | Sequo/courier missions collect each seller package into consolidation custody. | Missing. |
+| [x] | Implemented | Create consolidation manifest | API must create manifest with seller packages, Sequo hub custody, and final package ID. | `ConsolidationPersistenceService`, `ConsolidationController`, and `consolidation_manifests` persist manifests and validate unique seller entries, complete readiness, custody timestamp, and final package ID. |
+| [x] | Implemented | Sellers mark each sub-order ready | All merchants must accept and mark ready before Sequo pickup/consolidation. | `POST /api/consolidations/{manifestId}/seller-packages/{subOrderId}/ready` enforces merchant ownership, persists each confirmation, and moves the manifest to `ReadyForSequoPickup` after the last seller confirms. |
+| [ ] | Partial | Sequo collects from sellers | Sequo/courier missions collect each seller package into consolidation custody. | Dispatch creates one `SEQUO_CONSOLIDATION` mission per ready merchant sub-order; completing all collections and automatically advancing custody remain. |
 | [ ] | Not implemented | Final customer package dispatched | Consolidated package gets one final delivery or relay route. | Missing. |
 | [ ] | Partial | Settlement remains per merchant | Even one package must preserve item ownership and per-merchant commission/refund liability. | Merchant sub-orders snapshot merchant ownership, configured commission rate, commission amount, and merchant net per seller; settlement accruals preserve those per-merchant amounts after delivery. Refund liability and full consolidation persistence remain. |
 
