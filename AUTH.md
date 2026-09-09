@@ -498,6 +498,7 @@ Current treatment:
 - Limited requests return `429` with a safe `rate_limited` body and a `Retry-After` header.
 - Raw emails, reset tokens, refresh tokens, and IP addresses are hashed before being used as limiter subjects.
 - The limiter is in-memory and bounded; it is appropriate for the current single-node backend and tests.
+- `ApiRequestRateLimitFilter` applies a broader 300-requests-per-minute leaky-bucket guard to `/api/**` routes outside `/api/auth/**`.
 
 Expected secure behavior:
 
