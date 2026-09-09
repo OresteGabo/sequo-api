@@ -42,6 +42,11 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
             requireNotNull(service.findByOrderId("order-persistence-1")).status,
         )
         assertEquals(2, requireNotNull(service.get("manifest-persistence-1")).sellerPackages.count { it.ready })
+
+        service.markSellerPackageCollected("manifest-persistence-1", "sub-1", at.plusSeconds(180))
+        val custody = service.markSellerPackageCollected("manifest-persistence-1", "sub-2", at.plusSeconds(240))
+        assertEquals(ConsolidationStatus.InSequoCustody, custody.status)
+        assertEquals(2, custody.sellerPackages.count { it.collected })
     }
 
     @Test
