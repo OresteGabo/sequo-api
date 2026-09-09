@@ -30,6 +30,7 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
     private val service: MerchantFulfillmentService,
     private val orders: CustomerOrderRecordRepository,
     private val outbox: NotificationOutboxRepository,
+    private val escalations: MerchantFulfillmentEscalationRepository,
 ) {
     private val now = Instant.parse("2026-09-09T10:00:00Z")
 
@@ -113,6 +114,13 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
                 it.eventId == "${subOrder.id}:merchant-sla:seller_response_sla_exceeded"
             },
         )
+        val recordedEscalations = escalations.findBySubOrderIdOrderByCreatedAtAsc(subOrder.id)
+        assertEquals(1, recordedEscalations.size)
+        recordedEscalations.single().also {
+            assertEquals(MerchantFulfillmentService.MERCHANT_SLA_SCHEDULER_USER_ID, it.actorUserId)
+            assertEquals(MerchantFulfillmentEscalationReason.SELLER_RESPONSE_SLA_EXCEEDED, it.reason)
+            assertEquals(overdueAt, it.createdAt)
+        }
     }
 
     @Test
@@ -134,6 +142,10 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
                 "packing_sla_exceeded",
             ),
         )
+        escalations.findBySubOrderIdOrderByCreatedAtAsc(subOrder.id).single().also {
+            assertEquals(MerchantFulfillmentEscalationReason.PACKING_SLA_EXCEEDED, it.reason)
+            assertEquals(MerchantFulfillmentService.MERCHANT_SLA_SCHEDULER_USER_ID, it.actorUserId)
+        }
     }
 
     @Test
@@ -145,6 +157,7 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
 
         assertTrue(warnings.isEmpty())
         assertNull(outbox.findByEventId("${subOrder.id}:merchant-sla:seller_response_sla_exceeded"))
+        assertTrue(escalations.findBySubOrderIdOrderByCreatedAtAsc(subOrder.id).isEmpty())
     }
 
     private fun assertEvent(
