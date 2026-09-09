@@ -80,6 +80,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] Production startup guardrails for missing JWT secrets, notification token encryption secrets, OAuth placeholders, wallet secrets, explicit CORS origins, and unsafe database configuration.
 - [x] Safer default runtime config: Flyway owns schema creation, Hibernate validates mappings, and H2 console is disabled unless explicitly enabled for local development.
 - [x] First-pass in-memory auth rate limiting for signup, login, social login, refresh, forgot-password, and reset-password endpoints.
+- [x] General in-memory leaky-bucket protection for non-authenticated API traffic, with safe `429` and `Retry-After` responses.
 - [x] Placeholder replacement tracker and production readiness check for fake URLs, provider IDs, local defaults, and test-only secrets.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
 - [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources. `AuthorizationPolicy` now centralizes role, ownership, merchant-scope, assignment, and financial-access decisions; merchant fulfillment, delivery mission, relay, customer tracking, support, and admin monitoring controllers integrate role/scope checks, while persisted permissions and broader controller integration remain.
