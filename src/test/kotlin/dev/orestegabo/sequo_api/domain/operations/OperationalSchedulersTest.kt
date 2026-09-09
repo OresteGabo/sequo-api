@@ -17,12 +17,16 @@ class OperationalSchedulersTest @Autowired constructor(
         assertFalse(context.containsBean("notificationOutboxScheduler"))
         assertFalse(context.containsBean("relayDelayedParcelScheduler"))
         assertFalse(context.containsBean("deliveryMissionExpiryScheduler"))
+        assertFalse(context.containsBean("merchantFulfillmentSlaWarningScheduler"))
         assertFalse(context.containsBean("settlementEligibilityScheduler"))
         kotlin.runCatching { context.getBean(NotificationOutboxScheduler::class.java) }
             .onSuccess { error("Notification scheduler should be disabled by default.") }
             .onFailure { assertTrue(it is NoSuchBeanDefinitionException) }
         kotlin.runCatching { context.getBean(DeliveryMissionExpiryScheduler::class.java) }
             .onSuccess { error("Delivery mission expiry scheduler should be disabled by default.") }
+            .onFailure { assertTrue(it is NoSuchBeanDefinitionException) }
+        kotlin.runCatching { context.getBean(MerchantFulfillmentSlaWarningScheduler::class.java) }
+            .onSuccess { error("Merchant fulfillment SLA warning scheduler should be disabled by default.") }
             .onFailure { assertTrue(it is NoSuchBeanDefinitionException) }
     }
 }
