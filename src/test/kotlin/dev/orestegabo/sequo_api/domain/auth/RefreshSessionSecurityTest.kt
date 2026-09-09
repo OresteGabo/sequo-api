@@ -102,6 +102,15 @@ class RefreshSessionSecurityTest {
         assertTrue(session.expiresAt.isAfter(session.createdAt))
     }
 
+    @Test
+    fun sessionEndpointsRejectMissingIdentityAndUnknownSession() {
+        assertEquals(401, authController.sessions(null).statusCode.value())
+        assertEquals(401, authController.revokeSession("missing", null).statusCode.value())
+
+        val user = userRepository.save(activeUser("unknown-session@sequo.test"))
+        assertEquals(404, authController.revokeSession("missing", requireNotNull(user.id)).statusCode.value())
+    }
+
     private fun activeUser(email: String) = User(
         email = email,
         passwordHash = passwordEncoder.encode("Cobalt-Violet-47!"),
