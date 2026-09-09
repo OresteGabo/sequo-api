@@ -174,6 +174,7 @@ Current implementation:
 - Auth endpoints use `AuthRateLimiter`, an in-memory leaky-bucket limiter.
 - Signup, login, social login, refresh, forgot-password, and reset-password are limited by client IP fingerprint plus a safe subject key where possible.
 - Blocked auth requests return `429` and `Retry-After`.
+- Non-authenticated API routes also use a bounded in-memory leaky-bucket limit of 300 requests per minute per hashed client IP and return `429` with `Retry-After` when exhausted.
 - Raw emails, reset tokens, refresh tokens, and IP addresses are not stored as limiter keys; the limiter uses hashes/fingerprints.
 
 Rate limit:
