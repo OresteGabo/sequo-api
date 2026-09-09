@@ -58,8 +58,19 @@ data class NotificationDeliveryContext(
     val fcmDeliveryFailed: Boolean = false,
     val smsFallbackAllowed: Boolean = false,
     val userSmsEnabled: Boolean = true,
+    val inAppEnabled: Boolean = true,
+    val pushEnabled: Boolean = true,
+    val smsEnabled: Boolean = true,
+    val quietHoursActive: Boolean = false,
     val smsBudgetRemaining: Int = 0,
-)
+) {
+    fun withPreference(preference: NotificationPreferenceSnapshot): NotificationDeliveryContext =
+        copy(
+            inAppEnabled = preference.inAppEnabled,
+            pushEnabled = preference.pushEnabled,
+            smsEnabled = preference.smsEnabled,
+        )
+}
 
 data class NotificationMessageSnapshot(
     val id: String,
@@ -94,6 +105,7 @@ class NotificationDispatchService(
     private val messageRepository: NotificationMessageRepository,
     private val deliveryRepository: NotificationDeliveryRepository,
     private val channelPolicy: NotificationChannelPolicy,
+    private val preferenceService: NotificationPreferenceService,
 ) {
     @Transactional
     fun createMessageAndPlanDeliveries(
@@ -129,16 +141,26 @@ class NotificationDispatchService(
             )
         )
 
+        val preference = preferenceService.resolve(
+            userId = command.recipientUserId,
+            appFamily = command.appFamily,
+            eventType = command.eventType,
+        )
+        val deliveryContext = context.withPreference(preference)
         val plan = channelPolicy.plan(
             NotificationChannelRequest(
                 eventType = command.eventType,
                 severity = command.severity,
-                activeWebSocketSessions = context.activeWebSocketSessions,
-                activeFcmTokenCount = context.activeFcmTokenCount,
-                fcmDeliveryFailed = context.fcmDeliveryFailed,
-                smsFallbackAllowed = context.smsFallbackAllowed,
-                userSmsEnabled = context.userSmsEnabled,
-                smsBudgetRemaining = context.smsBudgetRemaining,
+                activeWebSocketSessions = deliveryContext.activeWebSocketSessions,
+                activeFcmTokenCount = deliveryContext.activeFcmTokenCount,
+                fcmDeliveryFailed = deliveryContext.fcmDeliveryFailed,
+                smsFallbackAllowed = deliveryContext.smsFallbackAllowed,
+                userSmsEnabled = deliveryContext.userSmsEnabled,
+                inAppEnabled = deliveryContext.inAppEnabled,
+                pushEnabled = deliveryContext.pushEnabled,
+                smsEnabled = deliveryContext.smsEnabled,
+                quietHoursActive = deliveryContext.quietHoursActive,
+                smsBudgetRemaining = deliveryContext.smsBudgetRemaining,
             )
         )
 

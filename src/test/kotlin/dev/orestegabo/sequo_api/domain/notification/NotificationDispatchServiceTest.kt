@@ -24,12 +24,14 @@ class NotificationDispatchServiceTest @Autowired constructor(
     private val service: NotificationDispatchService,
     private val deliveryRepository: NotificationDeliveryRepository,
     private val messageRepository: NotificationMessageRepository,
+    private val preferenceRepository: NotificationPreferenceRepository,
     private val userRepository: UserRepository,
 ) {
     @BeforeTest
     fun cleanDatabase() {
         deliveryRepository.deleteAll()
         messageRepository.deleteAll()
+        preferenceRepository.deleteAll()
         userRepository.deleteAll()
     }
 
@@ -101,6 +103,32 @@ class NotificationDispatchServiceTest @Autowired constructor(
         assertEquals(1, messageRepository.count())
         assertEquals(first.deliveries.map { it.id }, second.deliveries.map { it.id })
         assertEquals(1, deliveryRepository.count())
+    }
+
+    @Test
+    fun persistedPreferenceCanSuppressPushDelivery() {
+        val userId = createUser("dispatch-preference@sequo.test")
+        preferenceRepository.save(
+            NotificationPreference(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                eventType = NotificationPreferenceEventType.ALL,
+                pushEnabled = false,
+            )
+        )
+
+        val snapshot = service.createMessageAndPlanDeliveries(
+            command = sampleCommand(
+                eventId = "event-push-disabled",
+                recipientUserId = userId,
+                eventType = NotificationEventType.PAYMENT_CONFIRMED,
+                severity = NotificationSeverity.FINANCIAL,
+            ),
+            context = NotificationDeliveryContext(activeFcmTokenCount = 1),
+        )
+
+        assertFalse(snapshot.deliveries.any { it.channel == NotificationChannel.FCM })
+        assertTrue(snapshot.deliveries.any { it.channel == NotificationChannel.IN_APP })
     }
 
     @Test
