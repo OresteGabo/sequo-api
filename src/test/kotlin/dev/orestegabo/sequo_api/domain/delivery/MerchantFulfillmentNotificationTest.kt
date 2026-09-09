@@ -87,6 +87,66 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
         assertNull(outbox.findByEventId("${subOrder.id}:merchant-fulfillment:SellerAccepts"))
     }
 
+    @Test
+    fun overdueSellerResponsePublishesIdempotentSlaWarning() {
+        orders.save(order("order-merchant-notif-4", "customer-merchant-notif-4"))
+        val subOrder = service.create(command("merchant-notif-4", "order-merchant-notif-4"))
+        val overdueAt = requireNotNull(subOrder.sellerResponseDueAt).plusSeconds(1)
+
+        val firstScan = service.publishOverdueSlaWarnings(overdueAt)
+        val secondScan = service.publishOverdueSlaWarnings(overdueAt.plusSeconds(60))
+
+        assertEquals(listOf(subOrder.id), firstScan.map { it.subOrder.id })
+        assertEquals(listOf(subOrder.id), secondScan.map { it.subOrder.id })
+        assertEvent(
+            eventId = "${subOrder.id}:merchant-sla:seller_response_sla_exceeded",
+            eventType = NotificationEventType.MERCHANT_SLA_WARNING,
+            expectedPayloadFragments = listOf(
+                "customer-merchant-notif-4",
+                "merchant-notif-4",
+                "seller_response_sla_exceeded",
+            ),
+        )
+        assertEquals(
+            1,
+            outbox.findAll().count {
+                it.eventId == "${subOrder.id}:merchant-sla:seller_response_sla_exceeded"
+            },
+        )
+    }
+
+    @Test
+    fun overduePackingPublishesSlaWarning() {
+        orders.save(order("order-merchant-notif-5", "customer-merchant-notif-5"))
+        val subOrder = service.create(command("merchant-notif-5", "order-merchant-notif-5"))
+        service.accept(subOrder.id, "merchant-notif-5", now)
+        val packingDueAt = requireNotNull(service.get(subOrder.id)?.packingDueAt)
+
+        val warnings = service.publishOverdueSlaWarnings(packingDueAt.plusSeconds(1))
+
+        assertEquals(listOf("packing_sla_exceeded"), warnings.map { it.overdueReason })
+        assertEvent(
+            eventId = "${subOrder.id}:merchant-sla:packing_sla_exceeded",
+            eventType = NotificationEventType.MERCHANT_SLA_WARNING,
+            expectedPayloadFragments = listOf(
+                "customer-merchant-notif-5",
+                "merchant-notif-5",
+                "packing_sla_exceeded",
+            ),
+        )
+    }
+
+    @Test
+    fun missingOrderDoesNotPublishSlaWarningWithoutRecipients() {
+        val subOrder = service.create(command("merchant-notif-6", "missing-order-merchant-notif-6"))
+        val overdueAt = requireNotNull(subOrder.sellerResponseDueAt).plusSeconds(1)
+
+        val warnings = service.publishOverdueSlaWarnings(overdueAt)
+
+        assertTrue(warnings.isEmpty())
+        assertNull(outbox.findByEventId("${subOrder.id}:merchant-sla:seller_response_sla_exceeded"))
+    }
+
     private fun assertEvent(
         eventId: String,
         eventType: NotificationEventType,
