@@ -9,10 +9,12 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 @SpringBootTest
 class RefreshSessionSecurityTest {
     @Autowired private lateinit var authService: AuthService
+    @Autowired private lateinit var refreshSessionService: RefreshSessionService
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var refreshSessionRepository: RefreshSessionRepository
     @Autowired private lateinit var socialIdentityRepository: SocialIdentityRepository
@@ -62,6 +64,19 @@ class RefreshSessionSecurityTest {
         assertNull(authService.refreshTokens(first.refreshToken))
         assertNull(authService.refreshTokens(second.refreshToken))
         assertEquals(0, refreshSessionRepository.findAllByUserIdAndRevokedAtIsNull(requireNotNull(user.id)).size)
+    }
+
+    @Test
+    fun sessionRevocationIsScopedToTheOwningUser() {
+        val first = userRepository.save(activeUser("owner-one@sequo.test"))
+        val second = userRepository.save(activeUser("owner-two@sequo.test"))
+        val firstToken = requireNotNull(authService.login(AuthController.LoginWithEmailRequest(first.email, "Cobalt-Violet-47!")))
+        val secondToken = requireNotNull(authService.login(AuthController.LoginWithEmailRequest(second.email, "Cobalt-Violet-47!")))
+        val secondSession = requireNotNull(refreshSessionService.findByToken(secondToken.refreshToken))
+
+        assertFalse(authService.revokeSession(requireNotNull(secondSession.id), requireNotNull(first.id)))
+        assertNotNull(authService.refreshTokens(firstToken.refreshToken))
+        assertNotNull(authService.refreshTokens(secondToken.refreshToken))
     }
 
     private fun activeUser(email: String) = User(
