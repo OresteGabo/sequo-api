@@ -11,6 +11,7 @@ import dev.orestegabo.sequo_api.domain.order.OrderRoute
 import dev.orestegabo.sequo_api.domain.order.OrderServiceLevel
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -119,7 +120,10 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
         recordedEscalations.single().also {
             assertEquals(MerchantFulfillmentService.MERCHANT_SLA_SCHEDULER_USER_ID, it.actorUserId)
             assertEquals(MerchantFulfillmentEscalationReason.SELLER_RESPONSE_SLA_EXCEEDED, it.reason)
-            assertEquals(overdueAt, it.createdAt)
+            assertEquals(
+                overdueAt.truncatedTo(ChronoUnit.MICROS),
+                it.createdAt.truncatedTo(ChronoUnit.MICROS),
+            )
         }
     }
 
