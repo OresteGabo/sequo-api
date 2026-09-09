@@ -17,7 +17,18 @@ data class NotificationPreferenceSnapshot(
     val quietHoursEnd: LocalTime?,
     val createdAt: Instant?,
     val updatedAt: Instant?,
-)
+) {
+    fun isQuietAt(localTime: LocalTime): Boolean {
+        val start = quietHoursStart ?: return false
+        val end = quietHoursEnd ?: return false
+        if (start == end) return false
+        return if (start.isBefore(end)) {
+            !localTime.isBefore(start) && localTime.isBefore(end)
+        } else {
+            !localTime.isBefore(start) || localTime.isBefore(end)
+        }
+    }
+}
 
 data class SaveNotificationPreferenceCommand(
     val userId: String,
@@ -31,6 +42,9 @@ data class SaveNotificationPreferenceCommand(
 ) {
     init {
         require(userId.isNotBlank()) { "userId cannot be blank." }
+        require((quietHoursStart == null) == (quietHoursEnd == null)) {
+            "quietHoursStart and quietHoursEnd must be set together."
+        }
     }
 }
 

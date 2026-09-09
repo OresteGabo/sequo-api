@@ -3,9 +3,11 @@ package dev.orestegabo.sequo_api.domain.notification
 import dev.orestegabo.sequo_api.domain.auth.AuthProvider
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.auth.UserRepository
+import java.time.LocalTime
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -125,6 +127,36 @@ class NotificationPreferenceServiceTest @Autowired constructor(
         assertTrue(second.pushEnabled)
         assertEquals(false, second.smsEnabled)
         assertEquals(1, preferenceRepository.count())
+    }
+
+    @Test
+    fun quietHoursCanCrossMidnight() {
+        val userId = createUser("preference-quiet@sequo.test")
+        val preference = service.savePreference(
+            SaveNotificationPreferenceCommand(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                quietHoursStart = LocalTime.of(22, 0),
+                quietHoursEnd = LocalTime.of(7, 0),
+            )
+        )
+
+        assertTrue(preference.isQuietAt(LocalTime.of(23, 30)))
+        assertTrue(preference.isQuietAt(LocalTime.of(6, 30)))
+        assertEquals(false, preference.isQuietAt(LocalTime.of(12, 0)))
+    }
+
+    @Test
+    fun quietHoursMustBeSavedAsAPair() {
+        val userId = createUser("preference-quiet-invalid@sequo.test")
+
+        assertFailsWith<IllegalArgumentException> {
+            SaveNotificationPreferenceCommand(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                quietHoursStart = LocalTime.of(22, 0),
+            )
+        }
     }
 
     private fun createUser(email: String): String =
