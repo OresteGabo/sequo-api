@@ -61,6 +61,12 @@ data class MerchantFulfillmentSlaSnapshot(
     val overdueReason: String?,
 )
 
+data class MerchantFulfillmentSlaWarning(
+    val subOrder: MerchantSubOrderSnapshot,
+    val overdueReason: String,
+    val evaluatedAt: Instant,
+)
+
 sealed class MerchantFulfillmentServiceResult {
     data class Success(
         val subOrder: MerchantSubOrderSnapshot,
@@ -133,24 +139,28 @@ class MerchantFulfillmentService(
     @Transactional(readOnly = true)
     fun sla(subOrderId: String, at: Instant = Instant.now()): MerchantFulfillmentSlaSnapshot? {
         val subOrder = repository.findById(subOrderId).orElse(null) ?: return null
-        val responseOverdue = subOrder.status == MerchantSubOrderStatus.MERCHANT_PENDING &&
-            subOrder.sellerResponseDueAt?.isBefore(at) == true
-        val packingOverdue = subOrder.status in setOf(
-            MerchantSubOrderStatus.ACCEPTED,
-            MerchantSubOrderStatus.PREPARING,
-        ) && subOrder.packingDueAt?.isBefore(at) == true
-        return MerchantFulfillmentSlaSnapshot(
-            subOrderId = requireNotNull(subOrder.id),
-            status = subOrder.status,
-            sellerResponseDueAt = subOrder.sellerResponseDueAt,
-            packingDueAt = subOrder.packingDueAt,
-            overdue = responseOverdue || packingOverdue,
-            overdueReason = when {
-                responseOverdue -> "seller_response_sla_exceeded"
-                packingOverdue -> "packing_sla_exceeded"
-                else -> null
-            },
-        )
+        return subOrder.toSlaSnapshot(at)
+    }
+
+    @Transactional
+    fun publishOverdueSlaWarnings(
+        evaluatedAt: Instant = Instant.now(),
+        limit: Int = 100,
+    ): List<MerchantFulfillmentSlaWarning> {
+        require(limit in 1..200) { "SLA warning scan limit must be between 1 and 200." }
+        return repository.findTop200ByStatusInOrderByUpdatedAtAsc(slaWarningStatuses)
+            .asSequence()
+            .take(limit)
+            .mapNotNull { subOrder ->
+                val sla = subOrder.toSlaSnapshot(evaluatedAt)
+                val reason = sla.overdueReason ?: return@mapNotNull null
+                if (publishSlaWarningEvent(subOrder, reason, evaluatedAt)) {
+                    MerchantFulfillmentSlaWarning(subOrder.toSnapshot(), reason, evaluatedAt)
+                } else {
+                    null
+                }
+            }
+            .toList()
     }
 
     @Transactional
@@ -326,6 +336,43 @@ class MerchantFulfillmentService(
         )
     }
 
+    private fun publishSlaWarningEvent(
+        subOrder: MerchantSubOrder,
+        overdueReason: String,
+        evaluatedAt: Instant,
+    ): Boolean {
+        val order = orders.findById(subOrder.orderId).orElse(null) ?: return false
+        val subOrderId = requireNotNull(subOrder.id)
+        publisher.publishEvent(
+            NotificationWorkflowEvent(
+                eventId = "$subOrderId:merchant-sla:$overdueReason",
+                eventType = NotificationEventType.MERCHANT_SLA_WARNING,
+                aggregateType = "MERCHANT_SUB_ORDER",
+                aggregateId = subOrderId,
+                payload = objectMapper.writeValueAsString(
+                    mapOf(
+                        "customerUserId" to order.customerId,
+                        "merchantUserIds" to listOf(subOrder.merchantId),
+                        "title" to "Seller delay warning",
+                        "body" to overdueReason.warningBody(),
+                        "actionUrl" to "/merchant/sub-orders/$subOrderId",
+                        "severity" to NotificationSeverity.ACTION_REQUIRED.name,
+                        "messagePayload" to mapOf(
+                            "subOrderId" to subOrderId,
+                            "subOrderCode" to subOrder.subOrderCode,
+                            "orderId" to subOrder.orderId,
+                            "merchantId" to subOrder.merchantId,
+                            "status" to subOrder.status.name,
+                            "overdueReason" to overdueReason,
+                            "evaluatedAt" to evaluatedAt.toString(),
+                        ),
+                    )
+                ),
+            )
+        )
+        return true
+    }
+
     companion object {
         val activeMerchantStatuses = setOf(
             MerchantSubOrderStatus.MERCHANT_PENDING,
@@ -333,8 +380,41 @@ class MerchantFulfillmentService(
             MerchantSubOrderStatus.PREPARING,
             MerchantSubOrderStatus.PACKED_READY,
         )
+        val slaWarningStatuses = setOf(
+            MerchantSubOrderStatus.MERCHANT_PENDING,
+            MerchantSubOrderStatus.ACCEPTED,
+            MerchantSubOrderStatus.PREPARING,
+        )
     }
 }
+
+private fun MerchantSubOrder.toSlaSnapshot(at: Instant): MerchantFulfillmentSlaSnapshot {
+    val responseOverdue = status == MerchantSubOrderStatus.MERCHANT_PENDING &&
+        sellerResponseDueAt?.isBefore(at) == true
+    val packingOverdue = status in setOf(
+        MerchantSubOrderStatus.ACCEPTED,
+        MerchantSubOrderStatus.PREPARING,
+    ) && packingDueAt?.isBefore(at) == true
+    return MerchantFulfillmentSlaSnapshot(
+        subOrderId = requireNotNull(id),
+        status = status,
+        sellerResponseDueAt = sellerResponseDueAt,
+        packingDueAt = packingDueAt,
+        overdue = responseOverdue || packingOverdue,
+        overdueReason = when {
+            responseOverdue -> "seller_response_sla_exceeded"
+            packingOverdue -> "packing_sla_exceeded"
+            else -> null
+        },
+    )
+}
+
+private fun String.warningBody(): String =
+    when (this) {
+        "seller_response_sla_exceeded" -> "The seller has not accepted or rejected the paid order before the response deadline."
+        "packing_sla_exceeded" -> "The seller has not marked the accepted package ready before the packing deadline."
+        else -> "A seller fulfillment deadline needs attention."
+    }
 
 private fun MerchantSubOrder.applyTransition(
     nextStatus: MerchantSubOrderStatus,
