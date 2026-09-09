@@ -31,6 +31,11 @@ class DeliveryMissionController(
     data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null, val idempotencyKey: String? = null)
     data class ProblemRequest(val reason: String, val idempotencyKey: String? = null)
     data class CreateDeliveryPinRequest(val rawPin: String, val expiresAt: Instant)
+    data class ResolveProblemRequest(
+        val action: DeliveryProblemResolutionAction,
+        val reason: String,
+        val replacementCourierId: String? = null,
+    )
     data class ExpireStaleMissionsRequest(
         val evaluatedAt: Instant = Instant.now(),
         val offerTimeoutMinutes: Long = 20,
@@ -167,6 +172,29 @@ class DeliveryMissionController(
         @RequestBody request: ProblemRequest,
     ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
         service.forceProblem(missionId, authenticated.name, request.reason).toResponse()
+    }
+
+    @PostMapping("/{missionId}/resolve-problem")
+    fun resolveProblem(
+        authentication: Authentication?,
+        @PathVariable missionId: String,
+        @RequestBody request: ResolveProblemRequest,
+    ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
+        service.resolveProblem(
+            missionId = missionId,
+            actorId = authenticated.name,
+            action = request.action,
+            reason = request.reason,
+            replacementCourierId = request.replacementCourierId,
+        ).toResponse()
+    }
+
+    @GetMapping("/{missionId}/problem-resolutions")
+    fun problemResolutions(
+        authentication: Authentication?,
+        @PathVariable missionId: String,
+    ): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok(service.listProblemResolutions(missionId))
     }
 
     @PostMapping("/{missionId}/accept")
