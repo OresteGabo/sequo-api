@@ -18,6 +18,7 @@ import java.time.Instant
 enum class DeliveryMissionRecordMode { STANDARD, EXPRESS, PROGRAMMED, CLICK_COLLECT, RELAY }
 enum class DeliveryMissionRecordDestination { CUSTOMER_ADDRESS, RELAY_POINT, SEQUO_CONSOLIDATION }
 enum class DeliveryMissionRecordStatus { CREATED, OFFERED_TO_COURIER, ACCEPTED_BY_COURIER, PICKED_UP_FROM_SELLER, DEPOSITED_AT_RELAY, DELIVERED_TO_CUSTOMER, RELEASED_BY_RELAY, PROBLEM_REPORTED, CANCELLED }
+enum class DeliveryProblemResolutionAction { REQUEUE_FOR_DISPATCH, CANCEL_MISSION }
 
 @Entity
 @Table(name = "delivery_missions")
@@ -73,6 +74,25 @@ class DeliveryMissionIdempotencyKey(
     }
 }
 
+@Entity
+@Table(name = "delivery_problem_resolutions")
+class DeliveryProblemResolutionRecord(
+    @Id @GeneratedValue(strategy = GenerationType.UUID) val id: String? = null,
+    @Column(name = "mission_id", nullable = false) val missionId: String,
+    @Column(name = "actor_user_id", nullable = false) val actorUserId: String,
+    @Enumerated(EnumType.STRING) @Column(name = "action", nullable = false, length = 64) val action: DeliveryProblemResolutionAction,
+    @Column(name = "replacement_courier_id") val replacementCourierId: String? = null,
+    @Column(name = "reason", nullable = false, length = 1000) val reason: String,
+    @Column(name = "resolved_at", nullable = false) val resolvedAt: Instant,
+) {
+    init {
+        require(missionId.isNotBlank()) { "missionId cannot be blank." }
+        require(actorUserId.isNotBlank()) { "actorUserId cannot be blank." }
+        require(reason.isNotBlank() && reason.length <= 1000) { "Resolution reason must be 1-1000 characters." }
+        require(replacementCourierId?.isNotBlank() ?: true) { "Replacement courier id cannot be blank." }
+    }
+}
+
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
     fun findByMerchantSubOrderId(merchantSubOrderId: String): DeliveryMission?
@@ -99,6 +119,10 @@ interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
 
 interface DeliveryMissionIdempotencyKeyRepository : JpaRepository<DeliveryMissionIdempotencyKey, String> {
     fun findByIdempotencyKey(idempotencyKey: String): DeliveryMissionIdempotencyKey?
+}
+
+interface DeliveryProblemResolutionRepository : JpaRepository<DeliveryProblemResolutionRecord, String> {
+    fun findByMissionIdOrderByResolvedAtAsc(missionId: String): List<DeliveryProblemResolutionRecord>
 }
 
 data class CreateDeliveryMissionCommand(
@@ -158,6 +182,16 @@ data class DeliveryTrackingSnapshot(
     val updatedAt: Instant,
 )
 
+data class DeliveryProblemResolutionSnapshot(
+    val id: String,
+    val missionId: String,
+    val actorUserId: String,
+    val action: DeliveryProblemResolutionAction,
+    val replacementCourierId: String?,
+    val reason: String,
+    val resolvedAt: Instant,
+)
+
 sealed class DeliveryMissionServiceResult {
     data class Success(val mission: DeliveryMissionSnapshot, val message: String) : DeliveryMissionServiceResult()
     data class Rejected(val code: String, val message: String) : DeliveryMissionServiceResult()
@@ -167,6 +201,7 @@ sealed class DeliveryMissionServiceResult {
 class DeliveryMissionService(
     private val repository: DeliveryMissionRepository,
     private val idempotencyKeys: DeliveryMissionIdempotencyKeyRepository,
+    private val problemResolutions: DeliveryProblemResolutionRepository,
     private val workflow: DeliveryMissionWorkflow,
 ) {
     @Transactional(readOnly = true)
@@ -194,6 +229,12 @@ class DeliveryMissionService(
     ): List<DeliveryMissionSnapshot> {
         require(statuses.isNotEmpty()) { "At least one mission status is required." }
         return repository.findByStatusInOrderByUpdatedAtDesc(statuses).map { it.toSnapshot() }
+    }
+
+    @Transactional(readOnly = true)
+    fun listProblemResolutions(missionId: String): List<DeliveryProblemResolutionSnapshot> {
+        require(missionId.isNotBlank()) { "missionId cannot be blank." }
+        return problemResolutions.findByMissionIdOrderByResolvedAtAsc(missionId).map { it.toSnapshot() }
     }
 
     @Transactional(readOnly = true)
@@ -300,6 +341,54 @@ class DeliveryMissionService(
             at = at,
             metadataPrefix = "admin_problem",
         )
+
+    @Transactional
+    fun resolveProblem(
+        missionId: String,
+        actorId: String,
+        action: DeliveryProblemResolutionAction,
+        reason: String,
+        replacementCourierId: String? = null,
+        at: Instant = Instant.now(),
+    ): DeliveryMissionServiceResult {
+        if (actorId.isBlank()) return rejected("missing_actor", "Actor id is required.")
+        if (reason.isBlank() || reason.length > 1000) return rejected("invalid_resolution_reason", "Resolution reason must be 1-1000 characters.")
+        if (replacementCourierId != null && replacementCourierId.isBlank()) return rejected("invalid_replacement_courier", "Replacement courier id cannot be blank.")
+
+        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.status != DeliveryMissionRecordStatus.PROBLEM_REPORTED) {
+            return rejected("mission_not_in_problem", "Only missions in problem state can be resolved.")
+        }
+
+        when (action) {
+            DeliveryProblemResolutionAction.REQUEUE_FOR_DISPATCH -> {
+                if (mission.pickupAt != null || mission.relayDepositedAt != null || mission.deliveredAt != null) {
+                    return rejected("mission_already_in_custody", "Picked-up missions cannot be returned to dispatch without a support investigation.")
+                }
+                mission.status = DeliveryMissionRecordStatus.CREATED
+                mission.courierId = replacementCourierId
+                mission.assignedAt = replacementCourierId?.let { at }
+                mission.acceptedAt = null
+                mission.problemMetadata = "resolved_requeued by $actorId: $reason"
+            }
+            DeliveryProblemResolutionAction.CANCEL_MISSION -> {
+                mission.status = DeliveryMissionRecordStatus.CANCELLED
+                mission.problemMetadata = "resolved_cancelled by $actorId: $reason"
+            }
+        }
+        mission.updatedAt = at
+        problemResolutions.save(
+            DeliveryProblemResolutionRecord(
+                missionId = requireNotNull(mission.id),
+                actorUserId = actorId,
+                action = action,
+                replacementCourierId = replacementCourierId,
+                reason = reason,
+                resolvedAt = at,
+            )
+        )
+        return success(repository.save(mission), "Delivery problem resolved.")
+    }
 
     @Transactional(readOnly = true)
     fun validateDirectDeliveryAttempt(
@@ -531,6 +620,17 @@ fun DeliveryMission.toSnapshot() =
         problemMetadata = problemMetadata,
         createdAt = createdAt,
         updatedAt = updatedAt,
+    )
+
+fun DeliveryProblemResolutionRecord.toSnapshot() =
+    DeliveryProblemResolutionSnapshot(
+        id = requireNotNull(id),
+        missionId = missionId,
+        actorUserId = actorUserId,
+        action = action,
+        replacementCourierId = replacementCourierId,
+        reason = reason,
+        resolvedAt = resolvedAt,
     )
 
 private fun DeliveryMission.toTrackingSnapshot() =
