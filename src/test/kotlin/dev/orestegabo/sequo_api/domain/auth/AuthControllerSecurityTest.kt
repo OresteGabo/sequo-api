@@ -72,6 +72,28 @@ class AuthControllerSecurityTest {
     }
 
     @Test
+    fun currentUserReturnsOnlySafeProfileFields() {
+        val user = userRepository.save(
+            User(
+                email = "profile@sequo.test",
+                passwordHash = passwordEncoder.encode("OldPassword2026!"),
+                name = "Profile User",
+                provider = AuthProvider.EMAIL,
+            )
+        )
+
+        val response = authController.currentUser(requireNotNull(user.id))
+
+        assertEquals(200, response.statusCode.value())
+        val profile = response.body as AuthController.CurrentUserResponse
+        assertEquals(user.id, profile.id)
+        assertEquals(user.email, profile.email)
+        assertEquals(user.name, profile.name)
+        assertEquals(user.provider, profile.provider)
+        assertEquals(user.status, profile.status)
+    }
+
+    @Test
     fun actuatorHealthIsPublicForContainerHealthchecks() {
         val client = HttpClient.newHttpClient()
         val request = HttpRequest.newBuilder()
