@@ -6,6 +6,7 @@ import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.Instant
+import java.time.LocalTime
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -129,6 +130,35 @@ class NotificationDispatchServiceTest @Autowired constructor(
 
         assertFalse(snapshot.deliveries.any { it.channel == NotificationChannel.FCM })
         assertTrue(snapshot.deliveries.any { it.channel == NotificationChannel.IN_APP })
+    }
+
+    @Test
+    fun quietHoursSuppressNonUrgentPushInDispatch() {
+        val userId = createUser("dispatch-quiet-hours@sequo.test")
+        preferenceRepository.save(
+            NotificationPreference(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                eventType = NotificationPreferenceEventType.ALL,
+                quietHoursStart = LocalTime.of(22, 0),
+                quietHoursEnd = LocalTime.of(7, 0),
+            )
+        )
+
+        val snapshot = service.createMessageAndPlanDeliveries(
+            command = sampleCommand(
+                eventId = "event-quiet-hours",
+                recipientUserId = userId,
+                eventType = NotificationEventType.ORDER_PREPARING,
+                severity = NotificationSeverity.INFO,
+            ),
+            context = NotificationDeliveryContext(
+                activeFcmTokenCount = 1,
+                recipientLocalTime = LocalTime.of(23, 30),
+            ),
+        )
+
+        assertFalse(snapshot.deliveries.any { it.channel == NotificationChannel.FCM })
     }
 
     @Test

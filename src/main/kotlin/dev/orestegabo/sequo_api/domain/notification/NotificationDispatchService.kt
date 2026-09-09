@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.LocalTime
 
 data class CreateNotificationCommand(
     val eventId: String,
@@ -62,6 +63,7 @@ data class NotificationDeliveryContext(
     val pushEnabled: Boolean = true,
     val smsEnabled: Boolean = true,
     val quietHoursActive: Boolean = false,
+    val recipientLocalTime: LocalTime? = null,
     val smsBudgetRemaining: Int = 0,
 ) {
     fun withPreference(preference: NotificationPreferenceSnapshot): NotificationDeliveryContext =
@@ -69,6 +71,7 @@ data class NotificationDeliveryContext(
             inAppEnabled = preference.inAppEnabled,
             pushEnabled = preference.pushEnabled,
             smsEnabled = preference.smsEnabled,
+            quietHoursActive = recipientLocalTime?.let(preference::isQuietAt) ?: false,
         )
 }
 
