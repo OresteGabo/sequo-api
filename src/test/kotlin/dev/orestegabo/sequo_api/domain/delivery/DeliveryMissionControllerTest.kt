@@ -2,6 +2,7 @@ package dev.orestegabo.sequo_api.domain.delivery
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
+import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -122,6 +123,41 @@ class DeliveryMissionControllerTest @Autowired constructor(
             assertTrue(it.skippedSubOrders.any { skipped -> skipped.subOrderId == subOrder.id })
         }
         assertEquals(0, dispatchService.dispatchReadySubOrders().createdMissions.size)
+    }
+
+    @Test
+    fun adminCanExpireStaleCourierMissions() {
+        val admin = auth("admin-expire-stale", RoleCode.ADMIN)
+        val evaluatedAt = Instant.parse("2026-09-09T12:00:00Z")
+        val staleAt = evaluatedAt.minus(Duration.ofHours(2))
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "CTRL-EXPIRE-STALE",
+                orderId = "order-expire-stale",
+                deliveryMode = DeliveryMissionRecordMode.STANDARD,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            ),
+            at = staleAt,
+        )
+        service.assignCourier(mission.id, "courier-expire-stale", staleAt)
+        service.transition(mission.id, "admin-expire-stale", DeliveryMissionEvent.OfferToCourier, at = staleAt)
+
+        val response = controller.expireStale(
+            admin,
+            DeliveryMissionController.ExpireStaleMissionsRequest(
+                evaluatedAt = evaluatedAt,
+                offerTimeoutMinutes = 20,
+                pickupTimeoutMinutes = 45,
+                limit = 20,
+            ),
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        response.bodyAs<List<DeliveryMissionSnapshot>>().single().also {
+            assertEquals(mission.id, it.id)
+            assertEquals(DeliveryMissionRecordStatus.PROBLEM_REPORTED, it.status)
+            assertTrue(requireNotNull(it.problemMetadata).contains("auto_no_show"))
+        }
     }
 
     @Test
