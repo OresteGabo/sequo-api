@@ -32,6 +32,7 @@ class DeliveryReadinessDispatchServiceTest @Autowired constructor(
     private val merchantFulfillment: MerchantFulfillmentService,
     private val dispatch: DeliveryReadinessDispatchService,
     private val missions: DeliveryMissionRepository,
+    private val dispatchRuns: DeliveryDispatchRunRepository,
 ) {
     @Test
     fun `packed merchant sub-order creates one idempotent delivery mission`() {
@@ -51,6 +52,13 @@ class DeliveryReadinessDispatchServiceTest @Autowired constructor(
         assertEquals(0, second.createdMissions.size)
         assertEquals(listOf(first.createdMissions.single().id), second.existingMissions.map { it.id })
         assertEquals(1, missions.findAll().count { it.merchantSubOrderId == subOrder.id })
+        assertEquals(2, dispatchRuns.findAll().size)
+        dispatchRuns.findById(requireNotNull(first.dispatchRunId)).orElseThrow().also {
+            assertEquals(1, it.scannedReadySubOrders)
+            assertEquals(first.createdMissions.single().id, it.createdMissionIds)
+            assertEquals("", it.existingMissionIds)
+            assertEquals("", it.skippedSubOrderIds)
+        }
     }
 
     @Test
@@ -66,6 +74,11 @@ class DeliveryReadinessDispatchServiceTest @Autowired constructor(
 
         assertEquals(0, result.createdMissions.size)
         assertEquals(listOf("customer_pickup_does_not_need_courier_mission"), result.skippedSubOrders.map { it.reason })
+        dispatchRuns.findById(requireNotNull(result.dispatchRunId)).orElseThrow().also {
+            assertEquals(1, it.scannedReadySubOrders)
+            assertEquals(subOrder.id, it.skippedSubOrderIds)
+            assertEquals("customer_pickup_does_not_need_courier_mission", it.skippedReasons)
+        }
     }
 
     private fun accepted(request: OrderProcessingRequest) = OrderProcessingResult.AcceptedForFulfillment(
