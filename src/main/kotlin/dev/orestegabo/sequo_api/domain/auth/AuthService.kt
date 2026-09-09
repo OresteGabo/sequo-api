@@ -18,6 +18,7 @@ class AuthService(
     private val passwordPolicy: PasswordPolicy,
     private val passwordResetTokenService: PasswordResetTokenService,
     private val passwordResetTokenNotifier: PasswordResetTokenNotifier,
+    private val refreshSessionService: RefreshSessionService,
 ) {
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
         val email = normalizeEmail(request.email)
@@ -114,12 +115,37 @@ class AuthService(
         return generateTokensForUser(user)
     }
 
+    @Transactional
     fun refreshTokens(refreshToken: String): AuthTokens? {
         val session = jwtService.parseRefreshToken(refreshToken) ?: return null
         val user = userRepository.findById(session.userId).orElse(null) ?: return null
-        if (!user.status.canAuthenticate()) return null
-        return generateTokensForUser(user)
+        val storedSession = refreshSessionService.findByToken(refreshToken)
+        if (storedSession == null) {
+            // A known revoked token is a replay: invalidate the remaining session set.
+            refreshSessionService.revokeAllForUser(session.userId)
+            return null
+        }
+        if (storedSession.userId != session.userId || storedSession.revokedAt != null || storedSession.expiresAt.isBefore(Instant.now())) return null
+        if (!user.status.canAuthenticate()) {
+            refreshSessionService.revokeAllForUser(user.id!!)
+            return null
+        }
+
+        val now = Instant.now()
+        storedSession.lastUsedAt = now
+        refreshSessionService.revoke(storedSession, now)
+        val tokens = generateJwtTokensForUser(user)
+        refreshSessionService.create(requireNotNull(user.id), tokens.refreshToken, jwtService.refreshExpiresAt(now), now)
+        return tokens
     }
+
+    @Transactional
+    fun logout(refreshToken: String) {
+        refreshSessionService.findByToken(refreshToken)?.let { refreshSessionService.revoke(it) }
+    }
+
+    @Transactional
+    fun logoutAll(userId: String) = refreshSessionService.revokeAllForUser(userId)
 
     fun forgotPassword(email: String) {
         val user = userRepository.findByEmail(normalizeEmail(email)) ?: return
@@ -155,6 +181,16 @@ class AuthService(
     }
 
     private fun generateTokensForUser(user: User): AuthTokens {
+        val tokens = generateJwtTokensForUser(user)
+        refreshSessionService.create(
+            userId = requireNotNull(user.id) { "Persisted user id is required before token generation." },
+            rawToken = tokens.refreshToken,
+            expiresAt = jwtService.refreshExpiresAt(),
+        )
+        return tokens
+    }
+
+    private fun generateJwtTokensForUser(user: User): AuthTokens {
         val session = UserSession(
             userId = requireNotNull(user.id) { "Persisted user id is required before token generation." },
             email = user.email,
