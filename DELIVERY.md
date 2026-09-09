@@ -78,7 +78,7 @@ Not implemented yet:
 | [x] | Implemented | Generate pickup code/QR | API must generate hashed numeric code and optional QR nonce with expiry/attempt limits. | `RelayParcelService` generates hashed numeric codes and QR nonces, verifies either credential, enforces expiry, one-time use, and attempt limits. |
 | [x] | Implemented | Release requires code and identity validation | Relay release requires pickup code and identity validation. | `DeliveryMissionWorkflow` enforces both flags at policy level. |
 | [ ] | Partial | Track delayed parcels | Parcels after 2 weeks become storage-fee candidates. | `RelayParcelPolicy`, `RelayParcelService`, `RelayParcelApplicationService`, opt-in scheduler, and admin monitoring evaluate, persist, count, and list delayed/review parcels. Delay/review outbox events, storage-fee assessments, and idempotent ledger deltas are persisted; final tariff decision remains. |
-| [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | Product decision required before automation. |
+| [ ] | Decision needed | Return to seller after extended delay | Owner note mentions another 2 weeks/1 month but final policy is discussable. | The admin endpoint `POST /api/relay/parcels/{parcelId}/return-to-seller` can now close an already-approved review idempotently; the final threshold and automatic trigger still require a product decision. |
 
 ## Grouped Sequo And Cooperative Delivery
 
