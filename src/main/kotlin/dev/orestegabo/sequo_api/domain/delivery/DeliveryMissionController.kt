@@ -25,12 +25,19 @@ class DeliveryMissionController(
     private val pinService: DeliveryPinService,
     private val dispatchService: DeliveryReadinessDispatchService,
     private val orderLifecycle: OrderDeliveryLifecycleService,
+    private val courierAvailability: CourierAvailabilityService,
 ) {
     data class AssignCourierRequest(val courierId: String)
     data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null, val idempotencyKey: String? = null)
     data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null, val idempotencyKey: String? = null)
     data class ProblemRequest(val reason: String, val idempotencyKey: String? = null)
     data class CreateDeliveryPinRequest(val rawPin: String, val expiresAt: Instant)
+    data class PauseCourierRequest(
+        val courierId: String,
+        val reason: String,
+        val pausedUntil: Instant? = null,
+    )
+    data class UnpauseCourierRequest(val courierId: String)
     data class ResolveProblemRequest(
         val action: DeliveryProblemResolutionAction,
         val reason: String,
@@ -73,6 +80,37 @@ class DeliveryMissionController(
                 limit = request.limit,
             )
         )
+    }
+
+    @PostMapping("/couriers/pause")
+    fun pauseCourier(
+        authentication: Authentication?,
+        @RequestBody request: PauseCourierRequest,
+    ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
+        ResponseEntity.ok(
+            courierAvailability.pause(
+                courierId = request.courierId,
+                actorUserId = authenticated.name,
+                reason = request.reason,
+                pausedUntil = request.pausedUntil,
+            )
+        )
+    }
+
+    @PostMapping("/couriers/unpause")
+    fun unpauseCourier(
+        authentication: Authentication?,
+        @RequestBody request: UnpauseCourierRequest,
+    ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
+        ResponseEntity.ok(courierAvailability.unpause(request.courierId, authenticated.name))
+    }
+
+    @GetMapping("/couriers/{courierId}/availability")
+    fun getCourierAvailability(
+        authentication: Authentication?,
+        @PathVariable courierId: String,
+    ): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok(courierAvailability.get(courierId))
     }
 
     @GetMapping
