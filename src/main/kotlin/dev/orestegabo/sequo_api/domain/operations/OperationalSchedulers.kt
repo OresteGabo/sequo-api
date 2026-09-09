@@ -6,6 +6,7 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryDispatchRunResult
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryReadinessDispatchService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentSlaWarning
+import dev.orestegabo.sequo_api.domain.notification.DeviceTokenService
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorkerRunResult
 import dev.orestegabo.sequo_api.domain.auth.RefreshSessionService
@@ -52,6 +53,32 @@ class NotificationOutboxScheduler(
             )
         }
         return result
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.notifications.device-token-pruning",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class DeviceTokenPruningScheduler(
+    private val deviceTokens: DeviceTokenService,
+    @Value("\${sequo.notifications.device-token-pruning.retention-days:90}") private val retentionDays: Long,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.notifications.device-token-pruning.fixed-delay-ms:86400000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): Int {
+        val deleted = deviceTokens.pruneInactiveTokens(
+            updatedBefore = Instant.now().minus(Duration.ofDays(retentionDays.coerceAtLeast(1))),
+        )
+        if (deleted > 0) logger.info("Device-token pruning removed {} inactive tokens.", deleted)
+        return deleted
     }
 }
 
