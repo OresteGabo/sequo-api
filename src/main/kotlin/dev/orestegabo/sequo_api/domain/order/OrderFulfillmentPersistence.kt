@@ -102,6 +102,7 @@ class CustomerOrderLineRecord(
 
 interface CustomerOrderRecordRepository : JpaRepository<CustomerOrderRecord, String> {
     fun findByCheckoutId(checkoutId: String): CustomerOrderRecord?
+    fun findByCustomerIdOrderByCreatedAtDesc(customerId: String): List<CustomerOrderRecord>
 }
 
 interface CustomerOrderLineRecordRepository : JpaRepository<CustomerOrderLineRecord, String> {
@@ -169,6 +170,18 @@ data class CustomerOrderEventSnapshot(
     val createdAt: Instant,
 )
 
+data class CustomerOrderTimelineItem(
+    val eventType: CustomerOrderEventType,
+    val createdAt: Instant,
+)
+
+data class CustomerOrderDetails(
+    val order: CustomerOrderSnapshot,
+    val lines: List<CustomerOrderLineSnapshot>,
+    val merchantSubOrders: List<MerchantSubOrderSnapshot>,
+    val timeline: List<CustomerOrderTimelineItem>,
+)
+
 data class OrderFulfillmentResponse(
     val processing: OrderProcessingResult.AcceptedForFulfillment,
     val fulfillment: PersistedOrderFulfillment,
@@ -182,6 +195,21 @@ class OrderFulfillmentPersistenceService(
     private val merchantFulfillment: MerchantFulfillmentService,
     private val commissions: MerchantCommissionConfigurationService,
 ) {
+    @Transactional(readOnly = true)
+    fun listForCustomer(customerId: String): List<CustomerOrderDetails> {
+        require(customerId.isNotBlank()) { "customerId cannot be blank." }
+        return orders.findByCustomerIdOrderByCreatedAtDesc(customerId).map(::toCustomerDetails)
+    }
+
+    @Transactional(readOnly = true)
+    fun getForCustomer(orderId: String, customerId: String): CustomerOrderDetails? {
+        require(orderId.isNotBlank()) { "orderId cannot be blank." }
+        require(customerId.isNotBlank()) { "customerId cannot be blank." }
+        val order = orders.findById(orderId).orElse(null) ?: return null
+        if (order.customerId != customerId) return null
+        return toCustomerDetails(order)
+    }
+
     @Transactional
     fun persistAcceptedOrder(
         request: OrderProcessingRequest,
@@ -214,6 +242,16 @@ class OrderFulfillmentPersistenceService(
             merchantSubOrders = merchantSubOrders,
         )
     }
+
+    private fun toCustomerDetails(order: CustomerOrderRecord): CustomerOrderDetails =
+        CustomerOrderDetails(
+            order = order.toSnapshot(),
+            lines = lines.findByOrderIdOrderByLineIndexAsc(order.id).map { it.toSnapshot() },
+            merchantSubOrders = merchantFulfillment.listForOrder(order.id),
+            timeline = events.findByOrderIdOrderByCreatedAtAsc(order.id).map {
+                CustomerOrderTimelineItem(it.eventType, it.createdAt)
+            },
+        )
 
     private fun createMissingMerchantSubOrders(
         orderId: String,
