@@ -96,7 +96,7 @@ Legend:
 | 30 | Reset token stored hashed | [x] | [ ] | [ ] | `User` stores `resetTokenHash`, not the raw token. |
 | 31 | Reset token single-use | [x] | [ ] | [ ] | Cleared after successful reset. |
 | 32 | Reset token short TTL | [x] | [ ] | [ ] | Reset token expires after 30 minutes. |
-| 33 | Existing session revocation after password reset | [ ] | [ ] | [x] | Refresh-session store now exists; password-reset-triggered revocation remains pending. |
+| 33 | Existing session revocation after password reset | [x] | [ ] | [ ] | Successful password reset revokes all active refresh sessions for the account. |
 | 34 | User account status model | [x] | [ ] | [ ] | `UserStatus` exists on the `User` entity. |
 | 35 | User status checked on login | [x] | [ ] | [ ] | Non-authenticatable users are rejected. |
 | 36 | User status checked on refresh | [x] | [ ] | [ ] | Status is checked before issuing replacement tokens. |
@@ -1194,7 +1194,7 @@ Priority 1, high security:
 
 - [ ] Add email verification.
 - [x] Add password policy.
-- [ ] Revoke sessions after password reset.
+- [x] Revoke sessions after password reset.
 - [ ] Harden Facebook token verification.
 - [ ] Disable or implement Apple login.
 - [ ] Add generic auth responses to prevent enumeration.
