@@ -177,6 +177,7 @@ class AuthService(
         user.resetTokenHash = null
         user.resetTokenExpiry = null
         userRepository.save(user)
+        refreshSessionService.revokeAllForUser(requireNotNull(user.id))
         return true
     }
 
