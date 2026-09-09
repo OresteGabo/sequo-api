@@ -54,6 +54,29 @@ class ConsolidationController(
             ResponseEntity.ok(manifest)
         }
 
+    @GetMapping("/order/{orderId}")
+    fun getByOrder(authentication: Authentication?, @PathVariable orderId: String): ResponseEntity<Any> =
+        authenticated(authentication, RoleGroups.CustomerDeliveryTrackingReaders) { auth ->
+            val manifest = service.findByOrderId(orderId) ?: return@authenticated ResponseEntity.notFound().build()
+            if (!auth.hasAnyRole(RoleGroups.AdminOperations) && auth.name != manifest.customerId) {
+                return@authenticated ResponseEntity.status(403).build()
+            }
+            ResponseEntity.ok(manifest)
+        }
+
+    @PostMapping("/{manifestId}/seller-packages/{subOrderId}/ready")
+    fun markSellerPackageReady(
+        authentication: Authentication?,
+        @PathVariable manifestId: String,
+        @PathVariable subOrderId: String,
+        @RequestBody request: ReadyRequest,
+    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.MerchantOperators) { auth ->
+        if (!auth.hasAnyRole(RoleGroups.AdminOperations) && auth.name != request.merchantId) {
+            return@authenticated ResponseEntity.status(403).build()
+        }
+        ResponseEntity.ok(service.markSellerPackageReady(manifestId, subOrderId, request.merchantId, request.at))
+    }
+
     @PostMapping("/{manifestId}/transitions")
     fun transition(
         authentication: Authentication?,
@@ -85,4 +108,5 @@ class ConsolidationController(
     }
 
     data class ErrorResponse(val code: String, val message: String)
+    data class ReadyRequest(val merchantId: String, val at: Instant = Instant.now())
 }
