@@ -86,6 +86,8 @@ class RefreshSessionSecurityTest {
     fun refreshAndLogoutRejectUnreasonablySizedTokens() {
         assertFailsWith<IllegalArgumentException> { AuthController.RefreshRequest("short") }
         assertFailsWith<IllegalArgumentException> { AuthController.LogoutRequest("x".repeat(513)) }
+        assertNull(refreshSessionService.findByToken("short"))
+        assertNull(refreshSessionService.findByToken("x".repeat(513)))
     }
 
     @Test

@@ -48,6 +48,20 @@ data class RefreshSessionSnapshot(
     val revokedAt: Instant?,
 )
 
+object RefreshTokenPolicy {
+    const val MinLength = 32
+    const val MaxLength = 512
+
+    fun isPlausible(rawToken: String): Boolean =
+        rawToken.length in MinLength..MaxLength
+
+    fun validate(rawToken: String) {
+        require(isPlausible(rawToken)) {
+            "refreshToken must be between $MinLength and $MaxLength characters."
+        }
+    }
+}
+
 interface RefreshSessionRepository : org.springframework.data.jpa.repository.JpaRepository<RefreshSession, String> {
     fun findByTokenHash(tokenHash: String): RefreshSession?
     fun findAllByUserIdAndRevokedAtIsNull(userId: String): List<RefreshSession>
@@ -71,11 +85,14 @@ class RefreshSessionService(
 ) {
     fun issueRawToken(): String = tokenService.generate().rawToken
 
-    fun findByToken(rawToken: String): RefreshSession? =
-        repository.findByTokenHash(tokenService.hash(rawToken))
+    fun findByToken(rawToken: String): RefreshSession? {
+        if (!RefreshTokenPolicy.isPlausible(rawToken)) return null
+        return repository.findByTokenHash(tokenService.hash(rawToken))
+    }
 
-    fun create(userId: String, rawToken: String, expiresAt: Instant, now: Instant = Instant.now()): RefreshSession =
-        repository.save(
+    fun create(userId: String, rawToken: String, expiresAt: Instant, now: Instant = Instant.now()): RefreshSession {
+        RefreshTokenPolicy.validate(rawToken)
+        return repository.save(
             RefreshSession(
                 userId = userId,
                 tokenHash = tokenService.hash(rawToken),
@@ -83,6 +100,7 @@ class RefreshSessionService(
                 createdAt = now,
             )
         )
+    }
 
     fun revoke(session: RefreshSession, now: Instant = Instant.now()) {
         if (session.revokedAt == null) {

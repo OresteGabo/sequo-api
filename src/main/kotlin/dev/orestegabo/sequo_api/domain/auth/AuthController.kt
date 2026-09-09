@@ -16,10 +16,10 @@ class AuthController(
     data class LoginWithEmailRequest(val email: String, val password: String)
     data class LoginWithSocialRequest(val provider: AuthProvider, val token: String)
     data class RefreshRequest(val refreshToken: String) {
-        init { require(refreshToken.length in 32..512) { "refreshToken must be between 32 and 512 characters." } }
+        init { RefreshTokenPolicy.validate(refreshToken) }
     }
     data class LogoutRequest(val refreshToken: String) {
-        init { require(refreshToken.length in 32..512) { "refreshToken must be between 32 and 512 characters." } }
+        init { RefreshTokenPolicy.validate(refreshToken) }
     }
     data class SessionResponse(
         val id: String,
