@@ -61,6 +61,14 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         )
         assertEquals(8_000, second.merchantSubOrders.single { it.merchantId == "merchant-food" }.itemSubtotalCfa)
         assertEquals(3_000, second.merchantSubOrders.single { it.merchantId == "merchant-grocery" }.itemSubtotalCfa)
+
+        val listed = service.listForCustomer(request.customerId)
+        val detail = service.getForCustomer(accepted.order.orderId, request.customerId)
+        assertEquals(listed.single().order.id, detail?.order?.id)
+        assertEquals(3, detail?.lines?.size)
+        assertEquals(2, detail?.merchantSubOrders?.size)
+        assertEquals(listOf(CustomerOrderEventType.ACCEPTED_FOR_FULFILLMENT), detail?.timeline?.map { it.eventType })
+        assertEquals(null, service.getForCustomer(accepted.order.orderId, "another-customer"))
     }
 
     @Test
