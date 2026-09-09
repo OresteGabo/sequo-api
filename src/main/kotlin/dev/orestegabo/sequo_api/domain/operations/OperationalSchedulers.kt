@@ -2,6 +2,8 @@ package dev.orestegabo.sequo_api.domain.operations
 
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryDispatchRunResult
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryReadinessDispatchService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentSlaWarning
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
@@ -107,6 +109,39 @@ class DeliveryMissionExpiryScheduler(
             logger.info("Delivery mission expiry scheduler moved {} missions to support problem state.", expired.size)
         }
         return expired
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.delivery.readiness-dispatch-scheduler",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class DeliveryReadinessDispatchScheduler(
+    private val dispatch: DeliveryReadinessDispatchService,
+    @Value("\${sequo.delivery.readiness-dispatch-scheduler.limit:50}") private val limit: Int,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.delivery.readiness-dispatch-scheduler.fixed-delay-ms:60000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): DeliveryDispatchRunResult {
+        val result = dispatch.dispatchReadySubOrders(limit = limit.coerceIn(1, 200), at = Instant.now())
+        if (result.createdMissions.isNotEmpty() || result.skippedSubOrders.isNotEmpty()) {
+            logger.info(
+                "Delivery readiness dispatch run id={} scanned={}, created={}, existing={}, skipped={}",
+                result.dispatchRunId,
+                result.scannedReadySubOrders,
+                result.createdMissions.size,
+                result.existingMissions.size,
+                result.skippedSubOrders.size,
+            )
+        }
+        return result
     }
 }
 
