@@ -36,6 +36,7 @@ class RelayParcelController(
         val idempotencyKey: String,
     )
     data class ProblemRequest(val eventId: String, val idempotencyKey: String, val metadata: String)
+    data class ReturnToSellerRequest(val eventId: String, val idempotencyKey: String, val metadata: String, val returnedAt: Instant = Instant.now())
     data class StorageFeeAssessmentRequest(val relayPointId: String, val dailyFeeCfa: Int, val evaluatedAt: Instant = Instant.now())
     data class ParcelResponse(
         val id: String,
@@ -122,6 +123,22 @@ class RelayParcelController(
         @RequestBody request: ProblemRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
         service.reportProblem(parcelId, authenticated.name, request.eventId, request.idempotencyKey, request.metadata).toResponse()
+    }
+
+    @PostMapping("/{parcelId}/return-to-seller")
+    fun returnToSeller(
+        authentication: Authentication?,
+        @PathVariable parcelId: String,
+        @RequestBody request: ReturnToSellerRequest,
+    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) { authenticated ->
+        service.returnToSeller(
+            parcelId = parcelId,
+            actorUserId = authenticated.name,
+            eventId = request.eventId,
+            idempotencyKey = request.idempotencyKey,
+            metadata = request.metadata,
+            returnedAt = request.returnedAt,
+        ).toResponse()
     }
 
     @PostMapping("/storage-fees/assess")
