@@ -10,6 +10,9 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.Instant
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
 @Entity
 @Table(name = "refresh_sessions")
@@ -42,6 +45,14 @@ interface RefreshSessionRepository : org.springframework.data.jpa.repository.Jpa
     fun findAllByUserIdAndRevokedAtIsNull(userId: String): List<RefreshSession>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: String): List<RefreshSession>
     fun findByIdAndUserId(id: String, userId: String): RefreshSession?
+
+    @Modifying
+    @Query("update RefreshSession s set s.revokedAt = :revokedAt, s.lastUsedAt = :usedAt where s.id = :id and s.revokedAt is null")
+    fun revokeIfActive(
+        @Param("id") id: String,
+        @Param("revokedAt") revokedAt: Instant,
+        @Param("usedAt") usedAt: Instant,
+    ): Int
     fun deleteAllByExpiresAtBefore(expiresAt: Instant): Int
 }
 
@@ -71,6 +82,9 @@ class RefreshSessionService(
             repository.save(session)
         }
     }
+
+    fun rotate(session: RefreshSession, now: Instant = Instant.now()): Boolean =
+        repository.revokeIfActive(requireNotNull(session.id), now, now) == 1
 
     fun revokeAllForUser(userId: String, now: Instant = Instant.now()): Int {
         val sessions = repository.findAllByUserIdAndRevokedAtIsNull(userId)

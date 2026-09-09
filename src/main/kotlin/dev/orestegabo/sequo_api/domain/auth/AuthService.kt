@@ -132,8 +132,10 @@ class AuthService(
         }
 
         val now = Instant.now()
-        storedSession.lastUsedAt = now
-        refreshSessionService.revoke(storedSession, now)
+        if (!refreshSessionService.rotate(storedSession, now)) {
+            refreshSessionService.revokeAllForUser(storedSession.userId, now)
+            return null
+        }
         val tokens = generateJwtTokensForUser(user)
         refreshSessionService.create(requireNotNull(user.id), tokens.refreshToken, jwtService.refreshExpiresAt(now), now)
         return tokens
