@@ -2,6 +2,7 @@ package dev.orestegabo.sequo_api.domain.admin
 
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.delivery.CourierAvailabilityService
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRepository
@@ -35,9 +36,20 @@ data class AdminOperationsSnapshot(
 data class DeliveryCapacitySnapshot(
     val activeMissions: Long,
     val unassignedMissions: Long,
+    val pausedCouriers: Int,
+    val pausedCourierAlerts: List<PausedCourierAlert>,
     val relayMissionsInProgress: Long,
     val customerAddressMissionsInProgress: Long,
     val problemMissions: List<DeliveryMissionAlert>,
+)
+
+data class PausedCourierAlert(
+    val courierId: String,
+    val pausedReason: String?,
+    val pausedBy: String?,
+    val pausedAt: Instant?,
+    val pausedUntil: Instant?,
+    val updatedAt: Instant,
 )
 
 data class DeliveryMissionAlert(
@@ -112,6 +124,7 @@ data class ReturnBottleneckSnapshot(
 @Service
 class AdminMonitoringService(
     private val deliveryMissions: DeliveryMissionRepository,
+    private val courierAvailability: CourierAvailabilityService,
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val relayParcels: RelayParcelRecordRepository,
     private val notificationOutbox: NotificationOutboxRepository,
@@ -121,7 +134,7 @@ class AdminMonitoringService(
     fun operationsSnapshot(generatedAt: Instant = Instant.now()): AdminOperationsSnapshot =
         AdminOperationsSnapshot(
             generatedAt = generatedAt,
-            deliveryCapacity = deliveryCapacity(),
+            deliveryCapacity = deliveryCapacity(generatedAt),
             merchantFulfillment = merchantFulfillment(),
             relayOperations = relayOperations(),
             notificationOutbox = notificationOutbox(),
@@ -129,7 +142,7 @@ class AdminMonitoringService(
             returnBottlenecks = returnBottlenecks(),
         )
 
-    private fun deliveryCapacity(): DeliveryCapacitySnapshot {
+    private fun deliveryCapacity(generatedAt: Instant): DeliveryCapacitySnapshot {
         val activeStatuses = setOf(
             DeliveryMissionRecordStatus.CREATED,
             DeliveryMissionRecordStatus.OFFERED_TO_COURIER,
@@ -138,9 +151,21 @@ class AdminMonitoringService(
             DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY,
             DeliveryMissionRecordStatus.PROBLEM_REPORTED,
         )
+        val pausedCouriers = courierAvailability.listActivePausedCouriers(generatedAt)
         return DeliveryCapacitySnapshot(
             activeMissions = deliveryMissions.countByStatusIn(activeStatuses),
             unassignedMissions = deliveryMissions.countByCourierIdIsNullAndStatusIn(activeStatuses),
+            pausedCouriers = pausedCouriers.size,
+            pausedCourierAlerts = pausedCouriers.map {
+                PausedCourierAlert(
+                    courierId = it.courierId,
+                    pausedReason = it.pausedReason,
+                    pausedBy = it.pausedBy,
+                    pausedAt = it.pausedAt,
+                    pausedUntil = it.pausedUntil,
+                    updatedAt = it.updatedAt,
+                )
+            },
             relayMissionsInProgress = deliveryMissions.countByDestinationTypeAndStatusIn(
                 DeliveryMissionRecordDestination.RELAY_POINT,
                 activeStatuses,
