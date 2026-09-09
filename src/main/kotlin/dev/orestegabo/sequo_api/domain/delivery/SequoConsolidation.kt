@@ -24,6 +24,7 @@ data class ConsolidationSellerPackage(
     val merchantId: String,
     val packageCount: Int,
     val ready: Boolean,
+    val collected: Boolean = false,
 ) {
     init {
         require(subOrderId.isNotBlank()) { "subOrderId must not be blank." }
@@ -62,6 +63,9 @@ data class SequoConsolidationManifest(
 
     val allSellerPackagesReady: Boolean
         get() = sellerPackages.all { it.ready }
+
+    val allSellerPackagesCollected: Boolean
+        get() = sellerPackages.all { it.collected }
 
     val totalPackageCount: Int
         get() = sellerPackages.sumOf { it.packageCount }
