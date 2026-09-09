@@ -41,7 +41,7 @@ Main files:
 | Stateless server sessions | Treated | Spring session creation is stateless. |
 | JWT signing | Partially treated | Tokens are signed and now include stronger claims; production-like startup rejects unsafe secrets, but key rotation is still missing. |
 | Access/refresh token separation | Treated | Bearer authentication accepts only access tokens; refresh tokens are checked against a server-side session. |
-| Refresh revocation/rotation | Partially treated | Refresh JWT hashes are stored, rotated, and replayed tokens revoke the account sessions; expired rows can be cleaned by the opt-in scheduler; opaque-token migration remains pending. |
+| Refresh revocation/rotation | Treated | Opaque refresh tokens are stored as hashes, rotated, replayed tokens revoke account sessions, and expired rows can be cleaned by the opt-in scheduler. |
 | Logout/logout-all | Treated | `POST /api/auth/logout` revokes one refresh session; authenticated `POST /api/auth/logout-all` revokes all sessions. |
 | RBAC and roles | Not treated | Authentication principal has no authorities. |
 | User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
@@ -86,7 +86,7 @@ Legend:
 | 20 | JWT role/scope claims | [ ] | [x] | [ ] | Role enum and token claim exist; roles are not loaded from DB or enforced yet. |
 | 21 | Issuer/audience validation | [x] | [ ] | [ ] | Access and refresh parsing now checks configured issuer/audience. |
 | 22 | Refresh token stored as server-side hash | [x] | [ ] | [ ] | `refresh_sessions` stores SHA-256 hashes only; raw refresh tokens are never persisted. |
-| 23 | Opaque refresh tokens | [ ] | [ ] | [x] | Current refresh tokens are JWTs. |
+| 23 | Opaque refresh tokens | [x] | [ ] | [ ] | AuthService issues cryptographically random opaque refresh tokens; only their hashes are persisted. |
 | 24 | Refresh token rotation | [x] | [ ] | [ ] | The current refresh session is revoked before a replacement is issued. |
 | 25 | Refresh token replay detection | [x] | [ ] | [ ] | Reusing a known revoked or missing refresh session revokes the user’s active sessions. |
 | 26 | Logout endpoint | [x] | [ ] | [ ] | `POST /api/auth/logout` revokes the supplied refresh session and is idempotent. |
@@ -1177,7 +1177,7 @@ The production auth system should use:
 Priority 0, production blockers:
 
 - [x] Add token type claim and reject refresh tokens in bearer filter.
-- [ ] Replace refresh JWTs with opaque hashed refresh sessions.
+- [x] Replace refresh JWTs with opaque hashed refresh sessions.
 - [x] Add refresh rotation and replay detection for the current JWT refresh contract.
 - [x] Add logout and logout-all.
 - [x] Remove reset token from forgot-password response.

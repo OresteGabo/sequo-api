@@ -18,6 +18,26 @@ class JwtService(
 ) {
     private val key: SecretKey = Keys.hmacShaKeyFor(secret.toByteArray())
 
+    fun generateAccessToken(session: UserSession): String {
+        val now = Date()
+        return Jwts.builder()
+            .issuer(issuer)
+            .subject(session.userId)
+            .id(UUID.randomUUID().toString())
+            .claim("aud", audience)
+            .claim("email", session.email)
+            .claim("provider", session.provider.name)
+            .claim("roles", session.roles.map { it.name })
+            .claim("token_use", TokenUse.ACCESS.name)
+            .issuedAt(now)
+            .notBefore(now)
+            .expiration(Date(now.time + accessExpiration))
+            .signWith(key)
+            .compact()
+    }
+
+    fun accessExpiresInSeconds(): Long = accessExpiration / 1000
+
     fun generateTokens(session: UserSession): AuthTokens {
         val now = Date()
         

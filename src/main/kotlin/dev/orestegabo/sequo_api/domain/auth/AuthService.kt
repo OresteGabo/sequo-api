@@ -117,15 +117,15 @@ class AuthService(
 
     @Transactional
     fun refreshTokens(refreshToken: String): AuthTokens? {
-        val session = jwtService.parseRefreshToken(refreshToken) ?: return null
-        val user = userRepository.findById(session.userId).orElse(null) ?: return null
         val storedSession = refreshSessionService.findByToken(refreshToken)
-        if (storedSession == null) {
+            ?: return null
+        if (storedSession.revokedAt != null) {
             // A known revoked token is a replay: invalidate the remaining session set.
-            refreshSessionService.revokeAllForUser(session.userId)
+            refreshSessionService.revokeAllForUser(storedSession.userId)
             return null
         }
-        if (storedSession.userId != session.userId || storedSession.revokedAt != null || storedSession.expiresAt.isBefore(Instant.now())) return null
+        val user = userRepository.findById(storedSession.userId).orElse(null) ?: return null
+        if (storedSession.expiresAt.isBefore(Instant.now())) return null
         if (!user.status.canAuthenticate()) {
             refreshSessionService.revokeAllForUser(user.id!!)
             return null
@@ -197,7 +197,11 @@ class AuthService(
             email = user.email,
             provider = user.provider
         )
-        return jwtService.generateTokens(session)
+        return AuthTokens(
+            accessToken = jwtService.generateAccessToken(session),
+            refreshToken = refreshSessionService.issueRawToken(),
+            expiresIn = jwtService.accessExpiresInSeconds(),
+        )
     }
 
     private fun normalizeEmail(email: String): String =

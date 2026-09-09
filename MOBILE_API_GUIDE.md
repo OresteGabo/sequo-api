@@ -46,7 +46,7 @@ All authentication routes are public, but still require JSON bodies.
 | POST | `/api/auth/signup` | `email`, `password`, `name?` | Create an email account. |
 | POST | `/api/auth/login` | `email`, `password` | Login with email and password. |
 | POST | `/api/auth/login/social` | `provider`, `token` | Login with a social provider. Provider enum: `GOOGLE`, `FACEBOOK`, `APPLE`. |
-| POST | `/api/auth/refresh` | `refreshToken` | Obtain a new access token. |
+| POST | `/api/auth/refresh` | `refreshToken` | Obtain a new access token. The refresh token is opaque, must be stored in secure mobile storage, and is rotated on every successful refresh. |
 | POST | `/api/auth/logout` | `refreshToken` | Revoke the supplied refresh session; safe to call repeatedly. |
 | POST | `/api/auth/logout-all` | Bearer access token | Revoke every refresh session for the authenticated account. |
 | POST | `/api/auth/forgot-password` | `email` | Start password recovery. The response is intentionally generic. |
