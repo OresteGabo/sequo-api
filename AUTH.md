@@ -40,9 +40,9 @@ Main files:
 | Basic route authentication | Treated | `/api/auth/**` is public; other routes require authentication. |
 | Stateless server sessions | Treated | Spring session creation is stateless. |
 | JWT signing | Partially treated | Tokens are signed and now include stronger claims; production-like startup rejects unsafe secrets, but key rotation is still missing. |
-| Access/refresh token separation | Treated | Bearer authentication now accepts only access tokens. Refresh storage/rotation is still pending. |
-| Refresh revocation/rotation | Not treated | Refresh tokens are stateless JWTs, not stored or rotated server-side. |
-| Logout/logout-all | Not treated | No endpoint or token/session revocation exists. |
+| Access/refresh token separation | Treated | Bearer authentication accepts only access tokens; refresh tokens are checked against a server-side session. |
+| Refresh revocation/rotation | Partially treated | Refresh JWT hashes are stored, rotated, and replayed tokens revoke the account sessions; opaque-token migration remains pending. |
+| Logout/logout-all | Treated | `POST /api/auth/logout` revokes one refresh session; authenticated `POST /api/auth/logout-all` revokes all sessions. |
 | RBAC and roles | Not treated | Authentication principal has no authorities. |
 | User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
 | Password reset security | Partially treated | Reset token is no longer returned and is stored hashed; forgot/reset endpoints are rate-limited; notification delivery, audit, and session revocation are still pending. |
@@ -74,8 +74,8 @@ Legend:
 | 8 | Facebook login | [ ] | [x] | [ ] | Calls Graph API, but does not verify app ownership with `debug_token`. |
 | 9 | Apple login | [ ] | [ ] | [x] | Placeholder returns `null`; must be disabled or fully verified. |
 | 10 | JWT signing | [ ] | [x] | [ ] | Tokens are signed, but secret validation and key rotation are still missing. |
-| 11 | JWT access token issuance | [ ] | [x] | [ ] | Includes issuer/audience/jti/type/nbf; still needs session-aware revocation. |
-| 12 | JWT refresh token issuance | [ ] | [x] | [ ] | Exists as stateless JWT, but this is not production-safe. |
+| 11 | JWT access token issuance | [ ] | [x] | [ ] | Includes issuer/audience/jti/type/nbf; access tokens remain short-lived and stateless. |
+| 12 | JWT refresh token issuance | [ ] | [x] | [ ] | JWT refresh tokens are now bound to a persisted server-side refresh session. |
 | 13 | Access-token-only validation in bearer filter | [x] | [ ] | [ ] | Refresh tokens are no longer accepted by bearer-token validation. |
 | 14 | Token type or token-use claim | [x] | [ ] | [ ] | Tokens include `token_use=ACCESS` or `token_use=REFRESH`. |
 | 15 | JWT issuer claim | [x] | [ ] | [ ] | Issued and validated. |
@@ -85,18 +85,18 @@ Legend:
 | 19 | JWT session ID claim | [ ] | [ ] | [x] | Missing; needed for session-aware auth. |
 | 20 | JWT role/scope claims | [ ] | [x] | [ ] | Role enum and token claim exist; roles are not loaded from DB or enforced yet. |
 | 21 | Issuer/audience validation | [x] | [ ] | [ ] | Access and refresh parsing now checks configured issuer/audience. |
-| 22 | Refresh token stored as server-side hash | [ ] | [ ] | [x] | No refresh-session table exists. |
+| 22 | Refresh token stored as server-side hash | [x] | [ ] | [ ] | `refresh_sessions` stores SHA-256 hashes only; raw refresh tokens are never persisted. |
 | 23 | Opaque refresh tokens | [ ] | [ ] | [x] | Current refresh tokens are JWTs. |
-| 24 | Refresh token rotation | [ ] | [ ] | [x] | Old refresh token remains valid until expiry. |
-| 25 | Refresh token replay detection | [ ] | [ ] | [x] | No token family or reuse detection. |
-| 26 | Logout endpoint | [ ] | [ ] | [x] | No session/token revocation endpoint exists. |
-| 27 | Logout-all endpoint | [ ] | [ ] | [x] | No all-device revocation exists. |
+| 24 | Refresh token rotation | [x] | [ ] | [ ] | The current refresh session is revoked before a replacement is issued. |
+| 25 | Refresh token replay detection | [x] | [ ] | [ ] | Reusing a known revoked or missing refresh session revokes the user’s active sessions. |
+| 26 | Logout endpoint | [x] | [ ] | [ ] | `POST /api/auth/logout` revokes the supplied refresh session and is idempotent. |
+| 27 | Logout-all endpoint | [x] | [ ] | [ ] | Authenticated `POST /api/auth/logout-all` revokes all active refresh sessions. |
 | 28 | Password-reset token generation | [x] | [ ] | [ ] | Uses 32 secure-random bytes encoded as URL-safe Base64. |
 | 29 | Reset token not returned in API response | [x] | [ ] | [ ] | Forgot-password response is generic and does not include the token. |
 | 30 | Reset token stored hashed | [x] | [ ] | [ ] | `User` stores `resetTokenHash`, not the raw token. |
 | 31 | Reset token single-use | [x] | [ ] | [ ] | Cleared after successful reset. |
 | 32 | Reset token short TTL | [x] | [ ] | [ ] | Reset token expires after 30 minutes. |
-| 33 | Existing session revocation after password reset | [ ] | [ ] | [x] | No refresh-session store to revoke. |
+| 33 | Existing session revocation after password reset | [ ] | [ ] | [x] | Refresh-session store now exists; password-reset-triggered revocation remains pending. |
 | 34 | User account status model | [x] | [ ] | [ ] | `UserStatus` exists on the `User` entity. |
 | 35 | User status checked on login | [x] | [ ] | [ ] | Non-authenticatable users are rejected. |
 | 36 | User status checked on refresh | [x] | [ ] | [ ] | Status is checked before issuing replacement tokens. |
@@ -248,7 +248,7 @@ Severity: Critical
 Observed problem:
 
 - `AuthService.refreshTokens()` parses the refresh JWT and issues new tokens.
-- No refresh session is stored in the database.
+- Refresh sessions are now stored as token hashes in `refresh_sessions`; the remaining gap is opaque-token migration and richer session-family metadata.
 - There is no token hash, token family, rotation, reuse detection, device ID, logout, or logout-all.
 
 Expected secure behavior:
@@ -1177,9 +1177,9 @@ The production auth system should use:
 Priority 0, production blockers:
 
 - [x] Add token type claim and reject refresh tokens in bearer filter.
-- [ ] Replace stateless refresh JWTs with opaque hashed refresh sessions.
-- [ ] Add refresh rotation and replay detection.
-- [ ] Add logout and logout-all.
+- [ ] Replace refresh JWTs with opaque hashed refresh sessions.
+- [x] Add refresh rotation and replay detection for the current JWT refresh contract.
+- [x] Add logout and logout-all.
 - [x] Remove reset token from forgot-password response.
 - [x] Hash reset tokens.
 - [x] Add JWT issuer, audience, JWT ID, token-use, and not-before claims.
