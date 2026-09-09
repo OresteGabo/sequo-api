@@ -5,6 +5,7 @@ import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.auth.hasRole
 import dev.orestegabo.sequo_api.domain.order.OrderDeliveryLifecycleService
+import java.time.Duration
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -30,6 +31,12 @@ class DeliveryMissionController(
     data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null, val idempotencyKey: String? = null)
     data class ProblemRequest(val reason: String, val idempotencyKey: String? = null)
     data class CreateDeliveryPinRequest(val rawPin: String, val expiresAt: Instant)
+    data class ExpireStaleMissionsRequest(
+        val evaluatedAt: Instant = Instant.now(),
+        val offerTimeoutMinutes: Long = 20,
+        val pickupTimeoutMinutes: Long = 45,
+        val limit: Int = 100,
+    )
     data class ErrorResponse(val code: String, val message: String)
 
     @PostMapping
@@ -46,6 +53,21 @@ class DeliveryMissionController(
         @RequestParam(defaultValue = "50") limit: Int,
     ): ResponseEntity<Any> = adminOnly(authentication) {
         ResponseEntity.ok(dispatchService.dispatchReadySubOrders(limit))
+    }
+
+    @PostMapping("/expire-stale")
+    fun expireStale(
+        authentication: Authentication?,
+        @RequestBody request: ExpireStaleMissionsRequest,
+    ): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok(
+            service.expireStaleMissions(
+                evaluatedAt = request.evaluatedAt,
+                offerTimeout = Duration.ofMinutes(request.offerTimeoutMinutes),
+                pickupTimeout = Duration.ofMinutes(request.pickupTimeoutMinutes),
+                limit = request.limit,
+            )
+        )
     }
 
     @GetMapping
