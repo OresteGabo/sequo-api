@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.delivery
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
@@ -21,6 +22,7 @@ class MerchantFulfillmentController(
     data class MerchantActionRequest(val merchantId: String)
     data class MarkPackedRequest(val merchantId: String, val packageCount: Int)
     data class RejectRequest(val merchantId: String, val reason: String)
+    data class PublishSlaWarningsRequest(val evaluatedAt: Instant = Instant.now(), val limit: Int = 100)
     data class ErrorResponse(val code: String, val message: String)
 
     @PostMapping
@@ -42,6 +44,14 @@ class MerchantFulfillmentController(
         }
         val statuses = status?.let { setOf(it) } ?: MerchantFulfillmentService.activeMerchantStatuses
         ResponseEntity.ok(service.listForMerchant(merchantId, statuses))
+    }
+
+    @PostMapping("/sla/publish-overdue")
+    fun publishOverdueSlaWarnings(
+        authentication: Authentication?,
+        @RequestBody request: PublishSlaWarningsRequest,
+    ): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok(service.publishOverdueSlaWarnings(request.evaluatedAt, request.limit))
     }
 
     @GetMapping("/{subOrderId}")
