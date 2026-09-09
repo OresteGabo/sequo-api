@@ -71,6 +71,8 @@ with a leaky-bucket policy and return a safe `rate_limited` response when exhaus
 | Method | Path | Body/query | Purpose |
 | --- | --- | --- | --- |
 | POST | `/api/orders/process` | `OrderProcessingRequest` | Validate payment and create the customer's fulfillment records. |
+| GET | `/api/orders` | none | List orders belonging to the authenticated customer, newest first. |
+| GET | `/api/orders/{orderId}` | none | Read one order, its lines, merchant sub-orders, and a safe timeline. Other customers receive `404`. |
 | POST | `/api/orders/{orderId}/pickup-confirmations` | `idempotencyKey`, `proofMetadata?` | Confirm customer pickup/click-and-collect. |
 | GET | `/api/orders/{orderId}/pickup-confirmations` | none | Read pickup confirmations for the authenticated customer. |
 
