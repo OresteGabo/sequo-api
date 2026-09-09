@@ -2,6 +2,14 @@ package dev.orestegabo.sequo_api.domain.delivery
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
+import dev.orestegabo.sequo_api.domain.order.FulfillmentPriority
+import dev.orestegabo.sequo_api.domain.order.OrderRoute
+import dev.orestegabo.sequo_api.domain.order.OrderServiceLevel
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class MerchantFulfillmentControllerTest @Autowired constructor(
     private val controller: MerchantFulfillmentController,
+    private val orders: CustomerOrderRecordRepository,
 ) {
     @Test
     fun merchantWorkflowIsExposedAndScopedToTheOwningMerchant() {
@@ -72,6 +81,25 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
         assertEquals(HttpStatus.OK, controller.get(admin, subOrder.id, merchantId = null).statusCode)
     }
 
+    @Test
+    fun adminCanPublishOverdueSlaWarnings() {
+        val admin = auth("admin-sla-warning", RoleCode.ADMIN)
+        orders.save(order("order-CTRL-SLA-WARNING"))
+        val subOrder = controller.create(admin, command("CTRL-SLA-WARNING")).bodyAs<MerchantSubOrderSnapshot>()
+        val overdueAt = requireNotNull(subOrder.sellerResponseDueAt).plusSeconds(1)
+
+        val response = controller.publishOverdueSlaWarnings(
+            admin,
+            MerchantFulfillmentController.PublishSlaWarningsRequest(evaluatedAt = overdueAt, limit = 20),
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        response.bodyAs<List<MerchantFulfillmentSlaWarning>>().single().also {
+            assertEquals(subOrder.id, it.subOrder.id)
+            assertEquals("seller_response_sla_exceeded", it.overdueReason)
+        }
+    }
+
     private fun command(code: String): CreateMerchantSubOrderCommand =
         CreateMerchantSubOrderCommand(
             subOrderCode = code,
@@ -85,6 +113,28 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
 
     private fun auth(userId: String, role: RoleCode): Authentication =
         UsernamePasswordAuthenticationToken(userId, null, listOf(role.toGrantedAuthority()))
+
+    private fun order(orderId: String) =
+        CustomerOrderRecord(
+            id = orderId,
+            checkoutId = "checkout-$orderId",
+            customerId = "customer-$orderId",
+            serviceLevel = OrderServiceLevel.Regular,
+            route = OrderRoute.FastDelivery,
+            fulfillmentPriority = FulfillmentPriority.Standard,
+            requiresConsolidation = false,
+            customerFacingStatus = "Accepted for fulfillment",
+            itemSubtotalCfa = 20_000,
+            deliveryFeeCfa = 400,
+            totalCfa = 20_400,
+            paymentProvider = "YAS_TOGO",
+            paymentReference = "payment-$orderId",
+            providerReference = "provider-$orderId",
+            paymentStatus = PaymentValidationStatus.Validated,
+            orderStatus = CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT,
+            createdAt = Instant.parse("2026-09-09T10:00:00Z"),
+            updatedAt = Instant.parse("2026-09-09T10:00:00Z"),
+        )
 
     @Suppress("UNCHECKED_CAST")
     private inline fun <reified T> org.springframework.http.ResponseEntity<Any>.bodyAs(): T =
