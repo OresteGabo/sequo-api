@@ -12,6 +12,7 @@ import jakarta.persistence.Version
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Duration
 import java.time.Instant
 
 enum class DeliveryMissionRecordMode { STANDARD, EXPRESS, PROGRAMMED, CLICK_COLLECT, RELAY }
@@ -93,6 +94,7 @@ interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
         statuses: Collection<DeliveryMissionRecordStatus>,
     ): Long
     fun findTop20ByStatusInOrderByUpdatedAtDesc(statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
+    fun findTop200ByStatusInOrderByUpdatedAtAsc(statuses: Collection<DeliveryMissionRecordStatus>): List<DeliveryMission>
 }
 
 interface DeliveryMissionIdempotencyKeyRepository : JpaRepository<DeliveryMissionIdempotencyKey, String> {
@@ -247,6 +249,24 @@ class DeliveryMissionService(
         mission.status = DeliveryMissionRecordStatus.CREATED
         mission.updatedAt = at
         return success(repository.save(mission), "Courier reassigned; mission must be offered again.")
+    }
+
+    @Transactional
+    fun expireStaleMissions(
+        evaluatedAt: Instant = Instant.now(),
+        offerTimeout: Duration = Duration.ofMinutes(20),
+        pickupTimeout: Duration = Duration.ofMinutes(45),
+        limit: Int = 100,
+    ): List<DeliveryMissionSnapshot> {
+        require(!offerTimeout.isZero && !offerTimeout.isNegative) { "Offer timeout must be positive." }
+        require(!pickupTimeout.isZero && !pickupTimeout.isNegative) { "Pickup timeout must be positive." }
+        require(limit in 1..200) { "Expiry scan limit must be between 1 and 200." }
+
+        return repository.findTop200ByStatusInOrderByUpdatedAtAsc(expirableNoShowStatuses)
+            .asSequence()
+            .take(limit)
+            .mapNotNull { mission -> mission.expireIfStale(evaluatedAt, offerTimeout, pickupTimeout) }
+            .toList()
     }
 
     @Transactional
@@ -455,6 +475,36 @@ class DeliveryMissionService(
             DeliveryMissionEvent.CourierDepositsAtRelay,
             DeliveryMissionEvent.RelayReleasesToCustomer,
         )
+        val expirableNoShowStatuses = setOf(
+            DeliveryMissionRecordStatus.OFFERED_TO_COURIER,
+            DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER,
+        )
+    }
+
+    private fun DeliveryMission.expireIfStale(
+        evaluatedAt: Instant,
+        offerTimeout: Duration,
+        pickupTimeout: Duration,
+    ): DeliveryMissionSnapshot? {
+        val (startedAt, timeout, reason) = when (status) {
+            DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> Triple(
+                assignedAt ?: updatedAt,
+                offerTimeout,
+                "Courier offer expired before acceptance.",
+            )
+            DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> Triple(
+                acceptedAt ?: updatedAt,
+                pickupTimeout,
+                "Courier accepted mission but did not pick up before deadline.",
+            )
+            else -> return null
+        }
+        if (evaluatedAt.isBefore(startedAt.plus(timeout))) return null
+
+        status = DeliveryMissionRecordStatus.PROBLEM_REPORTED
+        problemMetadata = "auto_no_show at $evaluatedAt: $reason"
+        updatedAt = evaluatedAt
+        return repository.save(this).toSnapshot()
     }
 }
 
