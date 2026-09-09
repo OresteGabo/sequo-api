@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -9,6 +10,10 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
+import dev.orestegabo.sequo_api.domain.notification.NotificationSeverity
+import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -204,7 +209,10 @@ class DeliveryMissionService(
     private val problemResolutions: DeliveryProblemResolutionRepository,
     private val courierAvailability: CourierAvailabilityService,
     private val workflow: DeliveryMissionWorkflow,
+    private val publisher: ApplicationEventPublisher,
 ) {
+    private val objectMapper = ObjectMapper()
+
     @Transactional(readOnly = true)
     fun get(missionId: String): DeliveryMissionSnapshot? {
         require(missionId.isNotBlank()) { "missionId cannot be blank." }
@@ -501,7 +509,9 @@ class DeliveryMissionService(
             DeliveryMissionEvent.ReportProblem -> mission.problemMetadata = problemReason
             DeliveryMissionEvent.OfferToCourier, DeliveryMissionEvent.Cancel -> Unit
         }
-        return success(repository.save(mission), result.reason)
+        val saved = repository.save(mission)
+        if (event == DeliveryMissionEvent.ReportProblem) publishProblemEvent(saved)
+        return success(saved, result.reason)
     }
 
     private fun adminTransition(
@@ -528,7 +538,9 @@ class DeliveryMissionService(
         mission.status = result.nextStatus.toRecordStatus()
         mission.problemMetadata = "$metadataPrefix by $actorId: $reason"
         mission.updatedAt = at
-        return success(repository.save(mission), result.reason)
+        val saved = repository.save(mission)
+        if (event == DeliveryMissionEvent.ReportProblem) publishProblemEvent(saved)
+        return success(saved, result.reason)
     }
 
     private fun find(id: String) = repository.findById(id).orElse(null)
@@ -600,7 +612,39 @@ class DeliveryMissionService(
         status = DeliveryMissionRecordStatus.PROBLEM_REPORTED
         problemMetadata = "auto_no_show at $evaluatedAt: $reason"
         updatedAt = evaluatedAt
-        return repository.save(this).toSnapshot()
+        val saved = repository.save(this)
+        publishProblemEvent(saved)
+        return saved.toSnapshot()
+    }
+
+    private fun publishProblemEvent(mission: DeliveryMission) {
+        val courierId = mission.courierId?.takeIf { it.isNotBlank() }
+            ?: return
+        val missionId = requireNotNull(mission.id)
+        publisher.publishEvent(
+            NotificationWorkflowEvent(
+                eventId = "$missionId:delivery-problem-reported",
+                eventType = NotificationEventType.DELIVERY_PROBLEM_REPORTED,
+                aggregateType = "DELIVERY_MISSION",
+                aggregateId = missionId,
+                payload = objectMapper.writeValueAsString(
+                    mapOf(
+                        "riderUserIds" to listOf(courierId),
+                        "title" to "Delivery problem reported",
+                        "body" to "A delivery mission needs support attention.",
+                        "actionUrl" to "/admin/delivery/missions/$missionId",
+                        "severity" to NotificationSeverity.URGENT.name,
+                        "messagePayload" to mapOf(
+                            "missionId" to missionId,
+                            "orderId" to mission.orderId,
+                            "deliveryCode" to mission.deliveryCode,
+                            "courierId" to courierId,
+                            "problemMetadata" to mission.problemMetadata,
+                        ),
+                    )
+                ),
+            )
+        )
     }
 }
 
