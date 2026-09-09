@@ -8,6 +8,7 @@ import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentSlaWarning
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorkerRunResult
+import dev.orestegabo.sequo_api.domain.auth.RefreshSessionService
 import dev.orestegabo.sequo_api.domain.relay.RelayParcel
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelApplicationService
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrual
@@ -51,6 +52,24 @@ class NotificationOutboxScheduler(
             )
         }
         return result
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.auth.refresh-session-cleanup",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class RefreshSessionCleanupScheduler(
+    private val refreshSessions: RefreshSessionService,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.auth.refresh-session-cleanup.fixed-delay-ms:86400000}")
+    fun run() {
+        val deleted = refreshSessions.deleteExpired()
+        if (deleted > 0) logger.info("Refresh-session cleanup removed {} expired sessions.", deleted)
     }
 }
 
