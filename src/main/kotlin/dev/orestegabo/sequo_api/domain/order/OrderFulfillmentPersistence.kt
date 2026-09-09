@@ -6,6 +6,7 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderSnapshot
+import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionConfigurationService
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
@@ -179,6 +180,7 @@ class OrderFulfillmentPersistenceService(
     private val lines: CustomerOrderLineRecordRepository,
     private val events: CustomerOrderEventRecordRepository,
     private val merchantFulfillment: MerchantFulfillmentService,
+    private val commissions: MerchantCommissionConfigurationService,
 ) {
     @Transactional
     fun persistAcceptedOrder(
@@ -221,7 +223,14 @@ class OrderFulfillmentPersistenceService(
             .map { (merchantId, sellerLines) ->
                 val subOrderCode = "$orderId:$merchantId"
                 merchantFulfillment.findBySubOrderCode(subOrderCode)
-                    ?: merchantFulfillment.create(sellerLines.toSubOrderCommand(orderId, merchantId, subOrderCode))
+                    ?: merchantFulfillment.create(
+                        sellerLines.toSubOrderCommand(
+                            orderId = orderId,
+                            merchantId = merchantId,
+                            subOrderCode = subOrderCode,
+                            commissions = commissions,
+                        )
+                    )
     }
 }
 
@@ -393,17 +402,22 @@ private fun List<OrderLineRequest>.toSubOrderCommand(
     orderId: String,
     merchantId: String,
     subOrderCode: String,
+    commissions: MerchantCommissionConfigurationService,
 ): CreateMerchantSubOrderCommand {
     val subtotal = sumOf { Math.multiplyExact(it.effectiveUnitPriceCfa, it.quantity) }
-    val commission = subtotal * 1500 / 10_000
+    val commission = commissions.calculateForMerchant(
+        merchantId = merchantId,
+        baseAmountCfa = subtotal,
+        platformMarginCfa = 0,
+    )
     return CreateMerchantSubOrderCommand(
         subOrderCode = subOrderCode,
         orderId = orderId,
         merchantId = merchantId,
         itemSubtotalCfa = subtotal,
-        commissionRateBps = 1500,
-        commissionCfa = commission,
-        merchantNetCfa = subtotal - commission,
+        commissionRateBps = commission.commissionRateBps,
+        commissionCfa = commission.commissionCfa,
+        merchantNetCfa = commission.merchantNetCfa,
     )
 }
 
