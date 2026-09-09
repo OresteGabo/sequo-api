@@ -23,6 +23,7 @@ enum class NotificationPlatform {
     ANDROID,
     IOS,
     WEB,
+
 }
 
 enum class DeviceFcmTokenStatus {
