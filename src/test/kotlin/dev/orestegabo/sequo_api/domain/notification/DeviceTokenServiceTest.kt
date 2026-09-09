@@ -9,6 +9,7 @@ import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -34,7 +35,7 @@ class DeviceTokenServiceTest @Autowired constructor(
     @Test
     fun registersActiveFcmTokenWithoutStoringRawToken() {
         val userId = createUser("notification-customer@sequo.test")
-        val rawToken = "fcm-token-abc-123"
+        val rawToken = "fcm_" + "a".repeat(64)
         val occurredAt = Instant.parse("2026-08-02T12:00:00Z")
 
         val snapshot = service.registerOrRotate(
@@ -57,11 +58,11 @@ class DeviceTokenServiceTest @Autowired constructor(
         val appFamily = NotificationAppFamily.SEQUO_CUSTOMER
 
         val first = service.registerOrRotate(
-            sampleCommand(userId = userId, deviceId = "device-1", appFamily = appFamily, fcmToken = "fcm-token-old"),
+            sampleCommand(userId = userId, deviceId = "device-1", appFamily = appFamily, fcmToken = "fcm_" + "o".repeat(64)),
             occurredAt = Instant.parse("2026-08-02T12:00:00Z"),
         )
         val second = service.registerOrRotate(
-            sampleCommand(userId = userId, deviceId = "device-1", appFamily = appFamily, fcmToken = "fcm-token-new"),
+            sampleCommand(userId = userId, deviceId = "device-1", appFamily = appFamily, fcmToken = "fcm_" + "n".repeat(64)),
             occurredAt = Instant.parse("2026-08-02T12:05:00Z"),
         )
 
@@ -89,6 +90,15 @@ class DeviceTokenServiceTest @Autowired constructor(
         assertEquals("1.0.1", second.appVersion)
         assertEquals("en-US", second.locale)
         assertEquals(1, tokenRepository.count())
+    }
+
+    @Test
+    fun rejectsUnboundedOrTinyMobileTokenInputs() {
+        val userId = createUser("invalid-token@sequo.test")
+
+        assertFailsWith<IllegalArgumentException> { sampleCommand(userId = userId, fcmToken = "short") }
+        assertFailsWith<IllegalArgumentException> { sampleCommand(userId = userId, fcmToken = "x".repeat(4097)) }
+        assertFailsWith<IllegalArgumentException> { sampleCommand(userId = userId, deviceId = "device-" + "x".repeat(128)) }
     }
 
     @Test
@@ -127,7 +137,7 @@ class DeviceTokenServiceTest @Autowired constructor(
         deviceId: String = "device-1",
         appFamily: NotificationAppFamily = NotificationAppFamily.SEQUO_CUSTOMER,
         platform: NotificationPlatform = NotificationPlatform.ANDROID,
-        fcmToken: String = "fcm-token-abc-123",
+        fcmToken: String = "fcm_" + "a".repeat(64),
         appVersion: String? = "1.0.0",
         locale: String? = "fr-TG",
         timezone: String? = "Africa/Lome",

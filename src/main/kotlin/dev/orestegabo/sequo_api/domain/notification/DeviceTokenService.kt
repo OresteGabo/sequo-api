@@ -17,7 +17,9 @@ data class RegisterFcmTokenCommand(
     init {
         require(userId.isNotBlank()) { "userId cannot be blank." }
         require(deviceId.isNotBlank()) { "deviceId cannot be blank." }
+        require(deviceId.length <= 128) { "deviceId cannot exceed 128 characters." }
         require(fcmToken.isNotBlank()) { "fcmToken cannot be blank." }
+        require(fcmToken.length in 32..4096) { "fcmToken must be between 32 and 4096 characters." }
         require(appVersion == null || appVersion.length <= 64) { "appVersion cannot exceed 64 characters." }
         require(locale == null || locale.length <= 32) { "locale cannot exceed 32 characters." }
         require(timezone == null || timezone.length <= 128) { "timezone cannot exceed 128 characters." }
