@@ -27,6 +27,9 @@ class PasswordResetFlowTest {
     private lateinit var socialIdentityRepository: SocialIdentityRepository
 
     @Autowired
+    private lateinit var refreshSessionRepository: RefreshSessionRepository
+
+    @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
     @Autowired
@@ -38,6 +41,7 @@ class PasswordResetFlowTest {
     @BeforeEach
     fun cleanDatabase() {
         Mockito.reset(passwordResetTokenNotifier)
+        refreshSessionRepository.deleteAll()
         socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
     }
@@ -67,16 +71,19 @@ class PasswordResetFlowTest {
 
     @Test
     fun resetPasswordAcceptsValidTokenAndClearsItAfterUse() {
-        val token = tokenService.generate()
+        val resetToken = tokenService.generate()
         val user = emailUser("customer@sequo.test").apply {
-            resetTokenHash = token.tokenHash
+            resetTokenHash = resetToken.tokenHash
             resetTokenExpiry = Instant.now().plusSeconds(120)
         }
         userRepository.save(user)
+        val loginTokens = requireNotNull(
+            authService.login(AuthController.LoginWithEmailRequest(user.email, "OldPassword2026!"))
+        )
 
         val success = authService.resetPassword(
             AuthController.ResetPasswordRequest(
-                token = token.rawToken,
+                token = resetToken.rawToken,
                 newPassword = "Cobalt-Violet-47!"
             )
         )
@@ -87,6 +94,7 @@ class PasswordResetFlowTest {
         assertNull(updated.resetTokenHash)
         assertNull(updated.resetTokenExpiry)
         assertTrue(passwordEncoder.matches("Cobalt-Violet-47!", updated.passwordHash))
+        assertNull(authService.refreshTokens(loginTokens.refreshToken))
     }
 
     @Test
