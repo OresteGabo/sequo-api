@@ -97,8 +97,11 @@ class MerchantFulfillmentService(
     }
 
     @Transactional
-    fun create(command: CreateMerchantSubOrderCommand): MerchantSubOrderSnapshot {
-        val now = Instant.now()
+    fun create(
+        command: CreateMerchantSubOrderCommand,
+        createdAt: Instant = Instant.now(),
+    ): MerchantSubOrderSnapshot {
+        val now = createdAt
         val subOrder = MerchantSubOrder(
             subOrderCode = command.subOrderCode,
             orderId = command.orderId,
