@@ -2,6 +2,8 @@ package dev.orestegabo.sequo_api.domain.operations
 
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
+import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
+import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentSlaWarning
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorkerRunResult
 import dev.orestegabo.sequo_api.domain.relay.RelayParcel
@@ -105,6 +107,32 @@ class DeliveryMissionExpiryScheduler(
             logger.info("Delivery mission expiry scheduler moved {} missions to support problem state.", expired.size)
         }
         return expired
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.merchant-fulfillment.sla-warning-scheduler",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class MerchantFulfillmentSlaWarningScheduler(
+    private val merchantFulfillment: MerchantFulfillmentService,
+    @Value("\${sequo.merchant-fulfillment.sla-warning-scheduler.limit:100}") private val limit: Int,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.merchant-fulfillment.sla-warning-scheduler.fixed-delay-ms:3600000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): List<MerchantFulfillmentSlaWarning> {
+        val warnings = merchantFulfillment.publishOverdueSlaWarnings(Instant.now(), limit.coerceIn(1, 200))
+        if (warnings.isNotEmpty()) {
+            logger.info("Merchant fulfillment SLA warning scheduler published {} warnings.", warnings.size)
+        }
+        return warnings
     }
 }
 
