@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import dev.orestegabo.sequo_api.config.ApiContentTypeFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.beans.factory.annotation.Value
@@ -38,6 +39,7 @@ class SecurityConfig(
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterAfter(ApiContentTypeFilter(), JwtAuthenticationFilter::class.java)
         
         return http.build()
     }
