@@ -100,6 +100,38 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
         }
     }
 
+    @Test
+    fun adminCanCreateAndReadMerchantFulfillmentEscalations() {
+        val admin = auth("admin-escalation", RoleCode.ADMIN)
+        val support = auth("support-escalation-admin", RoleCode.SUPPORT_AGENT)
+        val merchant = auth("merchant-controller-1", RoleCode.MERCHANT_OWNER)
+        val subOrder = controller.create(admin, command("CTRL-ESCALATION")).bodyAs<MerchantSubOrderSnapshot>()
+
+        val escalation = controller.escalate(
+            support,
+            subOrder.id,
+            MerchantFulfillmentController.EscalateRequest(
+                reason = MerchantFulfillmentEscalationReason.MANUAL_SUPPORT_REVIEW,
+                note = "Seller called support and needs manual follow-up.",
+            ),
+        )
+        val merchantRead = controller.escalations(merchant, subOrder.id)
+        val supportRead = controller.escalations(support, subOrder.id)
+
+        assertEquals(HttpStatus.OK, escalation.statusCode)
+        escalation.bodyAs<MerchantFulfillmentEscalationSnapshot>().also {
+            assertEquals(subOrder.id, it.subOrderId)
+            assertEquals("support-escalation-admin", it.actorUserId)
+            assertEquals(MerchantFulfillmentEscalationReason.MANUAL_SUPPORT_REVIEW, it.reason)
+        }
+        assertEquals(HttpStatus.FORBIDDEN, merchantRead.statusCode)
+        assertEquals(HttpStatus.OK, supportRead.statusCode)
+        assertEquals(
+            listOf(MerchantFulfillmentEscalationReason.MANUAL_SUPPORT_REVIEW),
+            supportRead.bodyAs<List<MerchantFulfillmentEscalationSnapshot>>().map { it.reason },
+        )
+    }
+
     private fun command(code: String): CreateMerchantSubOrderCommand =
         CreateMerchantSubOrderCommand(
             subOrderCode = code,
