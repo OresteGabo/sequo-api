@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 data class DeliveryDispatchRunResult(
+    val dispatchRunId: String? = null,
     val scannedReadySubOrders: Int,
     val createdMissions: List<DeliveryMissionSnapshot>,
     val existingMissions: List<DeliveryMissionSnapshot>,
@@ -26,6 +27,7 @@ data class DeliveryDispatchSkippedSubOrder(
 class DeliveryReadinessDispatchService(
     private val subOrders: MerchantSubOrderRepository,
     private val missions: DeliveryMissionRepository,
+    private val dispatchRuns: DeliveryDispatchRunRepository,
     private val deliveryMissionService: DeliveryMissionService,
     private val orders: CustomerOrderRecordRepository,
 ) {
@@ -69,14 +71,26 @@ class DeliveryReadinessDispatchService(
             )
         }
 
-        return DeliveryDispatchRunResult(
+        val result = DeliveryDispatchRunResult(
             scannedReadySubOrders = readySubOrders.size,
             createdMissions = created,
             existingMissions = existing,
             skippedSubOrders = skipped,
         )
+        val dispatchRun = dispatchRuns.save(result.toRecord(at))
+        return result.copy(dispatchRunId = requireNotNull(dispatchRun.id))
     }
 }
+
+private fun DeliveryDispatchRunResult.toRecord(createdAt: Instant): DeliveryDispatchRunRecord =
+    DeliveryDispatchRunRecord(
+        scannedReadySubOrders = scannedReadySubOrders,
+        createdMissionIds = createdMissions.map { it.id }.joinToString(","),
+        existingMissionIds = existingMissions.map { it.id }.joinToString(","),
+        skippedSubOrderIds = skippedSubOrders.map { it.subOrderId }.joinToString(","),
+        skippedReasons = skippedSubOrders.map { it.reason }.distinct().joinToString(","),
+        createdAt = createdAt,
+    )
 
 private data class DispatchPlan(
     val destination: DeliveryMissionRecordDestination,
