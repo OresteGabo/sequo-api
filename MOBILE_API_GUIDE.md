@@ -49,6 +49,7 @@ All authentication routes are public, but still require JSON bodies.
 | POST | `/api/auth/refresh` | `refreshToken` | Obtain a new access token. The refresh token is opaque, must be stored in secure mobile storage, and is rotated on every successful refresh. |
 | POST | `/api/auth/logout` | `refreshToken` | Revoke the supplied refresh session; safe to call repeatedly. |
 | POST | `/api/auth/logout-all` | Bearer access token | Revoke every refresh session for the authenticated account. |
+| GET | `/api/auth/me` | Bearer access token | Read the authenticated user's safe profile fields. |
 | GET | `/api/auth/sessions` | Bearer access token | List the account's refresh sessions without exposing tokens or hashes. |
 | DELETE | `/api/auth/sessions/{sessionId}` | Bearer access token | Revoke one session belonging to the authenticated account. |
 | POST | `/api/auth/forgot-password` | `email` | Start password recovery. The response is intentionally generic. |

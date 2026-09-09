@@ -38,6 +38,7 @@ class SecurityConfig(
                 auth
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                     .requestMatchers("/api/auth/logout-all").authenticated()
+                    .requestMatchers("/api/auth/me", "/api/auth/sessions/**").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
                     .anyRequest().authenticated()
             }

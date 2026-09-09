@@ -24,6 +24,13 @@ class AuthController(
         val expiresAt: Instant,
         val revokedAt: Instant?,
     )
+    data class CurrentUserResponse(
+        val id: String,
+        val email: String,
+        val name: String?,
+        val provider: AuthProvider,
+        val status: UserStatus,
+    )
     data class ForgotPasswordRequest(val email: String)
     data class ResetPasswordRequest(val token: String, val newPassword: String)
     data class RateLimitErrorResponse(
@@ -123,6 +130,21 @@ class AuthController(
                     revokedAt = session.revokedAt,
                 )
             }
+        )
+    }
+
+    @GetMapping("/me")
+    fun currentUser(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> {
+        userId ?: return ResponseEntity.status(401).build()
+        val user = authService.currentUser(userId) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(
+            CurrentUserResponse(
+                id = requireNotNull(user.id),
+                email = user.email,
+                name = user.name,
+                provider = user.provider,
+                status = user.status,
+            )
         )
     }
 

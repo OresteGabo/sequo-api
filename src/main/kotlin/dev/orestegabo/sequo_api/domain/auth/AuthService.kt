@@ -149,6 +149,8 @@ class AuthService(
 
     fun listSessions(userId: String): List<RefreshSession> = refreshSessionService.listForUser(userId)
 
+    fun currentUser(userId: String): User? = userRepository.findById(userId).orElse(null)
+
     @Transactional
     fun revokeSession(sessionId: String, userId: String): Boolean =
         refreshSessionService.revokeForUser(sessionId, userId)
