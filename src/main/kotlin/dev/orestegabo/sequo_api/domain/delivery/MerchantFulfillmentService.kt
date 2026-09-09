@@ -141,6 +141,12 @@ class MerchantFulfillmentService(
     }
 
     @Transactional(readOnly = true)
+    fun listForOrder(orderId: String): List<MerchantSubOrderSnapshot> {
+        require(orderId.isNotBlank()) { "orderId cannot be blank." }
+        return repository.findByOrderId(orderId).map { it.toSnapshot() }
+    }
+
+    @Transactional(readOnly = true)
     fun sla(subOrderId: String, at: Instant = Instant.now()): MerchantFulfillmentSlaSnapshot? {
         val subOrder = repository.findById(subOrderId).orElse(null) ?: return null
         return subOrder.toSlaSnapshot(at)
