@@ -65,6 +65,7 @@ class NotificationRoutingService {
             NotificationEventType.RETURN_PIN_CREATED,
             NotificationEventType.REFUND_TRIGGERED -> addCustomer(recipients, context)
             NotificationEventType.ORDER_READY_FOR_PICKUP -> {
+                addMerchants(recipients, context)
                 addRiders(recipients, context)
                 addOperations(recipients, context)
             }
