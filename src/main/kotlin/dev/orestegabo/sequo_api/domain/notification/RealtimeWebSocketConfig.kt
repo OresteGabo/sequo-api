@@ -67,9 +67,16 @@ class StompJwtAuthenticationInterceptor(
             null,
             session.roles.map { it.toGrantedAuthority() },
         )
+        val appFamily = accessor.getFirstNativeHeader(WebSocketPresenceEventListener.NotificationAppFamilyHeader)
+            ?.let(::parseAppFamily)
+            ?: NotificationAppFamily.SEQUO_CUSTOMER
+        accessor.sessionAttributes?.put(WebSocketPresenceEventListener.NotificationAppFamilyAttribute, appFamily)
         accessor.user = authentication
         return message
     }
+
+    private fun parseAppFamily(rawValue: String): NotificationAppFamily? =
+        NotificationAppFamily.entries.firstOrNull { it.name == rawValue.trim().uppercase() }
 }
 
 class StompSubscriptionAuthorizationInterceptor(
