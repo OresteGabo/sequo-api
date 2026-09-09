@@ -5,10 +5,10 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.junit.jupiter.api.BeforeEach
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertEquals
 
 @SpringBootTest
 class RefreshSessionSecurityTest {
@@ -30,6 +30,7 @@ class RefreshSessionSecurityTest {
         val user = userRepository.save(activeUser("rotation@sequo.test"))
         val first = requireNotNull(authService.login(AuthController.LoginWithEmailRequest(user.email, "Cobalt-Violet-47!")))
 
+        assertEquals(1, first.refreshToken.split('.').size)
         val second = requireNotNull(authService.refreshTokens(first.refreshToken))
 
         assertNotEquals(first.refreshToken, second.refreshToken)
