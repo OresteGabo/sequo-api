@@ -46,15 +46,20 @@ data class NotificationProviderDeliveryResult(
     val nextAttemptAt: Instant?,
 )
 
+interface NotificationProviderDeliveryServiceContract {
+    fun listReady(limit: Int = 50, now: Instant = Instant.now()): List<NotificationProviderDeliveryResult>
+    fun send(deliveryId: String, now: Instant = Instant.now()): NotificationProviderDeliveryResult?
+}
+
 @Service
 class NotificationProviderDeliveryService(
     private val deliveryRepository: NotificationDeliveryRepository,
     private val messageRepository: NotificationMessageRepository,
     private val fcmSender: FcmNotificationSender,
     private val smsSender: SmsNotificationSender,
-) {
+) : NotificationProviderDeliveryServiceContract {
     @Transactional(readOnly = true)
-    fun listReady(limit: Int = 50, now: Instant = Instant.now()): List<NotificationProviderDeliveryResult> {
+    override fun listReady(limit: Int, now: Instant): List<NotificationProviderDeliveryResult> {
         require(limit in 1..200) { "limit must be between 1 and 200." }
         return deliveryRepository.findReadyProviderDeliveries(
             channels = listOf(NotificationChannel.FCM, NotificationChannel.SMS),
@@ -65,7 +70,7 @@ class NotificationProviderDeliveryService(
     }
 
     @Transactional
-    fun send(deliveryId: String, now: Instant = Instant.now()): NotificationProviderDeliveryResult? {
+    override fun send(deliveryId: String, now: Instant): NotificationProviderDeliveryResult? {
         require(deliveryId.isNotBlank()) { "deliveryId cannot be blank." }
         val delivery = deliveryRepository.findById(deliveryId).orElse(null) ?: return null
         if (delivery.status !in setOf(NotificationDeliveryStatus.PENDING, NotificationDeliveryStatus.FAILED_RETRYABLE)) {
