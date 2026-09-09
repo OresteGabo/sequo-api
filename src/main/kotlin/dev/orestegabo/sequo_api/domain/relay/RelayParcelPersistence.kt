@@ -181,6 +181,12 @@ class RelayParcelPersistenceService(
     }
 
     @Transactional
+    fun saveReturnToSeller(parcel: RelayParcel, event: RelayCustodyEvent): RelayParcel = parcel.also {
+        save(it)
+        events.save(event.toRecord())
+    }
+
+    @Transactional
     fun saveStorageFeeAssessment(
         parcel: RelayParcel,
         fee: RelayStorageFeeSnapshot,
@@ -363,6 +369,49 @@ class RelayParcelApplicationService(
         val updated = parcel.copy(status = RelayParcelStatus.Problem, updatedAt = reportedAt, custodyEvents = parcel.custodyEvents + event)
         persistence.saveProblem(updated, event)
         return RelayParcelServiceResult.Accepted(RelayParcelAccepted(updated, event = event))
+    }
+
+    @Transactional
+    fun returnToSeller(
+        parcelId: String,
+        actorUserId: String,
+        eventId: String,
+        idempotencyKey: String,
+        metadata: String,
+        returnedAt: java.time.Instant = java.time.Instant.now(),
+    ): RelayParcelServiceResult {
+        require(actorUserId.isNotBlank() && eventId.isNotBlank() && idempotencyKey.isNotBlank()) {
+            "Actor, event id, and idempotency key are required."
+        }
+        require(metadata.isNotBlank()) { "Return metadata is required." }
+        val parcel = persistence.findParcel(parcelId)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
+        parcel.custodyEvents.firstOrNull {
+            it.type == RelayCustodyEventType.ReturnDropoff && it.idempotencyKey == idempotencyKey
+        }?.let { existing ->
+            return RelayParcelServiceResult.Accepted(RelayParcelAccepted(parcel, event = existing))
+        }
+        if (parcel.status != RelayParcelStatus.ReturnToSellerReview) {
+            return RelayParcelServiceResult.Rejected(
+                RelayParcelRejection("return_review_required", "Parcel must be in return-to-seller review before it can be returned."),
+            )
+        }
+        val event = RelayCustodyEvent(
+            id = eventId,
+            relayParcelId = parcelId,
+            actorUserId = actorUserId,
+            type = RelayCustodyEventType.ReturnDropoff,
+            metadata = metadata,
+            idempotencyKey = idempotencyKey,
+            createdAt = returnedAt,
+        )
+        val returned = parcel.copy(
+            status = RelayParcelStatus.ReturnedToSeller,
+            updatedAt = returnedAt,
+            custodyEvents = parcel.custodyEvents + event,
+        )
+        persistence.saveReturnToSeller(returned, event)
+        return RelayParcelServiceResult.Accepted(RelayParcelAccepted(returned, event = event))
     }
 
     private fun RelayParcel.assessStorageFee(
