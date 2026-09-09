@@ -43,6 +43,32 @@ class OrderController(
         }
     }
 
+    @GetMapping
+    fun listOrders(
+        @AuthenticationPrincipal userId: String?,
+    ): ResponseEntity<Any> {
+        if (userId == null) return ResponseEntity.status(401).build()
+        return try {
+            ResponseEntity.ok(fulfillmentPersistence.listForCustomer(userId))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(CustomerOrderErrorResponse("invalid_order_query", e.message ?: "Invalid order query."))
+        }
+    }
+
+    @GetMapping("/{orderId}")
+    fun getOrder(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable orderId: String,
+    ): ResponseEntity<Any> {
+        if (userId == null) return ResponseEntity.status(401).build()
+        return try {
+            fulfillmentPersistence.getForCustomer(orderId, userId)?.let { ResponseEntity.ok(it) }
+                ?: ResponseEntity.notFound().build()
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(CustomerOrderErrorResponse("invalid_order_query", e.message ?: "Invalid order query."))
+        }
+    }
+
     @PostMapping("/{orderId}/pickup-confirmations")
     fun confirmCustomerPickup(
         @AuthenticationPrincipal userId: String?,
@@ -97,6 +123,7 @@ data class ConfirmCustomerPickupRequest(
 )
 
 data class CustomerPickupErrorResponse(val code: String, val message: String)
+data class CustomerOrderErrorResponse(val code: String, val message: String)
 
 private fun CustomerPickupConfirmationResult.toResponse(): ResponseEntity<Any> =
     when (this) {
