@@ -229,6 +229,44 @@ class DeliveryMissionControllerTest @Autowired constructor(
     }
 
     @Test
+    fun adminCanResolveProblemMissionAndReadResolutionHistory() {
+        val admin = auth("admin-resolve-problem", RoleCode.ADMIN)
+        val mission = createAssignedAndOfferedMission(
+            deliveryCode = "CTRL-RESOLVE-PROBLEM",
+            orderId = "order-resolve-problem",
+            courierId = "courier-resolve-problem-old",
+            admin = admin,
+        )
+        controller.forceProblem(
+            admin,
+            mission.id,
+            DeliveryMissionController.ProblemRequest("Courier no-show."),
+        )
+
+        val resolved = controller.resolveProblem(
+            admin,
+            mission.id,
+            DeliveryMissionController.ResolveProblemRequest(
+                action = DeliveryProblemResolutionAction.REQUEUE_FOR_DISPATCH,
+                reason = "Send to another courier.",
+                replacementCourierId = "courier-resolve-problem-new",
+            ),
+        )
+        val history = controller.problemResolutions(admin, mission.id)
+
+        assertEquals(HttpStatus.OK, resolved.statusCode)
+        resolved.bodyAs<DeliveryMissionSnapshot>().also {
+            assertEquals(DeliveryMissionRecordStatus.CREATED, it.status)
+            assertEquals("courier-resolve-problem-new", it.courierId)
+        }
+        assertEquals(HttpStatus.OK, history.statusCode)
+        history.bodyAs<List<DeliveryProblemResolutionSnapshot>>().single().also {
+            assertEquals(DeliveryProblemResolutionAction.REQUEUE_FOR_DISPATCH, it.action)
+            assertEquals("Send to another courier.", it.reason)
+        }
+    }
+
+    @Test
     fun adminCannotReassignAfterPickup() {
         val admin = auth("admin-reassign-late", RoleCode.ADMIN)
         val courier = auth("courier-reassign-late", RoleCode.COURIER)
