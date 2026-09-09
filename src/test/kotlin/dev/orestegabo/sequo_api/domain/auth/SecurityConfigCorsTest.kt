@@ -12,6 +12,7 @@ class SecurityConfigCorsTest {
     fun corsConfigurationUsesExplicitAllowedOriginsAndSafeHeaders() {
         val configurationSource = SecurityConfig(
             jwtAuthenticationFilter = JwtAuthenticationFilter(jwtService()),
+            inMemoryRateLimiter = InMemoryRateLimiter(),
             corsAllowedOrigins = listOf(
                 "https://app.sequo.example",
                 " https://admin.sequo.example ",
