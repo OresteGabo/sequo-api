@@ -22,6 +22,14 @@ interface DeviceFcmTokenRepository : JpaRepository<DeviceFcmToken, String> {
     fun deleteByStatusInAndUpdatedAtBefore(statuses: Collection<DeviceFcmTokenStatus>, updatedAt: Instant): Int
 }
 
+interface NotificationPreferenceRepository : JpaRepository<NotificationPreference, String> {
+    fun findByUserIdAndAppFamilyAndEventType(
+        userId: String,
+        appFamily: NotificationAppFamily,
+        eventType: NotificationPreferenceEventType,
+    ): NotificationPreference?
+}
+
 interface NotificationMessageRepository : JpaRepository<NotificationMessage, String> {
     fun findByEventIdAndRecipientUserIdAndAppFamilyAndEventType(
         eventId: String,

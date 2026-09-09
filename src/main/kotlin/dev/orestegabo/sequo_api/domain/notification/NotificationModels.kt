@@ -10,6 +10,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.time.Instant
+import java.time.LocalTime
 
 enum class NotificationAppFamily {
     SEQUO_CUSTOMER,
@@ -96,6 +97,45 @@ enum class NotificationEventType {
     MISSING_DEPOT_BLOCKED_TOUR,
 }
 
+enum class NotificationPreferenceEventType {
+    ALL,
+    ORDER_CREATED,
+    PAYMENT_CONFIRMED,
+    BARGAINING_PROPOSAL_CREATED,
+    BARGAINING_COUNTERED,
+    BARGAINING_ACCEPTED,
+    MERCHANT_ACCEPTED_ORDER,
+    MERCHANT_REJECTED_ORDER,
+    MERCHANT_SLA_WARNING,
+    ORDER_PREPARING,
+    ORDER_READY_FOR_PICKUP,
+    RIDER_MISSION_OFFERED,
+    RIDER_ACCEPTED_MISSION,
+    RIDER_PICKED_UP,
+    RIDER_ARRIVED,
+    DIRECT_DELIVERED,
+    RELAY_PARCEL_DEPOSITED,
+    RELAY_PICKUP_CODE_CREATED,
+    RELAY_PARCEL_DELAYED,
+    RETURN_REQUESTED,
+    RETURN_PIN_CREATED,
+    RETURN_RECEIVED_BY_SEQUO,
+    REFUND_TRIGGERED,
+    MERCHANT_PAYOUT_ELIGIBLE,
+    PAYOUT_SENT,
+    DELIVERY_PROBLEM_REPORTED,
+    MISSING_DEPOT_BLOCKED_TOUR,
+    ;
+
+    fun matches(eventType: NotificationEventType): Boolean =
+        this == ALL || name == eventType.name
+
+    companion object {
+        fun specific(eventType: NotificationEventType): NotificationPreferenceEventType =
+            entries.first { it.name == eventType.name }
+    }
+}
+
 @Entity
 @Table(name = "device_fcm_tokens")
 class DeviceFcmToken(
@@ -142,6 +182,51 @@ class DeviceFcmToken(
 
     @Column(name = "revoked_at")
     var revokedAt: Instant? = null,
+
+    @Column(name = "created_at", nullable = false)
+    val createdAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = createdAt,
+
+    @Version
+    @Column(name = "version", nullable = false)
+    var version: Long = 0,
+)
+
+@Entity
+@Table(name = "notification_preferences")
+class NotificationPreference(
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
+    val id: String? = null,
+
+    @Column(name = "user_id", nullable = false)
+    val userId: String,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "app_family", nullable = false, length = 64)
+    val appFamily: NotificationAppFamily,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_type", nullable = false, length = 128)
+    val eventType: NotificationPreferenceEventType = NotificationPreferenceEventType.ALL,
+
+    @Column(name = "push_enabled", nullable = false)
+    var pushEnabled: Boolean = true,
+
+    @Column(name = "in_app_enabled", nullable = false)
+    var inAppEnabled: Boolean = true,
+
+    @Column(name = "sms_enabled", nullable = false)
+    var smsEnabled: Boolean = true,
+
+    @Column(name = "quiet_hours_start")
+    var quietHoursStart: LocalTime? = null,
+
+    @Column(name = "quiet_hours_end")
+    var quietHoursEnd: LocalTime? = null,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
