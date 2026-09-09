@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -14,6 +15,7 @@ class AuthController(
     data class LoginWithEmailRequest(val email: String, val password: String)
     data class LoginWithSocialRequest(val provider: AuthProvider, val token: String)
     data class RefreshRequest(val refreshToken: String)
+    data class LogoutRequest(val refreshToken: String)
     data class ForgotPasswordRequest(val email: String)
     data class ResetPasswordRequest(val token: String, val newPassword: String)
     data class RateLimitErrorResponse(
@@ -85,6 +87,19 @@ class AuthController(
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         }
+    }
+
+    @PostMapping("/logout")
+    fun logout(@RequestBody request: LogoutRequest): ResponseEntity<Void> {
+        authService.logout(request.refreshToken)
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/logout-all")
+    fun logoutAll(@AuthenticationPrincipal userId: String?): ResponseEntity<Void> {
+        userId ?: return ResponseEntity.status(401).build()
+        authService.logoutAll(userId)
+        return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/forgot-password")
