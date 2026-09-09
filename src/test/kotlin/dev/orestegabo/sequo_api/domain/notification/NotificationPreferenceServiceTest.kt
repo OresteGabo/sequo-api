@@ -99,6 +99,34 @@ class NotificationPreferenceServiceTest @Autowired constructor(
         assertTrue(preference.smsEnabled)
     }
 
+    @Test
+    fun savePreferenceCreatesAndUpdatesWithoutDuplicates() {
+        val userId = createUser("preference-save@sequo.test")
+        val first = service.savePreference(
+            SaveNotificationPreferenceCommand(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                eventType = NotificationPreferenceEventType.ORDER_CREATED,
+                pushEnabled = false,
+            )
+        )
+
+        val second = service.savePreference(
+            SaveNotificationPreferenceCommand(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                eventType = NotificationPreferenceEventType.ORDER_CREATED,
+                pushEnabled = true,
+                smsEnabled = false,
+            )
+        )
+
+        assertEquals(first.id, second.id)
+        assertTrue(second.pushEnabled)
+        assertEquals(false, second.smsEnabled)
+        assertEquals(1, preferenceRepository.count())
+    }
+
     private fun createUser(email: String): String =
         requireNotNull(
             userRepository.save(

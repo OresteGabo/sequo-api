@@ -19,10 +19,53 @@ data class NotificationPreferenceSnapshot(
     val updatedAt: Instant?,
 )
 
+data class SaveNotificationPreferenceCommand(
+    val userId: String,
+    val appFamily: NotificationAppFamily,
+    val eventType: NotificationPreferenceEventType = NotificationPreferenceEventType.ALL,
+    val pushEnabled: Boolean = true,
+    val inAppEnabled: Boolean = true,
+    val smsEnabled: Boolean = true,
+    val quietHoursStart: LocalTime? = null,
+    val quietHoursEnd: LocalTime? = null,
+) {
+    init {
+        require(userId.isNotBlank()) { "userId cannot be blank." }
+    }
+}
+
 @Service
 class NotificationPreferenceService(
     private val repository: NotificationPreferenceRepository,
 ) {
+    @Transactional
+    fun savePreference(
+        command: SaveNotificationPreferenceCommand,
+        occurredAt: Instant = Instant.now(),
+    ): NotificationPreferenceSnapshot {
+        val existing = repository.findByUserIdAndAppFamilyAndEventType(
+            command.userId,
+            command.appFamily,
+            command.eventType,
+        )
+
+        val preference = existing ?: NotificationPreference(
+            userId = command.userId,
+            appFamily = command.appFamily,
+            eventType = command.eventType,
+            createdAt = occurredAt,
+            updatedAt = occurredAt,
+        )
+        preference.pushEnabled = command.pushEnabled
+        preference.inAppEnabled = command.inAppEnabled
+        preference.smsEnabled = command.smsEnabled
+        preference.quietHoursStart = command.quietHoursStart
+        preference.quietHoursEnd = command.quietHoursEnd
+        preference.updatedAt = occurredAt
+
+        return repository.save(preference).toSnapshot()
+    }
+
     @Transactional(readOnly = true)
     fun resolve(
         userId: String,
