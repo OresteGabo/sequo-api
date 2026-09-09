@@ -106,5 +106,5 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [x] Food customization/topping groups with required/optional choices, price deltas, and order snapshots.
 - [x] Product media upload policy with live-camera metadata, generic catalog references, safe filename/content validation, moderation, and storage integration.
 - [x] Admin monitoring APIs for operations, delivery capacity, delayed relay parcels, payout queues, and return bottlenecks.
-- [ ] Consolidation persistence and workflow integration for seller readiness, Sequo custody, final package dispatch, and customer tracking.
+- [ ] Consolidation persistence and workflow integration for seller readiness, Sequo custody, final package dispatch, and customer tracking. `ConsolidationPersistenceService` and `consolidation_manifests` now persist and reload the manifest through each validated transition; dispatch integration, customer tracking, and seller readiness synchronization remain.
 - [x] Routing provider abstraction with distance caching, quota protection, manual fallback, and audit of estimated versus actual distance.
