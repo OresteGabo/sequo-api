@@ -85,7 +85,7 @@ Detailed delivery and fulfillment coverage is tracked in [DELIVERY.md](DELIVERY.
 - [ ] Distributed/gateway rate limiting for multi-instance production and future OTP endpoints.
 - [ ] RBAC plus ownership checks for merchant, relay, courier, admin, and customer resources. `AuthorizationPolicy` now centralizes role, ownership, merchant-scope, assignment, and financial-access decisions; merchant fulfillment, delivery mission, relay, customer tracking, support, and admin monitoring controllers integrate role/scope checks, while persisted permissions and broader controller integration remain.
 - [ ] Social identity linking table to safely handle Google login and password login for the same verified email. `AuthService` now reads and records provider-subject links while preserving explicit e-mail account-link rejection; explicit user-driven linking and migration of legacy rows remain.
-- [x] Persist refresh-session hashes and revoke sessions through rotation, logout, and logout-all. Opaque refresh-token migration remains a later hardening task.
+- [x] Persist opaque refresh-session hashes and revoke sessions through rotation, logout, and logout-all.
 - [x] Clean expired refresh sessions with an opt-in daily maintenance scheduler (`REFRESH_SESSION_CLEANUP_ENABLED=true`).
 - [ ] Flyway migrations for roles and audit logs. Refresh-session persistence is implemented in `V22__create_refresh_sessions.sql`; social identities already have a migration.
 
