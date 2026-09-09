@@ -165,6 +165,7 @@ class DeviceTokenService(
 
         val token = repository.findByFcmTokenHash(fcmTokenHash) ?: return false
         token.status = DeviceFcmTokenStatus.STALE
+        token.revokedAt = occurredAt
         token.updatedAt = occurredAt
         repository.save(token)
         return true

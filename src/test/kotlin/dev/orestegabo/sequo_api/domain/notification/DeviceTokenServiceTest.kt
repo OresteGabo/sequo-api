@@ -146,6 +146,21 @@ class DeviceTokenServiceTest @Autowired constructor(
         assertTrue(service.activeTokens(userId, NotificationAppFamily.SEQUO_CUSTOMER).isEmpty())
     }
 
+    @Test
+    fun staleTokenMarkingRecordsRemovalTime() {
+        val userId = createUser("stale-customer@sequo.test")
+        val snapshot = service.registerOrRotate(sampleCommand(userId = userId))
+        val occurredAt = Instant.parse("2026-08-02T14:00:00Z")
+
+        val marked = service.markStaleByTokenHash(snapshot.tokenHash, occurredAt = occurredAt)
+
+        val persisted = tokenRepository.findById(snapshot.id).orElseThrow()
+        assertTrue(marked)
+        assertEquals(DeviceFcmTokenStatus.STALE, persisted.status)
+        assertEquals(occurredAt, persisted.revokedAt)
+        assertTrue(service.activeTokens(userId, NotificationAppFamily.SEQUO_CUSTOMER).isEmpty())
+    }
+
     private fun createUser(email: String): String =
         requireNotNull(
             userRepository.save(
