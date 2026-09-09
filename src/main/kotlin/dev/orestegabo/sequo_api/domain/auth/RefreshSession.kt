@@ -43,7 +43,7 @@ class RefreshSession(
 interface RefreshSessionRepository : org.springframework.data.jpa.repository.JpaRepository<RefreshSession, String> {
     fun findByTokenHash(tokenHash: String): RefreshSession?
     fun findAllByUserIdAndRevokedAtIsNull(userId: String): List<RefreshSession>
-    fun findAllByUserIdOrderByCreatedAtDesc(userId: String): List<RefreshSession>
+    fun findTop100ByUserIdOrderByCreatedAtDesc(userId: String): List<RefreshSession>
     fun findByIdAndUserId(id: String, userId: String): RefreshSession?
 
     @Modifying
@@ -98,7 +98,7 @@ class RefreshSessionService(
         repository.deleteAllByExpiresAtBefore(at)
 
     fun listForUser(userId: String): List<RefreshSession> =
-        repository.findAllByUserIdOrderByCreatedAtDesc(userId)
+        repository.findTop100ByUserIdOrderByCreatedAtDesc(userId)
 
     fun revokeForUser(sessionId: String, userId: String): Boolean {
         val session = repository.findByIdAndUserId(sessionId, userId) ?: return false
