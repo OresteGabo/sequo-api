@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.order
 
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
+import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionConfigurationService
 import dev.orestegabo.sequo_api.domain.delivery.CreateDeliveryMissionCommand
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionEvent
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
@@ -35,6 +36,7 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val events: CustomerOrderEventRecordRepository,
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val settlements: SettlementPersistenceService,
+    private val commissions: MerchantCommissionConfigurationService,
 ) {
     @Test
     fun `accepted paid order is persisted and split into merchant sub-orders idempotently`() {
@@ -55,6 +57,34 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         )
         assertEquals(8_000, second.merchantSubOrders.single { it.merchantId == "merchant-food" }.itemSubtotalCfa)
         assertEquals(3_000, second.merchantSubOrders.single { it.merchantId == "merchant-grocery" }.itemSubtotalCfa)
+    }
+
+    @Test
+    fun `accepted paid order snapshots configured merchant commission rate`() {
+        commissions.upsertOverride(
+            merchantId = "merchant-food",
+            commissionRateBps = 500,
+            updatedByUserId = "admin-order-persistence",
+            reason = "Configured partner rate.",
+        )
+        val request = request(
+            checkoutId = "checkout-order-persistence-commission",
+            lines = listOf(foodLine()),
+        )
+        val accepted = acceptedOrder(request)
+
+        val persisted = service.persistAcceptedOrder(
+            request,
+            accepted,
+            Instant.parse("2026-09-08T10:00:00Z"),
+        )
+
+        persisted.merchantSubOrders.single().also {
+            assertEquals("merchant-food", it.merchantId)
+            assertEquals(500, it.commissionRateBps)
+            assertEquals(250, it.commissionCfa)
+            assertEquals(4_750, it.merchantNetCfa)
+        }
     }
 
     @Test
