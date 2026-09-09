@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 class DeliveryMissionServiceTest @Autowired constructor(
     private val service: DeliveryMissionService,
     private val repository: DeliveryMissionRepository,
+    private val courierAvailability: CourierAvailabilityService,
 ) {
     @Test
     fun persistsAssignedCourierProofAndDirectDelivery() {
@@ -259,6 +260,37 @@ class DeliveryMissionServiceTest @Autowired constructor(
             assertEquals("support-resolve", it.actorUserId)
             assertEquals(Instant.parse("2026-09-09T11:00:00Z"), it.resolvedAt)
         }
+    }
+
+    @Test
+    fun pausedCourierCannotReceiveAssignmentOrReassignment() {
+        val pausedAt = Instant.parse("2026-09-09T09:00:00Z")
+        courierAvailability.pause(
+            courierId = "courier-paused-assignment",
+            actorUserId = "admin-pause",
+            reason = "Temporary support pause.",
+            at = pausedAt,
+        )
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "MISSION-PAUSED-ASSIGN",
+                orderId = "order-paused-assign",
+                deliveryMode = DeliveryMissionRecordMode.STANDARD,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            ),
+            at = pausedAt,
+        )
+        val activeMission = createOfferedMission("MISSION-PAUSED-REASSIGN", "courier-active-before-reassign", pausedAt)
+
+        val assignment = service.assignCourier(mission.id, "courier-paused-assignment", pausedAt)
+        val reassignment = service.reassignCourier(activeMission.id, "courier-paused-assignment", pausedAt)
+
+        assertTrue(assignment is DeliveryMissionServiceResult.Rejected)
+        assertEquals("courier_paused", assignment.code)
+        assertTrue(reassignment is DeliveryMissionServiceResult.Rejected)
+        assertEquals("courier_paused", reassignment.code)
+        assertEquals(DeliveryMissionRecordStatus.CREATED, requireNotNull(service.get(mission.id)).status)
+        assertEquals("courier-active-before-reassign", requireNotNull(service.get(activeMission.id)).courierId)
     }
 
     private fun createOfferedMission(
