@@ -23,7 +23,19 @@ data class CreateNotificationCommand(
         require(title.length <= 255) { "title cannot exceed 255 characters." }
         require(body.length <= 1000) { "body cannot exceed 1000 characters." }
         require(actionUrl == null || actionUrl.length <= 500) { "actionUrl cannot exceed 500 characters." }
+        require(actionUrl == null || NotificationActionUrlPolicy.isAllowed(actionUrl)) {
+            "actionUrl must use an allowed scheme."
+        }
         require(payload == null || payload.length <= 4000) { "payload cannot exceed 4000 characters." }
+    }
+}
+
+object NotificationActionUrlPolicy {
+    private val AllowedSchemes = setOf("https", "sequo")
+
+    fun isAllowed(value: String): Boolean {
+        val scheme = value.substringBefore(':', missingDelimiterValue = "").lowercase()
+        return scheme in AllowedSchemes && !value.any { it.isISOControl() }
     }
 }
 

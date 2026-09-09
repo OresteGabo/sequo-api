@@ -9,6 +9,7 @@ import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -102,6 +103,30 @@ class NotificationDispatchServiceTest @Autowired constructor(
         assertEquals(1, deliveryRepository.count())
     }
 
+    @Test
+    fun rejectsUnsafeNotificationActionUrls() {
+        val userId = createUser("dispatch-unsafe-url@sequo.test")
+
+        assertFailsWith<IllegalArgumentException> {
+            sampleCommand(
+                eventId = "event-unsafe-url",
+                recipientUserId = userId,
+                eventType = NotificationEventType.ORDER_CREATED,
+                severity = NotificationSeverity.INFO,
+                actionUrl = "javascript:alert(1)",
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            sampleCommand(
+                eventId = "event-control-url",
+                recipientUserId = userId,
+                eventType = NotificationEventType.ORDER_CREATED,
+                severity = NotificationSeverity.INFO,
+                actionUrl = "sequo://orders/123\nnext",
+            )
+        }
+    }
+
     private fun createUser(email: String): String =
         requireNotNull(
             userRepository.save(
@@ -119,6 +144,7 @@ class NotificationDispatchServiceTest @Autowired constructor(
         recipientUserId: String,
         eventType: NotificationEventType,
         severity: NotificationSeverity,
+        actionUrl: String = "sequo://orders/123",
     ): CreateNotificationCommand =
         CreateNotificationCommand(
             eventId = eventId,
@@ -128,7 +154,7 @@ class NotificationDispatchServiceTest @Autowired constructor(
             severity = severity,
             title = "Order update",
             body = "Your order status changed.",
-            actionUrl = "sequo://orders/123",
+            actionUrl = actionUrl,
             payload = """{"orderId":"123"}""",
         )
 }
