@@ -1,11 +1,14 @@
 package dev.orestegabo.sequo_api.domain.operations
 
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorkerRunResult
 import dev.orestegabo.sequo_api.domain.relay.RelayParcel
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelApplicationService
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrual
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import org.slf4j.LoggerFactory
@@ -69,6 +72,39 @@ class RelayDelayedParcelScheduler(
             logger.info("Relay delayed parcel scheduler updated {} parcels.", updated.size)
         }
         return updated
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.delivery.mission-expiry-scheduler",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class DeliveryMissionExpiryScheduler(
+    private val deliveryMissions: DeliveryMissionService,
+    @Value("\${sequo.delivery.mission-expiry-scheduler.offer-timeout-minutes:20}") private val offerTimeoutMinutes: Long,
+    @Value("\${sequo.delivery.mission-expiry-scheduler.pickup-timeout-minutes:45}") private val pickupTimeoutMinutes: Long,
+    @Value("\${sequo.delivery.mission-expiry-scheduler.limit:100}") private val limit: Int,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.delivery.mission-expiry-scheduler.fixed-delay-ms:60000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): List<DeliveryMissionSnapshot> {
+        val expired = deliveryMissions.expireStaleMissions(
+            evaluatedAt = Instant.now(),
+            offerTimeout = Duration.ofMinutes(offerTimeoutMinutes),
+            pickupTimeout = Duration.ofMinutes(pickupTimeoutMinutes),
+            limit = limit.coerceIn(1, 200),
+        )
+        if (expired.isNotEmpty()) {
+            logger.info("Delivery mission expiry scheduler moved {} missions to support problem state.", expired.size)
+        }
+        return expired
     }
 }
 
