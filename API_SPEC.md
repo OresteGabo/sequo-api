@@ -1,6 +1,6 @@
 # API Specification
 
-This document describes the target REST API shape for Sequo API. Controllers are not implemented yet, so this is a production contract guide for future implementation and OpenAPI generation.
+This document describes the target REST API shape for Sequo API and includes future endpoints that are not implemented yet. For the current implemented mobile contract, use [MOBILE_API_GUIDE.md](MOBILE_API_GUIDE.md), which is based on the active controllers.
 
 ## API Conventions
 
