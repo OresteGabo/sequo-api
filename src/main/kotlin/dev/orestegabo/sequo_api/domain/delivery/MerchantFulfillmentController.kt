@@ -23,6 +23,7 @@ class MerchantFulfillmentController(
     data class MarkPackedRequest(val merchantId: String, val packageCount: Int)
     data class RejectRequest(val merchantId: String, val reason: String)
     data class PublishSlaWarningsRequest(val evaluatedAt: Instant = Instant.now(), val limit: Int = 100)
+    data class EscalateRequest(val reason: MerchantFulfillmentEscalationReason, val note: String)
     data class ErrorResponse(val code: String, val message: String)
 
     @PostMapping
@@ -50,8 +51,25 @@ class MerchantFulfillmentController(
     fun publishOverdueSlaWarnings(
         authentication: Authentication?,
         @RequestBody request: PublishSlaWarningsRequest,
-    ): ResponseEntity<Any> = adminOnly(authentication) {
+    ): ResponseEntity<Any> = operationsOnly(authentication) {
         ResponseEntity.ok(service.publishOverdueSlaWarnings(request.evaluatedAt, request.limit))
+    }
+
+    @GetMapping("/{subOrderId}/escalations")
+    fun escalations(
+        authentication: Authentication?,
+        @PathVariable subOrderId: String,
+    ): ResponseEntity<Any> = operationsOnly(authentication) {
+        ResponseEntity.ok(service.listEscalations(subOrderId))
+    }
+
+    @PostMapping("/{subOrderId}/escalations")
+    fun escalate(
+        authentication: Authentication?,
+        @PathVariable subOrderId: String,
+        @RequestBody request: EscalateRequest,
+    ): ResponseEntity<Any> = operationsOnly(authentication) { authenticated ->
+        ResponseEntity.ok(service.escalate(subOrderId, authenticated.name, request.reason, request.note))
     }
 
     @GetMapping("/{subOrderId}")
@@ -145,6 +163,12 @@ class MerchantFulfillmentController(
         operation: (Authentication) -> ResponseEntity<Any>,
     ): ResponseEntity<Any> =
         authenticated(authentication, RoleGroups.AdminOnly, operation)
+
+    private fun operationsOnly(
+        authentication: Authentication?,
+        operation: (Authentication) -> ResponseEntity<Any>,
+    ): ResponseEntity<Any> =
+        authenticated(authentication, RoleGroups.AdminOperations, operation)
 
     private fun merchantRequired(
         authentication: Authentication?,
