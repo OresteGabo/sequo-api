@@ -5,6 +5,7 @@ import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.*
+import java.time.Instant
 import javax.crypto.SecretKey
 
 @Service
@@ -55,6 +56,9 @@ class JwtService(
             expiresIn = accessExpiration / 1000
         )
     }
+
+    fun refreshExpiresAt(now: Instant = Instant.now()): Instant =
+        now.plusMillis(refreshExpiration)
 
     fun validateToken(token: String): String? {
         return validateAccessToken(token)
