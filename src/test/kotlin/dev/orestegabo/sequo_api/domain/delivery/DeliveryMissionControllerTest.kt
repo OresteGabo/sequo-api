@@ -267,6 +267,53 @@ class DeliveryMissionControllerTest @Autowired constructor(
     }
 
     @Test
+    fun adminCanPauseAndUnpauseCourierAssignments() {
+        val admin = auth("admin-pause-courier", RoleCode.ADMIN)
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "CTRL-PAUSE-COURIER",
+                orderId = "order-pause-courier",
+                deliveryMode = DeliveryMissionRecordMode.STANDARD,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            )
+        )
+
+        val paused = controller.pauseCourier(
+            admin,
+            DeliveryMissionController.PauseCourierRequest(
+                courierId = "courier-paused-controller",
+                reason = "Repeated pickup no-show.",
+                pausedUntil = Instant.now().plusSeconds(3600),
+            ),
+        )
+        val blockedAssignment = controller.assign(
+            admin,
+            mission.id,
+            DeliveryMissionController.AssignCourierRequest("courier-paused-controller"),
+        )
+        val availability = controller.getCourierAvailability(admin, "courier-paused-controller")
+        val unpaused = controller.unpauseCourier(
+            admin,
+            DeliveryMissionController.UnpauseCourierRequest("courier-paused-controller"),
+        )
+        val assignmentAfterUnpause = controller.assign(
+            admin,
+            mission.id,
+            DeliveryMissionController.AssignCourierRequest("courier-paused-controller"),
+        )
+
+        assertEquals(HttpStatus.OK, paused.statusCode)
+        assertTrue(paused.bodyAs<CourierAvailabilitySnapshot>().paused)
+        assertEquals(HttpStatus.BAD_REQUEST, blockedAssignment.statusCode)
+        assertEquals("courier_paused", blockedAssignment.bodyAs<DeliveryMissionController.ErrorResponse>().code)
+        assertEquals(HttpStatus.OK, availability.statusCode)
+        assertTrue(availability.bodyAs<CourierAvailabilitySnapshot>().paused)
+        assertEquals(HttpStatus.OK, unpaused.statusCode)
+        assertFalse(unpaused.bodyAs<CourierAvailabilitySnapshot>().paused)
+        assertEquals(HttpStatus.OK, assignmentAfterUnpause.statusCode)
+    }
+
+    @Test
     fun adminCannotReassignAfterPickup() {
         val admin = auth("admin-reassign-late", RoleCode.ADMIN)
         val courier = auth("courier-reassign-late", RoleCode.COURIER)
