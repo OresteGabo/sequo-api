@@ -8,8 +8,8 @@ import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 import java.time.Duration
+import java.time.Instant
 
 data class CreateMerchantSubOrderCommand(
     val subOrderCode: String,
@@ -82,6 +82,7 @@ sealed class MerchantFulfillmentServiceResult {
 @Service
 class MerchantFulfillmentService(
     private val repository: MerchantSubOrderRepository,
+    private val escalations: MerchantFulfillmentEscalationRepository,
     private val orders: CustomerOrderRecordRepository,
     private val workflow: MerchantFulfillmentWorkflow,
     private val publisher: ApplicationEventPublisher,
@@ -142,6 +143,30 @@ class MerchantFulfillmentService(
         return subOrder.toSlaSnapshot(at)
     }
 
+    @Transactional(readOnly = true)
+    fun listEscalations(subOrderId: String): List<MerchantFulfillmentEscalationSnapshot> {
+        require(subOrderId.isNotBlank()) { "subOrderId cannot be blank." }
+        return escalations.findBySubOrderIdOrderByCreatedAtAsc(subOrderId)
+            .map { it.toSnapshot() }
+    }
+
+    @Transactional
+    fun escalate(
+        subOrderId: String,
+        actorUserId: String,
+        reason: MerchantFulfillmentEscalationReason,
+        note: String,
+        createdAt: Instant = Instant.now(),
+    ): MerchantFulfillmentEscalationSnapshot {
+        require(subOrderId.isNotBlank()) { "subOrderId cannot be blank." }
+        require(actorUserId.isNotBlank()) { "actorUserId cannot be blank." }
+        require(note.isNotBlank()) { "Escalation note cannot be blank." }
+        require(note.length <= 1000) { "Escalation note cannot exceed 1000 characters." }
+        val subOrder = repository.findById(subOrderId).orElse(null)
+            ?: throw IllegalArgumentException("Merchant sub-order was not found.")
+        return recordEscalation(subOrder, actorUserId, reason, note, createdAt)
+    }
+
     @Transactional
     fun publishOverdueSlaWarnings(
         evaluatedAt: Instant = Instant.now(),
@@ -155,6 +180,13 @@ class MerchantFulfillmentService(
                 val sla = subOrder.toSlaSnapshot(evaluatedAt)
                 val reason = sla.overdueReason ?: return@mapNotNull null
                 if (publishSlaWarningEvent(subOrder, reason, evaluatedAt)) {
+                    recordEscalation(
+                        subOrder = subOrder,
+                        actorUserId = MERCHANT_SLA_SCHEDULER_USER_ID,
+                        reason = reason.toEscalationReason(),
+                        note = reason.escalationNote(),
+                        createdAt = evaluatedAt,
+                    )
                     MerchantFulfillmentSlaWarning(subOrder.toSnapshot(), reason, evaluatedAt)
                 } else {
                     null
@@ -373,7 +405,29 @@ class MerchantFulfillmentService(
         return true
     }
 
+    private fun recordEscalation(
+        subOrder: MerchantSubOrder,
+        actorUserId: String,
+        reason: MerchantFulfillmentEscalationReason,
+        note: String,
+        createdAt: Instant,
+    ): MerchantFulfillmentEscalationSnapshot {
+        val subOrderId = requireNotNull(subOrder.id)
+        return escalations.findBySubOrderIdAndReason(subOrderId, reason)?.toSnapshot()
+            ?: escalations.save(
+                MerchantFulfillmentEscalationRecord(
+                    subOrderId = subOrderId,
+                    actorUserId = actorUserId,
+                    reason = reason,
+                    note = note.trim(),
+                    createdAt = createdAt,
+                )
+            ).toSnapshot()
+    }
+
     companion object {
+        const val MERCHANT_SLA_SCHEDULER_USER_ID = "merchant-sla-scheduler"
+
         val activeMerchantStatuses = setOf(
             MerchantSubOrderStatus.MERCHANT_PENDING,
             MerchantSubOrderStatus.ACCEPTED,
@@ -414,6 +468,20 @@ private fun String.warningBody(): String =
         "seller_response_sla_exceeded" -> "The seller has not accepted or rejected the paid order before the response deadline."
         "packing_sla_exceeded" -> "The seller has not marked the accepted package ready before the packing deadline."
         else -> "A seller fulfillment deadline needs attention."
+    }
+
+private fun String.escalationNote(): String =
+    when (this) {
+        "seller_response_sla_exceeded" -> "Automatic support escalation: seller response deadline was exceeded."
+        "packing_sla_exceeded" -> "Automatic support escalation: seller packing deadline was exceeded."
+        else -> "Automatic support escalation: seller fulfillment deadline needs attention."
+    }
+
+private fun String.toEscalationReason(): MerchantFulfillmentEscalationReason =
+    when (this) {
+        "seller_response_sla_exceeded" -> MerchantFulfillmentEscalationReason.SELLER_RESPONSE_SLA_EXCEEDED
+        "packing_sla_exceeded" -> MerchantFulfillmentEscalationReason.PACKING_SLA_EXCEEDED
+        else -> MerchantFulfillmentEscalationReason.MANUAL_SUPPORT_REVIEW
     }
 
 private fun MerchantSubOrder.applyTransition(
