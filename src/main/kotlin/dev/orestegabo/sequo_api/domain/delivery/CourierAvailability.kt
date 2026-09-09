@@ -32,6 +32,7 @@ class CourierAvailabilityRecord(
 
 interface CourierAvailabilityRepository : JpaRepository<CourierAvailabilityRecord, String> {
     fun countByStatus(status: CourierAvailabilityStatus): Long
+    fun findByStatusOrderByUpdatedAtDesc(status: CourierAvailabilityStatus): List<CourierAvailabilityRecord>
 }
 
 data class CourierAvailabilitySnapshot(
@@ -63,6 +64,18 @@ class CourierAvailabilityService(
 
     @Transactional(readOnly = true)
     fun countPaused(): Long = repository.countByStatus(CourierAvailabilityStatus.PAUSED)
+
+    @Transactional(readOnly = true)
+    fun listActivePausedCouriers(
+        at: Instant = Instant.now(),
+        limit: Int = 20,
+    ): List<CourierAvailabilitySnapshot> {
+        require(limit in 1..100) { "Paused courier limit must be between 1 and 100." }
+        return repository.findByStatusOrderByUpdatedAtDesc(CourierAvailabilityStatus.PAUSED)
+            .map { it.toSnapshot(at) }
+            .filter { it.paused }
+            .take(limit)
+    }
 
     @Transactional
     fun pause(
