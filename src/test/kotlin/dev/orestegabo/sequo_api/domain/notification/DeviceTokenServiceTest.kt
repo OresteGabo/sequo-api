@@ -102,6 +102,24 @@ class DeviceTokenServiceTest @Autowired constructor(
     }
 
     @Test
+    fun normalizesOptionalMobileMetadataBeforePersistence() {
+        val userId = createUser("metadata-normalized@sequo.test")
+
+        val snapshot = service.registerOrRotate(
+            sampleCommand(
+                userId = userId,
+                appVersion = "  1.2.3  ",
+                locale = "  fr-TG  ",
+                timezone = "  Africa/Lome  ",
+            )
+        )
+
+        assertEquals("1.2.3", snapshot.appVersion)
+        assertEquals("fr-TG", snapshot.locale)
+        assertEquals("Africa/Lome", snapshot.timezone)
+    }
+
+    @Test
     fun revokeDeviceMarksActiveTokenRevoked() {
         val userId = createUser("revoke-customer@sequo.test")
         val snapshot = service.registerOrRotate(sampleCommand(userId = userId))

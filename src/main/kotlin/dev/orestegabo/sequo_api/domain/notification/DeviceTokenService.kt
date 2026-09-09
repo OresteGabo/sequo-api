@@ -14,15 +14,19 @@ data class RegisterFcmTokenCommand(
     val locale: String? = null,
     val timezone: String? = null,
 ) {
+    val normalizedAppVersion: String? = appVersion?.trim()?.takeIf { it.isNotEmpty() }
+    val normalizedLocale: String? = locale?.trim()?.takeIf { it.isNotEmpty() }
+    val normalizedTimezone: String? = timezone?.trim()?.takeIf { it.isNotEmpty() }
+
     init {
         require(userId.isNotBlank()) { "userId cannot be blank." }
         require(deviceId.isNotBlank()) { "deviceId cannot be blank." }
         require(deviceId.length <= 128) { "deviceId cannot exceed 128 characters." }
         require(fcmToken.isNotBlank()) { "fcmToken cannot be blank." }
         require(fcmToken.length in 32..4096) { "fcmToken must be between 32 and 4096 characters." }
-        require(appVersion == null || appVersion.length <= 64) { "appVersion cannot exceed 64 characters." }
-        require(locale == null || locale.length <= 32) { "locale cannot exceed 32 characters." }
-        require(timezone == null || timezone.length <= 128) { "timezone cannot exceed 128 characters." }
+        require(normalizedAppVersion == null || normalizedAppVersion.length <= 64) { "appVersion cannot exceed 64 characters." }
+        require(normalizedLocale == null || normalizedLocale.length <= 32) { "locale cannot exceed 32 characters." }
+        require(normalizedTimezone == null || normalizedTimezone.length <= 128) { "timezone cannot exceed 128 characters." }
     }
 }
 
@@ -100,9 +104,9 @@ class DeviceTokenService(
             platform = command.platform,
             fcmTokenHash = tokenHash,
             fcmTokenCiphertext = tokenProtector.protect(command.fcmToken),
-            appVersion = command.appVersion,
-            locale = command.locale,
-            timezone = command.timezone,
+            appVersion = command.normalizedAppVersion,
+            locale = command.normalizedLocale,
+            timezone = command.normalizedTimezone,
             status = DeviceFcmTokenStatus.ACTIVE,
             lastSeenAt = occurredAt,
             createdAt = occurredAt,
@@ -161,9 +165,9 @@ class DeviceTokenService(
 }
 
 private fun DeviceFcmToken.touch(command: RegisterFcmTokenCommand, occurredAt: Instant) {
-    appVersion = command.appVersion
-    locale = command.locale
-    timezone = command.timezone
+    appVersion = command.normalizedAppVersion
+    locale = command.normalizedLocale
+    timezone = command.normalizedTimezone
     lastSeenAt = occurredAt
     updatedAt = occurredAt
 }
