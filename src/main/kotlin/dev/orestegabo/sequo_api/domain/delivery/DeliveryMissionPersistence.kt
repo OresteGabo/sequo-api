@@ -697,7 +697,7 @@ fun DeliveryProblemResolutionRecord.toSnapshot() =
         resolvedAt = resolvedAt,
     )
 
-private fun DeliveryMission.toTrackingSnapshot() =
+internal fun DeliveryMission.toTrackingSnapshot() =
     DeliveryTrackingSnapshot(
         deliveryCode = deliveryCode,
         orderId = orderId,
