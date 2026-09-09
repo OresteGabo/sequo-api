@@ -53,6 +53,17 @@ class NotificationRoutingServiceTest {
     }
 
     @Test
+    fun routesMerchantSlaWarningToCustomerMerchantSupportAndOperations() {
+        val recipients = service.route(NotificationEventType.MERCHANT_SLA_WARNING, context)
+
+        assertEquals(
+            setOf("customer-1", "merchant-1", "merchant-2", "support-1", "admin-1", "super-admin-1"),
+            recipients.map { it.userId }.toSet(),
+        )
+        assertEquals(2, recipients.count { it.role == RoleCode.MERCHANT_OWNER })
+    }
+
+    @Test
     fun doesNotCreateDuplicatesWhenSameUserAppearsInTwoOperationalLists() {
         val recipients = service.route(
             NotificationEventType.PAYMENT_CONFIRMED,
