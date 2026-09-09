@@ -20,7 +20,7 @@ class ConsolidationManifestRecord(
     @Id val id: String,
     @Column(name = "order_id", nullable = false, unique = true) val orderId: String,
     @Column(name = "customer_id", nullable = false) val customerId: String,
-    @Column(name = "seller_packages_json", nullable = false, length = 12000) val sellerPackagesJson: String,
+    @Column(name = "seller_packages_json", nullable = false, length = 12000) var sellerPackagesJson: String,
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 64) var status: ConsolidationStatus,
     @Column(name = "final_package_id") var finalPackageId: String? = null,
     @Column(name = "sequo_custody_at") var sequoCustodyAt: Instant? = null,
@@ -54,6 +54,41 @@ class ConsolidationPersistenceService(
     @Transactional(readOnly = true)
     fun findByOrderId(orderId: String): SequoConsolidationManifest? =
         manifests.findByOrderId(orderId)?.toDomain()
+
+    @Transactional
+    fun markSellerPackageReady(
+        manifestId: String,
+        subOrderId: String,
+        merchantId: String,
+        at: Instant = Instant.now(),
+    ): SequoConsolidationManifest {
+        val record = manifests.findById(manifestId).orElse(null)
+            ?: throw IllegalArgumentException("Consolidation manifest was not found.")
+        val manifest = record.toDomain()
+        require(manifest.status == ConsolidationStatus.AwaitingSellerPackages) {
+            "Seller packages can only be updated while the manifest is awaiting packages."
+        }
+        val packageEntry = manifest.sellerPackages.firstOrNull { it.subOrderId == subOrderId }
+            ?: throw IllegalArgumentException("Seller package was not found in this manifest.")
+        require(packageEntry.merchantId == merchantId) { "This merchant cannot update another merchant's package." }
+        if (packageEntry.ready) return manifest
+
+        val updated = manifest.copy(
+            sellerPackages = manifest.sellerPackages.map {
+                if (it.subOrderId == subOrderId) it.copy(ready = true) else it
+            }
+        )
+        val readyManifest = if (updated.allSellerPackagesReady) {
+            transitionService.transition(
+                ConsolidationTransitionRequest(updated, ConsolidationEvent.SellerPackageReady, at)
+            ).manifest
+        } else {
+            updated
+        }
+        record.apply(readyManifest, at)
+        manifests.save(record)
+        return readyManifest
+    }
 
     @Transactional
     fun transition(request: ConsolidationTransitionRequest): ConsolidationTransition {
@@ -98,6 +133,9 @@ class ConsolidationPersistenceService(
     )
 
     private fun ConsolidationManifestRecord.apply(manifest: SequoConsolidationManifest, at: Instant) {
+        sellerPackagesJson = objectMapper.writeValueAsString(manifest.sellerPackages.map {
+            mapOf("subOrderId" to it.subOrderId, "merchantId" to it.merchantId, "packageCount" to it.packageCount, "ready" to it.ready)
+        })
         status = manifest.status
         finalPackageId = manifest.finalPackageId
         sequoCustodyAt = manifest.sequoCustodyAt
