@@ -10,6 +10,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 
 @SpringBootTest
 class RefreshSessionSecurityTest {
@@ -77,6 +78,12 @@ class RefreshSessionSecurityTest {
         assertFalse(authService.revokeSession(requireNotNull(secondSession.id), requireNotNull(first.id)))
         assertNotNull(authService.refreshTokens(firstToken.refreshToken))
         assertNotNull(authService.refreshTokens(secondToken.refreshToken))
+    }
+
+    @Test
+    fun refreshAndLogoutRejectUnreasonablySizedTokens() {
+        assertFailsWith<IllegalArgumentException> { AuthController.RefreshRequest("short") }
+        assertFailsWith<IllegalArgumentException> { AuthController.LogoutRequest("x".repeat(513)) }
     }
 
     private fun activeUser(email: String) = User(
