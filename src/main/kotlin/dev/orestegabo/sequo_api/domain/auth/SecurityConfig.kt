@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 import dev.orestegabo.sequo_api.config.ApiContentTypeFilter
+import dev.orestegabo.sequo_api.config.ApiRequestRateLimitFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.beans.factory.annotation.Value
@@ -19,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableWebSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val inMemoryRateLimiter: InMemoryRateLimiter,
     @Value("\${sequo.security.cors.allowed-origins:}")
     private val corsAllowedOrigins: List<String>
 ) {
@@ -40,6 +42,7 @@ class SecurityConfig(
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterAfter(ApiContentTypeFilter(), JwtAuthenticationFilter::class.java)
+            .addFilterAfter(ApiRequestRateLimitFilter(inMemoryRateLimiter), ApiContentTypeFilter::class.java)
         
         return http.build()
     }
