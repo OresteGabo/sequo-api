@@ -11,10 +11,12 @@ import kotlin.test.assertNull
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 @SpringBootTest
 class RefreshSessionSecurityTest {
     @Autowired private lateinit var authService: AuthService
+    @Autowired private lateinit var authController: AuthController
     @Autowired private lateinit var refreshSessionService: RefreshSessionService
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var refreshSessionRepository: RefreshSessionRepository
@@ -84,6 +86,20 @@ class RefreshSessionSecurityTest {
     fun refreshAndLogoutRejectUnreasonablySizedTokens() {
         assertFailsWith<IllegalArgumentException> { AuthController.RefreshRequest("short") }
         assertFailsWith<IllegalArgumentException> { AuthController.LogoutRequest("x".repeat(513)) }
+    }
+
+    @Test
+    fun sessionEndpointsReturnMetadataWithoutTokenMaterial() {
+        val user = userRepository.save(activeUser("metadata@sequo.test"))
+        authService.login(AuthController.LoginWithEmailRequest(user.email, "Cobalt-Violet-47!"))
+
+        val response = authController.sessions(requireNotNull(user.id))
+
+        assertEquals(200, response.statusCode.value())
+        val session = (response.body as List<*>).single() as AuthController.SessionResponse
+        assertEquals(requireNotNull(user.id), user.id)
+        assertTrue(session.id.isNotBlank())
+        assertTrue(session.expiresAt.isAfter(session.createdAt))
     }
 
     private fun activeUser(email: String) = User(
