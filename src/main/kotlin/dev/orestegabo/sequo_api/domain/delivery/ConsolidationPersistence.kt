@@ -91,6 +91,38 @@ class ConsolidationPersistenceService(
     }
 
     @Transactional
+    fun markSellerPackageCollected(
+        manifestId: String,
+        subOrderId: String,
+        at: Instant = Instant.now(),
+    ): SequoConsolidationManifest {
+        val record = manifests.findById(manifestId).orElse(null)
+            ?: throw IllegalArgumentException("Consolidation manifest was not found.")
+        val manifest = record.toDomain()
+        require(manifest.status == ConsolidationStatus.ReadyForSequoPickup) {
+            "Seller packages can only be collected when the manifest is ready for pickup."
+        }
+        require(manifest.sellerPackages.any { it.subOrderId == subOrderId }) {
+            "Seller package was not found in this manifest."
+        }
+        val updated = manifest.copy(
+            sellerPackages = manifest.sellerPackages.map {
+                if (it.subOrderId == subOrderId) it.copy(collected = true) else it
+            }
+        )
+        val custody = if (updated.allSellerPackagesCollected) {
+            transitionService.transition(
+                ConsolidationTransitionRequest(updated, ConsolidationEvent.SequoCollectsAllPackages, at)
+            ).manifest
+        } else {
+            updated
+        }
+        record.apply(custody, at)
+        manifests.save(record)
+        return custody
+    }
+
+    @Transactional
     fun transition(request: ConsolidationTransitionRequest): ConsolidationTransition {
         val current = manifests.findById(request.manifest.manifestId).orElse(null)
             ?: return ConsolidationTransition(false, request.manifest, "Consolidation manifest was not found.")
@@ -106,7 +138,7 @@ class ConsolidationPersistenceService(
         orderId = orderId,
         customerId = customerId,
         sellerPackagesJson = objectMapper.writeValueAsString(sellerPackages.map {
-            mapOf("subOrderId" to it.subOrderId, "merchantId" to it.merchantId, "packageCount" to it.packageCount, "ready" to it.ready)
+            mapOf("subOrderId" to it.subOrderId, "merchantId" to it.merchantId, "packageCount" to it.packageCount, "ready" to it.ready, "collected" to it.collected)
         }),
         status = status,
         finalPackageId = finalPackageId,
@@ -130,11 +162,12 @@ class ConsolidationPersistenceService(
         merchantId = requiredText("merchantId"),
         packageCount = requiredInt("packageCount"),
         ready = required("ready").asBoolean(),
+        collected = get("collected")?.asBoolean() ?: false,
     )
 
     private fun ConsolidationManifestRecord.apply(manifest: SequoConsolidationManifest, at: Instant) {
         sellerPackagesJson = objectMapper.writeValueAsString(manifest.sellerPackages.map {
-            mapOf("subOrderId" to it.subOrderId, "merchantId" to it.merchantId, "packageCount" to it.packageCount, "ready" to it.ready)
+            mapOf("subOrderId" to it.subOrderId, "merchantId" to it.merchantId, "packageCount" to it.packageCount, "ready" to it.ready, "collected" to it.collected)
         })
         status = manifest.status
         finalPackageId = manifest.finalPackageId
