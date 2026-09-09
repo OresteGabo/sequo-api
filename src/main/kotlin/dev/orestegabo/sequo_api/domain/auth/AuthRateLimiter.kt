@@ -51,28 +51,32 @@ class InMemoryRateLimiter {
         val counter = counters.computeIfAbsent(key) { WindowCounter(occurredAt, 0) }
 
         synchronized(counter) {
-            val elapsed = Duration.between(counter.windowStartedAt, occurredAt)
-            if (elapsed.isNegative || elapsed >= rule.window) {
-                counter.windowStartedAt = occurredAt
-                counter.count = 0
+            val elapsed = Duration.between(counter.lastLeakAt, occurredAt)
+            if (elapsed.isNegative) {
+                counter.lastLeakAt = occurredAt
+                counter.level = 0
+            }
+            val leakIntervalMillis = (rule.window.toMillis().coerceAtLeast(1) / rule.maxAttempts).coerceAtLeast(1)
+            val leaked = if (elapsed.isNegative) 0 else elapsed.toMillis() / leakIntervalMillis
+            if (leaked > 0) {
+                counter.level = (counter.level - leaked.toInt()).coerceAtLeast(0)
+                counter.lastLeakAt = counter.lastLeakAt.plusMillis(leaked * leakIntervalMillis)
             }
 
-            if (counter.count >= rule.maxAttempts) {
-                val retryAfter = rule.window
-                    .minus(Duration.between(counter.windowStartedAt, occurredAt))
-                    .coerceAtLeast(Duration.ofSeconds(1))
+            if (counter.level >= rule.maxAttempts) {
+                val retryAfterSeconds = ((leakIntervalMillis + 999) / 1000).coerceAtLeast(1)
                 return RateLimitDecision(
                     allowed = false,
-                    retryAfterSeconds = retryAfter.seconds,
+                    retryAfterSeconds = retryAfterSeconds,
                     remainingAttempts = 0,
                 )
             }
 
-            counter.count += 1
+            counter.level += 1
             return RateLimitDecision(
                 allowed = true,
                 retryAfterSeconds = 0,
-                remainingAttempts = (rule.maxAttempts - counter.count).coerceAtLeast(0),
+                remainingAttempts = (rule.maxAttempts - counter.level).coerceAtLeast(0),
             )
         }
     }
@@ -88,13 +92,13 @@ class InMemoryRateLimiter {
         }
 
         counters.entries.removeIf { (_, counter) ->
-            Duration.between(counter.windowStartedAt, occurredAt) > MAX_COUNTER_AGE
+            Duration.between(counter.lastLeakAt, occurredAt) > MAX_COUNTER_AGE
         }
     }
 
     private data class WindowCounter(
-        var windowStartedAt: Instant,
-        var count: Int,
+        var lastLeakAt: Instant,
+        var level: Int,
     )
 
     private companion object {
