@@ -87,6 +87,11 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
         assertEquals(first.mission.id, second.mission.id)
         assertEquals(true, second.alreadyDispatched)
         assertEquals(1, missions.findAll().count { it.orderId == "order-persistence-3" && it.merchantSubOrderId == null })
+
+        val tracking = requireNotNull(service.trackFinalPackage("manifest-persistence-3"))
+        assertEquals("customer-persistence-1", tracking.customerId)
+        assertEquals(ConsolidationStatus.Dispatched, tracking.status)
+        assertEquals(first.mission.deliveryCode, tracking.tracking?.deliveryCode)
     }
 
     private fun manifest(
