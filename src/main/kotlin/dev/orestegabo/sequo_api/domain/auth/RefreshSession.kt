@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.Instant
+import org.springframework.transaction.annotation.Transactional
 
 @Entity
 @Table(name = "refresh_sessions")
@@ -39,6 +40,7 @@ class RefreshSession(
 interface RefreshSessionRepository : org.springframework.data.jpa.repository.JpaRepository<RefreshSession, String> {
     fun findByTokenHash(tokenHash: String): RefreshSession?
     fun findAllByUserIdAndRevokedAtIsNull(userId: String): List<RefreshSession>
+    fun deleteAllByExpiresAtBefore(expiresAt: Instant): Int
 }
 
 @org.springframework.stereotype.Service
@@ -72,4 +74,8 @@ class RefreshSessionService(
         if (sessions.isNotEmpty()) repository.saveAll(sessions)
         return sessions.size
     }
+
+    @Transactional
+    fun deleteExpired(at: Instant = Instant.now()): Int =
+        repository.deleteAllByExpiresAtBefore(at)
 }
