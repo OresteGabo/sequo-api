@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.notification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.ZoneId
 
 data class RegisterFcmTokenCommand(
     val userId: String,
@@ -26,8 +27,24 @@ data class RegisterFcmTokenCommand(
         require(fcmToken.length in 32..4096) { "fcmToken must be between 32 and 4096 characters." }
         require(normalizedAppVersion == null || normalizedAppVersion.length <= 64) { "appVersion cannot exceed 64 characters." }
         require(normalizedLocale == null || normalizedLocale.length <= 32) { "locale cannot exceed 32 characters." }
+        require(normalizedLocale == null || DeviceTokenMetadataPolicy.isValidLocaleTag(normalizedLocale)) {
+            "locale must be a valid BCP-47 style language tag."
+        }
         require(normalizedTimezone == null || normalizedTimezone.length <= 128) { "timezone cannot exceed 128 characters." }
+        require(normalizedTimezone == null || DeviceTokenMetadataPolicy.isValidTimezone(normalizedTimezone)) {
+            "timezone must be a valid timezone id."
+        }
     }
+}
+
+object DeviceTokenMetadataPolicy {
+    private val LocalePattern = Regex("^[a-zA-Z]{2,3}([_-][a-zA-Z0-9]{2,8}){0,2}$")
+
+    fun isValidLocaleTag(value: String): Boolean =
+        LocalePattern.matches(value)
+
+    fun isValidTimezone(value: String): Boolean =
+        runCatching { ZoneId.of(value) }.isSuccess
 }
 
 data class DeviceFcmTokenSnapshot(

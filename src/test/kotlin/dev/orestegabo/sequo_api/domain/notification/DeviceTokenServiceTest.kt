@@ -120,6 +120,14 @@ class DeviceTokenServiceTest @Autowired constructor(
     }
 
     @Test
+    fun rejectsMalformedMobileMetadata() {
+        val userId = createUser("metadata-invalid@sequo.test")
+
+        assertFailsWith<IllegalArgumentException> { sampleCommand(userId = userId, locale = "not a locale") }
+        assertFailsWith<IllegalArgumentException> { sampleCommand(userId = userId, timezone = "Moon/Base") }
+    }
+
+    @Test
     fun revokeDeviceMarksActiveTokenRevoked() {
         val userId = createUser("revoke-customer@sequo.test")
         val snapshot = service.registerOrRotate(sampleCommand(userId = userId))
