@@ -1,6 +1,9 @@
 package dev.orestegabo.sequo_api.domain.relay
 
 import java.time.Instant
+import dev.orestegabo.sequo_api.domain.auth.AuthProvider
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import dev.orestegabo.sequo_api.domain.settlement.SettlementSourceType
 import kotlin.test.assertEquals
@@ -21,6 +24,7 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
     private val pickupCodeRepository: RelayPickupCodeRecordRepository,
     private val eventRepository: RelayCustodyEventRecordRepository,
     private val settlements: SettlementPersistenceService,
+    private val userRepository: UserRepository,
 ) {
     private val now = Instant.parse("2026-09-08T10:00:00Z")
 
@@ -137,6 +141,44 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         )
         assertEquals(RelayParcelStatus.Delayed, parcelRepository.findById("parcel-delayed-all-1").orElseThrow().status)
         assertEquals(RelayParcelStatus.ReturnToSellerReview, parcelRepository.findById("parcel-delayed-all-2").orElseThrow().status)
+    }
+
+    @Test
+    fun adminCanResolveReturnToSellerReviewExactlyOnce() {
+        application.createParcel(
+            createCommand(
+                parcelId = "parcel-return-review-1",
+                depositCode = "deposit-return-review-1",
+                createdAt = now.minusSeconds(29 * 24 * 60 * 60),
+            )
+        )
+        application.evaluateDelayed("relay-persistence-1", now)
+        val actorId = requireNotNull(
+            userRepository.save(User(email = "admin-returns@sequo.test", provider = AuthProvider.EMAIL)).id
+        )
+
+        val first = application.returnToSeller(
+            parcelId = "parcel-return-review-1",
+            actorUserId = actorId,
+            eventId = "return-dropoff-1",
+            idempotencyKey = "return-review-1",
+            metadata = "Seller received the parcel.",
+            returnedAt = now.plusSeconds(60),
+        )
+        val replay = application.returnToSeller(
+            parcelId = "parcel-return-review-1",
+            actorUserId = actorId,
+            eventId = "different-event",
+            idempotencyKey = "return-review-1",
+            metadata = "Replay.",
+            returnedAt = now.plusSeconds(120),
+        )
+
+        assertTrue(first is RelayParcelServiceResult.Accepted)
+        assertEquals(RelayParcelStatus.ReturnedToSeller, first.value.parcel.status)
+        assertTrue(replay is RelayParcelServiceResult.Accepted)
+        assertEquals("return-dropoff-1", replay.value.event?.id)
+        assertEquals(RelayCustodyEventType.ReturnDropoff, eventRepository.findById("return-dropoff-1").orElseThrow().type)
     }
 
     @Test
