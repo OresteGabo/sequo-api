@@ -191,6 +191,76 @@ class DeliveryMissionServiceTest @Autowired constructor(
         assertTrue(invalidTimeout.exceptionOrNull() is IllegalArgumentException)
     }
 
+    @Test
+    fun supportCanRequeueProblemMissionBeforePickupWithAuditTrail() {
+        val mission = createOfferedMission("MISSION-RESOLVE-REQUEUE", "courier-resolve-old", Instant.parse("2026-09-09T09:00:00Z"))
+        service.forceProblem(mission.id, "support-resolve", "Courier did not answer.")
+
+        val resolved = service.resolveProblem(
+            missionId = mission.id,
+            actorId = "support-resolve",
+            action = DeliveryProblemResolutionAction.REQUEUE_FOR_DISPATCH,
+            reason = "Assign to another courier.",
+            replacementCourierId = "courier-resolve-new",
+            at = Instant.parse("2026-09-09T10:00:00Z"),
+        )
+
+        assertTrue(resolved is DeliveryMissionServiceResult.Success)
+        assertEquals(DeliveryMissionRecordStatus.CREATED, resolved.mission.status)
+        assertEquals("courier-resolve-new", resolved.mission.courierId)
+        assertEquals(Instant.parse("2026-09-09T10:00:00Z"), resolved.mission.assignedAt)
+        assertEquals("resolved_requeued by support-resolve: Assign to another courier.", resolved.mission.problemMetadata)
+        service.listProblemResolutions(mission.id).single().also {
+            assertEquals(DeliveryProblemResolutionAction.REQUEUE_FOR_DISPATCH, it.action)
+            assertEquals("courier-resolve-new", it.replacementCourierId)
+            assertEquals("Assign to another courier.", it.reason)
+        }
+    }
+
+    @Test
+    fun supportCannotRequeuePickedUpProblemMissionWithoutInvestigation() {
+        val mission = createOfferedMission("MISSION-RESOLVE-PICKED", "courier-resolve-picked", Instant.parse("2026-09-09T09:00:00Z"))
+        service.transition(mission.id, "courier-resolve-picked", DeliveryMissionEvent.CourierAccepts)
+        service.transition(mission.id, "courier-resolve-picked", DeliveryMissionEvent.CourierPicksUpFromSeller, proof = "pickup-proof")
+        service.transition(mission.id, "courier-resolve-picked", DeliveryMissionEvent.ReportProblem, problemReason = "Customer unavailable.")
+
+        val resolved = service.resolveProblem(
+            missionId = mission.id,
+            actorId = "support-resolve",
+            action = DeliveryProblemResolutionAction.REQUEUE_FOR_DISPATCH,
+            reason = "Try again with another courier.",
+            replacementCourierId = "courier-resolve-new",
+        )
+
+        assertTrue(resolved is DeliveryMissionServiceResult.Rejected)
+        assertEquals("mission_already_in_custody", resolved.code)
+        assertEquals(DeliveryMissionRecordStatus.PROBLEM_REPORTED, requireNotNull(service.get(mission.id)).status)
+        assertTrue(service.listProblemResolutions(mission.id).isEmpty())
+    }
+
+    @Test
+    fun supportCanCancelProblemMissionWithAuditTrail() {
+        val mission = createOfferedMission("MISSION-RESOLVE-CANCEL", "courier-resolve-cancel", Instant.parse("2026-09-09T09:00:00Z"))
+        service.forceProblem(mission.id, "support-resolve", "Seller cancelled after dispatch.")
+
+        val resolved = service.resolveProblem(
+            missionId = mission.id,
+            actorId = "support-resolve",
+            action = DeliveryProblemResolutionAction.CANCEL_MISSION,
+            reason = "Order cancelled by support.",
+            at = Instant.parse("2026-09-09T11:00:00Z"),
+        )
+
+        assertTrue(resolved is DeliveryMissionServiceResult.Success)
+        assertEquals(DeliveryMissionRecordStatus.CANCELLED, resolved.mission.status)
+        assertEquals("resolved_cancelled by support-resolve: Order cancelled by support.", resolved.mission.problemMetadata)
+        service.listProblemResolutions(mission.id).single().also {
+            assertEquals(DeliveryProblemResolutionAction.CANCEL_MISSION, it.action)
+            assertEquals("support-resolve", it.actorUserId)
+            assertEquals(Instant.parse("2026-09-09T11:00:00Z"), it.resolvedAt)
+        }
+    }
+
     private fun createOfferedMission(
         deliveryCode: String,
         courierId: String,
