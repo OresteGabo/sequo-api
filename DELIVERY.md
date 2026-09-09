@@ -101,7 +101,7 @@ Not implemented yet:
 | [ ] | Not implemented | Customer unavailable | Reschedule, fallback relay, support intervention, or failed delivery state. | Missing. |
 | [ ] | Not implemented | Relay locker unavailable | Alternative locker/relay/manual custody workflow. | Missing. |
 | [ ] | Not implemented | Package lost/damaged | Responsibility assignment, evidence, support investigation, ledger liability. | Return/settlement docs only. |
-| [ ] | Partial | Courier no-show | Mission expiry, reassign, courier penalty/support workflow. | Admin can reassign missions before pickup and force a support problem state; expiry scheduler and penalty workflow remain. |
+| [ ] | Partial | Courier no-show | Mission expiry, reassign, courier penalty/support workflow. | Admin can reassign missions before pickup, force a support problem state, and run automatic expiry/no-show scans that move stale offered or accepted missions to `PROBLEM_REPORTED`; courier penalty and full support-resolution workflow remain. |
 | [x] | Implemented | Duplicate pickup/delivery submission | Idempotency key plus state guard prevents duplicate side effects. | `delivery_mission_idempotency_keys` and `DeliveryMissionService.transitionIdempotent` replay successful pickup, delivery, relay-deposit, relay-release, and problem operations while rejecting reused keys for different operations. Delivery PIN retries replay before consuming the PIN again. |
 
 ## Delivery Data That Must Be Persisted
@@ -144,6 +144,6 @@ Not implemented yet:
 2. [x] Implement repository-backed merchant fulfillment service using `MerchantFulfillmentWorkflow`.
 3. [x] Implement repository-backed delivery mission service using `DeliveryMissionWorkflow` and `DeliveryAssignmentPolicy`.
 4. [x] Implement relay parcel service using `RelayParcelPolicy`, hashed pickup codes, locker assignment, and custody events.
-5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks. Merchant, courier, relay, customer tracking, and first admin-dispatch endpoints are implemented; courier pause/resolution and persisted merchant memberships remain.
+5. [ ] Add merchant, courier, relay, customer tracking, and admin dispatch endpoints with RBAC/ownership checks. Merchant, courier, relay, customer tracking, and admin-dispatch endpoints are implemented, including stale mission expiry; courier pause/resolution and persisted merchant memberships remain.
 6. [ ] Add notification/outbox events and settlement ledger posting. Delivery completion, relay delay/review, and return/refund workflows now publish workflow-specific outbox events; broader workflow publishers and provider delivery remain.
-7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized. Problem states and pre-pickup re-assignment exist; expiry/fees/return automation remain.
+7. [ ] Add problem handling, re-assignment, failed delivery, delayed relay fees, and return-to-seller automation after product thresholds are finalized. Problem states, pre-pickup re-assignment, mission expiry/no-show scans, delayed relay fee assessments, and return intake/receipt automation exist; courier penalties, support resolution, and final return-to-seller thresholds remain.
