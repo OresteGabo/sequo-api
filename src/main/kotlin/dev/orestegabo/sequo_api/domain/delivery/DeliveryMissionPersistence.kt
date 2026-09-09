@@ -202,6 +202,7 @@ class DeliveryMissionService(
     private val repository: DeliveryMissionRepository,
     private val idempotencyKeys: DeliveryMissionIdempotencyKeyRepository,
     private val problemResolutions: DeliveryProblemResolutionRepository,
+    private val courierAvailability: CourierAvailabilityService,
     private val workflow: DeliveryMissionWorkflow,
 ) {
     @Transactional(readOnly = true)
@@ -264,6 +265,9 @@ class DeliveryMissionService(
     @Transactional
     fun assignCourier(missionId: String, courierId: String, at: Instant = Instant.now()): DeliveryMissionServiceResult {
         if (courierId.isBlank()) return rejected("missing_courier", "Courier id is required.")
+        if (courierAvailability.isPaused(courierId, at)) {
+            return rejected("courier_paused", "Courier is paused and cannot receive delivery missions.")
+        }
         val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (mission.status != DeliveryMissionRecordStatus.CREATED) return rejected("invalid_mission_state", "Only a new mission can be assigned.")
         mission.courierId = courierId
@@ -279,6 +283,9 @@ class DeliveryMissionService(
         at: Instant = Instant.now(),
     ): DeliveryMissionServiceResult {
         if (courierId.isBlank()) return rejected("missing_courier", "Courier id is required.")
+        if (courierAvailability.isPaused(courierId, at)) {
+            return rejected("courier_paused", "Courier is paused and cannot receive delivery missions.")
+        }
         val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (mission.status !in reassignableStatuses) {
             return rejected("mission_not_reassignable", "Only missions that have not been picked up can be reassigned.")
