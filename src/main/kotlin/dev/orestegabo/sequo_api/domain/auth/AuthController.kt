@@ -2,6 +2,7 @@ package dev.orestegabo.sequo_api.domain.auth
 
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import java.time.Instant
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -16,6 +17,13 @@ class AuthController(
     data class LoginWithSocialRequest(val provider: AuthProvider, val token: String)
     data class RefreshRequest(val refreshToken: String)
     data class LogoutRequest(val refreshToken: String)
+    data class SessionResponse(
+        val id: String,
+        val createdAt: Instant,
+        val lastUsedAt: Instant?,
+        val expiresAt: Instant,
+        val revokedAt: Instant?,
+    )
     data class ForgotPasswordRequest(val email: String)
     data class ResetPasswordRequest(val token: String, val newPassword: String)
     data class RateLimitErrorResponse(
@@ -99,6 +107,32 @@ class AuthController(
     fun logoutAll(@AuthenticationPrincipal userId: String?): ResponseEntity<Void> {
         userId ?: return ResponseEntity.status(401).build()
         authService.logoutAll(userId)
+        return ResponseEntity.noContent().build()
+    }
+
+    @GetMapping("/sessions")
+    fun sessions(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> {
+        userId ?: return ResponseEntity.status(401).build()
+        return ResponseEntity.ok(
+            authService.listSessions(userId).map { session ->
+                SessionResponse(
+                    id = requireNotNull(session.id),
+                    createdAt = session.createdAt,
+                    lastUsedAt = session.lastUsedAt,
+                    expiresAt = session.expiresAt,
+                    revokedAt = session.revokedAt,
+                )
+            }
+        )
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    fun revokeSession(
+        @PathVariable sessionId: String,
+        @AuthenticationPrincipal userId: String?,
+    ): ResponseEntity<Void> {
+        userId ?: return ResponseEntity.status(401).build()
+        if (!authService.revokeSession(sessionId, userId)) return ResponseEntity.notFound().build()
         return ResponseEntity.noContent().build()
     }
 

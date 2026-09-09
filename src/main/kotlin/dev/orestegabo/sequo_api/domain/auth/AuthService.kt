@@ -147,6 +147,12 @@ class AuthService(
     @Transactional
     fun logoutAll(userId: String) = refreshSessionService.revokeAllForUser(userId)
 
+    fun listSessions(userId: String): List<RefreshSession> = refreshSessionService.listForUser(userId)
+
+    @Transactional
+    fun revokeSession(sessionId: String, userId: String): Boolean =
+        refreshSessionService.revokeForUser(sessionId, userId)
+
     fun forgotPassword(email: String) {
         val user = userRepository.findByEmail(normalizeEmail(email)) ?: return
         if (user.provider != AuthProvider.EMAIL || !user.status.canAuthenticate()) return
