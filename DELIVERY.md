@@ -89,7 +89,7 @@ Not implemented yet:
 | [ ] | Not implemented | Sellers mark each sub-order ready | All merchants must accept and mark ready before Sequo pickup/consolidation. | Merchant workflow policy exists for one package; aggregate manifest workflow missing. |
 | [ ] | Not implemented | Sequo collects from sellers | Sequo/courier missions collect each seller package into consolidation custody. | Missing. |
 | [ ] | Not implemented | Final customer package dispatched | Consolidated package gets one final delivery or relay route. | Missing. |
-| [ ] | Partial | Settlement remains per merchant | Even one package must preserve item ownership and per-merchant commission/refund liability. | Commission/schema docs exist; implementation missing. |
+| [ ] | Partial | Settlement remains per merchant | Even one package must preserve item ownership and per-merchant commission/refund liability. | Merchant sub-orders snapshot merchant ownership, configured commission rate, commission amount, and merchant net per seller; settlement accruals preserve those per-merchant amounts after delivery. Refund liability and full consolidation persistence remain. |
 
 ## Problem And Exception Flows
 
