@@ -10,6 +10,10 @@ data class NotificationChannelRequest(
     val fcmDeliveryFailed: Boolean = false,
     val smsFallbackAllowed: Boolean = false,
     val userSmsEnabled: Boolean = true,
+    val inAppEnabled: Boolean = true,
+    val pushEnabled: Boolean = true,
+    val smsEnabled: Boolean = true,
+    val quietHoursActive: Boolean = false,
     val smsBudgetRemaining: Int = 0,
 ) {
     init {
@@ -27,9 +31,13 @@ data class NotificationChannelPlan(
 @Component
 class NotificationChannelPolicy {
     fun plan(request: NotificationChannelRequest): NotificationChannelPlan {
-        val channels = linkedSetOf(NotificationChannel.IN_APP)
+        val channels = linkedSetOf<NotificationChannel>()
 
-        if (request.activeWebSocketSessions > 0) {
+        if (request.inAppEnabled) {
+            channels += NotificationChannel.IN_APP
+        }
+
+        if (request.inAppEnabled && request.activeWebSocketSessions > 0) {
             channels += NotificationChannel.WEBSOCKET
         }
 
@@ -49,7 +57,9 @@ class NotificationChannelPolicy {
     }
 
     private fun NotificationChannelRequest.shouldSendPush(): Boolean {
+        if (!pushEnabled) return false
         if (activeFcmTokenCount == 0) return false
+        if (quietHoursActive && severity !in PUSH_EVEN_WHEN_APP_ACTIVE) return false
         if (activeWebSocketSessions == 0) return true
         if (eventType == NotificationEventType.RIDER_MISSION_OFFERED) return true
         return severity in PUSH_EVEN_WHEN_APP_ACTIVE
@@ -59,7 +69,7 @@ class NotificationChannelPolicy {
         when {
             request.eventType !in SMS_CRITICAL_EVENTS -> "sms_not_critical"
             !request.smsFallbackAllowed -> "sms_fallback_disabled"
-            !request.userSmsEnabled -> "sms_user_disabled"
+            !request.userSmsEnabled || !request.smsEnabled -> "sms_user_disabled"
             request.smsBudgetRemaining <= 0 -> "sms_budget_exhausted"
             request.activeFcmTokenCount > 0 && !request.fcmDeliveryFailed -> "sms_push_available"
             else -> null
