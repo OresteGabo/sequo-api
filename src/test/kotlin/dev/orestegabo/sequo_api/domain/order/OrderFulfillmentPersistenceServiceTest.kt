@@ -9,6 +9,7 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordMode
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionServiceResult
+import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.payment.PaymentProcessor
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationRequest
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationResult
@@ -37,6 +38,9 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val settlements: SettlementPersistenceService,
     private val commissions: MerchantCommissionConfigurationService,
+    private val merchantFulfillment: MerchantFulfillmentService,
+    private val customerPickup: CustomerPickupConfirmationService,
+    private val orderController: OrderController,
 ) {
     @Test
     fun `accepted paid order is persisted and split into merchant sub-orders idempotently`() {
@@ -106,6 +110,115 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         assertEquals(null, orders.findByCheckoutId(pendingRequest.checkoutId))
         assertEquals(0, lines.findByOrderIdOrderByLineIndexAsc("SQ-${pendingRequest.checkoutId}").size)
         assertEquals(0, merchantSubOrders.findByOrderId("SQ-${pendingRequest.checkoutId}").size)
+    }
+
+    @Test
+    fun `customer pickup confirms ready pickup order idempotently and opens return window`() {
+        val request = request(
+            checkoutId = "checkout-order-pickup-confirmation",
+            lines = listOf(foodLine()),
+        ).copy(route = OrderRoute.Pickup, deliveryDistanceKm = 0.0)
+        val persisted = service.persistAcceptedOrder(
+            request,
+            acceptedOrder(request),
+            Instant.parse("2026-09-08T10:00:00Z"),
+        )
+        val subOrder = persisted.merchantSubOrders.single()
+        merchantFulfillment.accept(subOrder.id, "merchant-food")
+        merchantFulfillment.markPacked(subOrder.id, "merchant-food", packageCount = 1)
+
+        val command = ConfirmCustomerPickupCommand(
+            orderId = persisted.order.id,
+            customerId = request.customerId,
+            actorUserId = request.customerId,
+            idempotencyKey = "pickup-confirmation-1",
+            proofMetadata = "Seller counter handoff confirmed.",
+            confirmedAt = Instant.parse("2026-09-09T12:00:00Z"),
+        )
+        val first = customerPickup.confirm(command)
+        val second = customerPickup.confirm(command.copy(confirmedAt = Instant.parse("2026-09-09T12:05:00Z")))
+        val order = orders.findById(persisted.order.id).orElseThrow()
+        val payout = settlements.listMerchantPayouts("merchant-food").single { it.orderId == order.id }
+
+        assertTrue(first is CustomerPickupConfirmationResult.Success)
+        assertTrue(second is CustomerPickupConfirmationResult.Success)
+        assertEquals(first.confirmation.id, second.confirmation.id)
+        assertEquals(CustomerOrderStatus.DELIVERED, order.orderStatus)
+        assertEquals(Instant.parse("2026-09-09T12:00:00Z"), order.deliveredAt)
+        assertEquals(Instant.parse("2026-09-12T12:00:00Z"), order.returnWindowEndsAt)
+        assertEquals(0, persisted.order.deliveryFeeCfa)
+        assertEquals(4_250, payout.merchantNetCfa)
+        assertEquals(750, payout.commissionCfa)
+        assertEquals(2, payout.ledgerEntries.size)
+        assertEquals(
+            listOf(
+                CustomerOrderEventType.ACCEPTED_FOR_FULFILLMENT,
+                CustomerOrderEventType.DELIVERED,
+                CustomerOrderEventType.RETURN_WINDOW_OPENED,
+            ),
+            events.findByOrderIdOrderByCreatedAtAsc(order.id).map { it.eventType },
+        )
+    }
+
+    @Test
+    fun `customer pickup is rejected before every merchant package is ready`() {
+        val request = request(
+            checkoutId = "checkout-order-pickup-not-ready",
+            lines = listOf(foodLine()),
+        ).copy(route = OrderRoute.Pickup, deliveryDistanceKm = 0.0)
+        val persisted = service.persistAcceptedOrder(
+            request,
+            acceptedOrder(request),
+            Instant.parse("2026-09-08T10:00:00Z"),
+        )
+
+        val result = customerPickup.confirm(
+            ConfirmCustomerPickupCommand(
+                orderId = persisted.order.id,
+                customerId = request.customerId,
+                actorUserId = request.customerId,
+                idempotencyKey = "pickup-not-ready-1",
+                confirmedAt = Instant.parse("2026-09-09T12:00:00Z"),
+            )
+        )
+
+        assertTrue(result is CustomerPickupConfirmationResult.Rejected)
+        assertEquals("pickup_not_ready", result.code)
+        assertEquals(CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT, orders.findById(persisted.order.id).orElseThrow().orderStatus)
+    }
+
+    @Test
+    fun `customer pickup endpoint confirms and scopes pickup confirmations to authenticated customer`() {
+        val request = request(
+            checkoutId = "checkout-order-pickup-controller",
+            lines = listOf(foodLine()),
+        ).copy(route = OrderRoute.Pickup, deliveryDistanceKm = 0.0)
+        val persisted = service.persistAcceptedOrder(
+            request,
+            acceptedOrder(request),
+            Instant.parse("2026-09-08T10:00:00Z"),
+        )
+        val subOrder = persisted.merchantSubOrders.single()
+        merchantFulfillment.accept(subOrder.id, "merchant-food")
+        merchantFulfillment.markPacked(subOrder.id, "merchant-food", packageCount = 1)
+
+        val confirmation = orderController.confirmCustomerPickup(
+            request.customerId,
+            persisted.order.id,
+            ConfirmCustomerPickupRequest(
+                idempotencyKey = "pickup-controller-1",
+                proofMetadata = "Customer collected at merchant counter.",
+            ),
+        )
+        val ownRead = orderController.pickupConfirmations(request.customerId, persisted.order.id)
+        val otherRead = orderController.pickupConfirmations("other-customer", persisted.order.id)
+
+        assertEquals(org.springframework.http.HttpStatus.OK, confirmation.statusCode)
+        assertEquals(
+            listOf("pickup-controller-1"),
+            ownRead.bodyAs<List<CustomerPickupConfirmationSnapshot>>().map { it.idempotencyKey },
+        )
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, otherRead.statusCode)
     }
 
     @Test
@@ -219,4 +332,8 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         unitPriceCfa = 3_000,
         photoEvidence = ProductPhotoEvidence.GenericCatalogImage,
     )
+
+    @Suppress("UNCHECKED_CAST")
+    private inline fun <reified T> org.springframework.http.ResponseEntity<Any>.bodyAs(): T =
+        body as T
 }
