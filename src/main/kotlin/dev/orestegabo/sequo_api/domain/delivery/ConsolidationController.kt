@@ -77,6 +77,16 @@ class ConsolidationController(
         ResponseEntity.ok(service.markSellerPackageReady(manifestId, subOrderId, request.merchantId, request.at))
     }
 
+    @PostMapping("/{manifestId}/seller-packages/{subOrderId}/collected")
+    fun markSellerPackageCollected(
+        authentication: Authentication?,
+        @PathVariable manifestId: String,
+        @PathVariable subOrderId: String,
+        @RequestBody request: CollectedRequest,
+    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) {
+        ResponseEntity.ok(service.markSellerPackageCollected(manifestId, subOrderId, request.at))
+    }
+
     @PostMapping("/{manifestId}/transitions")
     fun transition(
         authentication: Authentication?,
@@ -109,4 +119,5 @@ class ConsolidationController(
 
     data class ErrorResponse(val code: String, val message: String)
     data class ReadyRequest(val merchantId: String, val at: Instant = Instant.now())
+    data class CollectedRequest(val at: Instant = Instant.now())
 }
