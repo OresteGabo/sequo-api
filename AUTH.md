@@ -494,7 +494,7 @@ Rate-limited endpoints:
 
 Current treatment:
 
-- `AuthRateLimiter` applies fixed-window limits per client IP fingerprint and per safe subject key such as normalized email or token hash.
+- `AuthRateLimiter` applies leaky-bucket limits per client IP fingerprint and per safe subject key such as normalized email or token hash. Capacity is consumed immediately and released at a steady rate instead of resetting in one burst.
 - Limited requests return `429` with a safe `rate_limited` body and a `Retry-After` header.
 - Raw emails, reset tokens, refresh tokens, and IP addresses are hashed before being used as limiter subjects.
 - The limiter is in-memory and bounded; it is appropriate for the current single-node backend and tests.
