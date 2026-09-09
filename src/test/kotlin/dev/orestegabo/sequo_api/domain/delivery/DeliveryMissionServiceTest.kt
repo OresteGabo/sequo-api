@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import java.time.Duration
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -133,5 +135,78 @@ class DeliveryMissionServiceTest @Autowired constructor(
         assertEquals("pickup-proof", repository.findById(mission.id).orElseThrow().pickupProofMetadata)
         assertTrue(conflict is DeliveryMissionServiceResult.Rejected)
         assertEquals("idempotency_key_conflict", conflict.code)
+    }
+
+    @Test
+    fun staleOfferedAndAcceptedMissionsExpireToSupportProblemState() {
+        val evaluatedAt = Instant.parse("2026-09-09T10:00:00Z")
+        val staleAt = evaluatedAt.minusSeconds(60 * 60)
+        val freshAt = evaluatedAt.minusSeconds(5 * 60)
+
+        val staleOffer = createOfferedMission("MISSION-EXPIRY-OFFER", "courier-expiry-offer", staleAt)
+        val staleAccepted = createOfferedMission("MISSION-EXPIRY-ACCEPTED", "courier-expiry-accepted", staleAt)
+        service.transition(
+            staleAccepted.id,
+            "courier-expiry-accepted",
+            DeliveryMissionEvent.CourierAccepts,
+            at = staleAt,
+        )
+        val freshOffer = createOfferedMission("MISSION-EXPIRY-FRESH", "courier-expiry-fresh", freshAt)
+
+        val expired = service.expireStaleMissions(
+            evaluatedAt = evaluatedAt,
+            offerTimeout = Duration.ofMinutes(20),
+            pickupTimeout = Duration.ofMinutes(45),
+            limit = 10,
+        )
+
+        assertEquals(setOf(staleOffer.id, staleAccepted.id), expired.map { it.id }.toSet())
+        repository.findById(staleOffer.id).orElseThrow().also {
+            assertEquals(DeliveryMissionRecordStatus.PROBLEM_REPORTED, it.status)
+            assertEquals(
+                "auto_no_show at 2026-09-09T10:00:00Z: Courier offer expired before acceptance.",
+                it.problemMetadata,
+            )
+        }
+        repository.findById(staleAccepted.id).orElseThrow().also {
+            assertEquals(DeliveryMissionRecordStatus.PROBLEM_REPORTED, it.status)
+            assertEquals(
+                "auto_no_show at 2026-09-09T10:00:00Z: Courier accepted mission but did not pick up before deadline.",
+                it.problemMetadata,
+            )
+        }
+        assertEquals(DeliveryMissionRecordStatus.OFFERED_TO_COURIER, repository.findById(freshOffer.id).orElseThrow().status)
+    }
+
+    @Test
+    fun expiryScanRejectsUnsafeBounds() {
+        val invalidLimit = kotlin.runCatching {
+            service.expireStaleMissions(limit = 0)
+        }
+        val invalidTimeout = kotlin.runCatching {
+            service.expireStaleMissions(offerTimeout = Duration.ZERO)
+        }
+
+        assertTrue(invalidLimit.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(invalidTimeout.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    private fun createOfferedMission(
+        deliveryCode: String,
+        courierId: String,
+        at: Instant,
+    ): DeliveryMissionSnapshot {
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = deliveryCode,
+                orderId = "order-$deliveryCode",
+                deliveryMode = DeliveryMissionRecordMode.STANDARD,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            ),
+            at = at,
+        )
+        service.assignCourier(mission.id, courierId, at)
+        service.transition(mission.id, "admin-expiry", DeliveryMissionEvent.OfferToCourier, at = at)
+        return requireNotNull(service.get(mission.id))
     }
 }
