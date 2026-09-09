@@ -159,6 +159,16 @@ class NotificationPreferenceServiceTest @Autowired constructor(
         }
     }
 
+    @Test
+    fun preferenceEventTypesCoverEveryNotificationEventType() {
+        val preferenceEventNames = NotificationPreferenceEventType.entries
+            .filterNot { it == NotificationPreferenceEventType.ALL }
+            .map { it.name }
+            .toSet()
+
+        assertEquals(NotificationEventType.entries.map { it.name }.toSet(), preferenceEventNames)
+    }
+
     private fun createUser(email: String): String =
         requireNotNull(
             userRepository.save(
