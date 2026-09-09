@@ -510,6 +510,19 @@ class DeliveryMissionService(
             DeliveryMissionEvent.OfferToCourier, DeliveryMissionEvent.Cancel -> Unit
         }
         val saved = repository.save(mission)
+        val collectedSubOrderId = saved.merchantSubOrderId
+        if (event == DeliveryMissionEvent.CourierPicksUpFromSeller &&
+            saved.destinationType == DeliveryMissionRecordDestination.SEQUO_CONSOLIDATION &&
+            collectedSubOrderId != null
+        ) {
+            publisher.publishEvent(
+                ConsolidationPackageCollectedEvent(
+                    orderId = saved.orderId,
+                    subOrderId = collectedSubOrderId,
+                    collectedAt = at,
+                )
+            )
+        }
         if (event == DeliveryMissionEvent.ReportProblem) publishProblemEvent(saved)
         return success(saved, result.reason)
     }
