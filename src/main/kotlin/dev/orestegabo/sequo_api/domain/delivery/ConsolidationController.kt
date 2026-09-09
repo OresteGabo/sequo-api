@@ -105,6 +105,22 @@ class ConsolidationController(
         if (result.accepted) ResponseEntity.ok(result) else ResponseEntity.badRequest().body(result)
     }
 
+    @PostMapping("/{manifestId}/dispatch-final-package")
+    fun dispatchFinalPackage(
+        authentication: Authentication?,
+        @PathVariable manifestId: String,
+        @RequestBody request: FinalPackageDispatchRequest,
+    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) {
+        ResponseEntity.ok(
+            service.dispatchFinalPackage(
+                manifestId = manifestId,
+                customerDeliveryFeeCfa = request.customerDeliveryFeeCfa,
+                courierFeeCfa = request.courierFeeCfa,
+                at = request.at,
+            )
+        )
+    }
+
     private fun authenticated(
         authentication: Authentication?,
         roles: Set<RoleCode>,
@@ -120,4 +136,9 @@ class ConsolidationController(
     data class ErrorResponse(val code: String, val message: String)
     data class ReadyRequest(val merchantId: String, val at: Instant = Instant.now())
     data class CollectedRequest(val at: Instant = Instant.now())
+    data class FinalPackageDispatchRequest(
+        val customerDeliveryFeeCfa: Int = 0,
+        val courierFeeCfa: Int = 0,
+        val at: Instant = Instant.now(),
+    )
 }
