@@ -171,7 +171,7 @@ Rules:
 
 Current implementation:
 
-- Auth endpoints use `AuthRateLimiter`, an in-memory fixed-window limiter.
+- Auth endpoints use `AuthRateLimiter`, an in-memory leaky-bucket limiter.
 - Signup, login, social login, refresh, forgot-password, and reset-password are limited by client IP fingerprint plus a safe subject key where possible.
 - Blocked auth requests return `429` and `Retry-After`.
 - Raw emails, reset tokens, refresh tokens, and IP addresses are not stored as limiter keys; the limiter uses hashes/fingerprints.
