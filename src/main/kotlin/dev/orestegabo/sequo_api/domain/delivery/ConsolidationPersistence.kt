@@ -42,6 +42,14 @@ data class FinalPackageDispatchResult(
     val alreadyDispatched: Boolean,
 )
 
+data class ConsolidationTrackingSnapshot(
+    val manifestId: String,
+    val customerId: String,
+    val status: ConsolidationStatus,
+    val finalPackageId: String?,
+    val tracking: DeliveryTrackingSnapshot?,
+)
+
 @Service
 class ConsolidationPersistenceService(
     private val manifests: ConsolidationManifestRepository,
@@ -192,6 +200,18 @@ class ConsolidationPersistenceService(
             return FinalPackageDispatchResult(transition.manifest, mission, alreadyDispatched = false)
         }
         return FinalPackageDispatchResult(manifest, mission, alreadyDispatched = true)
+    }
+
+    @Transactional(readOnly = true)
+    fun trackFinalPackage(manifestId: String): ConsolidationTrackingSnapshot? {
+        val manifest = manifests.findById(manifestId).orElse(null)?.toDomain() ?: return null
+        return ConsolidationTrackingSnapshot(
+            manifestId = manifest.manifestId,
+            customerId = manifest.customerId,
+            status = manifest.status,
+            finalPackageId = manifest.finalPackageId,
+            tracking = missions.findByDeliveryCode(finalDeliveryCode(manifest.manifestId))?.toTrackingSnapshot(),
+        )
     }
 
     private fun SequoConsolidationManifest.toRecord(at: Instant) = ConsolidationManifestRecord(
