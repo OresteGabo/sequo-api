@@ -77,6 +77,19 @@ class ConsolidationController(
         ResponseEntity.ok(service.markSellerPackageReady(manifestId, subOrderId, request.merchantId, request.at))
     }
 
+    @GetMapping("/{manifestId}/tracking")
+    fun trackFinalPackage(
+        authentication: Authentication?,
+        @PathVariable manifestId: String,
+    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.CustomerDeliveryTrackingReaders) { auth ->
+        val tracking = service.trackFinalPackage(manifestId) ?: return@authenticated ResponseEntity.notFound().build()
+        if (!auth.hasAnyRole(RoleGroups.AdminOperations) && auth.name != tracking.customerId) {
+            return@authenticated ResponseEntity.status(403).build()
+        }
+        if (tracking.tracking == null) return@authenticated ResponseEntity.notFound().build()
+        ResponseEntity.ok(tracking)
+    }
+
     @PostMapping("/{manifestId}/seller-packages/{subOrderId}/collected")
     fun markSellerPackageCollected(
         authentication: Authentication?,
