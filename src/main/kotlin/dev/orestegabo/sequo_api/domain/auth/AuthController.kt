@@ -127,7 +127,7 @@ class AuthController(
         return ResponseEntity.ok(
             authService.listSessions(userId).map { session ->
                 SessionResponse(
-                    id = requireNotNull(session.id),
+                    id = session.id,
                     createdAt = session.createdAt,
                     lastUsedAt = session.lastUsedAt,
                     expiresAt = session.expiresAt,

@@ -149,7 +149,7 @@ class AuthService(
     @Transactional
     fun logoutAll(userId: String) = refreshSessionService.revokeAllForUser(userId)
 
-    fun listSessions(userId: String): List<RefreshSession> = refreshSessionService.listForUser(userId)
+    fun listSessions(userId: String): List<RefreshSessionSnapshot> = refreshSessionService.listForUser(userId)
 
     fun currentUser(userId: String): User? = userRepository.findById(userId).orElse(null)
 

@@ -40,6 +40,14 @@ class RefreshSession(
     var revokedAt: Instant? = null,
 )
 
+data class RefreshSessionSnapshot(
+    val id: String,
+    val createdAt: Instant,
+    val lastUsedAt: Instant?,
+    val expiresAt: Instant,
+    val revokedAt: Instant?,
+)
+
 interface RefreshSessionRepository : org.springframework.data.jpa.repository.JpaRepository<RefreshSession, String> {
     fun findByTokenHash(tokenHash: String): RefreshSession?
     fun findAllByUserIdAndRevokedAtIsNull(userId: String): List<RefreshSession>
@@ -97,8 +105,8 @@ class RefreshSessionService(
     fun deleteExpired(at: Instant = Instant.now()): Int =
         repository.deleteAllByExpiresAtBefore(at)
 
-    fun listForUser(userId: String): List<RefreshSession> =
-        repository.findTop100ByUserIdOrderByCreatedAtDesc(userId)
+    fun listForUser(userId: String): List<RefreshSessionSnapshot> =
+        repository.findTop100ByUserIdOrderByCreatedAtDesc(userId).map { it.toSnapshot() }
 
     fun revokeForUser(sessionId: String, userId: String): Boolean {
         val session = repository.findByIdAndUserId(sessionId, userId) ?: return false
@@ -106,3 +114,12 @@ class RefreshSessionService(
         return true
     }
 }
+
+private fun RefreshSession.toSnapshot(): RefreshSessionSnapshot =
+    RefreshSessionSnapshot(
+        id = requireNotNull(id) { "Persisted refresh session id is required." },
+        createdAt = createdAt,
+        lastUsedAt = lastUsedAt,
+        expiresAt = expiresAt,
+        revokedAt = revokedAt,
+    )
