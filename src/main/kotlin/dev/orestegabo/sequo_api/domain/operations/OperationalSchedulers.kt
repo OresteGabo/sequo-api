@@ -9,6 +9,8 @@ import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentSlaWarning
 import dev.orestegabo.sequo_api.domain.notification.DeviceTokenService
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorker
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxWorkerRunResult
+import dev.orestegabo.sequo_api.domain.notification.NotificationProviderDeliveryWorker
+import dev.orestegabo.sequo_api.domain.notification.NotificationProviderDeliveryWorkerResult
 import dev.orestegabo.sequo_api.domain.auth.RefreshSessionService
 import dev.orestegabo.sequo_api.domain.relay.RelayParcel
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelApplicationService
@@ -79,6 +81,38 @@ class DeviceTokenPruningScheduler(
         )
         if (deleted > 0) logger.info("Device-token pruning removed {} inactive tokens.", deleted)
         return deleted
+    }
+}
+
+@Component
+@ConditionalOnProperty(
+    prefix = "sequo.notifications.provider-delivery-worker",
+    name = ["enabled"],
+    havingValue = "true",
+)
+class NotificationProviderDeliveryScheduler(
+    private val worker: NotificationProviderDeliveryWorker,
+    @Value("\${sequo.notifications.provider-delivery-worker.limit:50}") private val limit: Int,
+) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedDelayString = "\${sequo.notifications.provider-delivery-worker.fixed-delay-ms:30000}")
+    fun run() {
+        runOnce()
+    }
+
+    fun runOnce(): NotificationProviderDeliveryWorkerResult {
+        val result = worker.dispatchReady(limit = limit.coerceIn(1, 200), now = Instant.now())
+        if (result.scannedDeliveries > 0) {
+            logger.info(
+                "Notification provider delivery run scanned={}, sent={}, retryable={}, final={}",
+                result.scannedDeliveries,
+                result.sentDeliveries,
+                result.retryableFailures,
+                result.finalFailures,
+            )
+        }
+        return result
     }
 }
 

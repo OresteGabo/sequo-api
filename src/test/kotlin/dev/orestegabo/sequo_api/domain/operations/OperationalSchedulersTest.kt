@@ -15,6 +15,7 @@ class OperationalSchedulersTest @Autowired constructor(
     @Test
     fun `operational schedulers are disabled by default`() {
         assertFalse(context.containsBean("notificationOutboxScheduler"))
+        assertFalse(context.containsBean("notificationProviderDeliveryScheduler"))
         assertFalse(context.containsBean("deviceTokenPruningScheduler"))
         assertFalse(context.containsBean("relayDelayedParcelScheduler"))
         assertFalse(context.containsBean("deliveryMissionExpiryScheduler"))
@@ -23,6 +24,9 @@ class OperationalSchedulersTest @Autowired constructor(
         assertFalse(context.containsBean("settlementEligibilityScheduler"))
         kotlin.runCatching { context.getBean(NotificationOutboxScheduler::class.java) }
             .onSuccess { error("Notification scheduler should be disabled by default.") }
+            .onFailure { assertTrue(it is NoSuchBeanDefinitionException) }
+        kotlin.runCatching { context.getBean(NotificationProviderDeliveryScheduler::class.java) }
+            .onSuccess { error("Notification provider delivery scheduler should be disabled by default.") }
             .onFailure { assertTrue(it is NoSuchBeanDefinitionException) }
         kotlin.runCatching { context.getBean(DeviceTokenPruningScheduler::class.java) }
             .onSuccess { error("Device token pruning scheduler should be disabled by default.") }
