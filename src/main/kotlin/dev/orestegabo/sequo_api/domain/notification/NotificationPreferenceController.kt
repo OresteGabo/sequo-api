@@ -26,6 +26,14 @@ class NotificationPreferenceController(
         val quietHoursStart: String?,
         val quietHoursEnd: String?,
     )
+    data class SavePreferenceRequest(
+        val eventType: NotificationPreferenceEventType = NotificationPreferenceEventType.ALL,
+        val pushEnabled: Boolean = true,
+        val inAppEnabled: Boolean = true,
+        val smsEnabled: Boolean = true,
+        val quietHoursStart: LocalTime? = null,
+        val quietHoursEnd: LocalTime? = null,
+    )
 
     data class ErrorResponse(val code: String, val message: String)
 
@@ -39,6 +47,35 @@ class NotificationPreferenceController(
         return try {
             ResponseEntity.ok(
                 preferenceService.resolve(userId, appFamily, eventType).toResponse()
+            )
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(
+                ErrorResponse("invalid_notification_preference", e.message ?: "Invalid notification preference request.")
+            )
+        }
+    }
+
+    @PutMapping("/{appFamily}")
+    fun savePreference(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable appFamily: NotificationAppFamily,
+        @RequestBody request: SavePreferenceRequest,
+    ): ResponseEntity<Any> {
+        userId ?: return ResponseEntity.status(401).build()
+        return try {
+            ResponseEntity.ok(
+                preferenceService.savePreference(
+                    SaveNotificationPreferenceCommand(
+                        userId = userId,
+                        appFamily = appFamily,
+                        eventType = request.eventType,
+                        pushEnabled = request.pushEnabled,
+                        inAppEnabled = request.inAppEnabled,
+                        smsEnabled = request.smsEnabled,
+                        quietHoursStart = request.quietHoursStart,
+                        quietHoursEnd = request.quietHoursEnd,
+                    )
+                ).toResponse()
             )
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(
