@@ -127,6 +127,30 @@ class NotificationDispatchServiceTest @Autowired constructor(
         }
     }
 
+    @Test
+    fun rejectsMalformedNotificationPayloads() {
+        val userId = createUser("dispatch-invalid-payload@sequo.test")
+
+        assertFailsWith<IllegalArgumentException> {
+            sampleCommand(
+                eventId = "event-broken-payload",
+                recipientUserId = userId,
+                eventType = NotificationEventType.ORDER_CREATED,
+                severity = NotificationSeverity.INFO,
+                payload = """{"orderId":""",
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            sampleCommand(
+                eventId = "event-array-payload",
+                recipientUserId = userId,
+                eventType = NotificationEventType.ORDER_CREATED,
+                severity = NotificationSeverity.INFO,
+                payload = """["orderId"]""",
+            )
+        }
+    }
+
     private fun createUser(email: String): String =
         requireNotNull(
             userRepository.save(
@@ -145,6 +169,7 @@ class NotificationDispatchServiceTest @Autowired constructor(
         eventType: NotificationEventType,
         severity: NotificationSeverity,
         actionUrl: String = "sequo://orders/123",
+        payload: String = """{"orderId":"123"}""",
     ): CreateNotificationCommand =
         CreateNotificationCommand(
             eventId = eventId,
@@ -155,6 +180,6 @@ class NotificationDispatchServiceTest @Autowired constructor(
             title = "Order update",
             body = "Your order status changed.",
             actionUrl = actionUrl,
-            payload = """{"orderId":"123"}""",
+            payload = payload,
         )
 }

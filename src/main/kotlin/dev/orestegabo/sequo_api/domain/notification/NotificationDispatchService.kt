@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.notification
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -27,6 +28,9 @@ data class CreateNotificationCommand(
             "actionUrl must use an allowed scheme."
         }
         require(payload == null || payload.length <= 4000) { "payload cannot exceed 4000 characters." }
+        require(payload == null || NotificationPayloadPolicy.isJsonObject(payload)) {
+            "payload must be a valid JSON object."
+        }
     }
 }
 
@@ -37,6 +41,15 @@ object NotificationActionUrlPolicy {
         val scheme = value.substringBefore(':', missingDelimiterValue = "").lowercase()
         return scheme in AllowedSchemes && !value.any { it.isISOControl() }
     }
+}
+
+object NotificationPayloadPolicy {
+    private val ObjectMapper = ObjectMapper()
+
+    fun isJsonObject(value: String): Boolean =
+        runCatching { ObjectMapper.readTree(value) }
+            .getOrNull()
+            ?.isObject == true
 }
 
 data class NotificationDeliveryContext(
