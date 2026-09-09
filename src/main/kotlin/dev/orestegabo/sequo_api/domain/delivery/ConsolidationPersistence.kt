@@ -123,6 +123,17 @@ class ConsolidationPersistenceService(
     }
 
     @Transactional
+    fun markSellerPackageCollectedForOrder(
+        orderId: String,
+        subOrderId: String,
+        at: Instant = Instant.now(),
+    ): SequoConsolidationManifest {
+        val manifest = manifests.findByOrderId(orderId)
+            ?: throw IllegalArgumentException("Consolidation manifest was not found for this order.")
+        return markSellerPackageCollected(manifest.id, subOrderId, at)
+    }
+
+    @Transactional
     fun transition(request: ConsolidationTransitionRequest): ConsolidationTransition {
         val current = manifests.findById(request.manifest.manifestId).orElse(null)
             ?: return ConsolidationTransition(false, request.manifest, "Consolidation manifest was not found.")
