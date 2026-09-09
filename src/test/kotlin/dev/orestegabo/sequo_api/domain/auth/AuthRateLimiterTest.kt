@@ -21,7 +21,7 @@ class AuthRateLimiterTest {
         assertTrue(first.allowed)
         assertTrue(second.allowed)
         assertFalse(third.allowed)
-        assertEquals(58, third.retryAfterSeconds)
+        assertEquals(30, third.retryAfterSeconds)
         assertEquals(0, third.remainingAttempts)
     }
 
@@ -38,5 +38,18 @@ class AuthRateLimiterTest {
         assertFalse(blocked.allowed)
         assertTrue(allowedAfterWindow.allowed)
         assertEquals(0, allowedAfterWindow.remainingAttempts)
+    }
+
+    @Test
+    fun leakyBucketReleasesCapacityGraduallyInsteadOfResettingAllAtOnce() {
+        val limiter = InMemoryRateLimiter()
+        val rule = RateLimitRule(maxAttempts = 2, window = Duration.ofMinutes(1))
+        val now = Instant.parse("2026-08-04T10:00:00Z")
+
+        assertTrue(limiter.consume("api", "client", rule, now).allowed)
+        assertTrue(limiter.consume("api", "client", rule, now.plusSeconds(1)).allowed)
+        assertFalse(limiter.consume("api", "client", rule, now.plusSeconds(2)).allowed)
+        assertTrue(limiter.consume("api", "client", rule, now.plusSeconds(31)).allowed)
+        assertFalse(limiter.consume("api", "client", rule, now.plusSeconds(32)).allowed)
     }
 }
