@@ -69,6 +69,12 @@ class NotificationRoutingService {
                 addRiders(recipients, context)
                 addOperations(recipients, context)
             }
+            NotificationEventType.MERCHANT_SLA_WARNING -> {
+                addCustomer(recipients, context)
+                addMerchants(recipients, context)
+                addSupport(recipients, context)
+                addOperations(recipients, context)
+            }
             NotificationEventType.RIDER_MISSION_OFFERED -> addRiders(recipients, context)
             NotificationEventType.RIDER_ACCEPTED_MISSION -> {
                 addCustomer(recipients, context)
