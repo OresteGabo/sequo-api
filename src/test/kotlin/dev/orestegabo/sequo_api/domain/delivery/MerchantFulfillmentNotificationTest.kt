@@ -92,7 +92,7 @@ class MerchantFulfillmentNotificationTest @Autowired constructor(
     @Test
     fun overdueSellerResponsePublishesIdempotentSlaWarning() {
         orders.save(order("order-merchant-notif-4", "customer-merchant-notif-4"))
-        val subOrder = service.create(command("merchant-notif-4", "order-merchant-notif-4"))
+        val subOrder = service.create(command("merchant-notif-4", "order-merchant-notif-4"), now)
         val overdueAt = requireNotNull(subOrder.sellerResponseDueAt).plusSeconds(1)
 
         val firstScan = service.publishOverdueSlaWarnings(overdueAt)
