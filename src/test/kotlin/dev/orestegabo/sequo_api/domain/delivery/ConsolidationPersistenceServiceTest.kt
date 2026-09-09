@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest
 )
 class ConsolidationPersistenceServiceTest @Autowired constructor(
     private val service: ConsolidationPersistenceService,
+    private val missions: DeliveryMissionRepository,
 ) {
     private val at = Instant.parse("2026-09-09T10:00:00Z")
 
@@ -60,6 +61,32 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
             ConsolidationStatus.AwaitingSellerPackages,
             requireNotNull(service.findByOrderId("order-persistence-2")).status,
         )
+    }
+
+    @Test
+    fun consolidatedPackageCreatesOneFinalCustomerMissionIdempotently() {
+        service.create(manifest("manifest-persistence-3", "order-persistence-3"), at)
+        service.markSellerPackageReady("manifest-persistence-3", "sub-1", "merchant-1", at)
+        service.markSellerPackageReady("manifest-persistence-3", "sub-2", "merchant-2", at)
+        service.markSellerPackageCollected("manifest-persistence-3", "sub-1", at)
+        service.markSellerPackageCollected("manifest-persistence-3", "sub-2", at)
+        service.transition(
+            ConsolidationTransitionRequest(
+                manifest = requireNotNull(service.get("manifest-persistence-3")),
+                event = ConsolidationEvent.SequoCreatesFinalPackage,
+                finalPackageId = "SEQ-PKG-3",
+                at = at,
+            )
+        )
+
+        val first = service.dispatchFinalPackage("manifest-persistence-3", 700, 500, at.plusSeconds(60))
+        val second = service.dispatchFinalPackage("manifest-persistence-3", 999, 999, at.plusSeconds(120))
+
+        assertEquals(ConsolidationStatus.Dispatched, first.manifest.status)
+        assertEquals(DeliveryMissionRecordDestination.CUSTOMER_ADDRESS, first.mission.destinationType)
+        assertEquals(first.mission.id, second.mission.id)
+        assertEquals(true, second.alreadyDispatched)
+        assertEquals(1, missions.findAll().count { it.orderId == "order-persistence-3" && it.merchantSubOrderId == null })
     }
 
     private fun manifest(
