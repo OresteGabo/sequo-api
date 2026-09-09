@@ -41,7 +41,7 @@ Main files:
 | Stateless server sessions | Treated | Spring session creation is stateless. |
 | JWT signing | Partially treated | Tokens are signed and now include stronger claims; production-like startup rejects unsafe secrets, but key rotation is still missing. |
 | Access/refresh token separation | Treated | Bearer authentication accepts only access tokens; refresh tokens are checked against a server-side session. |
-| Refresh revocation/rotation | Partially treated | Refresh JWT hashes are stored, rotated, and replayed tokens revoke the account sessions; opaque-token migration remains pending. |
+| Refresh revocation/rotation | Partially treated | Refresh JWT hashes are stored, rotated, and replayed tokens revoke the account sessions; expired rows can be cleaned by the opt-in scheduler; opaque-token migration remains pending. |
 | Logout/logout-all | Treated | `POST /api/auth/logout` revokes one refresh session; authenticated `POST /api/auth/logout-all` revokes all sessions. |
 | RBAC and roles | Not treated | Authentication principal has no authorities. |
 | User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
