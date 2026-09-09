@@ -48,6 +48,8 @@ class RefreshSessionService(
     private val repository: RefreshSessionRepository,
     private val tokenService: PasswordResetTokenService,
 ) {
+    fun issueRawToken(): String = tokenService.generate().rawToken
+
     fun findByToken(rawToken: String): RefreshSession? =
         repository.findByTokenHash(tokenService.hash(rawToken))
 
