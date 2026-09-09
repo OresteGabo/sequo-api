@@ -178,6 +178,7 @@ private fun NotificationEventType.defaultSeverity(): NotificationSeverity =
     when (this) {
         NotificationEventType.RELAY_PICKUP_CODE_CREATED,
         NotificationEventType.RETURN_PIN_CREATED,
+        NotificationEventType.MERCHANT_SLA_WARNING,
         NotificationEventType.ORDER_READY_FOR_PICKUP -> NotificationSeverity.ACTION_REQUIRED
         NotificationEventType.DELIVERY_PROBLEM_REPORTED,
         NotificationEventType.MISSING_DEPOT_BLOCKED_TOUR,
@@ -198,6 +199,7 @@ private fun NotificationEventType.defaultTitle(): String =
         NotificationEventType.BARGAINING_ACCEPTED -> "Bargaining accepted"
         NotificationEventType.MERCHANT_ACCEPTED_ORDER -> "Seller accepted the order"
         NotificationEventType.MERCHANT_REJECTED_ORDER -> "Seller rejected the order"
+        NotificationEventType.MERCHANT_SLA_WARNING -> "Seller delay warning"
         NotificationEventType.ORDER_PREPARING -> "Order preparation started"
         NotificationEventType.ORDER_READY_FOR_PICKUP -> "Order ready for pickup"
         NotificationEventType.RIDER_MISSION_OFFERED -> "New delivery mission"
@@ -227,6 +229,7 @@ private fun NotificationEventType.defaultBody(): String =
         NotificationEventType.BARGAINING_ACCEPTED -> "The negotiated price was accepted."
         NotificationEventType.MERCHANT_ACCEPTED_ORDER -> "The seller accepted your paid order."
         NotificationEventType.MERCHANT_REJECTED_ORDER -> "The seller rejected the order and support follow-up may be needed."
+        NotificationEventType.MERCHANT_SLA_WARNING -> "A seller deadline needs attention."
         NotificationEventType.ORDER_PREPARING -> "The seller started preparing your order."
         NotificationEventType.ORDER_READY_FOR_PICKUP -> "The package is ready for Sequo pickup."
         NotificationEventType.RIDER_MISSION_OFFERED -> "A delivery mission is available."
