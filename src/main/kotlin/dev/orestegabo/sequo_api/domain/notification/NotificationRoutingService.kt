@@ -99,6 +99,7 @@ class NotificationRoutingService {
             NotificationEventType.PAYOUT_SENT -> addMerchants(recipients, context)
             NotificationEventType.DELIVERY_PROBLEM_REPORTED -> {
                 addCustomer(recipients, context)
+                addRiders(recipients, context)
                 addSupport(recipients, context)
                 addOperations(recipients, context)
             }
