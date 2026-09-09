@@ -1,5 +1,11 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
+import dev.orestegabo.sequo_api.domain.notification.NotificationSeverity
+import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -70,10 +76,14 @@ sealed class MerchantFulfillmentServiceResult {
 @Service
 class MerchantFulfillmentService(
     private val repository: MerchantSubOrderRepository,
+    private val orders: CustomerOrderRecordRepository,
     private val workflow: MerchantFulfillmentWorkflow,
+    private val publisher: ApplicationEventPublisher,
     private val sellerResponseSla: Duration = Duration.ofHours(24),
     private val packingSla: Duration = Duration.ofHours(48),
 ) {
+    private val objectMapper = ObjectMapper()
+
     init {
         require(!sellerResponseSla.isNegative && !sellerResponseSla.isZero) { "sellerResponseSla must be positive." }
         require(!packingSla.isNegative && !packingSla.isZero) { "packingSla must be positive." }
@@ -261,9 +271,58 @@ class MerchantFulfillmentService(
             rejectionReason = rejectionReason,
         )
 
+        val saved = repository.save(subOrder)
+        publishFulfillmentEvent(saved, event)
+
         return MerchantFulfillmentServiceResult.Success(
-            subOrder = repository.save(subOrder).toSnapshot(),
+            subOrder = saved.toSnapshot(),
             message = transition.reason,
+        )
+    }
+
+    private fun publishFulfillmentEvent(
+        subOrder: MerchantSubOrder,
+        event: MerchantFulfillmentEvent,
+    ) {
+        val eventType = when (event) {
+            MerchantFulfillmentEvent.SellerAccepts -> NotificationEventType.MERCHANT_ACCEPTED_ORDER
+            MerchantFulfillmentEvent.SellerRejects -> NotificationEventType.MERCHANT_REJECTED_ORDER
+            MerchantFulfillmentEvent.SellerStartsPreparing -> NotificationEventType.ORDER_PREPARING
+            MerchantFulfillmentEvent.SellerMarksPacked -> NotificationEventType.ORDER_READY_FOR_PICKUP
+            MerchantFulfillmentEvent.CourierCollectsPackage,
+            MerchantFulfillmentEvent.CustomerCancels -> return
+        }
+        val order = orders.findById(subOrder.orderId).orElse(null) ?: return
+        val subOrderId = requireNotNull(subOrder.id)
+        publisher.publishEvent(
+            NotificationWorkflowEvent(
+                eventId = "$subOrderId:merchant-fulfillment:${event.name}",
+                eventType = eventType,
+                aggregateType = "MERCHANT_SUB_ORDER",
+                aggregateId = subOrderId,
+                payload = objectMapper.writeValueAsString(
+                    mapOf(
+                        "customerUserId" to order.customerId,
+                        "merchantUserIds" to listOf(subOrder.merchantId),
+                        "title" to eventType.merchantFulfillmentTitle(),
+                        "body" to eventType.merchantFulfillmentBody(),
+                        "actionUrl" to "/merchant/sub-orders/$subOrderId",
+                        "severity" to if (eventType == NotificationEventType.ORDER_READY_FOR_PICKUP) {
+                            NotificationSeverity.ACTION_REQUIRED.name
+                        } else {
+                            NotificationSeverity.INFO.name
+                        },
+                        "messagePayload" to mapOf(
+                            "subOrderId" to subOrderId,
+                            "subOrderCode" to subOrder.subOrderCode,
+                            "orderId" to subOrder.orderId,
+                            "merchantId" to subOrder.merchantId,
+                            "status" to subOrder.status.name,
+                            "rejectionReason" to subOrder.rejectionReason,
+                        ),
+                    )
+                ),
+            )
         )
     }
 
@@ -298,6 +357,24 @@ private fun MerchantSubOrder.applyTransition(
         MerchantFulfillmentEvent.CustomerCancels -> Unit
     }
 }
+
+private fun NotificationEventType.merchantFulfillmentTitle(): String =
+    when (this) {
+        NotificationEventType.MERCHANT_ACCEPTED_ORDER -> "Seller accepted the order"
+        NotificationEventType.MERCHANT_REJECTED_ORDER -> "Seller rejected the order"
+        NotificationEventType.ORDER_PREPARING -> "Order preparation started"
+        NotificationEventType.ORDER_READY_FOR_PICKUP -> "Order ready for pickup"
+        else -> "Merchant fulfillment updated"
+    }
+
+private fun NotificationEventType.merchantFulfillmentBody(): String =
+    when (this) {
+        NotificationEventType.MERCHANT_ACCEPTED_ORDER -> "The seller accepted the paid order."
+        NotificationEventType.MERCHANT_REJECTED_ORDER -> "The seller rejected the order and support follow-up may be needed."
+        NotificationEventType.ORDER_PREPARING -> "The seller started preparing the package."
+        NotificationEventType.ORDER_READY_FOR_PICKUP -> "The seller marked the package ready for pickup."
+        else -> "Merchant fulfillment was updated."
+    }
 
 private fun MerchantSubOrder.toSnapshot(): MerchantSubOrderSnapshot =
     MerchantSubOrderSnapshot(
