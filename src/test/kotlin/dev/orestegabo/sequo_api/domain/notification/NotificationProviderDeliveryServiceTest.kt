@@ -82,11 +82,32 @@ class NotificationProviderDeliveryServiceTest @Autowired constructor(
         assertEquals("unsupported_provider_channel", result?.failureCode)
     }
 
-    private fun createDelivery(channel: NotificationChannel): NotificationDelivery {
-        val userId = createUser("provider-delivery-${channel.name.lowercase()}@sequo.test")
+    @Test
+    fun listsOnlyReadyProviderDeliveries() {
+        val readyFcm = createDelivery(NotificationChannel.FCM, "ready-fcm")
+        val readySms = createDelivery(NotificationChannel.SMS, "ready-sms")
+        val websocket = createDelivery(NotificationChannel.WEBSOCKET, "websocket")
+        val delayedSms = createDelivery(NotificationChannel.SMS, "delayed-sms").apply {
+            status = NotificationDeliveryStatus.FAILED_RETRYABLE
+            nextAttemptAt = Instant.parse("2026-09-09T13:00:00Z")
+            deliveryRepository.save(this)
+        }
+
+        val ready = service.listReady(limit = 10, now = Instant.parse("2026-09-09T12:00:00Z"))
+
+        assertEquals(
+            setOf(requireNotNull(readyFcm.id), requireNotNull(readySms.id)),
+            ready.map { it.deliveryId }.toSet(),
+        )
+        assertEquals(true, deliveryRepository.existsById(requireNotNull(websocket.id)))
+        assertEquals(true, deliveryRepository.existsById(requireNotNull(delayedSms.id)))
+    }
+
+    private fun createDelivery(channel: NotificationChannel, suffix: String = channel.name.lowercase()): NotificationDelivery {
+        val userId = createUser("provider-delivery-$suffix@sequo.test")
         val message = messageRepository.save(
             NotificationMessage(
-                eventId = "provider-event-${channel.name.lowercase()}",
+                eventId = "provider-event-$suffix",
                 recipientUserId = userId,
                 appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
                 eventType = NotificationEventType.ORDER_CREATED,

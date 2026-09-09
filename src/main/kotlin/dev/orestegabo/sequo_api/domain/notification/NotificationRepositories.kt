@@ -1,7 +1,10 @@
 package dev.orestegabo.sequo_api.domain.notification
 
 import java.time.Instant
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
 interface DeviceFcmTokenRepository : JpaRepository<DeviceFcmToken, String> {
     fun findByFcmTokenHash(fcmTokenHash: String): DeviceFcmToken?
@@ -45,6 +48,23 @@ interface NotificationMessageRepository : JpaRepository<NotificationMessage, Str
 
 interface NotificationDeliveryRepository : JpaRepository<NotificationDelivery, String> {
     fun findByMessageId(messageId: String): List<NotificationDelivery>
+
+    @Query(
+        """
+        select d
+        from NotificationDelivery d
+        where d.channel in :channels
+          and d.status in :statuses
+          and (d.nextAttemptAt is null or d.nextAttemptAt <= :now)
+        order by d.updatedAt asc
+        """
+    )
+    fun findReadyProviderDeliveries(
+        @Param("channels") channels: Collection<NotificationChannel>,
+        @Param("statuses") statuses: Collection<NotificationDeliveryStatus>,
+        @Param("now") now: Instant,
+        pageable: Pageable,
+    ): List<NotificationDelivery>
 }
 
 interface NotificationOutboxRepository : JpaRepository<NotificationOutbox, String> {

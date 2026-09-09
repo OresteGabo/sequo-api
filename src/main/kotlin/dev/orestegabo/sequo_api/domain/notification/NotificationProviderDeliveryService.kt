@@ -2,6 +2,7 @@ package dev.orestegabo.sequo_api.domain.notification
 
 import java.time.Duration
 import java.time.Instant
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -52,6 +53,17 @@ class NotificationProviderDeliveryService(
     private val fcmSender: FcmNotificationSender,
     private val smsSender: SmsNotificationSender,
 ) {
+    @Transactional(readOnly = true)
+    fun listReady(limit: Int = 50, now: Instant = Instant.now()): List<NotificationProviderDeliveryResult> {
+        require(limit in 1..200) { "limit must be between 1 and 200." }
+        return deliveryRepository.findReadyProviderDeliveries(
+            channels = listOf(NotificationChannel.FCM, NotificationChannel.SMS),
+            statuses = listOf(NotificationDeliveryStatus.PENDING, NotificationDeliveryStatus.FAILED_RETRYABLE),
+            now = now,
+            pageable = PageRequest.of(0, limit),
+        ).map { it.toProviderResult() }
+    }
+
     @Transactional
     fun send(deliveryId: String, now: Instant = Instant.now()): NotificationProviderDeliveryResult? {
         require(deliveryId.isNotBlank()) { "deliveryId cannot be blank." }
