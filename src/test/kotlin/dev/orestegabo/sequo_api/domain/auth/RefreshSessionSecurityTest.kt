@@ -18,6 +18,7 @@ class RefreshSessionSecurityTest {
     @Autowired private lateinit var authService: AuthService
     @Autowired private lateinit var authController: AuthController
     @Autowired private lateinit var refreshSessionService: RefreshSessionService
+    @Autowired private lateinit var jwtService: JwtService
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var refreshSessionRepository: RefreshSessionRepository
     @Autowired private lateinit var socialIdentityRepository: SocialIdentityRepository
@@ -41,6 +42,23 @@ class RefreshSessionSecurityTest {
         assertNotEquals(first.refreshToken, second.refreshToken)
         assertNotNull(authService.refreshTokens(second.refreshToken))
         assertNull(authService.refreshTokens(first.refreshToken))
+    }
+
+    @Test
+    fun accessTokensCarryThePersistedRefreshSessionId() {
+        val user = userRepository.save(activeUser("session-claim@sequo.test"))
+        val first = requireNotNull(authService.login(AuthController.LoginWithEmailRequest(user.email, "Cobalt-Violet-47!")))
+        val firstRefreshSession = requireNotNull(refreshSessionService.findByToken(first.refreshToken))
+        val firstAccessSession = requireNotNull(jwtService.parseAccessToken(first.accessToken))
+
+        assertEquals(firstRefreshSession.id, firstAccessSession.sessionId)
+
+        val second = requireNotNull(authService.refreshTokens(first.refreshToken))
+        val secondRefreshSession = requireNotNull(refreshSessionService.findByToken(second.refreshToken))
+        val secondAccessSession = requireNotNull(jwtService.parseAccessToken(second.accessToken))
+
+        assertEquals(secondRefreshSession.id, secondAccessSession.sessionId)
+        assertNotEquals(firstRefreshSession.id, secondRefreshSession.id)
     }
 
     @Test
