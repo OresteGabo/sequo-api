@@ -136,9 +136,7 @@ class AuthService(
             refreshSessionService.revokeAllForUser(storedSession.userId, now)
             return null
         }
-        val tokens = generateJwtTokensForUser(user)
-        refreshSessionService.create(requireNotNull(user.id), tokens.refreshToken, jwtService.refreshExpiresAt(now), now)
-        return tokens
+        return generateTokensForUser(user, now)
     }
 
     @Transactional
@@ -191,25 +189,24 @@ class AuthService(
         return true
     }
 
-    private fun generateTokensForUser(user: User): AuthTokens {
-        val tokens = generateJwtTokensForUser(user)
-        refreshSessionService.create(
-            userId = requireNotNull(user.id) { "Persisted user id is required before token generation." },
-            rawToken = tokens.refreshToken,
-            expiresAt = jwtService.refreshExpiresAt(),
+    private fun generateTokensForUser(user: User, now: Instant = Instant.now()): AuthTokens {
+        val userId = requireNotNull(user.id) { "Persisted user id is required before token generation." }
+        val rawRefreshToken = refreshSessionService.issueRawToken()
+        val refreshSession = refreshSessionService.create(
+            userId = userId,
+            rawToken = rawRefreshToken,
+            expiresAt = jwtService.refreshExpiresAt(now),
+            now = now,
         )
-        return tokens
-    }
-
-    private fun generateJwtTokensForUser(user: User): AuthTokens {
         val session = UserSession(
-            userId = requireNotNull(user.id) { "Persisted user id is required before token generation." },
+            userId = userId,
             email = user.email,
-            provider = user.provider
+            provider = user.provider,
+            sessionId = requireNotNull(refreshSession.id) { "Persisted refresh session id is required before token generation." },
         )
         return AuthTokens(
             accessToken = jwtService.generateAccessToken(session),
-            refreshToken = refreshSessionService.issueRawToken(),
+            refreshToken = rawRefreshToken,
             expiresIn = jwtService.accessExpiresInSeconds(),
         )
     }
