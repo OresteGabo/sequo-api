@@ -41,6 +41,7 @@ class JwtServiceTest {
         assertEquals("customer@sequo.test", session.email)
         assertEquals(AuthProvider.EMAIL, session.provider)
         assertEquals(setOf(RoleCode.MERCHANT_OWNER, RoleCode.COURIER), session.roles)
+        assertEquals("refresh-session-1", session.sessionId)
     }
 
     @Test
@@ -109,7 +110,8 @@ class JwtServiceTest {
             userId = "user-1",
             email = "customer@sequo.test",
             provider = AuthProvider.EMAIL,
-            roles = roles
+            roles = roles,
+            sessionId = "refresh-session-1",
         )
 
     private fun signedToken(
