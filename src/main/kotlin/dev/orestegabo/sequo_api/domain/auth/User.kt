@@ -27,6 +27,12 @@ class User(
     @Column(nullable = false)
     var status: UserStatus = UserStatus.ACTIVE,
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_roles", joinColumns = [JoinColumn(name = "user_id")])
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role_code", nullable = false)
+    var roles: MutableSet<RoleCode> = mutableSetOf(RoleCode.CUSTOMER),
+
     @Column(unique = true)
     val providerId: String? = null,
 
