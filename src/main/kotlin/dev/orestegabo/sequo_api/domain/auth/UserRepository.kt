@@ -13,3 +13,8 @@ interface SocialIdentityRepository : JpaRepository<SocialIdentity, String> {
     fun findByProviderAndProviderSubject(provider: AuthProvider, providerSubject: String): SocialIdentity?
     fun existsByUserIdAndProvider(userId: String, provider: AuthProvider): Boolean
 }
+
+interface MerchantMembershipRepository : JpaRepository<MerchantMembership, String> {
+    fun findAllByUserIdAndActiveTrue(userId: String): List<MerchantMembership>
+    fun existsByUserIdAndMerchantIdAndActiveTrue(userId: String, merchantId: String): Boolean
+}
