@@ -50,6 +50,7 @@ data class UserSession(
     val email: String?,
     val provider: AuthProvider,
     val roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER),
+    val merchantScopeIds: Set<String> = emptySet(),
     val sessionId: String? = null,
 )
 
