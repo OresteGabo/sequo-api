@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.notification
 
 import dev.orestegabo.sequo_api.domain.auth.JwtService
+import dev.orestegabo.sequo_api.domain.auth.JwtAuthenticationDetails
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
@@ -66,6 +67,10 @@ class StompJwtAuthenticationInterceptor(
             session.userId,
             null,
             session.roles.map { it.toGrantedAuthority() },
+        )
+        authentication.details = JwtAuthenticationDetails(
+            webAuthenticationDetails = null,
+            sessionId = session.sessionId,
         )
         val appFamily = accessor.getFirstNativeHeader(WebSocketPresenceEventListener.NotificationAppFamilyHeader)
             ?.let(::parseAppFamily)
