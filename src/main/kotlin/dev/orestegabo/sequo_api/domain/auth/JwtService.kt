@@ -20,7 +20,7 @@ class JwtService(
 
     fun generateAccessToken(session: UserSession): String {
         val now = Date()
-        return Jwts.builder()
+        val builder = Jwts.builder()
             .issuer(issuer)
             .subject(session.userId)
             .id(UUID.randomUUID().toString())
@@ -32,6 +32,10 @@ class JwtService(
             .issuedAt(now)
             .notBefore(now)
             .expiration(Date(now.time + accessExpiration))
+
+        session.sessionId?.let { builder.claim("sid", it) }
+
+        return builder
             .signWith(key)
             .compact()
     }
@@ -40,22 +44,6 @@ class JwtService(
 
     fun generateTokens(session: UserSession): AuthTokens {
         val now = Date()
-        
-        val accessToken = Jwts.builder()
-            .issuer(issuer)
-            .subject(session.userId)
-            .id(UUID.randomUUID().toString())
-            .claim("aud", audience)
-            .claim("email", session.email)
-            .claim("provider", session.provider.name)
-            .claim("roles", session.roles.map { it.name })
-            .claim("token_use", TokenUse.ACCESS.name)
-            .issuedAt(now)
-            .notBefore(now)
-            .expiration(Date(now.time + accessExpiration))
-            .signWith(key)
-            .compact()
-
         val refreshToken = Jwts.builder()
             .issuer(issuer)
             .subject(session.userId)
@@ -71,7 +59,7 @@ class JwtService(
             .compact()
 
         return AuthTokens(
-            accessToken = accessToken,
+            accessToken = generateAccessToken(session),
             refreshToken = refreshToken,
             expiresIn = accessExpiration / 1000
         )
@@ -98,6 +86,7 @@ class JwtService(
                 email = claims["email"] as? String,
                 provider = parseProvider(claims["provider"]) ?: return null,
                 roles = parseRoles(claims["roles"]) ?: return null,
+                sessionId = parseSessionId(claims["sid"]),
             )
         } catch (e: Exception) {
             null
@@ -139,6 +128,9 @@ class JwtService(
             .toSet()
             .ifEmpty { setOf(RoleCode.CUSTOMER) }
     }
+
+    private fun parseSessionId(sessionIdClaim: Any?): String? =
+        (sessionIdClaim as? String)?.takeIf { it.isNotBlank() }
 
     private fun parseClaims(token: String) = try {
         val claims = Jwts.parser()
