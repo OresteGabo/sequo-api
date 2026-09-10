@@ -34,123 +34,124 @@ Main files:
 
 ## Status Summary
 
-| Area | Status | Notes |
-| --- | --- | --- |
-| Password hashing | Treated | BCrypt is used. |
-| Basic route authentication | Treated | `/api/auth/**` is public; other routes require authentication. |
-| Stateless server sessions | Treated | Spring session creation is stateless. |
-| JWT signing | Partially treated | Tokens are signed and now include stronger claims; production-like startup rejects unsafe secrets, but key rotation is still missing. |
-| Access/refresh token separation | Treated | Bearer authentication accepts only access tokens; refresh tokens are checked against a server-side session. |
-| Refresh revocation/rotation | Treated | Opaque refresh tokens are stored as hashes, rotated, replayed tokens revoke account sessions, and expired rows can be cleaned by the opt-in scheduler. |
-| Logout/logout-all | Treated | `POST /api/auth/logout` revokes one refresh session; authenticated `POST /api/auth/logout-all` revokes all sessions. |
-| RBAC and roles | Not treated | Authentication principal has no authorities. |
-| User account status | Partially treated | Status model exists and auth checks it; admin lifecycle and session revocation are pending. |
-| Password reset security | Partially treated | Reset token is no longer returned and is stored hashed; forgot/reset endpoints are rate-limited; notification delivery, audit, and session revocation are still pending. |
-| Rate limiting | Partially treated | Signup, login, social login, refresh, forgot-password, and reset-password have single-node in-memory limits. Distributed/gateway limits, audit, and lockout remain pending. |
-| Social login hardening | Partially treated | Google is strongest; same-email social login no longer silently links accounts; Facebook and Apple are incomplete. |
-| Audit logging | Not treated | No auth/security audit events are persisted. |
-| Production config hardening | Partially treated | Production-like profiles now fail on dev JWT/notification secrets, placeholder OAuth IDs, missing Yas/Moov wallet secrets, unsafe CORS origins, H2, H2 console, and unsafe Hibernate DDL modes. Key rotation remains pending. |
-| CI/CD security gates | Partially treated | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
+| Done | State | Area | Evidence or gap |
+| --- | --- | --- | --- |
+| [x] | Implemented | Password hashing | BCrypt is used. |
+| [x] | Implemented | Basic route authentication | `/api/auth/**` is public; other routes require authentication. |
+| [x] | Implemented | Stateless server sessions | Spring session creation is stateless. |
+| [ ] | MVP-safe | JWT signing | Tokens are signed and now include stronger claims; production-like startup rejects unsafe secrets, but key rotation is still missing. |
+| [x] | Implemented | Access/refresh token separation | Bearer authentication accepts only access tokens; refresh tokens are checked against a server-side session. |
+| [x] | Implemented | Refresh revocation/rotation | Opaque refresh tokens are stored as hashes, rotated, replayed tokens revoke account sessions, and expired rows can be cleaned by the opt-in scheduler. |
+| [x] | Implemented | Logout/logout-all | `POST /api/auth/logout` revokes one refresh session; authenticated `POST /api/auth/logout-all` revokes all sessions. |
+| [ ] | Partial | RBAC and roles | Token roles map to Spring Security authorities, but roles are not persisted from DB and broader ownership enforcement remains incomplete. |
+| [ ] | MVP-safe | User account status | Status model exists and login/refresh flows enforce it; admin lifecycle controls remain. |
+| [ ] | Partial | Password reset security | Reset token is no longer returned, is stored hashed, and reset revokes sessions; real notification delivery and audit remain pending. |
+| [ ] | MVP-safe | Rate limiting | Signup, login, social login, refresh, forgot-password, and reset-password have single-node in-memory limits. Distributed/gateway limits, audit, and lockout remain pending. |
+| [ ] | Partial | Social login hardening | Google is strongest; same-email social login no longer silently links accounts; Facebook and Apple are incomplete. |
+| [ ] | Not implemented | Audit logging | No auth/security audit events are persisted. |
+| [ ] | MVP-safe | Production config hardening | Production-like profiles now fail on dev JWT/notification secrets, placeholder OAuth IDs, missing Yas/Moov wallet secrets, unsafe CORS origins, H2, H2 console, and unsafe Hibernate DDL modes. Key rotation remains pending. |
+| [ ] | MVP-safe | CI/CD security gates | GitHub Actions runs build/tests and PR dependency review; SAST, secret scanning, and deployment smoke tests are pending. |
 
-## Radio-Style Implementation Matrix
+## Auth Security Implementation Tracker
 
-Use this table as the working implementation tracker. Each row has exactly one checked status box.
+Use this table as the working implementation tracker. Each row starts with a completion checkbox; unfinished items keep their exact state in the next column.
 
 Legend:
 
-- `[x] Implemented`: present in code at the time of review.
-- `[x] Partial`: present but not production-safe or incomplete.
-- `[x] Not implemented`: missing from code, even if documented as a target.
+- `[x] Implemented`: domain code exists and has focused coverage.
+- `[ ] MVP-safe`: unfinished long-term hardening remains, but current behavior is acceptable for an MVP launch under the documented constraints.
+- `[ ] Partial`: present but not production-safe or incomplete.
+- `[ ] Not implemented`: missing from code, even if documented as a target.
 
-| # | Auth security feature | Implemented | Partial | Not implemented | Notes |
-| ---: | --- | :---: | :---: | :---: | --- |
-| 1 | BCrypt password hashing | [x] | [ ] | [ ] | `BCryptPasswordEncoder` is configured and used. |
-| 2 | Email/password signup endpoint | [x] | [ ] | [ ] | Exists, but needs validation and email verification. |
-| 3 | Email/password login endpoint | [x] | [ ] | [ ] | Exists with endpoint rate limiting; still needs more generic error handling. |
-| 4 | Stateless Spring Security sessions | [x] | [ ] | [ ] | `SessionCreationPolicy.STATELESS` is configured. |
-| 5 | Default route authentication | [x] | [ ] | [ ] | Non-auth routes require authentication. |
-| 6 | Basic bearer-token filter | [x] | [ ] | [ ] | Custom filter extracts `Authorization: Bearer`. |
-| 7 | Google ID token verification | [ ] | [x] | [ ] | Uses Google verifier, but needs prod config validation and tests. |
-| 8 | Facebook login | [ ] | [x] | [ ] | Calls Graph API, but does not verify app ownership with `debug_token`. |
-| 9 | Apple login | [ ] | [ ] | [x] | Placeholder returns `null`; must be disabled or fully verified. |
-| 10 | JWT signing | [ ] | [x] | [ ] | Tokens are signed, but secret validation and key rotation are still missing. |
-| 11 | JWT access token issuance | [ ] | [x] | [ ] | Includes issuer/audience/jti/type/nbf; access tokens remain short-lived and stateless. |
-| 12 | JWT refresh token issuance | [ ] | [x] | [ ] | JWT refresh tokens are now bound to a persisted server-side refresh session. |
-| 13 | Access-token-only validation in bearer filter | [x] | [ ] | [ ] | Refresh tokens are no longer accepted by bearer-token validation. |
-| 14 | Token type or token-use claim | [x] | [ ] | [ ] | Tokens include `token_use=ACCESS` or `token_use=REFRESH`. |
-| 15 | JWT issuer claim | [x] | [ ] | [ ] | Issued and validated. |
-| 16 | JWT audience claim | [x] | [ ] | [ ] | Issued and validated. |
-| 17 | JWT ID (`jti`) claim | [x] | [ ] | [ ] | Issued for access and refresh JWTs. |
-| 18 | JWT not-before (`nbf`) claim | [x] | [ ] | [ ] | Issued for access and refresh JWTs. |
-| 19 | JWT session ID claim | [ ] | [ ] | [x] | Missing; needed for session-aware auth. |
-| 20 | JWT role/scope claims | [ ] | [x] | [ ] | Role enum and token claim exist; roles are not loaded from DB or enforced yet. |
-| 21 | Issuer/audience validation | [x] | [ ] | [ ] | Access and refresh parsing now checks configured issuer/audience. |
-| 22 | Refresh token stored as server-side hash | [x] | [ ] | [ ] | `refresh_sessions` stores SHA-256 hashes only; raw refresh tokens are never persisted. |
-| 23 | Opaque refresh tokens | [x] | [ ] | [ ] | AuthService issues cryptographically random opaque refresh tokens; only their hashes are persisted. |
-| 24 | Refresh token rotation | [x] | [ ] | [ ] | The current refresh session is revoked before a replacement is issued. |
-| 25 | Refresh token replay detection | [x] | [ ] | [ ] | Reusing a known revoked or missing refresh session revokes the user’s active sessions. |
-| 26 | Logout endpoint | [x] | [ ] | [ ] | `POST /api/auth/logout` revokes the supplied refresh session and is idempotent. |
-| 27 | Logout-all endpoint | [x] | [ ] | [ ] | Authenticated `POST /api/auth/logout-all` revokes all active refresh sessions. |
-| 28 | Password-reset token generation | [x] | [ ] | [ ] | Uses 32 secure-random bytes encoded as URL-safe Base64. |
-| 29 | Reset token not returned in API response | [x] | [ ] | [ ] | Forgot-password response is generic and does not include the token. |
-| 30 | Reset token stored hashed | [x] | [ ] | [ ] | `User` stores `resetTokenHash`, not the raw token. |
-| 31 | Reset token single-use | [x] | [ ] | [ ] | Cleared after successful reset. |
-| 32 | Reset token short TTL | [x] | [ ] | [ ] | Reset token expires after 30 minutes. |
-| 33 | Existing session revocation after password reset | [x] | [ ] | [ ] | Successful password reset revokes all active refresh sessions for the account. |
-| 34 | User account status model | [x] | [ ] | [ ] | `UserStatus` exists on the `User` entity. |
-| 35 | User status checked on login | [x] | [ ] | [ ] | Non-authenticatable users are rejected. |
-| 36 | User status checked on refresh | [x] | [ ] | [ ] | Status is checked before issuing replacement tokens. |
-| 37 | User roles table/model | [ ] | [x] | [ ] | `RoleCode` enum exists; persistence model is not implemented. |
-| 38 | Authorities loaded into Spring Security | [ ] | [ ] | [x] | Filter creates auth token with `emptyList()`. |
-| 39 | Method-level role checks | [ ] | [ ] | [x] | No `@PreAuthorize` or equivalent policy yet. |
-| 40 | Ownership checks for customer resources | [ ] | [x] | [ ] | Order process overwrites `customerId`, but broader object checks are missing. |
-| 41 | Merchant-scoped authorization | [ ] | [ ] | [x] | Needed before merchant APIs. |
-| 42 | Courier-scoped authorization | [ ] | [ ] | [x] | Needed before courier mission APIs. |
-| 43 | Relay-scoped authorization | [ ] | [ ] | [x] | Needed before Point de Relai APIs. |
-| 44 | Cooperative member data isolation | [ ] | [ ] | [x] | Documented target, not implemented. |
-| 45 | Admin role protection | [ ] | [ ] | [x] | Needed before admin APIs. |
-| 46 | Finance/admin step-up auth | [ ] | [ ] | [x] | Needed for refunds, payouts, and commission changes. |
-| 47 | MFA for internal roles | [ ] | [ ] | [x] | Not implemented. |
-| 48 | Email verification | [ ] | [ ] | [x] | Signup immediately returns tokens. |
-| 49 | Social account linking confirmation | [ ] | [x] | [ ] | Same-email social login now returns `account_link_required`; full authenticated linking flow and linked-identities table are still missing. |
-| 50 | Social email verification enforcement | [ ] | [x] | [ ] | Google requires `email_verified`; Facebook and Apple verification are still incomplete. |
-| 51 | Auth endpoint rate limiting | [ ] | [x] | [ ] | Signup, login, social login, refresh, forgot-password, and reset-password use in-memory per-IP/per-subject limits with `429` and `Retry-After`; distributed limits remain. |
-| 52 | Account lockout or progressive delay | [ ] | [ ] | [x] | No failed-attempt tracking. |
-| 53 | Signup abuse protection | [ ] | [x] | [ ] | Signup is rate-limited, but email verification and bot protection are still missing. |
-| 54 | Password reset abuse protection | [ ] | [x] | [ ] | Forgot-password response is generic and forgot/reset are rate-limited; audit and notification delivery remain missing. |
-| 55 | Account enumeration resistance | [ ] | [x] | [ ] | Forgot-password is generic; signup/login provider hints intentionally reveal auth method for UX and still need lockout/audit controls. |
-| 56 | Password strength validation | [x] | [ ] | [ ] | Internal password policy validates length, character groups, dates, calendar terms, names, email terms, leetspeak weak terms, sequences, repeated characters, repeated patterns, phone-like numeric runs, and common/local terms. |
-| 57 | Password maximum length guard | [x] | [ ] | [ ] | Password policy caps passwords at 128 characters. |
-| 58 | Breached/common password rejection | [ ] | [x] | [ ] | Extended local blocked list exists; real breached-password checks are pending. |
-| 59 | Bean Validation on auth DTOs | [ ] | [ ] | [x] | No `@Valid`, `@Email`, `@NotBlank`, or size rules. |
-| 60 | Generic auth error model | [ ] | [x] | [ ] | Provider conflicts now use `AuthErrorResponse`; global auth error handling is still missing. |
-| 61 | Global exception handler | [ ] | [ ] | [x] | Not implemented. |
-| 62 | Auth audit logging | [ ] | [ ] | [x] | No login/reset/refresh/security event audit trail. |
-| 63 | Privacy-safe logging/redaction policy | [ ] | [ ] | [x] | No redaction filter or documented logger guard in code. |
-| 64 | CORS policy | [ ] | [x] | [ ] | Spring Security now uses explicit configured origins, and production-like profiles reject missing, wildcard, or non-HTTPS origins. |
-| 65 | HTTPS/HSTS enforcement | [ ] | [ ] | [x] | Not enforced in app config. |
-| 66 | H2 console restricted to local/test | [ ] | [ ] | [x] | Enabled in default properties. |
-| 67 | Production-safe schema migration policy | [ ] | [x] | [ ] | Flyway baseline exists and Docker profile defaults to Hibernate `validate`; default local properties still use `ddl-auto=update`. |
-| 68 | Production startup rejects default JWT secret | [x] | [ ] | [ ] | `ProductionStartupGuardrails` blocks known dev/CI JWT defaults and short secrets in production-like profiles. |
-| 69 | Production startup rejects placeholder OAuth IDs | [x] | [ ] | [ ] | `ProductionStartupGuardrails` blocks known Google, Facebook, and Apple placeholder IDs in production-like profiles. |
-| 70 | JWT key rotation strategy | [ ] | [ ] | [x] | No `kid`, key versioning, or rotation procedure. |
-| 71 | Device/session tracking | [ ] | [ ] | [x] | No device ID, IP hint, or user-agent hash persistence. |
-| 72 | Provider HTTP client timeouts | [ ] | [ ] | [x] | Facebook `RestTemplate` has no explicit timeout. |
-| 73 | Provider outage handling | [ ] | [ ] | [x] | Invalid token and upstream outage are not distinguished. |
-| 74 | Actuator exposure policy | [ ] | [x] | [ ] | Actuator health is exposed for Docker healthchecks; broader production exposure policy is still needed. |
-| 75 | Security integration tests | [ ] | [x] | [ ] | JWT and password-policy unit tests exist; route-level integration tests are pending. |
-| 76 | Refresh token replay tests | [ ] | [ ] | [x] | Not possible until refresh sessions exist. |
-| 77 | JWT claim validation tests | [ ] | [x] | [ ] | Token-use and issuer/audience tests exist; more negative cases are pending. |
-| 78 | RBAC and ownership tests | [ ] | [ ] | [x] | Missing. |
-| 79 | Wallet webhook auth checks | [ ] | [ ] | [x] | Future wallet feature; must verify signatures/idempotency. |
-| 80 | Delivery/return PIN security checks | [ ] | [ ] | [x] | Future logistics feature; must hash PINs and limit attempts. |
-| 81 | Mass-assignment protection | [ ] | [x] | [ ] | `OrderController` protects `customerId`; broader DTO hardening is missing. |
-| 82 | Cross-tenant query protections | [ ] | [ ] | [x] | Needs scoped repository/service checks. |
-| 83 | Append-only audit tamper resistance | [ ] | [ ] | [x] | No audit table/service yet. |
-| 84 | Unsafe local config deployment guard | [ ] | [x] | [ ] | Production-like profiles reject H2, H2 console, `ddl-auto=update`, dev secrets, provider placeholders, missing wallet secrets, and unsafe CORS origins. |
-| 85 | Optional on-device AI password coach | [ ] | [ ] | [x] | Future KMP/mobile-only UX helper; must be open-source, local-only, and never replace server validation. |
-| 86 | CI executes auth and security tests | [x] | [ ] | [ ] | GitHub Actions runs `./gradlew clean build --no-daemon --stacktrace` on PRs and protected branch pushes. |
-| 87 | PR dependency vulnerability review | [ ] | [x] | [ ] | Dependency Review fails high-severity vulnerable dependency changes; broader SAST and secret scanning are still pending. |
+| # | Done | State | Auth security feature | Evidence or gap |
+| ---: | --- | --- | --- | --- |
+| 1 | [x] | Implemented | BCrypt password hashing | `BCryptPasswordEncoder` is configured and used. |
+| 2 | [x] | Implemented | Email/password signup endpoint | Exists, but needs validation and email verification. |
+| 3 | [x] | Implemented | Email/password login endpoint | Exists with endpoint rate limiting; still needs more generic error handling. |
+| 4 | [x] | Implemented | Stateless Spring Security sessions | `SessionCreationPolicy.STATELESS` is configured. |
+| 5 | [x] | Implemented | Default route authentication | Non-auth routes require authentication. |
+| 6 | [x] | Implemented | Basic bearer-token filter | Custom filter extracts `Authorization: Bearer`. |
+| 7 | [ ] | MVP-safe | Google ID token verification | Uses Google verifier; broader provider resilience and negative-path tests remain. |
+| 8 | [ ] | Partial | Facebook login | Calls Graph API, but does not verify app ownership with `debug_token`. |
+| 9 | [ ] | Not implemented | Apple login | Placeholder returns `null`; must be disabled or fully verified. |
+| 10 | [ ] | MVP-safe | JWT signing | Tokens are signed and production-like startup rejects unsafe secrets; key rotation is still missing. |
+| 11 | [x] | Implemented | JWT access token issuance | Includes issuer/audience/jti/type/nbf and the persisted refresh-session id claim. |
+| 12 | [x] | Implemented | Refresh token issuance | Refresh tokens are opaque, persisted only as hashes, and bound to a server-side refresh session. |
+| 13 | [x] | Implemented | Access-token-only validation in bearer filter | Refresh tokens are no longer accepted by bearer-token validation. |
+| 14 | [x] | Implemented | Token type or token-use claim | Tokens include `token_use=ACCESS` or `token_use=REFRESH`. |
+| 15 | [x] | Implemented | JWT issuer claim | Issued and validated. |
+| 16 | [x] | Implemented | JWT audience claim | Issued and validated. |
+| 17 | [x] | Implemented | JWT ID (`jti`) claim | Issued for access and refresh JWTs. |
+| 18 | [x] | Implemented | JWT not-before (`nbf`) claim | Issued for access and refresh JWTs. |
+| 19 | [x] | Implemented | JWT session ID claim | Access tokens include `sid` with the persisted refresh-session id; HTTP and realtime authentication retain it in auth details. |
+| 20 | [ ] | Partial | JWT role/scope claims | Role enum and token claim exist; roles are not loaded from DB or enforced yet. |
+| 21 | [x] | Implemented | Issuer/audience validation | Access and refresh parsing now checks configured issuer/audience. |
+| 22 | [x] | Implemented | Refresh token stored as server-side hash | `refresh_sessions` stores SHA-256 hashes only; raw refresh tokens are never persisted. |
+| 23 | [x] | Implemented | Opaque refresh tokens | AuthService issues cryptographically random opaque refresh tokens; only their hashes are persisted. |
+| 24 | [x] | Implemented | Refresh token rotation | The current refresh session is revoked before a replacement is issued. |
+| 25 | [x] | Implemented | Refresh token replay detection | Reusing a known revoked or missing refresh session revokes the user’s active sessions. |
+| 26 | [x] | Implemented | Logout endpoint | `POST /api/auth/logout` revokes the supplied refresh session and is idempotent. |
+| 27 | [x] | Implemented | Logout-all endpoint | Authenticated `POST /api/auth/logout-all` revokes all active refresh sessions. |
+| 28 | [x] | Implemented | Password-reset token generation | Uses 32 secure-random bytes encoded as URL-safe Base64. |
+| 29 | [x] | Implemented | Reset token not returned in API response | Forgot-password response is generic and does not include the token. |
+| 30 | [x] | Implemented | Reset token stored hashed | `User` stores `resetTokenHash`, not the raw token. |
+| 31 | [x] | Implemented | Reset token single-use | Cleared after successful reset. |
+| 32 | [x] | Implemented | Reset token short TTL | Reset token expires after 30 minutes. |
+| 33 | [x] | Implemented | Existing session revocation after password reset | Successful password reset revokes all active refresh sessions for the account. |
+| 34 | [x] | Implemented | User account status model | `UserStatus` exists on the `User` entity. |
+| 35 | [x] | Implemented | User status checked on login | Non-authenticatable users are rejected. |
+| 36 | [x] | Implemented | User status checked on refresh | Status is checked before issuing replacement tokens. |
+| 37 | [ ] | Partial | User roles table/model | `RoleCode` enum exists; persistence model is not implemented. |
+| 38 | [x] | Implemented | Authorities loaded into Spring Security | Bearer and STOMP authentication map token roles to Spring Security authorities. |
+| 39 | [ ] | Not implemented | Method-level role checks | No `@PreAuthorize` or equivalent policy yet. |
+| 40 | [ ] | Partial | Ownership checks for customer resources | Order process overwrites `customerId`, but broader object checks are missing. |
+| 41 | [ ] | Not implemented | Merchant-scoped authorization | Needed before merchant APIs. |
+| 42 | [ ] | Not implemented | Courier-scoped authorization | Needed before courier mission APIs. |
+| 43 | [ ] | Not implemented | Relay-scoped authorization | Needed before Point de Relai APIs. |
+| 44 | [ ] | Not implemented | Cooperative member data isolation | Documented target, not implemented. |
+| 45 | [ ] | Not implemented | Admin role protection | Needed before admin APIs. |
+| 46 | [ ] | Not implemented | Finance/admin step-up auth | Needed for refunds, payouts, and commission changes. |
+| 47 | [ ] | Not implemented | MFA for internal roles | Not implemented. |
+| 48 | [ ] | Not implemented | Email verification | Signup immediately returns tokens. |
+| 49 | [ ] | MVP-safe | Social account linking confirmation | Same-email social login now returns `account_link_required`; full authenticated linking flow remains a post-MVP enhancement. |
+| 50 | [ ] | Partial | Social email verification enforcement | Google requires `email_verified`; Facebook and Apple verification are still incomplete. |
+| 51 | [ ] | MVP-safe | Auth endpoint rate limiting | Signup, login, social login, refresh, forgot-password, and reset-password use in-memory per-IP/per-subject limits with `429` and `Retry-After`; distributed limits remain. |
+| 52 | [ ] | Not implemented | Account lockout or progressive delay | No failed-attempt tracking. |
+| 53 | [ ] | Partial | Signup abuse protection | Signup is rate-limited, but email verification and bot protection are still missing. |
+| 54 | [ ] | Partial | Password reset abuse protection | Forgot-password response is generic and forgot/reset are rate-limited; audit and notification delivery remain missing. |
+| 55 | [ ] | Partial | Account enumeration resistance | Forgot-password is generic; signup/login provider hints intentionally reveal auth method for UX and still need lockout/audit controls. |
+| 56 | [x] | Implemented | Password strength validation | Internal password policy validates length, character groups, dates, calendar terms, names, email terms, leetspeak weak terms, sequences, repeated characters, repeated patterns, phone-like numeric runs, and common/local terms. |
+| 57 | [x] | Implemented | Password maximum length guard | Password policy caps passwords at 128 characters. |
+| 58 | [ ] | MVP-safe | Breached/common password rejection | Extended local blocked list exists; live breached-password checks can follow after MVP. |
+| 59 | [ ] | Not implemented | Bean Validation on auth DTOs | No `@Valid`, `@Email`, `@NotBlank`, or size rules. |
+| 60 | [ ] | MVP-safe | Generic auth error model | Provider conflicts now use `AuthErrorResponse`; global auth error handling is still missing. |
+| 61 | [ ] | Not implemented | Global exception handler | Not implemented. |
+| 62 | [ ] | Not implemented | Auth audit logging | No login/reset/refresh/security event audit trail. |
+| 63 | [ ] | Not implemented | Privacy-safe logging/redaction policy | No redaction filter or documented logger guard in code. |
+| 64 | [ ] | MVP-safe | CORS policy | Spring Security now uses explicit configured origins, and production-like profiles reject missing, wildcard, or non-HTTPS origins. |
+| 65 | [ ] | Not implemented | HTTPS/HSTS enforcement | Not enforced in app config. |
+| 66 | [ ] | Not implemented | H2 console restricted to local/test | Enabled in default properties. |
+| 67 | [ ] | MVP-safe | Production-safe schema migration policy | Flyway baseline exists and Docker profile defaults to Hibernate `validate`; default local properties still use `ddl-auto=update`. |
+| 68 | [x] | Implemented | Production startup rejects default JWT secret | `ProductionStartupGuardrails` blocks known dev/CI JWT defaults and short secrets in production-like profiles. |
+| 69 | [x] | Implemented | Production startup rejects placeholder OAuth IDs | `ProductionStartupGuardrails` blocks known Google, Facebook, and Apple placeholder IDs in production-like profiles. |
+| 70 | [ ] | Not implemented | JWT key rotation strategy | No `kid`, key versioning, or rotation procedure. |
+| 71 | [ ] | Not implemented | Device/session tracking | No device ID, IP hint, or user-agent hash persistence. |
+| 72 | [ ] | Not implemented | Provider HTTP client timeouts | Facebook `RestTemplate` has no explicit timeout. |
+| 73 | [ ] | Not implemented | Provider outage handling | Invalid token and upstream outage are not distinguished. |
+| 74 | [ ] | MVP-safe | Actuator exposure policy | Actuator health is exposed for Docker healthchecks; broader production exposure policy is still needed. |
+| 75 | [ ] | MVP-safe | Security integration tests | JWT and password-policy unit tests exist; route-level integration tests are pending. |
+| 76 | [ ] | MVP-safe | Refresh token replay tests | Refresh rotation and previous-token rejection are covered; explicit replay-causes-session-family-revocation coverage can be expanded. |
+| 77 | [ ] | MVP-safe | JWT claim validation tests | Token-use and issuer/audience tests exist; more negative cases are pending. |
+| 78 | [ ] | Not implemented | RBAC and ownership tests | Missing. |
+| 79 | [ ] | Not implemented | Wallet webhook auth checks | Future wallet feature; must verify signatures/idempotency. |
+| 80 | [ ] | Not implemented | Delivery/return PIN security checks | Future logistics feature; must hash PINs and limit attempts. |
+| 81 | [ ] | MVP-safe | Mass-assignment protection | `OrderController` protects `customerId`; broader DTO hardening is missing. |
+| 82 | [ ] | Not implemented | Cross-tenant query protections | Needs scoped repository/service checks. |
+| 83 | [ ] | Not implemented | Append-only audit tamper resistance | No audit table/service yet. |
+| 84 | [ ] | MVP-safe | Unsafe local config deployment guard | Production-like profiles reject H2, H2 console, `ddl-auto=update`, dev secrets, provider placeholders, missing wallet secrets, and unsafe CORS origins. |
+| 85 | [ ] | Not implemented | Optional on-device AI password coach | Future KMP/mobile-only UX helper; must be open-source, local-only, and never replace server validation. |
+| 86 | [x] | Implemented | CI executes auth and security tests | GitHub Actions runs `./gradlew clean build --no-daemon --stacktrace` on PRs and protected branch pushes. |
+| 87 | [ ] | MVP-safe | PR dependency vulnerability review | Dependency Review fails high-severity vulnerable dependency changes; broader SAST and secret scanning are still pending. |
 
 ## Already Treated In Code
 
@@ -380,14 +381,15 @@ Treatment:
 - Check status in login, social login, refresh, and token validation.
 - Add admin lock/suspend flow later.
 
-### 8. RBAC Is Missing
+### 8. RBAC Persistence And Enforcement Are Incomplete
 
 Severity: Critical for Sequo's multi-role platform
 
 Observed problem:
 
-- `JwtAuthenticationFilter` creates `UsernamePasswordAuthenticationToken(userId, null, emptyList())`.
-- There are no authorities, roles, scopes, or merchant/relay ownership checks.
+- Bearer and STOMP authentication can map JWT roles to Spring Security authorities.
+- Roles are not yet loaded from persistent user-role assignments.
+- Method-level checks and broader merchant/relay ownership checks are still incomplete.
 
 Expected secure behavior:
 
@@ -400,7 +402,7 @@ Expected secure behavior:
 Treatment:
 
 - Add `user_roles` and scoped-role model.
-- Load authorities from database or session claims.
+- Load authorities from database-backed assignments instead of only session claims.
 - Add method security with `@PreAuthorize` where appropriate.
 - Add centralized ownership-policy service.
 
@@ -1183,7 +1185,7 @@ Priority 0, production blockers:
 - [x] Remove reset token from forgot-password response.
 - [x] Hash reset tokens.
 - [x] Add JWT issuer, audience, JWT ID, token-use, and not-before claims.
-- [ ] Add JWT session ID after refresh sessions exist.
+- [x] Add JWT session ID after refresh sessions exist.
 - [x] Reject production-like startup with fallback JWT secrets.
 - [x] Add user status and block locked/suspended users.
 - [ ] Add user roles and authorities.
