@@ -35,7 +35,8 @@ class JwtAuthenticationFilterTest {
                 userId = "courier-1",
                 email = "courier@sequo.test",
                 provider = AuthProvider.EMAIL,
-                roles = setOf(RoleCode.COURIER, RoleCode.RELAY_PARTNER)
+                roles = setOf(RoleCode.COURIER, RoleCode.RELAY_PARTNER),
+                sessionId = "refresh-session-1",
             )
         )
         val request = MockHttpServletRequest().apply {
@@ -49,6 +50,8 @@ class JwtAuthenticationFilterTest {
         assertEquals("courier-1", authentication.name)
         assertTrue(authentication.authorities.any { it.authority == RoleCode.COURIER.authority })
         assertTrue(authentication.authorities.any { it.authority == RoleCode.RELAY_PARTNER.authority })
+        val details = authentication.details as JwtAuthenticationDetails
+        assertEquals("refresh-session-1", details.sessionId)
     }
 
     @Test
