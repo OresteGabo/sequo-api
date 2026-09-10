@@ -49,7 +49,8 @@ data class UserSession(
     val userId: String,
     val email: String?,
     val provider: AuthProvider,
-    val roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER)
+    val roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER),
+    val sessionId: String? = null,
 )
 
 data class AuthErrorResponse(
