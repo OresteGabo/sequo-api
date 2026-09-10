@@ -9,6 +9,11 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
+data class JwtAuthenticationDetails(
+    val webAuthenticationDetails: Any?,
+    val sessionId: String?,
+)
+
 @Component
 class JwtAuthenticationFilter(private val jwtService: JwtService) : OncePerRequestFilter() {
 
@@ -26,7 +31,10 @@ class JwtAuthenticationFilter(private val jwtService: JwtService) : OncePerReque
             if (session != null && SecurityContextHolder.getContext().authentication == null) {
                 val authorities = session.roles.map { it.toGrantedAuthority() }
                 val authToken = UsernamePasswordAuthenticationToken(session.userId, null, authorities)
-                authToken.details = WebAuthenticationDetailsSource().buildDetails(request)
+                authToken.details = JwtAuthenticationDetails(
+                    webAuthenticationDetails = WebAuthenticationDetailsSource().buildDetails(request),
+                    sessionId = session.sessionId,
+                )
                 SecurityContextHolder.getContext().authentication = authToken
             }
         }
