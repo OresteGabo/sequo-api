@@ -71,6 +71,7 @@ class StompJwtAuthenticationInterceptor(
         authentication.details = JwtAuthenticationDetails(
             webAuthenticationDetails = null,
             sessionId = session.sessionId,
+            merchantScopeIds = session.merchantScopeIds,
         )
         val appFamily = accessor.getFirstNativeHeader(WebSocketPresenceEventListener.NotificationAppFamilyHeader)
             ?.let(::parseAppFamily)
