@@ -75,7 +75,7 @@ with a leaky-bucket policy and return a safe `rate_limited` response when exhaus
 
 | Method | Path | Body/query | Purpose |
 | --- | --- | --- | --- |
-| POST | `/api/orders/process` | `OrderProcessingRequest` | Validate payment and create the customer's fulfillment records. |
+| POST | `/api/orders/process` | `OrderProcessingRequest` | Validate payment. Returns fulfillment records immediately when payment is validated, or records a pending checkout while waiting for provider confirmation. |
 | GET | `/api/orders` | none | List orders belonging to the authenticated customer, newest first. |
 | GET | `/api/orders/{orderId}` | none | Read one order, its lines, merchant sub-orders, and a safe timeline. Other customers receive `404`. |
 | POST | `/api/orders/{orderId}/pickup-confirmations` | `idempotencyKey`, `proofMetadata?` | Confirm customer pickup/click-and-collect. |
@@ -121,6 +121,21 @@ Important order enums:
 
 The server replaces `customerId` with the authenticated user ID. A successful payment can return `200`;
 a provider-pending payment can return `202`; a rejected order returns `400`.
+
+`200 OK` means the payment is already validated and the response body is an `OrderFulfillmentResponse`.
+The order, order lines, pricing snapshot, and merchant sub-orders are already persisted.
+
+`202 Accepted` means the wallet provider has not validated the payment yet. The backend stores the pending
+checkout request and pricing snapshot, then waits for the provider webhook. The mobile app should show a
+waiting/payment-processing state for the same `checkoutId`; do not create a new checkout or mutate the cart
+for the same user action. Until the webhook arrives, `GET /api/orders/{orderId}` may return `404` because
+the customer order is not created yet. The order id is `SQ-<checkoutId>` unless `checkoutId` already starts
+with `SQ-`.
+
+When a signed Yas Togo or Moov Africa webhook later confirms the payment with matching provider,
+`paymentReference`, and amount, the server creates the same fulfillment records that a `200 OK` checkout
+would have created. If the webhook amount or payment reference does not match, the pending checkout remains
+unfulfilled for operator/provider investigation.
 
 ## Delivery Tracking
 
