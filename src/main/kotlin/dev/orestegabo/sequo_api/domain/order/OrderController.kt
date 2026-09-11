@@ -12,6 +12,7 @@ class OrderController(
     private val paymentProcessor: PaymentProcessor,
     private val pricingService: DeliveryPricingService,
     private val fulfillmentPersistence: OrderFulfillmentPersistenceService,
+    private val pendingPaymentCheckouts: PendingPaymentCheckoutService,
     private val customerPickupConfirmationService: CustomerPickupConfirmationService,
 ) {
     private val factory = OrderProcessorFactory(
@@ -38,7 +39,10 @@ class OrderController(
                     fulfillment = fulfillmentPersistence.persistAcceptedOrder(secureRequest, result),
                 )
             )
-            is OrderProcessingResult.AwaitingPaymentValidation -> ResponseEntity.accepted().body(result)
+            is OrderProcessingResult.AwaitingPaymentValidation -> {
+                pendingPaymentCheckouts.recordAwaitingWebhook(secureRequest, result)
+                ResponseEntity.accepted().body(result)
+            }
             is OrderProcessingResult.Rejected -> ResponseEntity.badRequest().body(result)
         }
     }
