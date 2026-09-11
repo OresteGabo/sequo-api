@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.delivery
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -71,7 +72,7 @@ class ConsolidationController(
         @PathVariable subOrderId: String,
         @RequestBody request: ReadyRequest,
     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.MerchantOperators) { auth ->
-        if (!auth.hasAnyRole(RoleGroups.AdminOperations) && auth.name != request.merchantId) {
+        if (!auth.hasAnyRole(RoleGroups.AdminOperations) && !auth.hasMerchantScope(request.merchantId)) {
             return@authenticated ResponseEntity.status(403).build()
         }
         ResponseEntity.ok(service.markSellerPackageReady(manifestId, subOrderId, request.merchantId, request.at))
