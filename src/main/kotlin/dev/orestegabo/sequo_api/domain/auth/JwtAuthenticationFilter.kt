@@ -12,6 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 data class JwtAuthenticationDetails(
     val webAuthenticationDetails: Any?,
     val sessionId: String?,
+    val merchantScopeIds: Set<String> = emptySet(),
 )
 
 @Component
@@ -34,6 +35,7 @@ class JwtAuthenticationFilter(private val jwtService: JwtService) : OncePerReque
                 authToken.details = JwtAuthenticationDetails(
                     webAuthenticationDetails = WebAuthenticationDetailsSource().buildDetails(request),
                     sessionId = session.sessionId,
+                    merchantScopeIds = session.merchantScopeIds,
                 )
                 SecurityContextHolder.getContext().authentication = authToken
             }
