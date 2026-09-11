@@ -64,11 +64,26 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         )
         assertEquals(8_000, second.merchantSubOrders.single { it.merchantId == "merchant-food" }.itemSubtotalCfa)
         assertEquals(3_000, second.merchantSubOrders.single { it.merchantId == "merchant-grocery" }.itemSubtotalCfa)
+        assertEquals(first.pricingSnapshot, second.pricingSnapshot)
+        requireNotNull(second.pricingSnapshot).also {
+            assertEquals("order-pricing-v1", it.pricingVersion)
+            assertEquals(listOf("merchant-food", "merchant-grocery"), it.merchantIds)
+            assertEquals(11_000, it.itemSubtotalCfa)
+            assertEquals(4.1, it.deliveryDistanceKm)
+            assertEquals("REQUEST_DISTANCE_KM", it.distanceSource)
+            assertEquals(5, it.deliveryBillableKm)
+            assertEquals(400, it.deliveryBaseFeeCfa)
+            assertEquals(0, it.subscriptionDiscountCfa)
+            assertEquals(0, it.referralCreditAppliedCfa)
+            assertEquals(400, it.customerDeliveryFeeCfa)
+            assertEquals(11_400, it.totalCfa)
+        }
 
         val listed = service.listForCustomer(request.customerId)
         val detail = service.getForCustomer(accepted.order.orderId, request.customerId)
         assertEquals(listed.single().order.id, detail?.order?.id)
         assertEquals(3, detail?.lines?.size)
+        assertEquals(second.pricingSnapshot, detail?.pricingSnapshot)
         assertEquals(2, detail?.merchantSubOrders?.size)
         assertEquals(listOf(CustomerOrderEventType.ACCEPTED_FOR_FULFILLMENT), detail?.timeline?.map { it.eventType })
         assertEquals(null, service.getForCustomer(accepted.order.orderId, "another-customer"))
@@ -99,6 +114,32 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
             assertEquals(500, it.commissionRateBps)
             assertEquals(250, it.commissionCfa)
             assertEquals(4_750, it.merchantNetCfa)
+        }
+        requireNotNull(persisted.pricingSnapshot).also {
+            assertEquals(5_000, it.itemSubtotalCfa)
+            assertEquals(0, it.platformMarginTotalCfa)
+            assertEquals(0, it.serviceFeeTotalCfa)
+            assertEquals(emptyList(), it.bargainingLockIds)
+        }
+    }
+
+    @Test
+    fun `accepted paid order records negotiated line trace in pricing snapshot`() {
+        val negotiatedLine = foodLine().copy(negotiatedUnitPriceCfa = 2_000)
+        val request = request(
+            checkoutId = "checkout-order-persistence-negotiated",
+            lines = listOf(negotiatedLine),
+        )
+
+        val persisted = service.persistAcceptedOrder(
+            request,
+            acceptedOrder(request),
+            Instant.parse("2026-09-08T10:00:00Z"),
+        )
+
+        requireNotNull(persisted.pricingSnapshot).also {
+            assertEquals(4_000, it.itemSubtotalCfa)
+            assertEquals(listOf("SQ-checkout-order-persistence-negotiated:line:0"), it.bargainingLockIds)
         }
     }
 
