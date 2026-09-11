@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.settlement
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.JwtAuthenticationDetails
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
 import java.time.Instant
 import kotlin.test.Test
@@ -55,6 +56,20 @@ class SettlementControllerTest @Autowired constructor(
         assertTrue(promoted.bodyAs<List<MerchantPayoutResponse>>().any { it.id == "settlement-ctrl-admin-1" })
     }
 
+    @Test
+    fun `merchant staff can read payouts for scoped merchant membership`() {
+        seedPayout("settlement-ctrl-scoped", "merchant-settlement-scoped", activeReturnHold = false)
+        val scopedStaff = auth("staff-settlement-1", RoleCode.MERCHANT_STAFF, merchantScopes = setOf("merchant-settlement-scoped"))
+        val unscopedStaff = auth("staff-settlement-2", RoleCode.MERCHANT_STAFF, merchantScopes = setOf("merchant-other"))
+
+        val scoped = controller.merchantPayouts(scopedStaff, "merchant-settlement-scoped", null)
+        val unscoped = controller.merchantPayouts(unscopedStaff, "merchant-settlement-scoped", null)
+
+        assertEquals(HttpStatus.OK, scoped.statusCode)
+        assertEquals(listOf("settlement-ctrl-scoped"), scoped.bodyAs<List<MerchantPayoutResponse>>().map { it.id })
+        assertEquals(HttpStatus.FORBIDDEN, unscoped.statusCode)
+    }
+
     private fun seedPayout(
         id: String,
         merchantId: String,
@@ -76,8 +91,14 @@ class SettlementControllerTest @Autowired constructor(
         )
     }
 
-    private fun auth(userId: String, role: RoleCode): Authentication =
-        UsernamePasswordAuthenticationToken(userId, null, listOf(role.toGrantedAuthority()))
+    private fun auth(
+        userId: String,
+        role: RoleCode,
+        merchantScopes: Set<String> = emptySet(),
+    ): Authentication =
+        UsernamePasswordAuthenticationToken(userId, null, listOf(role.toGrantedAuthority())).apply {
+            details = JwtAuthenticationDetails(webAuthenticationDetails = null, sessionId = null, merchantScopeIds = merchantScopes)
+        }
 
     @Suppress("UNCHECKED_CAST")
     private inline fun <reified T> org.springframework.http.ResponseEntity<Any>.bodyAs(): T =
