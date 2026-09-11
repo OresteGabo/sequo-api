@@ -12,8 +12,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import org.springframework.transaction.annotation.Transactional
 
 @SpringBootTest
+@Transactional
 class RefreshSessionSecurityTest {
     @Autowired private lateinit var authService: AuthService
     @Autowired private lateinit var authController: AuthController
@@ -22,12 +24,14 @@ class RefreshSessionSecurityTest {
     @Autowired private lateinit var userRepository: UserRepository
     @Autowired private lateinit var refreshSessionRepository: RefreshSessionRepository
     @Autowired private lateinit var socialIdentityRepository: SocialIdentityRepository
+    @Autowired private lateinit var merchantMembershipRepository: MerchantMembershipRepository
     @Autowired private lateinit var passwordEncoder: PasswordEncoder
 
     @BeforeEach
     fun cleanDatabase() {
         refreshSessionRepository.deleteAll()
         socialIdentityRepository.deleteAll()
+        merchantMembershipRepository.deleteAll()
         userRepository.deleteAll()
     }
 
@@ -59,6 +63,28 @@ class RefreshSessionSecurityTest {
 
         assertEquals(secondRefreshSession.id, secondAccessSession.sessionId)
         assertNotEquals(firstRefreshSession.id, secondRefreshSession.id)
+    }
+
+    @Test
+    fun accessTokensCarryPersistedRolesAndMerchantMembershipScopes() {
+        val user = userRepository.save(
+            activeUser("merchant-token@sequo.test").apply {
+                roles = mutableSetOf(RoleCode.CUSTOMER, RoleCode.MERCHANT_STAFF)
+            }
+        )
+        merchantMembershipRepository.save(
+            MerchantMembership(
+                userId = requireNotNull(user.id),
+                merchantId = "merchant-token-scope",
+                role = RoleCode.MERCHANT_STAFF,
+            )
+        )
+
+        val tokens = requireNotNull(authService.login(AuthController.LoginWithEmailRequest(user.email, "Cobalt-Violet-47!")))
+        val session = requireNotNull(jwtService.parseAccessToken(tokens.accessToken))
+
+        assertEquals(setOf(RoleCode.CUSTOMER, RoleCode.MERCHANT_STAFF), session.roles)
+        assertEquals(setOf("merchant-token-scope"), session.merchantScopeIds)
     }
 
     @Test
