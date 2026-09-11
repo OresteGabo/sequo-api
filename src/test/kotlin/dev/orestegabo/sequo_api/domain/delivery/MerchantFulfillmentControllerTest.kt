@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.JwtAuthenticationDetails
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
@@ -132,6 +133,26 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
         )
     }
 
+    @Test
+    fun merchantStaffCanUsePersistedMerchantScopeFromJwtDetails() {
+        val admin = auth("admin-merchant-scope", RoleCode.ADMIN)
+        val scopedStaff = auth("staff-controller-1", RoleCode.MERCHANT_STAFF, merchantScopes = setOf("merchant-controller-1"))
+        val unscopedStaff = auth("staff-controller-2", RoleCode.MERCHANT_STAFF, merchantScopes = setOf("merchant-controller-2"))
+        val subOrder = controller.create(admin, command("CTRL-MERCHANT-SCOPE")).bodyAs<MerchantSubOrderSnapshot>()
+
+        val scopedDetail = controller.get(scopedStaff, subOrder.id, merchantId = null)
+        val unscopedDetail = controller.get(unscopedStaff, subOrder.id, merchantId = null)
+        val scopedAccept = controller.accept(
+            scopedStaff,
+            subOrder.id,
+            MerchantFulfillmentController.MerchantActionRequest(merchantId = "merchant-controller-1"),
+        )
+
+        assertEquals(HttpStatus.OK, scopedDetail.statusCode)
+        assertEquals(HttpStatus.FORBIDDEN, unscopedDetail.statusCode)
+        assertEquals(HttpStatus.OK, scopedAccept.statusCode)
+    }
+
     private fun command(code: String): CreateMerchantSubOrderCommand =
         CreateMerchantSubOrderCommand(
             subOrderCode = code,
@@ -143,8 +164,14 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
             merchantNetCfa = 17_000,
         )
 
-    private fun auth(userId: String, role: RoleCode): Authentication =
-        UsernamePasswordAuthenticationToken(userId, null, listOf(role.toGrantedAuthority()))
+    private fun auth(
+        userId: String,
+        role: RoleCode,
+        merchantScopes: Set<String> = emptySet(),
+    ): Authentication =
+        UsernamePasswordAuthenticationToken(userId, null, listOf(role.toGrantedAuthority())).apply {
+            details = JwtAuthenticationDetails(webAuthenticationDetails = null, sessionId = null, merchantScopeIds = merchantScopes)
+        }
 
     private fun order(orderId: String) =
         CustomerOrderRecord(
