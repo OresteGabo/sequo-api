@@ -55,6 +55,8 @@ class RiderRadarRealtimeServiceTest {
             pickupAt = null,
             deliveredAt = null,
             relayDepositedAt = null,
+            customerDeliveryFeeCfa = 0,
+            courierFeeCfa = 0,
             shortfallCfa = 0,
             pickupProofMetadata = null,
             pickupProofActorId = null,
