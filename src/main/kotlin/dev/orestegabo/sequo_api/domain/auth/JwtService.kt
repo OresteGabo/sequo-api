@@ -28,6 +28,7 @@ class JwtService(
             .claim("email", session.email)
             .claim("provider", session.provider.name)
             .claim("roles", session.roles.map { it.name })
+            .claim("merchant_scope_ids", session.merchantScopeIds.toList())
             .claim("token_use", TokenUse.ACCESS.name)
             .issuedAt(now)
             .notBefore(now)
@@ -86,6 +87,7 @@ class JwtService(
                 email = claims["email"] as? String,
                 provider = parseProvider(claims["provider"]) ?: return null,
                 roles = parseRoles(claims["roles"]) ?: return null,
+                merchantScopeIds = parseStringSet(claims["merchant_scope_ids"]) ?: return null,
                 sessionId = parseSessionId(claims["sid"]),
             )
         } catch (e: Exception) {
@@ -128,6 +130,17 @@ class JwtService(
             .toSet()
             .ifEmpty { setOf(RoleCode.CUSTOMER) }
     }
+
+    private fun parseStringSet(claim: Any?): Set<String>? =
+        when (claim) {
+            is Collection<*> -> claim.map { it as? String ?: return null }
+            is String -> listOf(claim)
+            null -> emptyList()
+            else -> return null
+        }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
 
     private fun parseSessionId(sessionIdClaim: Any?): String? =
         (sessionIdClaim as? String)?.takeIf { it.isNotBlank() }
