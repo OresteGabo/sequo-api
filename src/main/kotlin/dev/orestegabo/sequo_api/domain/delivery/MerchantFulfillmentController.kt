@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.delivery
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -177,15 +178,19 @@ class MerchantFulfillmentController(
         authenticated(authentication, RoleGroups.MerchantOperators, operation)
 
     private fun merchantScopeAllowed(authentication: Authentication, merchantId: String): Boolean =
-        authentication.hasAnyRole(RoleGroups.AdminOnly) || authentication.name == merchantId
+        authentication.hasAnyRole(RoleGroups.AdminOnly) || authentication.hasMerchantScope(merchantId)
 
     private fun merchantCanSee(
         authentication: Authentication,
         subOrderMerchantId: String,
         requestedMerchantId: String?,
     ): Boolean {
-        val visibleMerchantId = requestedMerchantId ?: authentication.name
-        return subOrderMerchantId == visibleMerchantId && merchantScopeAllowed(authentication, visibleMerchantId)
+        val visibleMerchantId = requestedMerchantId?.takeIf { it.isNotBlank() }
+        return if (visibleMerchantId == null) {
+            merchantScopeAllowed(authentication, subOrderMerchantId)
+        } else {
+            subOrderMerchantId == visibleMerchantId && merchantScopeAllowed(authentication, visibleMerchantId)
+        }
     }
 
     private fun authenticated(
