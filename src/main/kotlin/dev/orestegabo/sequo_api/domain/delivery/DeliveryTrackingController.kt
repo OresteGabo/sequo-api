@@ -3,6 +3,8 @@ package dev.orestegabo.sequo_api.domain.delivery
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.auth.hasRole
+import dev.orestegabo.sequo_api.domain.order.OrderFulfillmentPersistenceService
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/delivery/tracking")
 class DeliveryTrackingController(
     private val service: DeliveryMissionService,
+    private val orders: OrderFulfillmentPersistenceService,
 ) {
     data class ErrorResponse(val code: String, val message: String)
 
@@ -23,11 +26,19 @@ class DeliveryTrackingController(
         authentication: Authentication?,
         @PathVariable deliveryCode: String,
         @RequestParam orderId: String,
-    ): ResponseEntity<Any> =
-        roleRequired(authentication, RoleGroups.CustomerDeliveryTrackingReaders) {
+    ): ResponseEntity<Any> {
+        val auth = authentication ?: return ResponseEntity.status(401).build()
+        return roleRequired(auth, RoleGroups.CustomerDeliveryTrackingReaders) {
+            if (requiresCustomerOwnership(auth) && orders.getForCustomer(orderId, auth.name) == null) {
+                return@roleRequired ResponseEntity.notFound().build()
+            }
             service.track(deliveryCode, orderId)?.let { ResponseEntity.ok(it) }
                 ?: ResponseEntity.notFound().build()
         }
+    }
+
+    private fun requiresCustomerOwnership(authentication: Authentication): Boolean =
+        authentication.hasRole(RoleCode.CUSTOMER) && !authentication.hasAnyRole(RoleGroups.AdminOperations)
 
     private fun roleRequired(
         authentication: Authentication?,
