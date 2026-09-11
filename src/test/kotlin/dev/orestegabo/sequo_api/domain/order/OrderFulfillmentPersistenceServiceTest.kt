@@ -17,7 +17,10 @@ import dev.orestegabo.sequo_api.domain.payment.SequoPaymentProviders
 import dev.orestegabo.sequo_api.domain.payment.YasTogoPaymentMethod
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutStatus
+import dev.orestegabo.sequo_api.domain.settlement.SettlementLedgerAccount
+import dev.orestegabo.sequo_api.domain.settlement.SettlementLedgerDirection
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import dev.orestegabo.sequo_api.domain.settlement.SettlementSourceType
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -239,6 +242,8 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
                 orderId = "SQ-checkout-order-persistence",
                 deliveryMode = DeliveryMissionRecordMode.EXPRESS,
                 destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+                customerDeliveryFeeCfa = 450,
+                courierFeeCfa = 700,
             )
         )
         deliveryMissions.assignCourier(mission.id, "courier-lifecycle")
@@ -278,6 +283,12 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         assertEquals(Instant.parse("2026-09-12T12:00:00Z"), payout.payoutEligibleAt)
         assertTrue(payout.activeReturnHold)
         assertEquals(2, payout.ledgerEntries.size)
+        val shortfallEntries = settlements.listLedgerEntries(SettlementSourceType.DeliveryMission, delivered.mission.id)
+        assertEquals(1, shortfallEntries.size)
+        assertEquals(SettlementLedgerAccount.SequoDeliveryShortfallExpense, shortfallEntries.single().account)
+        assertEquals(SettlementLedgerDirection.Debit, shortfallEntries.single().direction)
+        assertEquals(250, shortfallEntries.single().amountCfa)
+        assertEquals("courier-lifecycle", shortfallEntries.single().courierId)
     }
 
     private fun acceptedOrder(request: OrderProcessingRequest): OrderProcessingResult.AcceptedForFulfillment {
