@@ -19,6 +19,7 @@ class AuthService(
     private val passwordResetTokenService: PasswordResetTokenService,
     private val passwordResetTokenNotifier: PasswordResetTokenNotifier,
     private val refreshSessionService: RefreshSessionService,
+    private val merchantMembershipRepository: MerchantMembershipRepository,
 ) {
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
         val email = normalizeEmail(request.email)
@@ -198,10 +199,13 @@ class AuthService(
             expiresAt = jwtService.refreshExpiresAt(now),
             now = now,
         )
+        val activeMerchantMemberships = merchantMembershipRepository.findAllByUserIdAndActiveTrue(userId)
         val session = UserSession(
             userId = userId,
             email = user.email,
             provider = user.provider,
+            roles = (user.roles + activeMerchantMemberships.map { it.role }).toSet().ifEmpty { setOf(RoleCode.CUSTOMER) },
+            merchantScopeIds = activeMerchantMemberships.map { it.merchantId }.toSet(),
             sessionId = requireNotNull(refreshSession.id) { "Persisted refresh session id is required before token generation." },
         )
         return AuthTokens(
