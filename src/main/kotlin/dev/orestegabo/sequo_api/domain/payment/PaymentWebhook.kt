@@ -12,18 +12,20 @@ import java.time.Duration
 import java.time.Instant
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-enum class PaymentWebhookProviderStatus { Pending, Validated, Failed, Cancelled }
+enum class PaymentWebhookProviderStatus { PENDING, VALIDATED, FAILED, CANCELLED }
 
 data class PaymentWebhookCommand(
     val provider: PaymentProviderId,
     val eventId: String,
     val checkoutId: String,
     val paymentReference: String,
+    val providerReference: String? = null,
     val amountCfa: Int,
     val status: PaymentWebhookProviderStatus,
     val occurredAt: Instant,
@@ -48,6 +50,18 @@ data class PaymentWebhookResult(
     val accepted: Boolean,
 )
 
+data class PaymentWebhookAcceptedEvent(
+    val provider: PaymentProviderId,
+    val eventId: String,
+    val checkoutId: String,
+    val paymentReference: String,
+    val providerReference: String?,
+    val amountCfa: Int,
+    val status: PaymentWebhookProviderStatus,
+    val occurredAt: Instant,
+    val receivedAt: Instant,
+)
+
 @Entity
 @Table(name = "payment_webhook_events")
 class PaymentWebhookEventRecord(
@@ -56,6 +70,7 @@ class PaymentWebhookEventRecord(
     @Column(name = "event_id", nullable = false, length = 255) val eventId: String,
     @Column(name = "checkout_id", nullable = false, length = 255) val checkoutId: String,
     @Column(name = "payment_reference", nullable = false, length = 255) val paymentReference: String,
+    @Column(name = "provider_reference", length = 255) val providerReference: String?,
     @Column(name = "amount_cfa", nullable = false) val amountCfa: Int,
     @Enumerated(EnumType.STRING) @Column(name = "payment_status", nullable = false, length = 32) val status: PaymentWebhookProviderStatus,
     @Column(name = "occurred_at", nullable = false) val occurredAt: Instant,
@@ -70,6 +85,7 @@ interface PaymentWebhookEventRepository : JpaRepository<PaymentWebhookEventRecor
 @Service
 class PaymentWebhookService(
     private val events: PaymentWebhookEventRepository,
+    private val publisher: ApplicationEventPublisher,
     @Value("\${sequo.wallets.yas-togo.webhook-secret:}") private val yasTogoSecret: String,
     @Value("\${sequo.wallets.moov-africa.webhook-secret:}") private val moovAfricaSecret: String,
 ) {
@@ -87,16 +103,18 @@ class PaymentWebhookService(
         val existing = events.findByProviderAndEventId(command.provider.value, command.eventId)
         if (existing != null) {
             require(existing.payloadHash == payloadHash) { "Payment webhook event id was reused with a different payload." }
+            publisher.publishEvent(existing.toAcceptedEvent(command.provider))
             return PaymentWebhookResult(command.eventId, command.provider, duplicate = true, accepted = true)
         }
 
-        events.save(
+        val saved = events.save(
             PaymentWebhookEventRecord(
                 id = "${command.provider.value}:${command.eventId}",
                 provider = command.provider.value,
                 eventId = command.eventId,
                 checkoutId = command.checkoutId,
                 paymentReference = command.paymentReference,
+                providerReference = command.providerReference,
                 amountCfa = command.amountCfa,
                 status = command.status,
                 occurredAt = command.occurredAt,
@@ -104,6 +122,7 @@ class PaymentWebhookService(
                 receivedAt = command.receivedAt,
             )
         )
+        publisher.publishEvent(saved.toAcceptedEvent(command.provider))
         return PaymentWebhookResult(command.eventId, command.provider, duplicate = false, accepted = true)
     }
 
@@ -122,6 +141,19 @@ class PaymentWebhookService(
         )
     }
 }
+
+private fun PaymentWebhookEventRecord.toAcceptedEvent(providerId: PaymentProviderId): PaymentWebhookAcceptedEvent =
+    PaymentWebhookAcceptedEvent(
+        provider = providerId,
+        eventId = eventId,
+        checkoutId = checkoutId,
+        paymentReference = paymentReference,
+        providerReference = providerReference,
+        amountCfa = amountCfa,
+        status = status,
+        occurredAt = occurredAt,
+        receivedAt = receivedAt,
+    )
 
 private fun hmacSha256(secret: String, value: String): String {
     val mac = Mac.getInstance("HmacSHA256")
