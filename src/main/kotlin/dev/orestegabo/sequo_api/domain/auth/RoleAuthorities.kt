@@ -14,6 +14,12 @@ fun Authentication.hasRole(role: RoleCode): Boolean =
 fun Authentication.hasAnyRole(roles: Set<RoleCode>): Boolean =
     roles.any(::hasRole)
 
+fun Authentication.merchantScopeIds(): Set<String> =
+    (details as? JwtAuthenticationDetails)?.merchantScopeIds ?: emptySet()
+
+fun Authentication.hasMerchantScope(merchantId: String): Boolean =
+    merchantId.isNotBlank() && (name == merchantId || merchantId in merchantScopeIds())
+
 object RoleGroups {
     val AdminOnly = setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
     val AdminOperations = setOf(RoleCode.SUPPORT_AGENT, RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
