@@ -10,6 +10,7 @@ import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionConfiguratio
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
+import dev.orestegabo.sequo_api.domain.settlement.DeliveryShortfallCommand
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualCommand
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import dev.orestegabo.sequo_api.domain.settlement.SettlementWorkflowType
@@ -291,6 +292,7 @@ class OrderDeliveryLifecycleService(
     ): CustomerOrderSnapshot? {
         if (mission.status !in deliveryTerminalStatuses) return null
         val order = orders.findById(mission.orderId).orElse(null) ?: return null
+        postDeliveryShortfall(mission, deliveredAt)
         if (order.orderStatus == CustomerOrderStatus.DELIVERED) {
             accrueMerchantPayouts(order, order.deliveredAt ?: deliveredAt)
             return order.toSnapshot()
@@ -360,6 +362,20 @@ class OrderDeliveryLifecycleService(
                 )
             )
         }
+    }
+
+    private fun postDeliveryShortfall(mission: DeliveryMissionSnapshot, deliveredAt: Instant) {
+        val courierId = mission.courierId?.takeIf { it.isNotBlank() } ?: return
+        settlements.postDeliveryShortfall(
+            DeliveryShortfallCommand(
+                entryId = "${mission.id}:delivery-shortfall",
+                deliveryMissionId = mission.id,
+                customerDeliveryFeeCfa = mission.customerDeliveryFeeCfa,
+                finalCourierFeeCfa = mission.courierFeeCfa,
+                courierId = courierId,
+                createdAt = deliveredAt,
+            )
+        )
     }
 
     private fun CustomerOrderRecord.deliveryNotificationEvent(
