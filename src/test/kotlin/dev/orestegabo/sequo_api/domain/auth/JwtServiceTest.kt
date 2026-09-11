@@ -31,7 +31,10 @@ class JwtServiceTest {
     @Test
     fun accessTokenParserRestoresSessionRoles() {
         val tokens = jwtService.generateTokens(
-            sampleSession(roles = setOf(RoleCode.MERCHANT_OWNER, RoleCode.COURIER))
+            sampleSession(
+                roles = setOf(RoleCode.MERCHANT_OWNER, RoleCode.COURIER),
+                merchantScopeIds = setOf("merchant-a", "merchant-b"),
+            )
         )
 
         val session = jwtService.parseAccessToken(tokens.accessToken)
@@ -41,6 +44,7 @@ class JwtServiceTest {
         assertEquals("customer@sequo.test", session.email)
         assertEquals(AuthProvider.EMAIL, session.provider)
         assertEquals(setOf(RoleCode.MERCHANT_OWNER, RoleCode.COURIER), session.roles)
+        assertEquals(setOf("merchant-a", "merchant-b"), session.merchantScopeIds)
         assertEquals("refresh-session-1", session.sessionId)
     }
 
@@ -104,13 +108,15 @@ class JwtServiceTest {
     }
 
     private fun sampleSession(
-        roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER)
+        roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER),
+        merchantScopeIds: Set<String> = emptySet(),
     ): UserSession =
         UserSession(
             userId = "user-1",
             email = "customer@sequo.test",
             provider = AuthProvider.EMAIL,
             roles = roles,
+            merchantScopeIds = merchantScopeIds,
             sessionId = "refresh-session-1",
         )
 
