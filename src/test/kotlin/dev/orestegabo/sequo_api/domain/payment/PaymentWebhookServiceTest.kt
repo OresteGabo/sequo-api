@@ -7,16 +7,20 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import org.springframework.context.ApplicationEventPublisher
 import org.mockito.Mockito
 
 class PaymentWebhookServiceTest {
     private val repository = Mockito.mock(PaymentWebhookEventRepository::class.java)
-    private val service = PaymentWebhookService(repository, "yas-secret", "moov-secret")
+    private val publisher = Mockito.mock(ApplicationEventPublisher::class.java)
+    private val service = PaymentWebhookService(repository, publisher, "yas-secret", "moov-secret")
     private val receivedAt = Instant.parse("2026-09-09T10:05:00Z")
 
     @Test
     fun acceptsSignedWebhookAndReplaysItIdempotently() {
         val command = command()
+        Mockito.`when`(repository.save(Mockito.any(PaymentWebhookEventRecord::class.java)))
+            .thenAnswer { it.arguments[0] }
         val first = service.accept(command)
         Mockito.`when`(repository.findByProviderAndEventId("yas_togo", "event-1"))
             .thenReturn(PaymentWebhookEventRecord(
@@ -25,8 +29,9 @@ class PaymentWebhookServiceTest {
                 eventId = "event-1",
                 checkoutId = "checkout-1",
                 paymentReference = "payment-1",
+                providerReference = "provider-1",
                 amountCfa = 4_000,
-                status = PaymentWebhookProviderStatus.Validated,
+                status = PaymentWebhookProviderStatus.VALIDATED,
                 occurredAt = command.occurredAt,
                 payloadHash = sha256(command.rawPayload),
                 receivedAt = command.receivedAt,
@@ -60,6 +65,7 @@ class PaymentWebhookServiceTest {
                 eventId = "event-1",
                 checkoutId = original.checkoutId,
                 paymentReference = original.paymentReference,
+                providerReference = original.providerReference,
                 amountCfa = original.amountCfa,
                 status = original.status,
                 occurredAt = original.occurredAt,
@@ -83,8 +89,9 @@ class PaymentWebhookServiceTest {
             eventId = "event-1",
             checkoutId = "checkout-1",
             paymentReference = "payment-1",
+            providerReference = "provider-1",
             amountCfa = 4_000,
-            status = PaymentWebhookProviderStatus.Validated,
+            status = PaymentWebhookProviderStatus.VALIDATED,
             occurredAt = receivedAt.minusSeconds(30),
             receivedAt = receivedAt,
             signatureTimestamp = signatureTimestamp,
