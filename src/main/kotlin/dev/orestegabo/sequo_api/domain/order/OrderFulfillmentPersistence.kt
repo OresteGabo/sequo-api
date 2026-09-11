@@ -101,6 +101,36 @@ class CustomerOrderLineRecord(
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
 )
 
+@Entity
+@Table(name = "order_pricing_snapshots")
+class OrderPricingSnapshotRecord(
+    @Id @Column(name = "order_id") val orderId: String,
+    @Column(name = "checkout_id", nullable = false) val checkoutId: String,
+    @Column(name = "customer_id", nullable = false) val customerId: String,
+    @Column(name = "pricing_version", nullable = false) val pricingVersion: String,
+    @Column(name = "quote_id") val quoteId: String?,
+    @Column(nullable = false) val currency: String,
+    @Enumerated(EnumType.STRING) @Column(name = "service_level", nullable = false) val serviceLevel: OrderServiceLevel,
+    @Enumerated(EnumType.STRING) @Column(nullable = false) val route: OrderRoute,
+    @Column(name = "merchant_ids", nullable = false, length = 2000) val merchantIds: String,
+    @Column(name = "item_subtotal_cfa", nullable = false) val itemSubtotalCfa: Int,
+    @Column(name = "platform_margin_total_cfa", nullable = false) val platformMarginTotalCfa: Int,
+    @Column(name = "service_fee_total_cfa", nullable = false) val serviceFeeTotalCfa: Int,
+    @Column(name = "delivery_distance_km", nullable = false) val deliveryDistanceKm: Double,
+    @Column(name = "raw_distance_meters") val rawDistanceMeters: Int?,
+    @Column(name = "distance_source") val distanceSource: String?,
+    @Column(name = "delivery_billable_km", nullable = false) val deliveryBillableKm: Int,
+    @Column(name = "delivery_base_fee_cfa", nullable = false) val deliveryBaseFeeCfa: Int,
+    @Column(name = "subscription_discount_cfa", nullable = false) val subscriptionDiscountCfa: Int,
+    @Column(name = "referral_credit_applied_cfa", nullable = false) val referralCreditAppliedCfa: Int,
+    @Column(name = "customer_delivery_fee_cfa", nullable = false) val customerDeliveryFeeCfa: Int,
+    @Column(name = "courier_fee_estimate_cfa") val courierFeeEstimateCfa: Int?,
+    @Column(name = "delivery_shortfall_estimate_cfa") val deliveryShortfallEstimateCfa: Int?,
+    @Column(name = "bargaining_lock_ids", length = 2000) val bargainingLockIds: String?,
+    @Column(name = "total_cfa", nullable = false) val totalCfa: Int,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant,
+)
+
 interface CustomerOrderRecordRepository : JpaRepository<CustomerOrderRecord, String> {
     fun findByCheckoutId(checkoutId: String): CustomerOrderRecord?
     fun findByCustomerIdOrderByCreatedAtDesc(customerId: String): List<CustomerOrderRecord>
@@ -114,9 +144,12 @@ interface CustomerOrderEventRecordRepository : JpaRepository<CustomerOrderEventR
     fun findByOrderIdOrderByCreatedAtAsc(orderId: String): List<CustomerOrderEventRecord>
 }
 
+interface OrderPricingSnapshotRecordRepository : JpaRepository<OrderPricingSnapshotRecord, String>
+
 data class PersistedOrderFulfillment(
     val order: CustomerOrderSnapshot,
     val lines: List<CustomerOrderLineSnapshot>,
+    val pricingSnapshot: OrderPricingAuditSnapshot?,
     val merchantSubOrders: List<MerchantSubOrderSnapshot>,
 )
 
@@ -176,9 +209,38 @@ data class CustomerOrderTimelineItem(
     val createdAt: Instant,
 )
 
+data class OrderPricingAuditSnapshot(
+    val orderId: String,
+    val checkoutId: String,
+    val customerId: String,
+    val pricingVersion: String,
+    val quoteId: String?,
+    val currency: String,
+    val serviceLevel: OrderServiceLevel,
+    val route: OrderRoute,
+    val merchantIds: List<String>,
+    val itemSubtotalCfa: Int,
+    val platformMarginTotalCfa: Int,
+    val serviceFeeTotalCfa: Int,
+    val deliveryDistanceKm: Double,
+    val rawDistanceMeters: Int?,
+    val distanceSource: String?,
+    val deliveryBillableKm: Int,
+    val deliveryBaseFeeCfa: Int,
+    val subscriptionDiscountCfa: Int,
+    val referralCreditAppliedCfa: Int,
+    val customerDeliveryFeeCfa: Int,
+    val courierFeeEstimateCfa: Int?,
+    val deliveryShortfallEstimateCfa: Int?,
+    val bargainingLockIds: List<String>,
+    val totalCfa: Int,
+    val createdAt: Instant,
+)
+
 data class CustomerOrderDetails(
     val order: CustomerOrderSnapshot,
     val lines: List<CustomerOrderLineSnapshot>,
+    val pricingSnapshot: OrderPricingAuditSnapshot?,
     val merchantSubOrders: List<MerchantSubOrderSnapshot>,
     val timeline: List<CustomerOrderTimelineItem>,
 )
@@ -193,6 +255,7 @@ class OrderFulfillmentPersistenceService(
     private val orders: CustomerOrderRecordRepository,
     private val lines: CustomerOrderLineRecordRepository,
     private val events: CustomerOrderEventRecordRepository,
+    private val pricingSnapshots: OrderPricingSnapshotRecordRepository,
     private val merchantFulfillment: MerchantFulfillmentService,
     private val commissions: MerchantCommissionConfigurationService,
 ) {
@@ -222,6 +285,7 @@ class OrderFulfillmentPersistenceService(
         if (existingOrder == null) {
             request.lines.mapIndexed { index, line -> line.toLineRecord(accepted.order.orderId, index, createdAt) }
                 .forEach(lines::save)
+            pricingSnapshots.save(accepted.toPricingSnapshotRecord(request, createdAt))
             events.save(
                 CustomerOrderEventRecord(
                     id = "${accepted.order.orderId}:accepted",
@@ -240,6 +304,7 @@ class OrderFulfillmentPersistenceService(
         return PersistedOrderFulfillment(
             order = orderRecord.toSnapshot(),
             lines = lines.findByOrderIdOrderByLineIndexAsc(orderRecord.id).map { it.toSnapshot() },
+            pricingSnapshot = pricingSnapshots.findById(orderRecord.id).orElse(null)?.toSnapshot(),
             merchantSubOrders = merchantSubOrders,
         )
     }
@@ -248,6 +313,7 @@ class OrderFulfillmentPersistenceService(
         CustomerOrderDetails(
             order = order.toSnapshot(),
             lines = lines.findByOrderIdOrderByLineIndexAsc(order.id).map { it.toSnapshot() },
+            pricingSnapshot = pricingSnapshots.findById(order.id).orElse(null)?.toSnapshot(),
             merchantSubOrders = merchantFulfillment.listForOrder(order.id),
             timeline = events.findByOrderIdOrderByCreatedAtAsc(order.id).map {
                 CustomerOrderTimelineItem(it.eventType, it.createdAt)
@@ -430,6 +496,39 @@ private fun OrderProcessingResult.AcceptedForFulfillment.toOrderRecord(
     updatedAt = createdAt,
 )
 
+private fun OrderProcessingResult.AcceptedForFulfillment.toPricingSnapshotRecord(
+    request: OrderProcessingRequest,
+    createdAt: Instant,
+) = OrderPricingSnapshotRecord(
+    orderId = order.orderId,
+    checkoutId = order.checkoutId,
+    customerId = request.customerId,
+    pricingVersion = CURRENT_ORDER_PRICING_VERSION,
+    quoteId = null,
+    currency = "CFA",
+    serviceLevel = order.serviceLevel,
+    route = order.fulfillmentPlan.route,
+    merchantIds = request.lines.map { it.sellerId }.distinct().sorted().joinToString(","),
+    itemSubtotalCfa = order.pricing.itemSubtotalCfa,
+    platformMarginTotalCfa = 0,
+    serviceFeeTotalCfa = 0,
+    deliveryDistanceKm = request.deliveryDistanceKm,
+    rawDistanceMeters = null,
+    distanceSource = "REQUEST_DISTANCE_KM",
+    deliveryBillableKm = order.pricing.delivery.billableKm,
+    deliveryBaseFeeCfa = order.pricing.delivery.baseFeeCfa,
+    subscriptionDiscountCfa = order.pricing.delivery.subscriptionDiscountCfa,
+    referralCreditAppliedCfa = order.pricing.delivery.referralCreditAppliedCfa,
+    customerDeliveryFeeCfa = order.pricing.delivery.finalDeliveryFeeCfa,
+    courierFeeEstimateCfa = null,
+    deliveryShortfallEstimateCfa = null,
+    bargainingLockIds = request.lines.mapIndexedNotNull { index, line ->
+        line.negotiatedUnitPriceCfa?.let { "${order.orderId}:line:$index" }
+    }.joinToString(",").ifBlank { null },
+    totalCfa = order.pricing.totalCfa,
+    createdAt = createdAt,
+)
+
 private fun OrderLineRequest.toLineRecord(orderId: String, index: Int, createdAt: Instant): CustomerOrderLineRecord {
     val effectiveUnitPrice = effectiveUnitPriceCfa
     val lineTotal = Math.multiplyExact(effectiveUnitPrice, quantity)
@@ -523,6 +622,34 @@ private fun CustomerOrderLineRecord.toSnapshot() = CustomerOrderLineSnapshot(
     lineIndex = lineIndex,
 )
 
+private fun OrderPricingSnapshotRecord.toSnapshot() = OrderPricingAuditSnapshot(
+    orderId = orderId,
+    checkoutId = checkoutId,
+    customerId = customerId,
+    pricingVersion = pricingVersion,
+    quoteId = quoteId,
+    currency = currency,
+    serviceLevel = serviceLevel,
+    route = route,
+    merchantIds = merchantIds.splitCsv(),
+    itemSubtotalCfa = itemSubtotalCfa,
+    platformMarginTotalCfa = platformMarginTotalCfa,
+    serviceFeeTotalCfa = serviceFeeTotalCfa,
+    deliveryDistanceKm = deliveryDistanceKm,
+    rawDistanceMeters = rawDistanceMeters,
+    distanceSource = distanceSource,
+    deliveryBillableKm = deliveryBillableKm,
+    deliveryBaseFeeCfa = deliveryBaseFeeCfa,
+    subscriptionDiscountCfa = subscriptionDiscountCfa,
+    referralCreditAppliedCfa = referralCreditAppliedCfa,
+    customerDeliveryFeeCfa = customerDeliveryFeeCfa,
+    courierFeeEstimateCfa = courierFeeEstimateCfa,
+    deliveryShortfallEstimateCfa = deliveryShortfallEstimateCfa,
+    bargainingLockIds = bargainingLockIds?.splitCsv() ?: emptyList(),
+    totalCfa = totalCfa,
+    createdAt = createdAt,
+)
+
 private fun CustomerOrderEventRecord.toSnapshot() = CustomerOrderEventSnapshot(
     id = id,
     orderId = orderId,
@@ -538,3 +665,8 @@ private val deliveryTerminalStatuses = setOf(
     DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER,
     DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
 )
+
+private fun String.splitCsv(): List<String> =
+    split(",").map { it.trim() }.filter { it.isNotBlank() }
+
+private const val CURRENT_ORDER_PRICING_VERSION = "order-pricing-v1"
