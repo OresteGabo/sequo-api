@@ -2,6 +2,13 @@ package dev.orestegabo.sequo_api.domain.delivery
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
+import dev.orestegabo.sequo_api.domain.order.FulfillmentPriority
+import dev.orestegabo.sequo_api.domain.order.OrderRoute
+import dev.orestegabo.sequo_api.domain.order.OrderServiceLevel
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
@@ -25,6 +32,7 @@ class DeliveryMissionControllerTest @Autowired constructor(
     private val merchantFulfillment: MerchantFulfillmentService,
     private val dispatchService: DeliveryReadinessDispatchService,
     private val pinRepository: DeliveryPinRepository,
+    private val orders: CustomerOrderRecordRepository,
 ) {
     @Test
     fun courierListAndDetailAreLimitedToAssignedMissions() {
@@ -481,7 +489,9 @@ class DeliveryMissionControllerTest @Autowired constructor(
     fun customerTrackingIsRedactedAndRequiresMatchingOrderReference() {
         val admin = auth("admin-track", RoleCode.ADMIN)
         val customer = auth("customer-track", RoleCode.CUSTOMER)
+        val otherCustomer = auth("other-customer-track", RoleCode.CUSTOMER)
         val courier = auth("courier-track", RoleCode.COURIER)
+        saveCustomerOrder("order-track", "customer-track")
         val mission = createAssignedAndOfferedMission(
             deliveryCode = "CTRL-TRACK",
             orderId = "order-track",
@@ -497,6 +507,7 @@ class DeliveryMissionControllerTest @Autowired constructor(
         )
 
         val tracked = trackingController.track(customer, "CTRL-TRACK", "order-track")
+        val otherCustomerRead = trackingController.track(otherCustomer, "CTRL-TRACK", "order-track")
         val wrongOrder = trackingController.track(customer, "CTRL-TRACK", "wrong-order")
         val wrongRole = trackingController.track(courier, "CTRL-TRACK", "order-track")
 
@@ -506,8 +517,35 @@ class DeliveryMissionControllerTest @Autowired constructor(
         assertEquals("On the way to customer", snapshot.currentStep)
         assertEquals("Customer delivery", snapshot.nextStep)
         assertFalse(snapshot.toString().contains("private-pickup-proof"))
+        assertEquals(HttpStatus.NOT_FOUND, otherCustomerRead.statusCode)
         assertEquals(HttpStatus.NOT_FOUND, wrongOrder.statusCode)
         assertEquals(HttpStatus.FORBIDDEN, wrongRole.statusCode)
+    }
+
+    private fun saveCustomerOrder(orderId: String, customerId: String) {
+        val createdAt = Instant.parse("2026-09-09T09:00:00Z")
+        orders.save(
+            CustomerOrderRecord(
+                id = orderId,
+                checkoutId = "$orderId-checkout",
+                customerId = customerId,
+                serviceLevel = OrderServiceLevel.Regular,
+                route = OrderRoute.FastDelivery,
+                fulfillmentPriority = FulfillmentPriority.Standard,
+                requiresConsolidation = false,
+                customerFacingStatus = "Courier pickup pending.",
+                itemSubtotalCfa = 2_000,
+                deliveryFeeCfa = 400,
+                totalCfa = 2_400,
+                paymentProvider = "yas_togo",
+                paymentReference = "$orderId-payment",
+                providerReference = null,
+                paymentStatus = PaymentValidationStatus.Validated,
+                orderStatus = CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT,
+                createdAt = createdAt,
+                updatedAt = createdAt,
+            )
+        )
     }
 
     private fun createAssignedAndOfferedMission(
