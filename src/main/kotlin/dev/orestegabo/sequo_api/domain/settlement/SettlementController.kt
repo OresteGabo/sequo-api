@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.settlement
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -46,7 +47,7 @@ class SettlementController(
 
     private fun Authentication.canReadMerchantPayouts(merchantId: String): Boolean =
         hasAnyRole(RoleGroups.AdminOnly) || (
-            hasAnyRole(setOf(RoleCode.MERCHANT_OWNER, RoleCode.MERCHANT_STAFF)) && name == merchantId
+            hasAnyRole(setOf(RoleCode.MERCHANT_OWNER, RoleCode.MERCHANT_STAFF)) && hasMerchantScope(merchantId)
         )
 
     private fun authenticated(
