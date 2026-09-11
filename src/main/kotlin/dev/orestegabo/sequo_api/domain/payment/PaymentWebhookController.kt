@@ -31,6 +31,7 @@ class PaymentWebhookController(
                 eventId = root.requiredText("eventId"),
                 checkoutId = root.requiredText("checkoutId"),
                 paymentReference = root.requiredText("paymentReference"),
+                providerReference = root.optionalText("providerReference"),
                 amountCfa = root.requiredInt("amountCfa"),
                 status = root.requiredText("status").uppercase().toPaymentWebhookStatus(),
                 occurredAt = Instant.parse(root.requiredText("occurredAt")),
@@ -53,16 +54,19 @@ private fun String.toPaymentProviderId(): PaymentProviderId = when (trim().lower
 }
 
 private fun String.toPaymentWebhookStatus(): PaymentWebhookProviderStatus = when (this) {
-    "PENDING" -> PaymentWebhookProviderStatus.Pending
-    "VALIDATED", "SUCCESS", "SUCCEEDED" -> PaymentWebhookProviderStatus.Validated
-    "FAILED" -> PaymentWebhookProviderStatus.Failed
-    "CANCELLED", "CANCELED" -> PaymentWebhookProviderStatus.Cancelled
+    "PENDING" -> PaymentWebhookProviderStatus.PENDING
+    "VALIDATED", "SUCCESS", "SUCCEEDED" -> PaymentWebhookProviderStatus.VALIDATED
+    "FAILED" -> PaymentWebhookProviderStatus.FAILED
+    "CANCELLED", "CANCELED" -> PaymentWebhookProviderStatus.CANCELLED
     else -> throw IllegalArgumentException("Unsupported payment webhook status.")
 }
 
 private fun com.fasterxml.jackson.databind.JsonNode.requiredText(name: String): String =
     get(name)?.takeIf { it.isTextual && it.textValue().isNotBlank() }?.textValue()
         ?: throw IllegalArgumentException("Payment webhook field $name is required.")
+
+private fun com.fasterxml.jackson.databind.JsonNode.optionalText(name: String): String? =
+    get(name)?.takeIf { it.isTextual && it.textValue().isNotBlank() }?.textValue()
 
 private fun com.fasterxml.jackson.databind.JsonNode.requiredInt(name: String): Int =
     get(name)?.takeIf { it.isInt && it.intValue() >= 0 }?.intValue()
