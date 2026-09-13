@@ -232,6 +232,49 @@ The final dispatch is only valid after all packages are collected and a final pa
 Food and perishable parcels are rejected for relay pickup. Raw pickup codes and QR secrets are stored
 only as hashes; mobile apps must never log them.
 
+## SequoHub Counter API
+
+These routes are for the SequoHub partner-shop application and operational admin tools. Relay partners are
+scoped to their own hub id; admin and super-admin users can operate across hubs.
+
+| Method | Path | Body/query | Purpose |
+| --- | --- | --- | --- |
+| POST | `/api/hub/scan/resolve` | `hubId`, `credential`, `credentialType`, `idempotencyKey?` | Resolve a QR token, pickup code, package/deposit code, return id, or collection batch code to the next safe hub workflow action. |
+| GET | `/api/hub/summary` | query `hubId` | Read lightweight counter state for the hub home screen. |
+| POST | `/api/hub/lockers/{lockerId}/availability` | `relayPointId`, `status`, `reason?`, `expectedAvailableAt?`, `idempotencyKey?` | Mark a locker available, occupied, or temporarily unavailable. |
+| GET | `/api/hub/opening-hours` | query `relayPointId` | Read weekly opening hours and temporary closure/opening exceptions. |
+| PUT | `/api/hub/opening-hours` | `relayPointId`, `timezone`, `weeklyHours[]`, `exceptions[]`, `idempotencyKey?` | Replace the hub timetable and exception set. |
+| GET | `/api/hub/control-state` | query `relayPointId` | Read the effective hub/service availability state for this authenticated hub. |
+| POST | `/api/hub/control-state` | `relayPointId`, `target`, `status`, `reasonCode`, `staffMessage`, `customerMessage?`, `effectiveUntil?`, `actorType`, `source?`, `incidentReferenceId?`, `idempotencyKey` | Append an operations or approved automation control decision. Admin operations only. |
+| GET | `/api/hub/control-state/history` | query `relayPointId`, optional `target`, optional `limit` | Read recent immutable control decisions for audit and staff support. |
+
+`credentialType` values are `QR_TOKEN`, `PICKUP_CODE`, `PACKAGE_CODE`, `RETURN_ID`,
+`COLLECTION_BATCH_CODE`, and `AUTO`.
+
+Scan resolution responses include only safe operational fields: `workflowType`, `displayReference`,
+`parcelId`, `returnId`, `collectionBatchId`, `lockerId`, `identityVerificationRequired`, `feeDueCfa`,
+and `blockingReason`. They do not expose raw pickup PINs, QR secrets, phone numbers, full customer identity
+data, or identity document details.
+
+Locker `status` values are `AVAILABLE`, `OCCUPIED`, and `MAINTENANCE`. Maintenance requests must include
+a reason such as `BROKEN_DOOR`, `JAMMED_LOCK`, `DIRTY`, `WRONG_CONTENTS`, or `OTHER`.
+
+Opening-hour weekly entries use `dayOfWeek`, `isOpen`, `opensAt`, and `closesAt`. Closed days must omit
+times. Temporary exceptions use `date`, `isClosed`, optional times, `reason?`, and `effectiveUntil?`.
+
+Hub control `target` values are `HUB`, `LOCKER_INTAKE`, `CUSTOMER_PICKUP`, `CUSTOMER_RETURNS`,
+`SEQUO_COLLECTION`, and `PLAN_B_DROP_OFF`. Control `status` values are `ACTIVE`, `PAUSED`, and
+`DISABLED`. Reason codes are `RISK_REVIEW`, `PARTNER_SUSPENSION`, `CAPACITY_LOCK`, `FRAUD_SIGNAL`,
+`MAINTENANCE`, `COMPLIANCE_REVIEW`, `EMERGENCY`, and `OTHER`.
+
+Control-state reads return `effectiveMode`, the current hub state, service states, and `generatedAt`.
+`effectiveMode` is one of `NORMAL`, `HUB_PAUSED`, `HUB_DISABLED`, `INTAKE_PAUSED_PICKUP_ALLOWED`, or
+`SERVICE_RESTRICTED`. Mobile clients should keep enforcing the last known restrictive state while offline
+until a fresh successful sync returns a less restrictive state. Partner staff can read state and history for
+their own hub, but only Sequo operations can create decisions. `SEQUO_AI` and `SYSTEM_POLICY` actor types
+must be backed by privileged server-side credentials; client apps must never send internal risk details in
+staff or customer messages.
+
 ## Returns
 
 | Method | Path | Body/query | Purpose |
@@ -258,10 +301,29 @@ The return window is 72 hours after delivery. Refund must not be requested befor
 | PATCH | `/api/notifications/inbox/{messageId}/read` | none | Mark notification as read. |
 | POST | `/api/notifications/inbox/{messageId}/archive` | none | Archive notification. |
 | DELETE | `/api/notifications/inbox/{messageId}/archive` | none | Unarchive notification. |
+| GET | `/api/notifications/preferences/{appFamily}/effective` | query `eventType` | Read the effective channel preference for one notification event type. |
+| PUT | `/api/notifications/preferences/{appFamily}` | `eventType`, `pushEnabled`, `inAppEnabled`, `smsEnabled`, `quietHoursStart?`, `quietHoursEnd?` | Save one notification preference for the authenticated user and app family. |
 
 `appFamily` values: `SEQUO_CUSTOMER`, `SEQUO_MERCHANT`, `SEQUO_HUB`, `SEQUO_RIDER`, `SEQUO_ADMIN`.
 `platform` values: `ANDROID`, `IOS`, `WEB`. FCM delivery is server-controlled; never send directly
 from a mobile app with server credentials.
+
+For SequoHub, relevant event types include `RELAY_PARCEL_DEPOSITED`, `RELAY_PICKUP_CODE_CREATED`,
+`RELAY_PARCEL_DELAYED`, `RETURN_PIN_CREATED`, and `DELIVERY_PROBLEM_REPORTED`.
+
+## Account And App Preferences
+
+| Method | Path | Body/query | Purpose |
+| --- | --- | --- | --- |
+| POST | `/api/account/deletion-requests` | `reason?`, `confirmation`, `idempotencyKey?` | Request authenticated account deletion. |
+| GET | `/api/preferences` | optional query `appFamily` | Read authenticated user's app preferences. Defaults to `SEQUO_HUB` when omitted. |
+| PATCH | `/api/preferences` | optional query `appFamily`; body `theme?`, `language?`, `quickScanOnOpen?`, `soundFeedback?`, `largeLockerLabels?` | Update safe user/app preferences. |
+
+Account deletion is not immediate hard delete. It creates an audited request so retained operational records
+can remain available where required. The confirmation string must be `DELETE_MY_ACCOUNT`.
+
+Preference `theme` values are `SYSTEM`, `LIGHT`, and `DARK`. Preferences must not contain secrets, QR
+tokens, pickup codes, or private customer data.
 
 ## Payment Webhooks
 
