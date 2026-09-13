@@ -86,6 +86,11 @@ class RelayStorageFeeAssessmentRecord(
 
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayParcelRecord>
+    fun findByDepositCode(depositCode: String): RelayParcelRecord?
+    fun findFirstByReturnIdAndRelayPointIdOrderByUpdatedAtDesc(returnId: String, relayPointId: String): RelayParcelRecord?
+    fun findTopByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): RelayParcelRecord?
+    fun countByRelayPointIdAndStatus(relayPointId: String, status: RelayParcelStatus): Long
+    fun countByRelayPointIdAndStatusIn(relayPointId: String, statuses: Collection<RelayParcelStatus>): Long
     fun countByStatusIn(statuses: Collection<RelayParcelStatus>): Long
     fun countByReturnIdIsNotNullAndStatusIn(statuses: Collection<RelayParcelStatus>): Long
     fun findTop50ByStatusInOrderByUpdatedAtAsc(statuses: Collection<RelayParcelStatus>): List<RelayParcelRecord>
@@ -94,6 +99,7 @@ interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String>
 }
 interface RelayPickupCodeRecordRepository : JpaRepository<RelayPickupCodeRecord, String> {
     fun findFirstByRelayParcelIdOrderByCreatedAtDesc(relayParcelId: String): RelayPickupCodeRecord?
+    fun findFirstByCodeHashOrQrNonceHash(codeHash: String, qrNonceHash: String): RelayPickupCodeRecord?
 }
 interface RelayCustodyEventRecordRepository : JpaRepository<RelayCustodyEventRecord, String> {
     fun findByRelayParcelIdOrderByCreatedAtAsc(relayParcelId: String): List<RelayCustodyEventRecord>
@@ -101,6 +107,7 @@ interface RelayCustodyEventRecordRepository : JpaRepository<RelayCustodyEventRec
 interface RelayStorageFeeAssessmentRecordRepository : JpaRepository<RelayStorageFeeAssessmentRecord, String> {
     fun findByRelayParcelId(relayParcelId: String): RelayStorageFeeAssessmentRecord?
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayStorageFeeAssessmentRecord>
+    fun countByRelayPointIdAndTotalFeeCfaGreaterThan(relayPointId: String, totalFeeCfa: Int): Long
 }
 
 data class RelayStorageFeeAssessment(
