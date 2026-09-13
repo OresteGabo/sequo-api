@@ -82,6 +82,35 @@ class DatabaseMigrationValidationTest @Autowired constructor(
     }
 
     @Test
+    fun hubMobileTablesAreMigrated() {
+        val expectedTables = listOf(
+            "RELAY_LOCKERS",
+            "HUB_OPENING_HOURS",
+            "HUB_OPENING_HOUR_EXCEPTIONS",
+            "ACCOUNT_DELETION_REQUESTS",
+            "HUB_CONTROL_DECISIONS",
+            "USER_APP_PREFERENCES",
+        )
+
+        expectedTables.forEach { tableName ->
+            assertEquals(
+                1,
+                jdbcTemplate.queryForObject(
+                    """
+                    select count(*)
+                    from information_schema.tables
+                    where table_schema = 'PUBLIC'
+                      and table_name = ?
+                    """.trimIndent(),
+                    Int::class.java,
+                    tableName,
+                ),
+                "$tableName should be created by Flyway.",
+            )
+        }
+    }
+
+    @Test
     fun merchantSubOrderStatusConstraintRejectsInvalidState() {
         assertFailsWith<DataAccessException> {
             jdbcTemplate.update(
@@ -194,6 +223,58 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                 "message-invalid-channel",
                 "EXPENSIVE_SMS_BLAST",
                 "user:user-notification-constraint",
+            )
+        }
+    }
+
+    @Test
+    fun relayLockersRejectUnsupportedStatuses() {
+        assertFailsWith<DataAccessException> {
+            jdbcTemplate.update(
+                """
+                insert into relay_lockers (
+                    id,
+                    relay_point_id,
+                    locker_code,
+                    status
+                ) values (?, ?, ?, ?)
+                """.trimIndent(),
+                "locker-invalid-status",
+                "relay-invalid-status",
+                "L-INVALID",
+                "AVAILABLE_BUT_SECRETLY_BROKEN",
+            )
+        }
+    }
+
+    @Test
+    fun hubControlDecisionsRejectUnsupportedTargets() {
+        assertFailsWith<DataAccessException> {
+            jdbcTemplate.update(
+                """
+                insert into hub_control_decisions (
+                    id,
+                    relay_point_id,
+                    target,
+                    status,
+                    reason_code,
+                    staff_message,
+                    actor_type,
+                    actor_id,
+                    source,
+                    idempotency_key
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+                "hub-control-invalid-target",
+                "relay-invalid-control",
+                "WHOLE_CITY",
+                "PAUSED",
+                "RISK_REVIEW",
+                "Invalid target should fail.",
+                "SEQUO_OPERATOR",
+                "ops-user",
+                "migration-test",
+                "hub-control-invalid-target-key",
             )
         }
     }
