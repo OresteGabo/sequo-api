@@ -113,6 +113,9 @@ class RelayLockerRecord(
     @Column(name = "relay_point_id", nullable = false)
     val relayPointId: String,
 
+    @Column(name = "relay_locker_grid_id", nullable = false)
+    val relayLockerGridId: String,
+
     @Column(name = "locker_code", nullable = false, length = 64)
     val lockerCode: String,
 
@@ -140,6 +143,13 @@ class RelayLockerRecord(
     @Column(name = "version", nullable = false)
     var version: Long = 0,
 )
+
+/*
+class RelayLockerGridRecord(
+    @Id
+    @Column(name = "id")
+    val id: String,
+)*/
 
 @Entity
 @Table(name = "hub_opening_hours")
