@@ -113,6 +113,29 @@ class ProductionStartupGuardrailsIntegrationTest {
         ).close()
     }
 
+    @Test
+    fun productionProfileCanStartWithTemporaryYasTogoApiKeyPlaceholderAllowance() {
+        startGuardrailContext(
+            "spring.profiles.active=prod",
+            "sequo.auth.jwt.secret=realistic_prod_jwt_secret_2026_value_64_chars_minimum",
+            "sequo.notifications.token-encryption-secret=realistic_notification_secret_2026_value_64_chars_minimum",
+            "sequo.auth.google.client-id=7643198250-prod.apps.googleusercontent.com",
+            "sequo.auth.facebook.app-id=581049273650184",
+            "sequo.auth.apple.client-id=com.sequo.service.signin.production",
+            "sequo.wallets.yas-togo.api-key=placeholder",
+            "sequo.wallets.yas-togo.allow-placeholder-api-key=true",
+            "sequo.wallets.yas-togo.webhook-secret=realistic_yas_togo_webhook_secret_2026_value_64_chars_minimum",
+            "sequo.wallets.moov-africa.api-key=realistic_moov_africa_api_key_2026_value_64_chars_minimum",
+            "sequo.wallets.moov-africa.webhook-secret=realistic_moov_africa_webhook_secret_2026_value_64_chars_minimum",
+            "sequo.security.cors.allowed-origins=https://app.sequo.tg,https://admin.sequo.tg",
+            "spring.datasource.url=jdbc:postgresql://postgres:5432/sequo",
+            "spring.datasource.username=sequo_app",
+            "spring.datasource.password=realistic_database_password_2026_value_64_chars_minimum",
+            "spring.jpa.hibernate.ddl-auto=validate",
+            "spring.h2.console.enabled=false",
+        ).close()
+    }
+
     private fun startGuardrailContext(vararg properties: String): ConfigurableApplicationContext =
         SpringApplicationBuilder(GuardrailContext::class.java)
             .web(WebApplicationType.NONE)
