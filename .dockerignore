@@ -7,6 +7,8 @@
 build
 out
 bin
+tmp
+output
 
 .DS_Store
 *.iml
