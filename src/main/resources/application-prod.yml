@@ -81,6 +81,7 @@ sequo:
   wallets:
     yas-togo:
       api-key: ${YAS_TOGO_API_KEY}
+      allow-placeholder-api-key: ${YAS_TOGO_ALLOW_PLACEHOLDER_API_KEY:false}
       webhook-secret: ${YAS_TOGO_WEBHOOK_SECRET}
     moov-africa:
       api-key: ${MOOV_AFRICA_API_KEY}
