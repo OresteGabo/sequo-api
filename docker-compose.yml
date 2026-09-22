@@ -59,7 +59,7 @@ services:
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom}
       JAVA_OPTS: ${JAVA_OPTS:-}
     ports:
-      - "${SEQUO_API_BIND:-127.0.0.1}:${SEQUO_API_PORT:-8080}:8080"
+      - "${SEQUO_API_BIND:-0.0.0.0}:${SEQUO_API_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 30s
