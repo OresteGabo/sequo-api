@@ -15,6 +15,7 @@ data class StartupSecuritySettings(
     val facebookAppId: String?,
     val appleClientId: String?,
     val yasTogoApiKey: String?,
+    val allowYasTogoPlaceholderApiKey: Boolean,
     val yasTogoWebhookSecret: String?,
     val moovAfricaApiKey: String?,
     val moovAfricaWebhookSecret: String?,
@@ -61,12 +62,14 @@ object StartupSecurityChecks {
             unsafePrefixes = setOf("apple_", "ci_apple_"),
             findings = findings,
         )
-        requireSecret(
-            propertyName = "sequo.wallets.yas-togo.api-key",
-            value = settings.yasTogoApiKey,
-            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
-            findings = findings,
-        )
+        if (!settings.allowYasTogoPlaceholderApiKey) {
+            requireSecret(
+                propertyName = "sequo.wallets.yas-togo.api-key",
+                value = settings.yasTogoApiKey,
+                knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
+                findings = findings,
+            )
+        }
         requireSecret(
             propertyName = "sequo.wallets.yas-togo.webhook-secret",
             value = settings.yasTogoWebhookSecret,
@@ -147,13 +150,12 @@ object StartupSecurityChecks {
         settings: StartupSecuritySettings,
         findings: MutableList<String>,
     ) {
-        mapOf(
+        val valuesByProperty = mutableMapOf(
             "sequo.auth.jwt.secret" to listOf(settings.jwtSecret),
             "sequo.notifications.token-encryption-secret" to listOf(settings.notificationTokenEncryptionSecret),
             "sequo.auth.google.client-id" to listOf(settings.googleClientId),
             "sequo.auth.facebook.app-id" to listOf(settings.facebookAppId),
             "sequo.auth.apple.client-id" to listOf(settings.appleClientId),
-            "sequo.wallets.yas-togo.api-key" to listOf(settings.yasTogoApiKey),
             "sequo.wallets.yas-togo.webhook-secret" to listOf(settings.yasTogoWebhookSecret),
             "sequo.wallets.moov-africa.api-key" to listOf(settings.moovAfricaApiKey),
             "sequo.wallets.moov-africa.webhook-secret" to listOf(settings.moovAfricaWebhookSecret),
@@ -161,7 +163,12 @@ object StartupSecurityChecks {
             "spring.datasource.url" to listOf(settings.datasourceUrl),
             "spring.datasource.username" to listOf(settings.datasourceUsername),
             "spring.datasource.password" to listOf(settings.datasourcePassword),
-        ).forEach { (propertyName, values) ->
+        )
+        if (!settings.allowYasTogoPlaceholderApiKey) {
+            valuesByProperty["sequo.wallets.yas-togo.api-key"] = listOf(settings.yasTogoApiKey)
+        }
+
+        valuesByProperty.forEach { (propertyName, values) ->
             values.filterNotNull().forEach { value ->
                 val normalized = value.trim().lowercase()
                 if (TRACKED_PLACEHOLDER_MARKERS.any { it in normalized }) {
@@ -251,6 +258,8 @@ class ProductionStartupGuardrails(
     private val appleClientId: String?,
     @Value("\${sequo.wallets.yas-togo.api-key:}")
     private val yasTogoApiKey: String?,
+    @Value("\${sequo.wallets.yas-togo.allow-placeholder-api-key:false}")
+    private val allowYasTogoPlaceholderApiKey: Boolean,
     @Value("\${sequo.wallets.yas-togo.webhook-secret:}")
     private val yasTogoWebhookSecret: String?,
     @Value("\${sequo.wallets.moov-africa.api-key:}")
@@ -281,6 +290,7 @@ class ProductionStartupGuardrails(
                 facebookAppId = facebookAppId,
                 appleClientId = appleClientId,
                 yasTogoApiKey = yasTogoApiKey,
+                allowYasTogoPlaceholderApiKey = allowYasTogoPlaceholderApiKey,
                 yasTogoWebhookSecret = yasTogoWebhookSecret,
                 moovAfricaApiKey = moovAfricaApiKey,
                 moovAfricaWebhookSecret = moovAfricaWebhookSecret,
