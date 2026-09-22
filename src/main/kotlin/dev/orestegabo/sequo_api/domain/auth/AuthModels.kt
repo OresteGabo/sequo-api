@@ -39,6 +39,15 @@ data class SocialUser(
     val emailVerified: Boolean = false
 )
 
+data class VerifiedGoogleAccount(
+    val subject: String,
+    val email: String,
+    val emailVerified: Boolean,
+    val name: String?,
+    val pictureUrl: String?,
+    val audience: String,
+)
+
 data class AuthTokens(
     val accessToken: String,
     val refreshToken: String,
