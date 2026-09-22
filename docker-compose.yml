@@ -2,50 +2,75 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-1536m}
+    shm_size: ${POSTGRES_SHM_SIZE:-256m}
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sequo}
-      POSTGRES_USER: ${POSTGRES_USER:-sequo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sequo_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
-      - "${SEQUO_POSTGRES_PORT:-5433}:5432"
+      - "${SEQUO_POSTGRES_BIND:-127.0.0.1}:${SEQUO_POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
+      start_period: 30s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
 
   api:
-    image: sequo-api:local
+    image: ${SEQUO_API_IMAGE:-sequo-api:prod}
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    mem_limit: ${API_MEMORY_LIMIT:-1536m}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sequo}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sequo}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sequo_dev_password}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-validate}
-      SEQUO_ALLOW_DEV_DEFAULTS: ${SEQUO_ALLOW_DEV_DEFAULTS:-true}
-      JWT_SECRET: ${JWT_SECRET:-sequo_compose_dev_secret_key_2026_change_before_prod}
-      NOTIFICATION_TOKEN_ENCRYPTION_SECRET: ${NOTIFICATION_TOKEN_ENCRYPTION_SECRET:-sequo_compose_notification_token_secret_2026_change_before_prod}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google_docker_dev_client_id}
-      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-facebook_docker_dev_app_id}
-      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-apple_docker_dev_client_id}
+      SEQUO_ALLOW_DEV_DEFAULTS: ${SEQUO_ALLOW_DEV_DEFAULTS:-false}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      NOTIFICATION_TOKEN_ENCRYPTION_SECRET: ${NOTIFICATION_TOKEN_ENCRYPTION_SECRET:?NOTIFICATION_TOKEN_ENCRYPTION_SECRET must be set}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS must be set}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:?FACEBOOK_APP_ID must be set}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:?APPLE_CLIENT_ID must be set}
+      YAS_TOGO_API_KEY: ${YAS_TOGO_API_KEY:?YAS_TOGO_API_KEY must be set}
+      YAS_TOGO_WEBHOOK_SECRET: ${YAS_TOGO_WEBHOOK_SECRET:?YAS_TOGO_WEBHOOK_SECRET must be set}
+      MOOV_AFRICA_API_KEY: ${MOOV_AFRICA_API_KEY:?MOOV_AFRICA_API_KEY must be set}
+      MOOV_AFRICA_WEBHOOK_SECRET: ${MOOV_AFRICA_WEBHOOK_SECRET:?MOOV_AFRICA_WEBHOOK_SECRET must be set}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom}
       JAVA_OPTS: ${JAVA_OPTS:-}
     ports:
-      - "${SEQUO_API_PORT:-8080}:8080"
+      - "${SEQUO_API_BIND:-127.0.0.1}:${SEQUO_API_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 30s
       timeout: 5s
       start_period: 45s
       retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
 
   adminer:
     image: adminer:4-standalone
@@ -58,7 +83,12 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     ports:
-      - "${SEQUO_ADMINER_PORT:-8081}:8080"
+      - "${SEQUO_ADMINER_BIND:-127.0.0.1}:${SEQUO_ADMINER_PORT:-8081}:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
 
 volumes:
   postgres-data:
