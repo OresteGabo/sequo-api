@@ -58,6 +58,9 @@ sequo:
       secret: ${JWT_SECRET:sequo_compose_dev_secret_key_2026_change_before_prod}
     google:
       client-id: ${GOOGLE_CLIENT_ID:google_docker_dev_client_id}
+      allowed-client-ids:
+        - ${GOOGLE_ANDROID_CLIENT_ID:543119759762-f4s16bdo6sjhqsbk15na7df96dib6kmo.apps.googleusercontent.com}
+        - ${GOOGLE_IOS_CLIENT_ID:543119759762-ehcnb5lpi883c94457ogrgqsd0nshde2.apps.googleusercontent.com}
     facebook:
       app-id: ${FACEBOOK_APP_ID:facebook_docker_dev_app_id}
     apple:
