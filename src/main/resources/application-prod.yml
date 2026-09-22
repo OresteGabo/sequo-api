@@ -5,9 +5,9 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/sequo}
+    username: ${SPRING_DATASOURCE_USERNAME:sequo}
+    password: ${SPRING_DATASOURCE_PASSWORD:sequo_dev_password}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
@@ -52,21 +52,21 @@ sequo:
   security:
     allow-dev-defaults: ${SEQUO_ALLOW_DEV_DEFAULTS:false}
     cors:
-      allowed-origins: ${CORS_ALLOWED_ORIGINS}
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   auth:
     jwt:
-      secret: ${JWT_SECRET}
+      secret: ${JWT_SECRET:sequo_compose_dev_secret_key_2026_change_before_prod}
     google:
-      client-id: ${GOOGLE_CLIENT_ID}
+      client-id: ${GOOGLE_CLIENT_ID:google_docker_dev_client_id}
     facebook:
-      app-id: ${FACEBOOK_APP_ID}
+      app-id: ${FACEBOOK_APP_ID:facebook_docker_dev_app_id}
     apple:
-      client-id: ${APPLE_CLIENT_ID}
+      client-id: ${APPLE_CLIENT_ID:apple_docker_dev_client_id}
     refresh-session-cleanup:
       enabled: ${REFRESH_SESSION_CLEANUP_ENABLED:true}
       fixed-delay-ms: ${REFRESH_SESSION_CLEANUP_FIXED_DELAY_MS:86400000}
   notifications:
-    token-encryption-secret: ${NOTIFICATION_TOKEN_ENCRYPTION_SECRET}
+    token-encryption-secret: ${NOTIFICATION_TOKEN_ENCRYPTION_SECRET:sequo_compose_notification_token_secret_2026_change_before_prod}
     outbox-worker:
       enabled: ${NOTIFICATION_OUTBOX_WORKER_ENABLED:false}
       fixed-delay-ms: ${NOTIFICATION_OUTBOX_WORKER_FIXED_DELAY_MS:30000}
