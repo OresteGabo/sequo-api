@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,6 +22,8 @@ class AuthService(
     private val refreshSessionService: RefreshSessionService,
     private val merchantMembershipRepository: MerchantMembershipRepository,
 ) {
+    private val logger = LoggerFactory.getLogger(AuthService::class.java)
+
     fun signUp(request: AuthController.SignUpRequest): AuthTokens {
         val email = normalizeEmail(request.email)
         val existingUser = userRepository.findByEmail(email)
@@ -69,28 +72,20 @@ class AuthService(
 
         val socialUser = verifier.verify(token)
             ?: if (provider == AuthProvider.GOOGLE) {
-                throw InvalidGoogleTokenException(GoogleTokenRejection(reason = "invalid_token"))
+                rejectGoogleLogin("invalid_token")
             } else {
                 return null
             }
-        if (socialUser.provider != provider) return null
+        if (socialUser.provider != provider) {
+            if (provider == AuthProvider.GOOGLE) rejectGoogleLogin("provider_mismatch", socialUser)
+            return null
+        }
         if (provider == AuthProvider.GOOGLE && socialUser.email.isNullOrBlank()) {
-            throw InvalidGoogleTokenException(
-                GoogleTokenRejection(
-                    reason = "missing_email",
-                    subPresent = socialUser.providerId.isNotBlank(),
-                )
-            )
+            rejectGoogleLogin("missing_email", socialUser)
         }
         if (socialUser.email != null && !socialUser.emailVerified) {
             if (provider == AuthProvider.GOOGLE) {
-                throw InvalidGoogleTokenException(
-                    GoogleTokenRejection(
-                        reason = "unverified_email",
-                        emailVerified = false,
-                        subPresent = socialUser.providerId.isNotBlank(),
-                    )
-                )
+                rejectGoogleLogin("unverified_email", socialUser)
             }
             return null
         }
@@ -98,7 +93,10 @@ class AuthService(
         val now = Instant.now()
         val linkedIdentity = socialIdentityRepository.findByProviderAndProviderSubject(provider, socialUser.providerId)
         var user = linkedIdentity?.let { userRepository.findById(it.userId).orElse(null) }
-        if (linkedIdentity != null && user == null) return null
+        if (linkedIdentity != null && user == null) {
+            if (provider == AuthProvider.GOOGLE) rejectGoogleLogin("stale_social_identity", socialUser)
+            return null
+        }
 
         // Keep reading the legacy column while existing accounts are migrated to the identity table.
         user = user ?: userRepository.findByProviderAndProviderId(provider, socialUser.providerId)
@@ -118,7 +116,10 @@ class AuthService(
             }
         }
 
-        if (!user.status.canAuthenticate()) return null
+        if (!user.status.canAuthenticate()) {
+            if (provider == AuthProvider.GOOGLE) rejectGoogleLogin("account_not_active", socialUser)
+            return null
+        }
 
         if (linkedIdentity == null) {
             socialIdentityRepository.save(
@@ -242,4 +243,19 @@ class AuthService(
 
     private fun providerScopedEmail(socialUser: SocialUser): String =
         "${socialUser.providerId}@${socialUser.provider.name.lowercase()}.sequo.local"
+
+    private fun rejectGoogleLogin(reason: String, socialUser: SocialUser? = null): Nothing {
+        val rejection = GoogleTokenRejection(
+            reason = reason,
+            emailVerified = socialUser?.emailVerified,
+            subPresent = socialUser?.providerId?.isNotBlank(),
+        )
+        logger.warn(
+            "Google login rejected after verification: reason={} emailVerified={} subPresent={}",
+            rejection.reason,
+            rejection.emailVerified,
+            rejection.subPresent,
+        )
+        throw InvalidGoogleTokenException(rejection)
+    }
 }
