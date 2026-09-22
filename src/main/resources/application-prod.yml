@@ -80,12 +80,11 @@ sequo:
       fixed-delay-ms: ${NOTIFICATION_DEVICE_TOKEN_PRUNING_FIXED_DELAY_MS:86400000}
   wallets:
     yas-togo:
-      api-key: ${YAS_TOGO_API_KEY}
-      allow-placeholder-api-key: ${YAS_TOGO_ALLOW_PLACEHOLDER_API_KEY:false}
-      webhook-secret: ${YAS_TOGO_WEBHOOK_SECRET}
+      api-key: ${YAS_TOGO_API_KEY:}
+      webhook-secret: ${YAS_TOGO_WEBHOOK_SECRET:}
     moov-africa:
-      api-key: ${MOOV_AFRICA_API_KEY}
-      webhook-secret: ${MOOV_AFRICA_WEBHOOK_SECRET}
+      api-key: ${MOOV_AFRICA_API_KEY:}
+      webhook-secret: ${MOOV_AFRICA_WEBHOOK_SECRET:}
   relay:
     delayed-parcel-scheduler:
       enabled: ${RELAY_DELAYED_PARCEL_SCHEDULER_ENABLED:false}
