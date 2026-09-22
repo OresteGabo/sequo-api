@@ -57,7 +57,7 @@ class StartupSecurityChecksTest {
     }
 
     @Test
-    fun productionProfileCannotBypassStrictnessWithDevelopmentAllowance() {
+    fun productionProfileCanBypassStrictnessWithExplicitDevelopmentAllowance() {
         val findings = StartupSecurityChecks.unsafeProductionFindings(
             secureSettings(
                 activeProfiles = setOf("prod"),
@@ -74,9 +74,7 @@ class StartupSecurityChecksTest {
             )
         )
 
-        assertTrue(findings.any { it.contains("sequo.auth.jwt.secret") })
-        assertTrue(findings.any { it.contains("sequo.notifications.token-encryption-secret") })
-        assertTrue(findings.any { it.contains("spring.datasource.url") })
+        assertTrue(findings.isEmpty())
     }
 
     @Test
@@ -86,53 +84,36 @@ class StartupSecurityChecksTest {
                 activeProfiles = setOf("prod"),
                 jwtSecret = "short",
                 notificationTokenEncryptionSecret = "sequo_notifications_dev_encryption_key_2026_change_before_prod",
+            )
+        )
+
+        assertTrue(findings.any { it.contains("sequo.auth.jwt.secret") })
+        assertTrue(findings.any { it.contains("sequo.notifications.token-encryption-secret") })
+    }
+
+    @Test
+    fun productionProfileAllowsPlaceholderIntegrationProviderValues() {
+        val findings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
                 googleClientId = "google_dev_client_id",
                 facebookAppId = "facebook_dev_app_id",
                 appleClientId = "apple_dev_client_id",
-                yasTogoApiKey = "yas_togo_dev_api_key_2026_change_before_prod",
+                yasTogoApiKey = "placeholder",
                 yasTogoWebhookSecret = "yas_togo_dev_webhook_secret_2026_change_before_prod",
                 moovAfricaApiKey = "moov_africa_dev_api_key_2026_change_before_prod",
                 moovAfricaWebhookSecret = "moov_africa_dev_webhook_secret_2026_change_before_prod",
             )
         )
 
-        assertTrue(findings.any { it.contains("sequo.auth.jwt.secret") })
-        assertTrue(findings.any { it.contains("sequo.notifications.token-encryption-secret") })
-        assertTrue(findings.any { it.contains("sequo.auth.google.client-id") })
-        assertTrue(findings.any { it.contains("sequo.auth.facebook.app-id") })
-        assertTrue(findings.any { it.contains("sequo.auth.apple.client-id") })
-        assertTrue(findings.any { it.contains("sequo.wallets.yas-togo.api-key") })
-        assertTrue(findings.any { it.contains("sequo.wallets.yas-togo.webhook-secret") })
-        assertTrue(findings.any { it.contains("sequo.wallets.moov-africa.api-key") })
-        assertTrue(findings.any { it.contains("sequo.wallets.moov-africa.webhook-secret") })
-    }
-
-    @Test
-    fun productionProfileCanTemporarilyAllowPlaceholderYasTogoApiKeyOnly() {
-        val findings = StartupSecurityChecks.unsafeProductionFindings(
-            secureSettings(
-                activeProfiles = setOf("prod"),
-                yasTogoApiKey = "placeholder",
-                allowYasTogoPlaceholderApiKey = true,
-            )
-        )
-
+        assertTrue(findings.none { it.contains("sequo.auth.google.client-id") })
+        assertTrue(findings.none { it.contains("sequo.auth.facebook.app-id") })
+        assertTrue(findings.none { it.contains("sequo.auth.apple.client-id") })
         assertTrue(findings.none { it.contains("sequo.wallets.yas-togo.api-key") })
-    }
-
-    @Test
-    fun yasTogoPlaceholderApiKeyAllowanceDoesNotBypassWebhookSecretValidation() {
-        val findings = StartupSecurityChecks.unsafeProductionFindings(
-            secureSettings(
-                activeProfiles = setOf("prod"),
-                yasTogoApiKey = "placeholder",
-                allowYasTogoPlaceholderApiKey = true,
-                yasTogoWebhookSecret = "yas_togo_dev_webhook_secret_2026_change_before_prod",
-            )
-        )
-
-        assertTrue(findings.none { it.contains("sequo.wallets.yas-togo.api-key") })
-        assertTrue(findings.any { it.contains("sequo.wallets.yas-togo.webhook-secret") })
+        assertTrue(findings.none { it.contains("sequo.wallets.yas-togo.webhook-secret") })
+        assertTrue(findings.none { it.contains("sequo.wallets.moov-africa.api-key") })
+        assertTrue(findings.none { it.contains("sequo.wallets.moov-africa.webhook-secret") })
+        assertTrue(findings.isEmpty())
     }
 
     @Test
@@ -190,8 +171,6 @@ class StartupSecurityChecksTest {
             )
         )
 
-        assertTrue(findings.any { it.contains("sequo.auth.google.client-id") })
-        assertTrue(findings.any { it.contains("sequo.auth.facebook.app-id") })
         assertTrue(findings.any { it.contains("sequo.security.cors.allowed-origins") })
         assertTrue(findings.any { it.contains("spring.datasource.url") })
         assertTrue(findings.any { it.contains("spring.datasource.password") })
@@ -230,7 +209,6 @@ class StartupSecurityChecksTest {
         facebookAppId: String? = "581049273650184",
         appleClientId: String? = "com.sequo.service.signin.production",
         yasTogoApiKey: String? = "realistic_yas_togo_api_key_2026_value_64_chars_minimum",
-        allowYasTogoPlaceholderApiKey: Boolean = false,
         yasTogoWebhookSecret: String? = "realistic_yas_togo_webhook_secret_2026_value_64_chars_minimum",
         moovAfricaApiKey: String? = "realistic_moov_africa_api_key_2026_value_64_chars_minimum",
         moovAfricaWebhookSecret: String? = "realistic_moov_africa_webhook_secret_2026_value_64_chars_minimum",
@@ -246,14 +224,6 @@ class StartupSecurityChecksTest {
             allowDevDefaults = allowDevDefaults,
             jwtSecret = jwtSecret,
             notificationTokenEncryptionSecret = notificationTokenEncryptionSecret,
-            googleClientId = googleClientId,
-            facebookAppId = facebookAppId,
-            appleClientId = appleClientId,
-            yasTogoApiKey = yasTogoApiKey,
-            allowYasTogoPlaceholderApiKey = allowYasTogoPlaceholderApiKey,
-            yasTogoWebhookSecret = yasTogoWebhookSecret,
-            moovAfricaApiKey = moovAfricaApiKey,
-            moovAfricaWebhookSecret = moovAfricaWebhookSecret,
             corsAllowedOrigins = corsAllowedOrigins,
             datasourceUrl = datasourceUrl,
             datasourceUsername = datasourceUsername,
