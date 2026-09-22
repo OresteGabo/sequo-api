@@ -67,9 +67,33 @@ class AuthService(
             else -> return null
         }
 
-        val socialUser = verifier.verify(token) ?: return null
+        val socialUser = verifier.verify(token)
+            ?: if (provider == AuthProvider.GOOGLE) {
+                throw InvalidGoogleTokenException(GoogleTokenRejection(reason = "invalid_token"))
+            } else {
+                return null
+            }
         if (socialUser.provider != provider) return null
-        if (socialUser.email != null && !socialUser.emailVerified) return null
+        if (provider == AuthProvider.GOOGLE && socialUser.email.isNullOrBlank()) {
+            throw InvalidGoogleTokenException(
+                GoogleTokenRejection(
+                    reason = "missing_email",
+                    subPresent = socialUser.providerId.isNotBlank(),
+                )
+            )
+        }
+        if (socialUser.email != null && !socialUser.emailVerified) {
+            if (provider == AuthProvider.GOOGLE) {
+                throw InvalidGoogleTokenException(
+                    GoogleTokenRejection(
+                        reason = "unverified_email",
+                        emailVerified = false,
+                        subPresent = socialUser.providerId.isNotBlank(),
+                    )
+                )
+            }
+            return null
+        }
         
         val now = Instant.now()
         val linkedIdentity = socialIdentityRepository.findByProviderAndProviderSubject(provider, socialUser.providerId)
