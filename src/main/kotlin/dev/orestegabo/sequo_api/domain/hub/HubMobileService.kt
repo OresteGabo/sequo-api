@@ -313,7 +313,12 @@ class HubMobileService(
         val locker = existing ?: RelayLockerRecord(
             id = command.lockerId,
             relayPointId = command.relayPointId,
+            relayLockerGridId = command.relayPointId,
             lockerCode = command.lockerId,
+            status = command.status,
+            availabilityReason = command.reason ?: command.status.defaultReason(),
+            expectedAvailableAt = command.expectedAvailableAt,
+            updatedByUserId = command.updatedByUserId,
             createdAt = occurredAt,
             updatedAt = occurredAt,
         )
