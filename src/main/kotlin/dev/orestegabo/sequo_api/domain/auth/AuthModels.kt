@@ -48,6 +48,14 @@ data class VerifiedGoogleAccount(
     val audience: String,
 )
 
+data class GoogleTokenRejection(
+    val reason: String,
+    val audience: String? = null,
+    val issuer: String? = null,
+    val emailVerified: Boolean? = null,
+    val subPresent: Boolean? = null,
+)
+
 data class AuthTokens(
     val accessToken: String,
     val refreshToken: String,
@@ -80,3 +88,7 @@ class AccountLinkRequiredException(
     val existingProvider: AuthProvider,
     val attemptedProvider: AuthProvider
 ) : RuntimeException()
+
+class InvalidGoogleTokenException(
+    val rejection: GoogleTokenRejection
+) : RuntimeException(rejection.reason)
