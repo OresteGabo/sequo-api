@@ -36,12 +36,12 @@ docker compose ps
 docker compose logs -f api
 ```
 
-Default production bindings are loopback-only:
+Default production bindings expose the API publicly while keeping database/admin tools local:
 
 | Service | URL |
 | --- | --- |
-| API | `http://127.0.0.1:8080` |
-| API readiness | `http://127.0.0.1:8080/actuator/health/readiness` |
+| API | `http://0.0.0.0:8080` / `http://vps-d4bc6ae7.vps.ovh.net:8080` |
+| API readiness | `http://vps-d4bc6ae7.vps.ovh.net:8080/actuator/health/readiness` |
 | PostgreSQL from host | `127.0.0.1:5432` |
 | PostgreSQL from API container | `postgres:5432` |
 | Adminer, optional | `http://127.0.0.1:8081` |
@@ -128,7 +128,7 @@ Important variables:
 | Variable | Purpose |
 | --- | --- |
 | `SEQUO_API_PORT` | Host port mapped to the API container. |
-| `SEQUO_API_BIND` | Host interface for the API. Defaults to loopback for reverse-proxy deployments. |
+| `SEQUO_API_BIND` | Host interface for the API. Defaults to `0.0.0.0` for direct mobile testing. |
 | `SEQUO_POSTGRES_PORT` | Host port mapped to PostgreSQL. Defaults to `5432`; use `5433` locally to avoid colliding with host PostgreSQL. |
 | `SEQUO_ADMINER_PORT` | Host port mapped to optional Adminer database UI. |
 | `POSTGRES_DB` | Local database name. |
