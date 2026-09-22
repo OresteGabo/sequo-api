@@ -1,0 +1,95 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:2}
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:30000}
+      max-lifetime: ${SPRING_DATASOURCE_HIKARI_MAX_LIFETIME:1800000}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+  h2:
+    console:
+      enabled: false
+  flyway:
+    enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    db:
+      enabled: true
+
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    dev.orestegabo.sequo_api: ${LOGGING_LEVEL_APP:INFO}
+    org.springframework.security: ${LOGGING_LEVEL_SECURITY:WARN}
+    org.hibernate.SQL: ${LOGGING_LEVEL_HIBERNATE_SQL:WARN}
+
+sequo:
+  security:
+    allow-dev-defaults: false
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  auth:
+    jwt:
+      secret: ${JWT_SECRET}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+    facebook:
+      app-id: ${FACEBOOK_APP_ID}
+    apple:
+      client-id: ${APPLE_CLIENT_ID}
+    refresh-session-cleanup:
+      enabled: ${REFRESH_SESSION_CLEANUP_ENABLED:true}
+      fixed-delay-ms: ${REFRESH_SESSION_CLEANUP_FIXED_DELAY_MS:86400000}
+  notifications:
+    token-encryption-secret: ${NOTIFICATION_TOKEN_ENCRYPTION_SECRET}
+    outbox-worker:
+      enabled: ${NOTIFICATION_OUTBOX_WORKER_ENABLED:false}
+      fixed-delay-ms: ${NOTIFICATION_OUTBOX_WORKER_FIXED_DELAY_MS:30000}
+      limit: ${NOTIFICATION_OUTBOX_WORKER_LIMIT:20}
+    provider-delivery-worker:
+      enabled: ${NOTIFICATION_PROVIDER_DELIVERY_WORKER_ENABLED:false}
+      fixed-delay-ms: ${NOTIFICATION_PROVIDER_DELIVERY_WORKER_FIXED_DELAY_MS:30000}
+      limit: ${NOTIFICATION_PROVIDER_DELIVERY_WORKER_LIMIT:50}
+    device-token-pruning:
+      enabled: ${NOTIFICATION_DEVICE_TOKEN_PRUNING_ENABLED:true}
+      retention-days: ${NOTIFICATION_DEVICE_TOKEN_PRUNING_RETENTION_DAYS:90}
+      fixed-delay-ms: ${NOTIFICATION_DEVICE_TOKEN_PRUNING_FIXED_DELAY_MS:86400000}
+  wallets:
+    yas-togo:
+      api-key: ${YAS_TOGO_API_KEY}
+      webhook-secret: ${YAS_TOGO_WEBHOOK_SECRET}
+    moov-africa:
+      api-key: ${MOOV_AFRICA_API_KEY}
+      webhook-secret: ${MOOV_AFRICA_WEBHOOK_SECRET}
+  relay:
+    delayed-parcel-scheduler:
+      enabled: ${RELAY_DELAYED_PARCEL_SCHEDULER_ENABLED:false}
+      fixed-delay-ms: ${RELAY_DELAYED_PARCEL_SCHEDULER_FIXED_DELAY_MS:3600000}
+  settlements:
+    eligibility-scheduler:
+      enabled: ${SETTLEMENT_ELIGIBILITY_SCHEDULER_ENABLED:false}
+      fixed-delay-ms: ${SETTLEMENT_ELIGIBILITY_SCHEDULER_FIXED_DELAY_MS:3600000}
