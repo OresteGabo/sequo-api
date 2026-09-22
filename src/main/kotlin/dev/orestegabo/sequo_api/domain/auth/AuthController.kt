@@ -14,7 +14,11 @@ class AuthController(
 
     data class SignUpRequest(val email: String, val password: String, val name: String?)
     data class LoginWithEmailRequest(val email: String, val password: String)
-    data class LoginWithSocialRequest(val provider: AuthProvider, val token: String)
+    data class LoginWithSocialRequest(val provider: AuthProvider, val token: String) {
+        init {
+            require(token.isNotBlank()) { "token is required." }
+        }
+    }
     data class RefreshRequest(val refreshToken: String) {
         init { RefreshTokenPolicy.validate(refreshToken) }
     }
@@ -80,11 +84,14 @@ class AuthController(
     @PostMapping("/login/social")
     fun loginSocial(@RequestBody request: LoginWithSocialRequest): ResponseEntity<Any> {
         return try {
+            if (request.provider != AuthProvider.GOOGLE) return ResponseEntity.badRequest().build()
             authRateLimiter.checkSocialLogin(request.provider)
             val tokens = authService.loginWithSocialToken(request.provider, request.token)
             tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().build()
         } catch (e: AccountLinkRequiredException) {
             ResponseEntity.status(409).body(
                 AuthErrorResponse(
