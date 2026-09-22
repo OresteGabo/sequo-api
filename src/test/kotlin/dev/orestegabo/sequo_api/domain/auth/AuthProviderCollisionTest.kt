@@ -58,25 +58,82 @@ class AuthProviderCollisionTest {
 
     @Test
     fun invalidGoogleTokenReturnsUnauthorized() {
-        Mockito.`when`(googleVerifier.verify("bad-google-token")).thenReturn(null)
+        Mockito.`when`(googleVerifier.verify("bad-google-token")).thenThrow(
+            InvalidGoogleTokenException(GoogleTokenRejection(reason = "invalid_signature"))
+        )
 
         val response = authController.loginSocial(
             AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "bad-google-token")
         )
 
+        val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
+        assertEquals("invalid_google_token", body.error)
+        assertEquals("invalid_signature", body.reason)
         assertEquals(0, userRepository.count())
     }
 
     @Test
     fun wrongAudienceGoogleTokenReturnsUnauthorized() {
-        Mockito.`when`(googleVerifier.verify("wrong-audience-google-token")).thenReturn(null)
+        Mockito.`when`(googleVerifier.verify("wrong-audience-google-token")).thenThrow(
+            InvalidGoogleTokenException(
+                GoogleTokenRejection(
+                    reason = "invalid_audience",
+                    audience = "wrong-client.apps.googleusercontent.com",
+                    issuer = "https://accounts.google.com",
+                    emailVerified = true,
+                    subPresent = true,
+                )
+            )
+        )
 
         val response = authController.loginSocial(
             AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "wrong-audience-google-token")
         )
 
+        val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
+        assertEquals("invalid_google_token", body.error)
+        assertEquals("invalid_audience", body.reason)
+        assertEquals(0, userRepository.count())
+    }
+
+    @Test
+    fun expiredGoogleTokenReturnsUnauthorizedReason() {
+        Mockito.`when`(googleVerifier.verify("expired-google-token")).thenThrow(
+            InvalidGoogleTokenException(GoogleTokenRejection(reason = "expired_token"))
+        )
+
+        val response = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "expired-google-token")
+        )
+
+        val body = response.body as AuthController.InvalidGoogleTokenResponse
+        assertEquals(401, response.statusCode.value())
+        assertEquals("expired_token", body.reason)
+        assertEquals(0, userRepository.count())
+    }
+
+    @Test
+    fun missingGoogleEmailReturnsUnauthorizedReason() {
+        Mockito.`when`(googleVerifier.verify("missing-email-google-token")).thenReturn(
+            SocialUser(
+                providerId = "google-123",
+                provider = AuthProvider.GOOGLE,
+                email = null,
+                name = "Customer",
+                pictureUrl = null,
+                emailVerified = true,
+            )
+        )
+
+        val response = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "missing-email-google-token")
+        )
+
+        val body = response.body as AuthController.InvalidGoogleTokenResponse
+        assertEquals(401, response.statusCode.value())
+        assertEquals("missing_email", body.reason)
         assertEquals(0, userRepository.count())
     }
 
@@ -236,9 +293,13 @@ class AuthProviderCollisionTest {
             )
         )
 
-        val tokens = authService.loginWithSocialToken(AuthProvider.GOOGLE, "unverified-google-token")
+        val response = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "unverified-google-token")
+        )
 
-        assertNull(tokens)
+        val body = response.body as AuthController.InvalidGoogleTokenResponse
+        assertEquals(401, response.statusCode.value())
+        assertEquals("unverified_email", body.reason)
         assertEquals(0, userRepository.count())
     }
 
