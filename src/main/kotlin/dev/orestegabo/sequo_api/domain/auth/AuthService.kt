@@ -82,10 +82,8 @@ class AuthService(
             val email = socialUser.email?.let(::normalizeEmail)
             val existingUser = email?.let { userRepository.findByEmail(it) }
             if (existingUser != null) {
-                throw AccountLinkRequiredException(
-                    existingProvider = existingUser.provider,
-                    attemptedProvider = provider
-                )
+                if (!socialUser.emailVerified) return null
+                user = existingUser
             } else {
                 user = userRepository.save(User(
                     email = email ?: providerScopedEmail(socialUser),
