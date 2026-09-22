@@ -54,7 +54,7 @@ Important values:
 | Variable | Notes |
 | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | Keep as `prod` for VPS deployment. |
-| `SEQUO_API_BIND` | Defaults to `127.0.0.1` for reverse-proxy deployments. Use `0.0.0.0` only if exposing the API directly. |
+| `SEQUO_API_BIND` | Defaults to `0.0.0.0` so mobile apps can reach `http://vps-d4bc6ae7.vps.ovh.net:8080`. |
 | `SEQUO_API_PORT` | Host port for the API, default `8080`. |
 | `POSTGRES_PASSWORD` | Use a unique random password. |
 | `JWT_SECRET` | At least 32 random characters. |
@@ -74,7 +74,7 @@ openssl rand -base64 48
 
 ## Reverse Proxy
 
-The Compose file binds the API to `127.0.0.1:8080` by default. Put Nginx, Caddy, or another reverse proxy in front of it for TLS:
+The Compose file binds the API to `0.0.0.0:8080` by default for direct mobile testing. For production TLS, put Nginx, Caddy, or another reverse proxy in front of it:
 
 ```text
 https://api.your-domain.com -> http://127.0.0.1:8080
@@ -101,6 +101,12 @@ Health endpoint:
 
 ```bash
 curl http://127.0.0.1:8080/actuator/health/readiness
+```
+
+From an external device, verify the public bind:
+
+```bash
+curl -i http://vps-d4bc6ae7.vps.ovh.net:8080/actuator/health
 ```
 
 ## Updates
