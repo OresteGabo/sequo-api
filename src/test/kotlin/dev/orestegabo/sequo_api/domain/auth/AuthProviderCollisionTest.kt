@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -37,6 +38,46 @@ class AuthProviderCollisionTest {
         socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
         Mockito.reset(googleVerifier)
+    }
+
+    @Test
+    fun blankSocialTokenIsRejectedBeforeVerification() {
+        assertFailsWith<IllegalArgumentException> {
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, " ")
+        }
+    }
+
+    @Test
+    fun unsupportedSocialProviderReturnsBadRequest() {
+        val response = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.APPLE, "apple-token")
+        )
+
+        assertEquals(400, response.statusCode.value())
+    }
+
+    @Test
+    fun invalidGoogleTokenReturnsUnauthorized() {
+        Mockito.`when`(googleVerifier.verify("bad-google-token")).thenReturn(null)
+
+        val response = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "bad-google-token")
+        )
+
+        assertEquals(401, response.statusCode.value())
+        assertEquals(0, userRepository.count())
+    }
+
+    @Test
+    fun wrongAudienceGoogleTokenReturnsUnauthorized() {
+        Mockito.`when`(googleVerifier.verify("wrong-audience-google-token")).thenReturn(null)
+
+        val response = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "wrong-audience-google-token")
+        )
+
+        assertEquals(401, response.statusCode.value())
+        assertEquals(0, userRepository.count())
     }
 
     @Test
@@ -75,8 +116,8 @@ class AuthProviderCollisionTest {
     }
 
     @Test
-    fun googleLoginForEmailPasswordAccountRequiresExplicitLinking() {
-        userRepository.save(emailUser("customer@sequo.test"))
+    fun verifiedGoogleLoginLinksToExistingEmailPasswordAccount() {
+        val existing = userRepository.save(emailUser("customer@sequo.test"))
         Mockito.`when`(googleVerifier.verify("google-token")).thenReturn(
             SocialUser(
                 providerId = "google-123",
@@ -92,13 +133,16 @@ class AuthProviderCollisionTest {
             AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "google-token")
         )
 
-        val body = response.body as AuthErrorResponse
-        assertEquals(409, response.statusCode.value())
-        assertEquals("account_link_required", body.code)
-        assertEquals(AuthProvider.EMAIL, body.requiredProvider)
-        assertEquals(AuthProvider.GOOGLE, body.attemptedProvider)
+        val body = response.body as AuthTokens
+        val linkedIdentity = socialIdentityRepository.findByProviderAndProviderSubject(AuthProvider.GOOGLE, "google-123")
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(body.accessToken)
+        assertNotNull(body.refreshToken)
         assertEquals(1, userRepository.count())
         assertEquals(AuthProvider.EMAIL, userRepository.findByEmail("customer@sequo.test")?.provider)
+        assertNotNull(linkedIdentity)
+        assertEquals(existing.id, linkedIdentity.userId)
+        assertEquals("customer@sequo.test", linkedIdentity.verifiedEmail)
     }
 
     @Test
@@ -121,6 +165,62 @@ class AuthProviderCollisionTest {
         assertNotNull(user)
         assertEquals(AuthProvider.GOOGLE, user.provider)
         assertEquals("google-123", user.providerId)
+        assertNotNull(socialIdentityRepository.findByProviderAndProviderSubject(AuthProvider.GOOGLE, "google-123"))
+    }
+
+    @Test
+    fun validGoogleTokenLogsInExistingLinkedGoogleUser() {
+        val user = userRepository.save(googleUser("linked@sequo.test"))
+        socialIdentityRepository.save(
+            SocialIdentity(
+                userId = requireNotNull(user.id),
+                provider = AuthProvider.GOOGLE,
+                providerSubject = "google-linked",
+                verifiedEmail = "linked@sequo.test",
+            )
+        )
+        Mockito.`when`(googleVerifier.verify("linked-google-token")).thenReturn(
+            SocialUser(
+                providerId = "google-linked",
+                provider = AuthProvider.GOOGLE,
+                email = "linked@sequo.test",
+                name = "Linked User",
+                pictureUrl = null,
+                emailVerified = true
+            )
+        )
+
+        val tokens = authService.loginWithSocialToken(AuthProvider.GOOGLE, "linked-google-token")
+
+        assertNotNull(tokens)
+        assertEquals(1, userRepository.count())
+        assertEquals(user.id, socialIdentityRepository.findByProviderAndProviderSubject(AuthProvider.GOOGLE, "google-linked")?.userId)
+    }
+
+    @Test
+    fun refreshRouteWorksForGoogleLoginSession() {
+        Mockito.`when`(googleVerifier.verify("refresh-google-token")).thenReturn(
+            SocialUser(
+                providerId = "google-refresh",
+                provider = AuthProvider.GOOGLE,
+                email = "refresh@sequo.test",
+                name = "Refresh User",
+                pictureUrl = null,
+                emailVerified = true
+            )
+        )
+
+        val login = authController.loginSocial(
+            AuthController.LoginWithSocialRequest(AuthProvider.GOOGLE, "refresh-google-token")
+        )
+        val loginTokens = login.body as AuthTokens
+        val refresh = authController.refresh(AuthController.RefreshRequest(loginTokens.refreshToken))
+        val refreshedTokens = refresh.body as AuthTokens
+
+        assertEquals(200, login.statusCode.value())
+        assertEquals(200, refresh.statusCode.value())
+        assertNotNull(refreshedTokens.accessToken)
+        assertNotNull(refreshedTokens.refreshToken)
     }
 
     @Test
