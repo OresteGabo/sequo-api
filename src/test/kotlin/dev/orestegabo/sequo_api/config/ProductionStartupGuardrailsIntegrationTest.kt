@@ -64,6 +64,22 @@ class ProductionStartupGuardrailsIntegrationTest {
     }
 
     @Test
+    fun productionProfileBindsDevelopmentDefaultAllowanceFromEnvironmentStyleProperty() {
+        startGuardrailContext(
+            "spring.profiles.active=prod",
+            "SEQUO_ALLOW_DEV_DEFAULTS=true",
+            "sequo.auth.jwt.secret=sequo_compose_dev_secret_key_2026_change_before_prod",
+            "sequo.notifications.token-encryption-secret=sequo_compose_notification_token_secret_2026_change_before_prod",
+            "sequo.security.cors.allowed-origins=http://vps-d4bc6ae7.vps.ovh.net:8080",
+            "spring.datasource.url=jdbc:postgresql://postgres:5432/sequo",
+            "spring.datasource.username=sequo",
+            "spring.datasource.password=sequo_dev_password",
+            "spring.jpa.hibernate.ddl-auto=validate",
+            "spring.h2.console.enabled=false",
+        ).close()
+    }
+
+    @Test
     fun dockerProfileCanUseExplicitDevelopmentDefaultsForLocalComposeAndCi() {
         startGuardrailContext(
             "spring.profiles.active=docker",
