@@ -6,10 +6,12 @@ WORKDIR /workspace
 
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
-RUN chmod +x ./gradlew && ./gradlew --no-daemon dependencies
+RUN --mount=type=cache,target=/root/.gradle \
+    chmod +x ./gradlew && ./gradlew --no-daemon dependencies
 
 COPY src ./src
-RUN ./gradlew --no-daemon bootJar && \
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew --no-daemon bootJar -x test && \
     JAR_FILE="$(find build/libs -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)" && \
     cp "$JAR_FILE" /workspace/app.jar
 
@@ -29,7 +31,8 @@ USER sequo
 
 EXPOSE 8080
 
-ENV SPRING_PROFILES_ACTIVE=docker
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 ENV JAVA_OPTS=""
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
