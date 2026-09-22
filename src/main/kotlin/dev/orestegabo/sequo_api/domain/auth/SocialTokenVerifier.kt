@@ -11,25 +11,51 @@ interface SocialTokenVerifier {
     fun verify(token: String): SocialUser?
 }
 
+interface GoogleTokenVerifier : SocialTokenVerifier {
+    fun verifyAccount(idToken: String): VerifiedGoogleAccount?
+
+    override fun verify(token: String): SocialUser? =
+        verifyAccount(token)?.let {
+            SocialUser(
+                providerId = it.subject,
+                provider = AuthProvider.GOOGLE,
+                email = it.email,
+                name = it.name,
+                pictureUrl = it.pictureUrl,
+                emailVerified = it.emailVerified,
+            )
+        }
+}
+
 @Service
-class GoogleTokenVerifier(
-    @Value("\${sequo.auth.google.client-id}") private val clientId: String
-) : SocialTokenVerifier {
+class GoogleIdTokenVerifierAdapter(
+    @Value("\${sequo.auth.google.allowed-client-ids}") allowedClientIds: List<String>,
+) : GoogleTokenVerifier {
+    private val audiences = allowedClientIds
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
     private val verifier = GoogleIdTokenVerifier.Builder(NetHttpTransport(), GsonFactory())
-        .setAudience(listOf(clientId))
+        .setAudience(audiences)
         .build()
 
-    override fun verify(token: String): SocialUser? {
+    override fun verifyAccount(idToken: String): VerifiedGoogleAccount? {
         return try {
-            val idToken = verifier.verify(token) ?: return null
-            val payload = idToken.payload
-            SocialUser(
-                providerId = payload.subject,
-                provider = AuthProvider.GOOGLE,
-                email = payload.email,
+            if (audiences.isEmpty()) return null
+            val token = verifier.verify(idToken) ?: return null
+            val payload = token.payload
+            val subject = payload.subject?.takeIf { it.isNotBlank() } ?: return null
+            val email = payload.email?.takeIf { it.isNotBlank() } ?: return null
+            val audience = payload.audience?.toString()?.takeIf { it.isNotBlank() } ?: return null
+            if (payload.emailVerified == false) return null
+            if (audience !in audiences) return null
+            VerifiedGoogleAccount(
+                subject = subject,
+                email = email,
+                emailVerified = payload.emailVerified == true,
                 name = payload["name"] as? String,
                 pictureUrl = payload["picture"] as? String,
-                emailVerified = payload.emailVerified == true
+                audience = audience,
             )
         } catch (e: Exception) {
             null
