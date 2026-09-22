@@ -108,6 +108,34 @@ class StartupSecurityChecksTest {
     }
 
     @Test
+    fun productionProfileCanTemporarilyAllowPlaceholderYasTogoApiKeyOnly() {
+        val findings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                yasTogoApiKey = "placeholder",
+                allowYasTogoPlaceholderApiKey = true,
+            )
+        )
+
+        assertTrue(findings.none { it.contains("sequo.wallets.yas-togo.api-key") })
+    }
+
+    @Test
+    fun yasTogoPlaceholderApiKeyAllowanceDoesNotBypassWebhookSecretValidation() {
+        val findings = StartupSecurityChecks.unsafeProductionFindings(
+            secureSettings(
+                activeProfiles = setOf("prod"),
+                yasTogoApiKey = "placeholder",
+                allowYasTogoPlaceholderApiKey = true,
+                yasTogoWebhookSecret = "yas_togo_dev_webhook_secret_2026_change_before_prod",
+            )
+        )
+
+        assertTrue(findings.none { it.contains("sequo.wallets.yas-togo.api-key") })
+        assertTrue(findings.any { it.contains("sequo.wallets.yas-togo.webhook-secret") })
+    }
+
+    @Test
     fun productionProfileRejectsUnsafeDatabaseConfig() {
         val findings = StartupSecurityChecks.unsafeProductionFindings(
             secureSettings(
@@ -202,6 +230,7 @@ class StartupSecurityChecksTest {
         facebookAppId: String? = "581049273650184",
         appleClientId: String? = "com.sequo.service.signin.production",
         yasTogoApiKey: String? = "realistic_yas_togo_api_key_2026_value_64_chars_minimum",
+        allowYasTogoPlaceholderApiKey: Boolean = false,
         yasTogoWebhookSecret: String? = "realistic_yas_togo_webhook_secret_2026_value_64_chars_minimum",
         moovAfricaApiKey: String? = "realistic_moov_africa_api_key_2026_value_64_chars_minimum",
         moovAfricaWebhookSecret: String? = "realistic_moov_africa_webhook_secret_2026_value_64_chars_minimum",
@@ -221,6 +250,7 @@ class StartupSecurityChecksTest {
             facebookAppId = facebookAppId,
             appleClientId = appleClientId,
             yasTogoApiKey = yasTogoApiKey,
+            allowYasTogoPlaceholderApiKey = allowYasTogoPlaceholderApiKey,
             yasTogoWebhookSecret = yasTogoWebhookSecret,
             moovAfricaApiKey = moovAfricaApiKey,
             moovAfricaWebhookSecret = moovAfricaWebhookSecret,
