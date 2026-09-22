@@ -60,7 +60,7 @@ Important values:
 | `JWT_SECRET` | At least 32 random characters. |
 | `NOTIFICATION_TOKEN_ENCRYPTION_SECRET` | At least 32 random characters. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated explicit HTTPS origins, no wildcards. |
-| `YAS_TOGO_ALLOW_PLACEHOLDER_API_KEY` | Temporary staging escape hatch for only `YAS_TOGO_API_KEY`. Keep `false` for real production. |
+| `SEQUO_ALLOW_DEV_DEFAULTS` | Set to `true` only for temporary staging/dev VPS boots with placeholder values. Keep `false` for real production. |
 | `API_MEMORY_LIMIT` | Defaults to `1536m`. |
 | `POSTGRES_MEMORY_LIMIT` | Defaults to `1536m`. |
 | `JAVA_TOOL_OPTIONS` | Defaults to `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom`. |
