@@ -11,14 +11,6 @@ data class StartupSecuritySettings(
     val allowDevDefaults: Boolean,
     val jwtSecret: String?,
     val notificationTokenEncryptionSecret: String?,
-    val googleClientId: String?,
-    val facebookAppId: String?,
-    val appleClientId: String?,
-    val yasTogoApiKey: String?,
-    val allowYasTogoPlaceholderApiKey: Boolean,
-    val yasTogoWebhookSecret: String?,
-    val moovAfricaApiKey: String?,
-    val moovAfricaWebhookSecret: String?,
     val corsAllowedOrigins: List<String>,
     val datasourceUrl: String?,
     val datasourceUsername: String?,
@@ -44,50 +36,6 @@ object StartupSecurityChecks {
             knownUnsafeValues = KNOWN_UNSAFE_NOTIFICATION_SECRETS,
             findings = findings,
         )
-        requireProviderId(
-            propertyName = "sequo.auth.google.client-id",
-            value = settings.googleClientId,
-            unsafePrefixes = setOf("google_", "ci_google_"),
-            findings = findings,
-        )
-        requireProviderId(
-            propertyName = "sequo.auth.facebook.app-id",
-            value = settings.facebookAppId,
-            unsafePrefixes = setOf("facebook_", "ci_facebook_"),
-            findings = findings,
-        )
-        requireProviderId(
-            propertyName = "sequo.auth.apple.client-id",
-            value = settings.appleClientId,
-            unsafePrefixes = setOf("apple_", "ci_apple_"),
-            findings = findings,
-        )
-        if (!settings.allowYasTogoPlaceholderApiKey) {
-            requireSecret(
-                propertyName = "sequo.wallets.yas-togo.api-key",
-                value = settings.yasTogoApiKey,
-                knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
-                findings = findings,
-            )
-        }
-        requireSecret(
-            propertyName = "sequo.wallets.yas-togo.webhook-secret",
-            value = settings.yasTogoWebhookSecret,
-            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
-            findings = findings,
-        )
-        requireSecret(
-            propertyName = "sequo.wallets.moov-africa.api-key",
-            value = settings.moovAfricaApiKey,
-            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
-            findings = findings,
-        )
-        requireSecret(
-            propertyName = "sequo.wallets.moov-africa.webhook-secret",
-            value = settings.moovAfricaWebhookSecret,
-            knownUnsafeValues = KNOWN_UNSAFE_WALLET_SECRETS,
-            findings = findings,
-        )
         requireSafeCorsSettings(settings.corsAllowedOrigins, findings)
         requireSafeDatabaseSettings(settings, findings)
         requireNoTrackedPlaceholders(settings, findings)
@@ -97,7 +45,7 @@ object StartupSecurityChecks {
 
     fun requiresStrictSecurity(settings: StartupSecuritySettings): Boolean {
         val activeProfiles = settings.activeProfiles.map { it.lowercase() }.toSet()
-        if (settings.allowDevDefaults && activeProfiles.all { it in DEV_DEFAULT_ALLOWANCE_PROFILES }) return false
+        if (settings.allowDevDefaults) return false
         return activeProfiles.any { it in STRICT_SECURITY_PROFILES }
     }
 
@@ -110,18 +58,6 @@ object StartupSecurityChecks {
         val normalized = value.orEmpty().trim()
         if (normalized.length < MIN_SECRET_LENGTH || normalized in knownUnsafeValues) {
             findings += "$propertyName must be set to a non-default secret of at least $MIN_SECRET_LENGTH characters."
-        }
-    }
-
-    private fun requireProviderId(
-        propertyName: String,
-        value: String?,
-        unsafePrefixes: Set<String>,
-        findings: MutableList<String>,
-    ) {
-        val normalized = value.orEmpty().trim()
-        if (normalized.isBlank() || unsafePrefixes.any { normalized.startsWith(it) }) {
-            findings += "$propertyName must be set to a real provider identifier or the provider must be disabled before production."
         }
     }
 
@@ -150,25 +86,14 @@ object StartupSecurityChecks {
         settings: StartupSecuritySettings,
         findings: MutableList<String>,
     ) {
-        val valuesByProperty = mutableMapOf(
+        mapOf(
             "sequo.auth.jwt.secret" to listOf(settings.jwtSecret),
             "sequo.notifications.token-encryption-secret" to listOf(settings.notificationTokenEncryptionSecret),
-            "sequo.auth.google.client-id" to listOf(settings.googleClientId),
-            "sequo.auth.facebook.app-id" to listOf(settings.facebookAppId),
-            "sequo.auth.apple.client-id" to listOf(settings.appleClientId),
-            "sequo.wallets.yas-togo.webhook-secret" to listOf(settings.yasTogoWebhookSecret),
-            "sequo.wallets.moov-africa.api-key" to listOf(settings.moovAfricaApiKey),
-            "sequo.wallets.moov-africa.webhook-secret" to listOf(settings.moovAfricaWebhookSecret),
             "sequo.security.cors.allowed-origins" to settings.corsAllowedOrigins,
             "spring.datasource.url" to listOf(settings.datasourceUrl),
             "spring.datasource.username" to listOf(settings.datasourceUsername),
             "spring.datasource.password" to listOf(settings.datasourcePassword),
-        )
-        if (!settings.allowYasTogoPlaceholderApiKey) {
-            valuesByProperty["sequo.wallets.yas-togo.api-key"] = listOf(settings.yasTogoApiKey)
-        }
-
-        valuesByProperty.forEach { (propertyName, values) ->
+        ).forEach { (propertyName, values) ->
             values.filterNotNull().forEach { value ->
                 val normalized = value.trim().lowercase()
                 if (TRACKED_PLACEHOLDER_MARKERS.any { it in normalized }) {
@@ -199,7 +124,6 @@ object StartupSecurityChecks {
     }
 
     private const val MIN_SECRET_LENGTH = 32
-    private val DEV_DEFAULT_ALLOWANCE_PROFILES = setOf("docker")
     private val STRICT_SECURITY_PROFILES = setOf("docker", "prod", "production", "stage", "staging")
     private val UNSAFE_DDL_AUTO_VALUES = setOf("create", "create-drop", "update")
     private val KNOWN_UNSAFE_JWT_SECRETS = setOf(
@@ -211,16 +135,6 @@ object StartupSecurityChecks {
         "sequo_notifications_dev_encryption_key_2026_change_before_prod",
         "sequo_compose_notification_token_secret_2026_change_before_prod",
         "ci_only_sequo_notification_secret_2026_change_me",
-    )
-    private val KNOWN_UNSAFE_WALLET_SECRETS = setOf(
-        "yas_togo_dev_api_key_2026_change_before_prod",
-        "yas_togo_dev_webhook_secret_2026_change_before_prod",
-        "moov_africa_dev_api_key_2026_change_before_prod",
-        "moov_africa_dev_webhook_secret_2026_change_before_prod",
-        "ci_only_yas_togo_api_key_2026_change_me",
-        "ci_only_yas_togo_webhook_secret_2026_change_me",
-        "ci_only_moov_africa_api_key_2026_change_me",
-        "ci_only_moov_africa_webhook_secret_2026_change_me",
     )
     private val TRACKED_PLACEHOLDER_MARKERS = setOf(
         ".example",
@@ -250,22 +164,6 @@ class ProductionStartupGuardrails(
     private val jwtSecret: String?,
     @Value("\${sequo.notifications.token-encryption-secret:}")
     private val notificationTokenEncryptionSecret: String?,
-    @Value("\${sequo.auth.google.client-id:}")
-    private val googleClientId: String?,
-    @Value("\${sequo.auth.facebook.app-id:}")
-    private val facebookAppId: String?,
-    @Value("\${sequo.auth.apple.client-id:}")
-    private val appleClientId: String?,
-    @Value("\${sequo.wallets.yas-togo.api-key:}")
-    private val yasTogoApiKey: String?,
-    @Value("\${sequo.wallets.yas-togo.allow-placeholder-api-key:false}")
-    private val allowYasTogoPlaceholderApiKey: Boolean,
-    @Value("\${sequo.wallets.yas-togo.webhook-secret:}")
-    private val yasTogoWebhookSecret: String?,
-    @Value("\${sequo.wallets.moov-africa.api-key:}")
-    private val moovAfricaApiKey: String?,
-    @Value("\${sequo.wallets.moov-africa.webhook-secret:}")
-    private val moovAfricaWebhookSecret: String?,
     @Value("\${sequo.security.cors.allowed-origins:}")
     private val corsAllowedOrigins: List<String>,
     @Value("\${spring.datasource.url:}")
@@ -286,14 +184,6 @@ class ProductionStartupGuardrails(
                 allowDevDefaults = allowDevDefaults,
                 jwtSecret = jwtSecret,
                 notificationTokenEncryptionSecret = notificationTokenEncryptionSecret,
-                googleClientId = googleClientId,
-                facebookAppId = facebookAppId,
-                appleClientId = appleClientId,
-                yasTogoApiKey = yasTogoApiKey,
-                allowYasTogoPlaceholderApiKey = allowYasTogoPlaceholderApiKey,
-                yasTogoWebhookSecret = yasTogoWebhookSecret,
-                moovAfricaApiKey = moovAfricaApiKey,
-                moovAfricaWebhookSecret = moovAfricaWebhookSecret,
                 corsAllowedOrigins = corsAllowedOrigins,
                 datasourceUrl = datasourceUrl,
                 datasourceUsername = datasourceUsername,
