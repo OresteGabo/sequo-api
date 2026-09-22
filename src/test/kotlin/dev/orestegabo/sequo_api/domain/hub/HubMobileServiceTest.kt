@@ -29,6 +29,7 @@ class HubMobileServiceTest @Autowired constructor(
     private val hubService: HubMobileService,
     private val relayService: RelayParcelApplicationService,
     private val pickupCodeRepository: dev.orestegabo.sequo_api.domain.relay.RelayPickupCodeRecordRepository,
+    private val lockers: RelayLockerRepository,
     private val userRepository: UserRepository,
 ) {
     private val now = Instant.parse("2026-09-12T10:00:00Z")
@@ -121,6 +122,32 @@ class HubMobileServiceTest @Autowired constructor(
         assertEquals(1, summary.occupiedLockerCount)
         assertEquals(1, summary.pendingSequoCollectionCount)
         assertNotNull(summary.lastSuccessfulSyncTimestamp)
+    }
+
+    @Test
+    fun createsNewLockerAvailabilityRecordWithDefaultGridAndAuditFields() {
+        val expectedAvailableAt = now.plusSeconds(7200)
+
+        val snapshot = hubService.updateLockerAvailability(
+            LockerAvailabilityCommand(
+                lockerId = "locker-maintenance-new",
+                relayPointId = "hub-maintenance",
+                status = HubLockerStatus.MAINTENANCE,
+                reason = HubLockerAvailabilityReason.JAMMED_LOCK,
+                expectedAvailableAt = expectedAvailableAt,
+                updatedByUserId = "hub-operator-1",
+            ),
+            now,
+        )
+
+        assertEquals("locker-maintenance-new", snapshot.lockerId)
+        assertEquals("hub-maintenance", snapshot.relayPointId)
+        assertEquals("locker-maintenance-new", snapshot.lockerCode)
+        assertEquals(HubLockerStatus.MAINTENANCE, snapshot.status)
+        assertEquals(HubLockerAvailabilityReason.JAMMED_LOCK, snapshot.reason)
+        assertEquals(expectedAvailableAt, snapshot.expectedAvailableAt)
+        assertEquals(now, snapshot.updatedAt)
+        assertEquals("hub-maintenance", lockers.findById("locker-maintenance-new").orElseThrow().relayLockerGridId)
     }
 
     @Test
