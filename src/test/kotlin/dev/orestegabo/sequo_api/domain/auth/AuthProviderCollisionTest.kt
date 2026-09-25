@@ -28,6 +28,9 @@ class AuthProviderCollisionTest {
     private lateinit var socialIdentityRepository: SocialIdentityRepository
 
     @Autowired
+    private lateinit var refreshSessionRepository: RefreshSessionRepository
+
+    @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
     @MockitoBean
@@ -35,6 +38,7 @@ class AuthProviderCollisionTest {
 
     @BeforeEach
     fun cleanDatabase() {
+        refreshSessionRepository.deleteAll()
         socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
         Mockito.reset(googleVerifier)
