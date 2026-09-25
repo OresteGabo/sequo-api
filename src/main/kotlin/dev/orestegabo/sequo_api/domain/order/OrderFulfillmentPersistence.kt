@@ -6,6 +6,7 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderSnapshot
+import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionConfigurationService
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
@@ -19,9 +20,16 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import java.time.Instant
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
@@ -47,7 +55,13 @@ enum class CustomerOrderEventType {
 class CustomerOrderRecord(
     @Id val id: String,
     @Column(name = "checkout_id", nullable = false, unique = true) val checkoutId: String,
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checkout_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_orders_checkout"))
+    val checkout: PendingPaymentCheckoutRecord? = null,
     @Column(name = "customer_id", nullable = false) val customerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_orders_customer"))
+    val customer: User? = null,
     @Enumerated(EnumType.STRING) @Column(name = "service_level", nullable = false) val serviceLevel: OrderServiceLevel,
     @Enumerated(EnumType.STRING) @Column(nullable = false) val route: OrderRoute,
     @Enumerated(EnumType.STRING) @Column(name = "fulfillment_priority", nullable = false) val fulfillmentPriority: FulfillmentPriority,
@@ -73,10 +87,16 @@ class CustomerOrderRecord(
 class CustomerOrderEventRecord(
     @Id val id: String,
     @Column(name = "order_id", nullable = false) val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_order_events_order"))
+    val order: CustomerOrderRecord? = null,
     @Enumerated(EnumType.STRING) @Column(name = "event_type", nullable = false) val eventType: CustomerOrderEventType,
     @Column(name = "source_type", nullable = false) val sourceType: String,
     @Column(name = "source_id", nullable = false) val sourceId: String,
     @Column(name = "actor_user_id") val actorUserId: String?,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_order_events_actor_user"))
+    val actorUser: User? = null,
     @Column(nullable = true) val metadata: String?,
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
 )
@@ -86,8 +106,17 @@ class CustomerOrderEventRecord(
 class CustomerOrderLineRecord(
     @Id val id: String,
     @Column(name = "order_id", nullable = false) val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_order_lines_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "product_id", nullable = false) val productId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_order_lines_product"))
+    val product: ProductRecord? = null,
     @Column(name = "seller_id", nullable = false) val sellerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seller_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_order_lines_seller"))
+    val seller: MerchantRecord? = null,
     @Column(name = "seller_name", nullable = false) val sellerName: String,
     @Column(name = "product_name", nullable = false) val productName: String,
     @Enumerated(EnumType.STRING) @Column(nullable = false) val category: OrderProductCategory,
@@ -105,8 +134,17 @@ class CustomerOrderLineRecord(
 @Table(name = "order_pricing_snapshots")
 class OrderPricingSnapshotRecord(
     @Id @Column(name = "order_id") val orderId: String,
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_order_pricing_snapshots_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "checkout_id", nullable = false) val checkoutId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checkout_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_order_pricing_snapshots_checkout"))
+    val checkout: PendingPaymentCheckoutRecord? = null,
     @Column(name = "customer_id", nullable = false) val customerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_order_pricing_snapshots_customer"))
+    val customer: User? = null,
     @Column(name = "pricing_version", nullable = false) val pricingVersion: String,
     @Column(name = "quote_id") val quoteId: String?,
     @Column(nullable = false) val currency: String,
