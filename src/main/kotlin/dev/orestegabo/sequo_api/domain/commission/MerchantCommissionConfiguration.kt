@@ -2,8 +2,14 @@ package dev.orestegabo.sequo_api.domain.commission
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
@@ -25,6 +31,10 @@ class MerchantCommissionOverrideRecord(
     @Column(name = "merchant_id")
     val merchantId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_commission_overrides_merchant"))
+    val merchant: MerchantRecord? = null,
+
     @Column(name = "commission_rate_bps", nullable = false)
     var commissionRateBps: Int,
 
@@ -33,6 +43,10 @@ class MerchantCommissionOverrideRecord(
 
     @Column(name = "updated_by_user_id", nullable = false)
     var updatedByUserId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_commission_overrides_updated_by"))
+    val updatedByUser: User? = null,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
