@@ -7,6 +7,10 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.Instant
@@ -23,6 +27,10 @@ class SocialIdentity(
 
     @Column(name = "user_id", nullable = false)
     val userId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_social_identities_user"))
+    val user: User? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false, length = 32)
