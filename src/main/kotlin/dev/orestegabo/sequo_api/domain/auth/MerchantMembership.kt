@@ -7,8 +7,13 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import java.time.Instant
 
 @Entity
@@ -29,8 +34,16 @@ class MerchantMembership(
     @Column(name = "user_id", nullable = false)
     val userId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_memberships_user"))
+    val user: User? = null,
+
     @Column(name = "merchant_id", nullable = false)
     val merchantId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_memberships_merchant"))
+    val merchant: MerchantRecord? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role_code", nullable = false)
