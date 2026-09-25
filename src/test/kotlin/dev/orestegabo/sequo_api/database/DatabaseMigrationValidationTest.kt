@@ -10,9 +10,9 @@ import kotlin.test.assertFailsWith
 
 @SpringBootTest(
     properties = [
-        "spring.datasource.url=jdbc:h2:mem:migration_validation;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
-        "spring.jpa.hibernate.ddl-auto=validate",
-        "spring.flyway.enabled=true"
+        "spring.datasource.url=jdbc:h2:mem:hibernate_schema_validation;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.flyway.enabled=false"
     ]
 )
 class DatabaseMigrationValidationTest @Autowired constructor(
@@ -20,8 +20,8 @@ class DatabaseMigrationValidationTest @Autowired constructor(
 ) {
 
     @Test
-    fun flywaySchemaMatchesCurrentJpaEntities() {
-        // Spring context startup performs Flyway migration and Hibernate schema validation.
+    fun hibernateSchemaIsCreatedFromCurrentJpaEntities() {
+        // Spring context startup asks Hibernate to create the schema from Kotlin JPA entities.
     }
 
     @Test
@@ -33,6 +33,7 @@ class DatabaseMigrationValidationTest @Autowired constructor(
             "RELAY_PARCELS",
             "RELAY_PICKUP_CODES",
             "RELAY_CUSTODY_EVENTS",
+            "RELAY_LOCKER_GRIDS",
         )
 
         expectedTables.forEach { tableName ->
@@ -48,7 +49,7 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                     Int::class.java,
                     tableName,
                 ),
-                "$tableName should be created by Flyway.",
+                "$tableName should be created by Hibernate from Kotlin entities.",
             )
         }
     }
@@ -61,6 +62,8 @@ class DatabaseMigrationValidationTest @Autowired constructor(
             "NOTIFICATION_MESSAGES",
             "NOTIFICATION_DELIVERIES",
             "NOTIFICATION_OUTBOX",
+            "PRODUCTS",
+            "CATALOG_IMAGES",
         )
 
         expectedTables.forEach { tableName ->
@@ -76,7 +79,7 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                     Int::class.java,
                     tableName,
                 ),
-                "$tableName should be created by Flyway.",
+                "$tableName should be created by Hibernate from Kotlin entities.",
             )
         }
     }
@@ -90,6 +93,9 @@ class DatabaseMigrationValidationTest @Autowired constructor(
             "ACCOUNT_DELETION_REQUESTS",
             "HUB_CONTROL_DECISIONS",
             "USER_APP_PREFERENCES",
+            "MERCHANTS",
+            "COURIERS",
+            "RELAY_POINTS",
         )
 
         expectedTables.forEach { tableName ->
@@ -105,7 +111,51 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                     Int::class.java,
                     tableName,
                 ),
-                "$tableName should be created by Flyway.",
+                "$tableName should be created by Hibernate from Kotlin entities.",
+            )
+        }
+    }
+
+    @Test
+    fun entityForeignKeysAreGeneratedForHubAndSettlementReferences() {
+        val expectedForeignKeys = listOf(
+            Triple("HUB_OPENING_HOURS", "RELAY_POINT_ID", "RELAY_POINTS"),
+            Triple("HUB_OPENING_HOUR_EXCEPTIONS", "RELAY_POINT_ID", "RELAY_POINTS"),
+            Triple("RELAY_LOCKERS", "RELAY_POINT_ID", "RELAY_POINTS"),
+            Triple("RELAY_LOCKERS", "RELAY_LOCKER_GRID_ID", "RELAY_LOCKER_GRIDS"),
+            Triple("SETTLEMENT_LEDGER_ENTRIES", "MERCHANT_ID", "MERCHANTS"),
+            Triple("SETTLEMENT_LEDGER_ENTRIES", "COURIER_ID", "COURIERS"),
+            Triple("SETTLEMENT_LEDGER_ENTRIES", "RELAY_POINT_ID", "RELAY_POINTS"),
+            Triple("MERCHANT_PAYOUT_ACCRUALS", "MERCHANT_ID", "MERCHANTS"),
+            Triple("MERCHANT_PAYOUT_ACCRUALS", "ORDER_ID", "CUSTOMER_ORDERS"),
+            Triple("MERCHANT_PAYOUT_ACCRUALS", "SOURCE_ORDER_ITEM_ID", "MERCHANT_SUB_ORDERS"),
+        )
+
+        expectedForeignKeys.forEach { (tableName, columnName, referencedTableName) ->
+            assertEquals(
+                1,
+                jdbcTemplate.queryForObject(
+                    """
+                    select count(*)
+                    from information_schema.table_constraints tc
+                    join information_schema.key_column_usage kcu
+                      on tc.constraint_schema = kcu.constraint_schema
+                     and tc.constraint_name = kcu.constraint_name
+                    join information_schema.constraint_column_usage ccu
+                      on tc.constraint_schema = ccu.constraint_schema
+                     and tc.constraint_name = ccu.constraint_name
+                    where tc.constraint_schema = 'PUBLIC'
+                      and tc.constraint_type = 'FOREIGN KEY'
+                      and kcu.table_name = ?
+                      and kcu.column_name = ?
+                      and ccu.table_name = ?
+                    """.trimIndent(),
+                    Int::class.java,
+                    tableName,
+                    columnName,
+                    referencedTableName,
+                ),
+                "$tableName.$columnName should reference $referencedTableName.",
             )
         }
     }
@@ -188,6 +238,29 @@ class DatabaseMigrationValidationTest @Autowired constructor(
         )
         jdbcTemplate.update(
             """
+            insert into notification_outbox (
+                id,
+                event_id,
+                event_type,
+                aggregate_type,
+                aggregate_id,
+                status,
+                attempt_count,
+                created_at,
+                updated_at,
+                version
+            ) values (?, ?, ?, ?, ?, ?, ?, current_timestamp, current_timestamp, 0)
+            """.trimIndent(),
+            "outbox-invalid-channel",
+            "event-invalid-channel",
+            "ORDER_CREATED",
+            "ORDER",
+            "order-invalid-channel",
+            "PENDING",
+            0,
+        )
+        jdbcTemplate.update(
+            """
             insert into notification_messages (
                 id,
                 event_id,
@@ -196,8 +269,9 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                 event_type,
                 severity,
                 title,
-                body
-            ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                body,
+                created_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, current_timestamp)
             """.trimIndent(),
             "message-invalid-channel",
             "event-invalid-channel",
@@ -229,18 +303,52 @@ class DatabaseMigrationValidationTest @Autowired constructor(
 
     @Test
     fun relayLockersRejectUnsupportedStatuses() {
+        jdbcTemplate.update(
+            """
+            insert into relay_points (
+                id,
+                name,
+                status,
+                created_at,
+                updated_at,
+                version
+            ) values (?, ?, ?, current_timestamp, current_timestamp, 0)
+            """.trimIndent(),
+            "relay-invalid-status",
+            "Relay Invalid Status",
+            "ACTIVE",
+        )
+        jdbcTemplate.update(
+            """
+            insert into relay_locker_grids (
+                id,
+                relay_point_id,
+                grid_code,
+                label,
+                created_at,
+                updated_at,
+                version
+            ) values (?, ?, ?, ?, current_timestamp, current_timestamp, 0)
+            """.trimIndent(),
+            "grid-invalid-status",
+            "relay-invalid-status",
+            "GRID-INVALID",
+            "Invalid status grid",
+        )
         assertFailsWith<DataAccessException> {
             jdbcTemplate.update(
                 """
                 insert into relay_lockers (
                     id,
                     relay_point_id,
+                    relay_locker_grid_id,
                     locker_code,
                     status
-                ) values (?, ?, ?, ?)
+                ) values (?, ?, ?, ?, ?)
                 """.trimIndent(),
                 "locker-invalid-status",
                 "relay-invalid-status",
+                "grid-invalid-status",
                 "L-INVALID",
                 "AVAILABLE_BUT_SECRETLY_BROKEN",
             )
@@ -249,6 +357,21 @@ class DatabaseMigrationValidationTest @Autowired constructor(
 
     @Test
     fun hubControlDecisionsRejectUnsupportedTargets() {
+        jdbcTemplate.update(
+            """
+            insert into relay_points (
+                id,
+                name,
+                status,
+                created_at,
+                updated_at,
+                version
+            ) values (?, ?, ?, current_timestamp, current_timestamp, 0)
+            """.trimIndent(),
+            "relay-invalid-control",
+            "Relay Invalid Control",
+            "ACTIVE",
+        )
         assertFailsWith<DataAccessException> {
             jdbcTemplate.update(
                 """
