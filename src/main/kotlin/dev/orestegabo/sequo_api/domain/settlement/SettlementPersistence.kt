@@ -4,9 +4,18 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrder
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.party.CourierRecord
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
+import dev.orestegabo.sequo_api.domain.party.RelayPointRecord
 import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
@@ -17,8 +26,17 @@ import org.springframework.transaction.annotation.Transactional
 class MerchantPayoutAccrualRecord(
     @Id val id: String,
     @Column(name = "merchant_id", nullable = false) val merchantId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_payout_accruals_merchant"))
+    val merchant: MerchantRecord? = null,
     @Column(name = "order_id", nullable = false) val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_payout_accruals_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "source_order_item_id", nullable = false) val sourceOrderItemId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_order_item_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_payout_accruals_source_order_item"))
+    val sourceOrderItem: MerchantSubOrder? = null,
     @Column(name = "merchant_net_cfa", nullable = false) val merchantNetCfa: Int,
     @Column(name = "commission_cfa", nullable = false) val commissionCfa: Int,
     @Column(name = "platform_margin_cfa", nullable = false) val platformMarginCfa: Int,
@@ -42,8 +60,17 @@ class SettlementLedgerEntryRecord(
     @Enumerated(EnumType.STRING) @Column(nullable = false) val direction: SettlementLedgerDirection,
     @Column(name = "amount_cfa", nullable = false) val amountCfa: Int,
     @Column(name = "merchant_id") val merchantId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_settlement_ledger_entries_merchant"))
+    val merchant: MerchantRecord? = null,
     @Column(name = "courier_id") val courierId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "courier_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_settlement_ledger_entries_courier"))
+    val courier: CourierRecord? = null,
     @Column(name = "relay_point_id") val relayPointId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_settlement_ledger_entries_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
     @Enumerated(EnumType.STRING) @Column(name = "source_type", nullable = false) val sourceType: SettlementSourceType,
     @Column(name = "source_id", nullable = false) val sourceId: String,
     @Column(nullable = false) val description: String,
@@ -155,9 +182,22 @@ class SettlementPersistenceService(
 }
 
 private fun MerchantPayoutAccrual.toRecord() = MerchantPayoutAccrualRecord(
-    id, merchantId, orderId, sourceOrderItemId, merchantNetCfa, commissionCfa, platformMarginCfa,
-    packageReceivedAt, payoutEligibleAt, payoutDueBy, status, workflowType,
-    activeReturnHold, activeDisputeHold, packageReceivedAt, packageReceivedAt,
+    id = id,
+    merchantId = merchantId,
+    orderId = orderId,
+    sourceOrderItemId = sourceOrderItemId,
+    merchantNetCfa = merchantNetCfa,
+    commissionCfa = commissionCfa,
+    platformMarginCfa = platformMarginCfa,
+    packageReceivedAt = packageReceivedAt,
+    payoutEligibleAt = payoutEligibleAt,
+    payoutDueBy = payoutDueBy,
+    status = status,
+    workflowType = workflowType,
+    activeReturnHold = activeReturnHold,
+    activeDisputeHold = activeDisputeHold,
+    createdAt = packageReceivedAt,
+    updatedAt = packageReceivedAt,
 )
 
 private fun MerchantPayoutAccrualRecord.toDomain(entries: List<SettlementLedgerEntryRecord>) = MerchantPayoutAccrual(
@@ -167,8 +207,17 @@ private fun MerchantPayoutAccrualRecord.toDomain(entries: List<SettlementLedgerE
 )
 
 private fun SettlementLedgerEntry.toRecord() = SettlementLedgerEntryRecord(
-    id, account, direction, amountCfa, merchantId, courierId, relayPointId,
-    sourceType, sourceId, description, createdAt,
+    id = id,
+    account = account,
+    direction = direction,
+    amountCfa = amountCfa,
+    merchantId = merchantId,
+    courierId = courierId,
+    relayPointId = relayPointId,
+    sourceType = sourceType,
+    sourceId = sourceId,
+    description = description,
+    createdAt = createdAt,
 )
 
 private fun SettlementLedgerEntryRecord.toDomain() = SettlementLedgerEntry(
