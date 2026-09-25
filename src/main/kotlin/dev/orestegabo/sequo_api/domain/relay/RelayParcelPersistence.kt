@@ -1,8 +1,14 @@
 package dev.orestegabo.sequo_api.domain.relay
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMission
+import dev.orestegabo.sequo_api.domain.hub.RelayLockerRecord
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.party.RelayPointRecord
+import dev.orestegabo.sequo_api.domain.returns.ReturnRequestRecord
 import dev.orestegabo.sequo_api.domain.settlement.RelayStorageFeeLedgerCommand
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import jakarta.persistence.Column
@@ -12,7 +18,11 @@ import jakarta.persistence.Converter
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import org.springframework.context.ApplicationEventPublisher
@@ -26,10 +36,25 @@ import org.springframework.transaction.annotation.Transactional
 class RelayParcelRecord(
     @Id val id: String,
     @Column(name = "relay_point_id", nullable = false) val relayPointId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_parcels_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
     @Column(name = "locker_id") val lockerId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locker_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_parcels_locker"))
+    val locker: RelayLockerRecord? = null,
     @Column(name = "order_id") val orderId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_parcels_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "delivery_mission_id") val deliveryMissionId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_mission_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_parcels_delivery_mission"))
+    val deliveryMission: DeliveryMission? = null,
     @Column(name = "return_id") val returnId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "return_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_parcels_return"))
+    val returnRequest: ReturnRequestRecord? = null,
     @Column(name = "deposit_code", unique = true) val depositCode: String? = null,
     @Enumerated(EnumType.STRING) @Column(nullable = false) val category: RelayParcelCategory,
     @Convert(converter = RelayParcelStatusConverter::class) @Column(nullable = false) var status: RelayParcelStatus,
@@ -46,6 +71,9 @@ class RelayParcelRecord(
 class RelayPickupCodeRecord(
     @Id val id: String,
     @Column(name = "relay_parcel_id", nullable = false) val relayParcelId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_parcel_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_pickup_codes_parcel"))
+    val relayParcel: RelayParcelRecord? = null,
     @Column(name = "code_hash", nullable = false) val codeHash: String,
     @Column(name = "qr_nonce_hash") val qrNonceHash: String? = null,
     @Column(name = "identity_check_required", nullable = false) val identityCheckRequired: Boolean = true,
@@ -60,7 +88,13 @@ class RelayPickupCodeRecord(
 class RelayCustodyEventRecord(
     @Id val id: String,
     @Column(name = "relay_parcel_id", nullable = false) val relayParcelId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_parcel_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_custody_events_parcel"))
+    val relayParcel: RelayParcelRecord? = null,
     @Column(name = "actor_user_id") val actorUserId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_custody_events_actor"))
+    val actor: User? = null,
     @Convert(converter = RelayCustodyEventTypeConverter::class) @Column(name = "event_type", nullable = false) val type: RelayCustodyEventType,
     @Column(nullable = false) val metadata: String,
     @Column(name = "idempotency_key") val idempotencyKey: String? = null,
@@ -72,7 +106,13 @@ class RelayCustodyEventRecord(
 class RelayStorageFeeAssessmentRecord(
     @Id val id: String,
     @Column(name = "relay_parcel_id", nullable = false) val relayParcelId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_parcel_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_storage_fee_assessments_parcel"))
+    val relayParcel: RelayParcelRecord? = null,
     @Column(name = "relay_point_id", nullable = false) val relayPointId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_storage_fee_assessments_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
     @Column(name = "daily_fee_cfa", nullable = false) val dailyFeeCfa: Int,
     @Column(name = "chargeable_days", nullable = false) var chargeableDays: Long,
     @Column(name = "total_fee_cfa", nullable = false) var totalFeeCfa: Int,
@@ -493,9 +533,44 @@ class RelayParcelApplicationService(
     }
 }
 
-private fun RelayParcel.toRecord() = RelayParcelRecord(id, relayPointId, lockerId, orderId, deliveryMissionId, returnId, depositCode, category, status, depositedAt, pickedUpAt, collectedAt, createdAt, updatedAt)
-private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
-private fun RelayCustodyEvent.toRecord() = RelayCustodyEventRecord(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
+private fun RelayParcel.toRecord() = RelayParcelRecord(
+    id = id,
+    relayPointId = relayPointId,
+    lockerId = lockerId,
+    orderId = orderId,
+    deliveryMissionId = deliveryMissionId,
+    returnId = returnId,
+    depositCode = depositCode,
+    category = category,
+    status = status,
+    depositedAt = depositedAt,
+    pickedUpAt = pickedUpAt,
+    collectedAt = collectedAt,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(
+    id = id,
+    relayParcelId = relayParcelId,
+    codeHash = codeHash,
+    qrNonceHash = qrNonceHash,
+    identityCheckRequired = identityCheckRequired,
+    expiresAt = expiresAt,
+    usedAt = usedAt,
+    attemptCount = attemptCount,
+    createdAt = createdAt,
+)
+
+private fun RelayCustodyEvent.toRecord() = RelayCustodyEventRecord(
+    id = id,
+    relayParcelId = relayParcelId,
+    actorUserId = actorUserId,
+    type = type,
+    metadata = metadata,
+    idempotencyKey = idempotencyKey,
+    createdAt = createdAt,
+)
 private fun RelayParcelRecord.toDomain(custodyEvents: List<RelayCustodyEvent> = emptyList()) = RelayParcel(
     id = id,
     relayPointId = relayPointId,
