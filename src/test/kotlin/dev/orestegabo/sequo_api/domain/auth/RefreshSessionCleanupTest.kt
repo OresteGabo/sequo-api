@@ -12,17 +12,26 @@ class RefreshSessionCleanupTest {
     @Autowired private lateinit var refreshSessionService: RefreshSessionService
     @Autowired private lateinit var refreshSessionRepository: RefreshSessionRepository
     @Autowired private lateinit var tokenService: PasswordResetTokenService
+    @Autowired private lateinit var userRepository: UserRepository
 
     @BeforeEach
     fun cleanDatabase() {
         refreshSessionRepository.deleteAll()
+        userRepository.deleteAll()
     }
 
     @Test
     fun cleanupDeletesOnlySessionsThatAlreadyExpired() {
         val now = Instant.parse("2026-09-09T07:00:00Z")
-        refreshSessionService.create("user-1", tokenService.generate().rawToken, now.minusSeconds(1), now.minusSeconds(30))
-        refreshSessionService.create("user-1", tokenService.generate().rawToken, now.plusSeconds(60), now)
+        val user = userRepository.save(
+            User(
+                email = "refresh-cleanup@sequo.test",
+                provider = AuthProvider.EMAIL,
+            )
+        )
+        val userId = requireNotNull(user.id)
+        refreshSessionService.create(userId, tokenService.generate().rawToken, now.minusSeconds(1), now.minusSeconds(30))
+        refreshSessionService.create(userId, tokenService.generate().rawToken, now.plusSeconds(60), now)
 
         assertEquals(1, refreshSessionService.deleteExpired(now))
         assertEquals(1, refreshSessionRepository.count())
