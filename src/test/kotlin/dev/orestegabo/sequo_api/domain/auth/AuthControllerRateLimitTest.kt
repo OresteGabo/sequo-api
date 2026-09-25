@@ -24,11 +24,15 @@ class AuthControllerRateLimitTest {
     private lateinit var socialIdentityRepository: SocialIdentityRepository
 
     @Autowired
+    private lateinit var refreshSessionRepository: RefreshSessionRepository
+
+    @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
     @BeforeEach
     fun cleanDatabase() {
         authRateLimiter.resetForTests()
+        refreshSessionRepository.deleteAll()
         socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
     }
