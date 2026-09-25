@@ -2,9 +2,13 @@ package dev.orestegabo.sequo_api.domain.delivery
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
@@ -17,6 +21,9 @@ import java.time.Instant
 class DeliveryPin(
     @Id @GeneratedValue(strategy = GenerationType.UUID) val id: String? = null,
     @Column(name = "delivery_mission_id", nullable = false) val deliveryMissionId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_mission_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_pins_mission"))
+    val deliveryMission: DeliveryMission? = null,
     @Column(name = "pin_hash", nullable = false, length = 255) val pinHash: String,
     @Column(name = "expires_at", nullable = false) val expiresAt: Instant,
     @Column(name = "used_at") var usedAt: Instant? = null,
