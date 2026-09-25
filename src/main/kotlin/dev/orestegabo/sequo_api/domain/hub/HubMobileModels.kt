@@ -1,13 +1,19 @@
 package dev.orestegabo.sequo_api.domain.hub
 
+import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.notification.NotificationAppFamily
+import dev.orestegabo.sequo_api.domain.party.RelayPointRecord
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.time.DayOfWeek
@@ -113,8 +119,16 @@ class RelayLockerRecord(
     @Column(name = "relay_point_id", nullable = false)
     val relayPointId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_lockers_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
+
     @Column(name = "relay_locker_grid_id", nullable = false)
     val relayLockerGridId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_locker_grid_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_lockers_grid"))
+    val relayLockerGrid: RelayLockerGridRecord? = null,
 
     @Column(name = "locker_code", nullable = false, length = 64)
     val lockerCode: String,
@@ -133,6 +147,10 @@ class RelayLockerRecord(
     @Column(name = "updated_by_user_id")
     var updatedByUserId: String? = null,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_lockers_updated_by"))
+    val updatedByUser: User? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 
@@ -144,12 +162,36 @@ class RelayLockerRecord(
     var version: Long = 0,
 )
 
-/*
+@Entity
+@Table(name = "relay_locker_grids")
 class RelayLockerGridRecord(
     @Id
     @Column(name = "id")
     val id: String,
-)*/
+
+    @Column(name = "relay_point_id", nullable = false)
+    val relayPointId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_locker_grids_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
+
+    @Column(name = "grid_code", nullable = false, length = 64)
+    var gridCode: String,
+
+    @Column(name = "label", nullable = false)
+    var label: String,
+
+    @Column(name = "created_at", nullable = false)
+    val createdAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = createdAt,
+
+    @Version
+    @Column(name = "version", nullable = false)
+    var version: Long = 0,
+)
 
 @Entity
 @Table(name = "hub_opening_hours")
@@ -161,6 +203,10 @@ class HubOpeningHourRecord(
 
     @Column(name = "relay_point_id", nullable = false)
     val relayPointId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_hub_opening_hours_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "day_of_week", nullable = false, length = 16)
@@ -199,6 +245,10 @@ class HubOpeningHourExceptionRecord(
 
     @Column(name = "relay_point_id", nullable = false)
     val relayPointId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_hub_opening_hour_exceptions_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
 
     @Column(name = "exception_date", nullable = false)
     val exceptionDate: LocalDate,
@@ -240,6 +290,10 @@ class AccountDeletionRequestRecord(
     @Column(name = "user_id", nullable = false)
     val userId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_account_deletion_requests_user"))
+    val user: User? = null,
+
     @Column(name = "reason", length = 500)
     val reason: String? = null,
 
@@ -271,6 +325,10 @@ class HubControlDecisionRecord(
 
     @Column(name = "relay_point_id", nullable = false)
     val relayPointId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_hub_control_decisions_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "target", nullable = false, length = 64)
@@ -327,6 +385,10 @@ class UserAppPreferenceRecord(
 
     @Column(name = "user_id", nullable = false)
     val userId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_app_preferences_user"))
+    val user: User? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "app_family", nullable = false, length = 64)
