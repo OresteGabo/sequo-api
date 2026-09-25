@@ -1,10 +1,16 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.party.CourierRecord
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
@@ -17,9 +23,15 @@ enum class CourierAvailabilityStatus { ACTIVE, PAUSED }
 @Table(name = "courier_availability_states")
 class CourierAvailabilityRecord(
     @Id @Column(name = "courier_id", nullable = false) val courierId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "courier_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_courier_availability_states_courier"))
+    val courier: CourierRecord? = null,
     @Enumerated(EnumType.STRING) @Column(name = "status", nullable = false, length = 32) var status: CourierAvailabilityStatus,
     @Column(name = "paused_reason", length = 1000) var pausedReason: String? = null,
     @Column(name = "paused_by") var pausedBy: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "paused_by", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_courier_availability_states_paused_by"))
+    val pausedByUser: User? = null,
     @Column(name = "paused_at") var pausedAt: Instant? = null,
     @Column(name = "paused_until") var pausedUntil: Instant? = null,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
