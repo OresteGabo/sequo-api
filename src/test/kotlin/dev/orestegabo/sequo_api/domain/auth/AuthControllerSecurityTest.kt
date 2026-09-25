@@ -30,10 +30,14 @@ class AuthControllerSecurityTest {
     private lateinit var socialIdentityRepository: SocialIdentityRepository
 
     @Autowired
+    private lateinit var refreshSessionRepository: RefreshSessionRepository
+
+    @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
     @BeforeEach
     fun cleanDatabase() {
+        refreshSessionRepository.deleteAll()
         socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
     }
