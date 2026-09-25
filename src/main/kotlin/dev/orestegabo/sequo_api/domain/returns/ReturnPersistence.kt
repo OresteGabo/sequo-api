@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.returns
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderLineRecordRepository
@@ -8,11 +9,16 @@ import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
 import dev.orestegabo.sequo_api.domain.order.OrderProductCategory
+import dev.orestegabo.sequo_api.domain.party.RelayPointRecord
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.time.Instant
@@ -26,15 +32,27 @@ import org.springframework.transaction.annotation.Transactional
 class ReturnRequestRecord(
     @Id val id: String,
     @Column(name = "order_id", nullable = false) val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_return_requests_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "customer_id", nullable = false) val customerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_return_requests_customer"))
+    val customer: User? = null,
     @Enumerated(EnumType.STRING) @Column(nullable = false) var status: ReturnStatus,
     @Column(nullable = false) val reason: String,
     @Column(name = "requested_refund_cfa", nullable = false) val requestedRefundCfa: Int,
     @Column(name = "return_pin_hash", nullable = false) val returnPinHash: String,
     @Column(name = "relay_point_id") var relayPointId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_point_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_return_requests_relay_point"))
+    val relayPoint: RelayPointRecord? = null,
     @Column(name = "dropped_at") var droppedAt: Instant? = null,
     @Column(name = "received_by_sequo_at") var receivedBySequoAt: Instant? = null,
     @Column(name = "receiving_operator_id") var receivingOperatorId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiving_operator_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_return_requests_receiving_operator"))
+    val receivingOperator: User? = null,
     @Column(name = "condition_assessment") var conditionAssessment: String? = null,
     @Enumerated(EnumType.STRING) @Column var responsibility: RefundResponsibility? = null,
     @Column(name = "receipt_idempotency_key") var receiptIdempotencyKey: String? = null,
