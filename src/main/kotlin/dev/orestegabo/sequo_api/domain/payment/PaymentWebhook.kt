@@ -1,10 +1,15 @@
 package dev.orestegabo.sequo_api.domain.payment
 
+import dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRecord
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -69,6 +74,9 @@ class PaymentWebhookEventRecord(
     @Column(nullable = false, length = 64) val provider: String,
     @Column(name = "event_id", nullable = false, length = 255) val eventId: String,
     @Column(name = "checkout_id", nullable = false, length = 255) val checkoutId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checkout_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_payment_webhook_events_checkout"))
+    val checkout: PendingPaymentCheckoutRecord? = null,
     @Column(name = "payment_reference", nullable = false, length = 255) val paymentReference: String,
     @Column(name = "provider_reference", length = 255) val providerReference: String?,
     @Column(name = "amount_cfa", nullable = false) val amountCfa: Int,
