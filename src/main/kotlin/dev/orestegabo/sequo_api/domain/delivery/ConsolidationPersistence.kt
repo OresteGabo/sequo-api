@@ -2,11 +2,17 @@ package dev.orestegabo.sequo_api.domain.delivery
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.nio.charset.StandardCharsets
@@ -21,7 +27,13 @@ import org.springframework.transaction.annotation.Transactional
 class ConsolidationManifestRecord(
     @Id val id: String,
     @Column(name = "order_id", nullable = false, unique = true) val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_consolidation_manifests_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "customer_id", nullable = false) val customerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_consolidation_manifests_customer"))
+    val customer: User? = null,
     @Column(name = "seller_packages_json", nullable = false, length = 12000) var sellerPackagesJson: String,
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 64) var status: ConsolidationStatus,
     @Column(name = "final_package_id") var finalPackageId: String? = null,
