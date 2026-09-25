@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderStatus
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualCommand
@@ -7,9 +8,13 @@ import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import dev.orestegabo.sequo_api.domain.settlement.SettlementWorkflowType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
@@ -67,12 +72,21 @@ class CustomerPickupConfirmationRecord(
 
     @Column(name = "order_id", nullable = false)
     val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_pickup_confirmations_order"))
+    val order: CustomerOrderRecord? = null,
 
     @Column(name = "customer_id", nullable = false)
     val customerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_pickup_confirmations_customer"))
+    val customer: User? = null,
 
     @Column(name = "actor_user_id", nullable = false)
     val actorUserId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_pickup_confirmations_actor"))
+    val actor: User? = null,
 
     @Column(name = "idempotency_key", nullable = false)
     val idempotencyKey: String,
