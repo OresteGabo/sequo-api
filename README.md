@@ -152,6 +152,16 @@ Run the API with PostgreSQL through Docker Compose:
 docker compose up --build
 ```
 
+Run the API against a local PostgreSQL database on your laptop:
+
+```bash
+SPRING_PROFILES_ACTIVE=postgres-local \
+SPRING_DATASOURCE_PASSWORD='<your local database password>' \
+./gradlew bootRun
+```
+
+The `postgres-local` profile points to `jdbc:postgresql://localhost:5432/sequo_db` with username `oreste` by default. It keeps the password outside Git, disables Flyway by default, and uses Hibernate `update` so local development tables can be recreated from Kotlin JPA entities while you iterate. Production profiles must keep `SPRING_JPA_HIBERNATE_DDL_AUTO=validate` and use Flyway migrations for controlled schema changes.
+
 ## Environment Groups
 
 Real secrets must live in local environment variables, a local uncommitted `.env`, or a deployment secret manager. Do not commit wallet provider keys, JWT signing keys, database passwords, webhook secrets, private OAuth secrets, or production URLs.
