@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 
 @SpringBootTest(
     properties = [
@@ -17,12 +18,13 @@ import org.springframework.boot.test.context.SpringBootTest
 class ConsolidationPersistenceServiceTest @Autowired constructor(
     private val service: ConsolidationPersistenceService,
     private val missions: DeliveryMissionRepository,
+    private val jdbcTemplate: JdbcTemplate,
 ) {
     private val at = Instant.parse("2026-09-09T10:00:00Z")
 
     @Test
     fun sellerReadinessIsPersistedAndCompletesManifestWhenAllPackagesAreReady() {
-        service.create(manifest(), at)
+        service.create(persistedManifest(), at)
 
         service.markSellerPackageReady("manifest-persistence-1", "sub-1", "merchant-1", at.plusSeconds(60))
         assertEquals(
@@ -52,7 +54,7 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
 
     @Test
     fun sellerCannotMarkAnotherMerchantsPackageReady() {
-        service.create(manifest("manifest-persistence-2", "order-persistence-2"), at)
+        service.create(persistedManifest("manifest-persistence-2", "order-persistence-2"), at)
 
         assertFailsWith<IllegalArgumentException> {
             service.markSellerPackageReady("manifest-persistence-2", "sub-1", "merchant-other", at)
@@ -65,7 +67,7 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
 
     @Test
     fun consolidatedPackageCreatesOneFinalCustomerMissionIdempotently() {
-        service.create(manifest("manifest-persistence-3", "order-persistence-3"), at)
+        service.create(persistedManifest("manifest-persistence-3", "order-persistence-3"), at)
         service.markSellerPackageReady("manifest-persistence-3", "sub-1", "merchant-1", at)
         service.markSellerPackageReady("manifest-persistence-3", "sub-2", "merchant-2", at)
         service.markSellerPackageCollected("manifest-persistence-3", "sub-1", at)
@@ -94,16 +96,76 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
         assertEquals(first.mission.deliveryCode, tracking.tracking?.deliveryCode)
     }
 
-    private fun manifest(
+    private fun persistedManifest(
         manifestId: String = "manifest-persistence-1",
         orderId: String = "order-persistence-1",
-    ) = SequoConsolidationManifest(
-        manifestId = manifestId,
-        orderId = orderId,
-        customerId = "customer-persistence-1",
-        sellerPackages = listOf(
-            ConsolidationSellerPackage("sub-1", "merchant-1", 1, ready = false),
-            ConsolidationSellerPackage("sub-2", "merchant-2", 2, ready = false),
-        ),
-    )
+    ): SequoConsolidationManifest {
+        ensureCustomerAndOrder(orderId)
+        return SequoConsolidationManifest(
+            manifestId = manifestId,
+            orderId = orderId,
+            customerId = "customer-persistence-1",
+            sellerPackages = listOf(
+                ConsolidationSellerPackage("sub-1", "merchant-1", 1, ready = false),
+                ConsolidationSellerPackage("sub-2", "merchant-2", 2, ready = false),
+            ),
+        )
+    }
+
+    private fun ensureCustomerAndOrder(orderId: String) {
+        jdbcTemplate.update(
+            """
+            merge into users (
+                id,
+                email,
+                provider,
+                status
+            ) key (id) values (?, ?, ?, ?)
+            """.trimIndent(),
+            "customer-persistence-1",
+            "customer-persistence-1@sequo.test",
+            "EMAIL",
+            "ACTIVE",
+        )
+        jdbcTemplate.update(
+            """
+            merge into customer_orders (
+                id,
+                checkout_id,
+                customer_id,
+                service_level,
+                route,
+                fulfillment_priority,
+                requires_consolidation,
+                customer_facing_status,
+                item_subtotal_cfa,
+                delivery_fee_cfa,
+                total_cfa,
+                payment_provider,
+                payment_reference,
+                payment_status,
+                order_status,
+                created_at,
+                updated_at
+            ) key (id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            orderId,
+            "$orderId-checkout",
+            "customer-persistence-1",
+            "Regular",
+            "GroupedSequo",
+            "ConsolidatedMerchantPackages",
+            true,
+            "Accepted for fulfillment",
+            1_000,
+            400,
+            1_400,
+            "yas_togo",
+            "$orderId-payment",
+            "Validated",
+            "ACCEPTED_FOR_FULFILLMENT",
+            at,
+            at,
+        )
+    }
 }
