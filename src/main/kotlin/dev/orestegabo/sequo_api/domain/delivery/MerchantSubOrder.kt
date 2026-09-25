@@ -4,11 +4,17 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import java.time.Instant
 
 enum class MerchantSubOrderStatus {
@@ -35,8 +41,16 @@ class MerchantSubOrder(
     @Column(name = "order_id", nullable = false)
     val orderId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_sub_orders_order"))
+    val order: CustomerOrderRecord? = null,
+
     @Column(name = "merchant_id", nullable = false)
     val merchantId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_sub_orders_merchant"))
+    val merchant: MerchantRecord? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 64)
