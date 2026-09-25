@@ -5,14 +5,21 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationSeverity
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.party.CourierRecord
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
@@ -31,8 +38,17 @@ class DeliveryMission(
     @Id @GeneratedValue(strategy = GenerationType.UUID) val id: String? = null,
     @Column(name = "delivery_code", nullable = false, unique = true, length = 64) val deliveryCode: String,
     @Column(name = "order_id", nullable = false) val orderId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_order"))
+    val order: CustomerOrderRecord? = null,
     @Column(name = "merchant_sub_order_id") val merchantSubOrderId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_sub_order_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_merchant_sub_order"))
+    val merchantSubOrder: MerchantSubOrder? = null,
     @Column(name = "courier_id") var courierId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "courier_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_courier"))
+    val courier: CourierRecord? = null,
     @Enumerated(EnumType.STRING) @Column(name = "delivery_mode", nullable = false, length = 64) val deliveryMode: DeliveryMissionRecordMode,
     @Enumerated(EnumType.STRING) @Column(name = "destination_type", nullable = false, length = 64) val destinationType: DeliveryMissionRecordDestination,
     @Enumerated(EnumType.STRING) @Column(name = "status", nullable = false, length = 64) var status: DeliveryMissionRecordStatus = DeliveryMissionRecordStatus.CREATED,
@@ -46,10 +62,19 @@ class DeliveryMission(
     @Column(name = "delivered_at") var deliveredAt: Instant? = null,
     @Column(name = "pickup_proof_metadata") var pickupProofMetadata: String? = null,
     @Column(name = "pickup_proof_actor_id") var pickupProofActorId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_proof_actor_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_pickup_proof_actor"))
+    val pickupProofActor: User? = null,
     @Column(name = "dropoff_proof_metadata") var dropoffProofMetadata: String? = null,
     @Column(name = "dropoff_proof_actor_id") var dropoffProofActorId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dropoff_proof_actor_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_dropoff_proof_actor"))
+    val dropoffProofActor: User? = null,
     @Column(name = "relay_deposit_proof_metadata") var relayDepositProofMetadata: String? = null,
     @Column(name = "relay_deposit_proof_actor_id") var relayDepositProofActorId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "relay_deposit_proof_actor_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_relay_deposit_proof_actor"))
+    val relayDepositProofActor: User? = null,
     @Column(name = "problem_metadata") var problemMetadata: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = createdAt,
@@ -68,7 +93,13 @@ class DeliveryMissionIdempotencyKey(
     @Id @GeneratedValue(strategy = GenerationType.UUID) val id: String? = null,
     @Column(name = "idempotency_key", nullable = false, unique = true, length = 128) val idempotencyKey: String,
     @Column(name = "mission_id", nullable = false) val missionId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mission_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_mission_idempotency_keys_mission"))
+    val mission: DeliveryMission? = null,
     @Column(name = "actor_user_id", nullable = false) val actorUserId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_mission_idempotency_keys_actor"))
+    val actor: User? = null,
     @Enumerated(EnumType.STRING) @Column(name = "event_type", nullable = false, length = 64) val eventType: DeliveryMissionEvent,
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
 ) {
@@ -84,9 +115,18 @@ class DeliveryMissionIdempotencyKey(
 class DeliveryProblemResolutionRecord(
     @Id @GeneratedValue(strategy = GenerationType.UUID) val id: String? = null,
     @Column(name = "mission_id", nullable = false) val missionId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mission_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_problem_resolutions_mission"))
+    val mission: DeliveryMission? = null,
     @Column(name = "actor_user_id", nullable = false) val actorUserId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_problem_resolutions_actor"))
+    val actor: User? = null,
     @Enumerated(EnumType.STRING) @Column(name = "action", nullable = false, length = 64) val action: DeliveryProblemResolutionAction,
     @Column(name = "replacement_courier_id") val replacementCourierId: String? = null,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "replacement_courier_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_problem_resolutions_replacement_courier"))
+    val replacementCourier: CourierRecord? = null,
     @Column(name = "reason", nullable = false, length = 1000) val reason: String,
     @Column(name = "resolved_at", nullable = false) val resolvedAt: Instant,
 ) {
