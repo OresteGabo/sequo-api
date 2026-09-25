@@ -41,23 +41,58 @@ The current backend scope supersedes older legacy notes where they conflict:
 
 ## Documentation Map
 
+Root-level Markdown files are the primary product, architecture, API, security, and operations specifications. The `docs/` folder is reserved for supporting artifacts such as diagrams, contracts, and migration/helper notes.
+
+### Core Architecture
+
 | File | Purpose |
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Spring Boot backend architecture, modules, state machines, integrations, deployment assumptions |
-| [REQUIREMENTS.md](REQUIREMENTS.md) | Owner-note API requirement matrix with implementation checkboxes and backlog priorities |
 | [DOMAIN_SERVICES.md](DOMAIN_SERVICES.md) | Domain service responsibilities and workflow rules |
-| [DELIVERY.md](DELIVERY.md) | Delivery and fulfillment audit: direct delivery, relay delivery, Sequo consolidation, proof, gaps, and build order |
-| [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md) | FCM, in-app notifications, SMS fallback, device tokens, event listeners, routing, delivery audit |
-| [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md) | Spring WebSocket/STOMP realtime channels, auth, topics, rider radar, bargaining, relay, admin dashboards |
+| [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Logical relational schema, tables, enums, indexes, and constraints |
 | [API_SPEC.md](API_SPEC.md) | REST API conventions, endpoint families, idempotency, response envelope, error model |
+| [REQUIREMENTS.md](REQUIREMENTS.md) | Owner-note API requirement matrix with implementation checkboxes and backlog priorities |
+
+### Security, Auth, And Realtime
+
+| File | Purpose |
+| --- | --- |
+| [AUTHENTICATION_ARCHITECTURE.md](AUTHENTICATION_ARCHITECTURE.md) | Production authentication blueprint: social login, account linking, token/session schema, RBAC, future password and OTP flows |
+| [AUTH.md](AUTH.md) | Authentication security audit and implementation tracker |
+| [SECURITY.md](SECURITY.md) | Auth, RBAC, secrets, wallet safety, PII, audit, idempotency, and operational security |
+| [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md) | Spring WebSocket/STOMP realtime channels, auth, topics, rider radar, bargaining, relay, admin dashboards |
+
+### Commerce, Logistics, And Finance
+
+| File | Purpose |
+| --- | --- |
+| [PAYMENTS_ARCHITECTURE.md](PAYMENTS_ARCHITECTURE.md) | Production payment blueprint for Yas Togo, Moov Africa, idempotency, webhooks, refunds, and reconciliation |
 | [PRICING_ENGINE.md](PRICING_ENGINE.md) | Delivery, subscription, loyalty, item, service fee, and pricing audit rules |
 | [COMMISSION_MODEL.md](COMMISSION_MODEL.md) | Merchant commission, platform margin, cooperative split, payout, and shortfall accounting |
 | [SETTLEMENTS_AND_RETURNS.md](SETTLEMENTS_AND_RETURNS.md) | 72-hour return flow, relay intake, refund triggers, payout timing, financial settlement lifecycle |
-| [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Logical relational schema, tables, enums, indexes, and constraints |
-| [SECURITY.md](SECURITY.md) | Auth, RBAC, secrets, wallet safety, PII, audit, idempotency, and operational security |
-| [CI_CD.md](CI_CD.md) | GitHub Actions CI/CD workflow, dependency updates, branch protection, and deployment requirements |
+| [DELIVERY.md](DELIVERY.md) | Delivery and fulfillment audit: direct delivery, relay delivery, Sequo consolidation, proof, gaps, and build order |
+| [NOTIFICATION_SYSTEM.md](NOTIFICATION_SYSTEM.md) | FCM, in-app notifications, SMS fallback, device tokens, event listeners, routing, delivery audit |
+| [MOBILE_API_GUIDE.md](MOBILE_API_GUIDE.md) | Mobile-facing API usage guide |
+
+### Operations And Launch
+
+| File | Purpose |
+| --- | --- |
 | [DOCKER.md](DOCKER.md) | Docker image, Docker Compose runtime, environment variables, and Kubernetes timing |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment process and runtime expectations |
+| [CI_CD.md](CI_CD.md) | GitHub Actions CI/CD workflow, dependency updates, branch protection, and deployment requirements |
+| [EXTERNAL_LAUNCH_SETUP.md](EXTERNAL_LAUNCH_SETUP.md) | External launch preparation and setup checklist |
+| [GUARDRAIL.md](GUARDRAIL.md) | Production guardrails and safety checks |
+| [VPS_NOTES.md](VPS_NOTES.md) | VPS deployment notes |
+| [HELP.md](HELP.md) | Help and operational reference notes |
+
+### Supporting Artifacts
+
+| Path | Purpose |
+| --- | --- |
 | [docs/diagrams/plantuml](docs/diagrams/plantuml/README.md) | PlantUML diagrams for architecture, payments, orders, pricing, returns, settlements, bargaining, cooperatives, database, and security |
+| [docs/PLACEHOLDER_REPLACEMENT.md](docs/PLACEHOLDER_REPLACEMENT.md) | Placeholder replacement notes |
+| [docs/contracts](docs/contracts) | Contract artifacts |
 
 ## Core Backend Capabilities
 
