@@ -4,11 +4,16 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import dev.orestegabo.sequo_api.domain.auth.User
 import java.time.Instant
 import java.time.LocalTime
 
@@ -147,6 +152,10 @@ class DeviceFcmToken(
     @Column(name = "user_id", nullable = false)
     var userId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_device_fcm_tokens_user"))
+    val user: User? = null,
+
     @Column(name = "device_id", nullable = false)
     var deviceId: String,
 
@@ -205,6 +214,10 @@ class NotificationPreference(
     @Column(name = "user_id", nullable = false)
     val userId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_notification_preferences_user"))
+    val user: User? = null,
+
     @Enumerated(EnumType.STRING)
     @Column(name = "app_family", nullable = false, length = 64)
     val appFamily: NotificationAppFamily,
@@ -250,8 +263,16 @@ class NotificationMessage(
     @Column(name = "event_id", nullable = false)
     val eventId: String,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", referencedColumnName = "event_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_notification_messages_outbox_event"))
+    val outboxEvent: NotificationOutbox? = null,
+
     @Column(name = "recipient_user_id", nullable = false)
     val recipientUserId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_notification_messages_recipient"))
+    val recipient: User? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "app_family", nullable = false, length = 64)
@@ -297,6 +318,10 @@ class NotificationDelivery(
 
     @Column(name = "message_id", nullable = false)
     val messageId: String,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "message_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_notification_deliveries_message"))
+    val message: NotificationMessage? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "channel", nullable = false, length = 64)
