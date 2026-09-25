@@ -10,8 +10,13 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import dev.orestegabo.sequo_api.domain.auth.User
 import java.time.Instant
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Component
@@ -33,6 +38,9 @@ enum class PendingPaymentCheckoutStatus {
 class PendingPaymentCheckoutRecord(
     @Id @Column(name = "checkout_id") val checkoutId: String,
     @Column(name = "customer_id", nullable = false) val customerId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_pending_payment_checkouts_customer"))
+    val customer: User? = null,
     @Column(name = "payment_provider", nullable = false, length = 64) val paymentProvider: String,
     @Column(name = "payment_reference", nullable = false) val paymentReference: String,
     @Column(name = "amount_cfa", nullable = false) val amountCfa: Int,
