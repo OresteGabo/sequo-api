@@ -1,0 +1,236 @@
+@startuml
+title Sequo API - Orders, Delivery, Relay, Returns Class Diagram
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty methods
+
+package "orders" {
+  class OrderController <<controller>>
+  class OrderFulfillmentPersistenceService <<service>>
+  class PendingPaymentCheckoutService <<service>>
+  class CustomerPickupConfirmationService <<service>>
+  class CustomerOrderRecord <<entity>> {
+    id
+    checkoutId
+    customerId
+    serviceLevel
+    route
+    paymentStatus
+    orderStatus
+  }
+  class CustomerOrderLineRecord <<entity>> {
+    productId
+    sellerId
+    quantity
+    lineTotalCfa
+  }
+  class CustomerOrderEventRecord <<entity>>
+  class OrderPricingSnapshotRecord <<entity>>
+  class PendingPaymentCheckoutRecord <<entity>>
+  class CustomerPickupConfirmationRecord <<entity>>
+}
+
+package "merchant fulfillment" {
+  class MerchantFulfillmentController <<controller>>
+  class MerchantFulfillmentService <<service>>
+  class MerchantSubOrder <<entity>> {
+    orderId
+    merchantId
+    status
+    itemSubtotalCfa
+    commissionCfa
+    merchantNetCfa
+  }
+  class MerchantFulfillmentEscalationRecord <<entity>>
+}
+
+package "delivery" {
+  class DeliveryMissionController <<controller>>
+  class DeliveryTrackingController <<controller>>
+  class DeliveryMissionService <<service>>
+  class DeliveryReadinessDispatchService <<service>>
+  class DeliveryPinService <<service>>
+  class CourierAvailabilityService <<service>>
+  class DeliveryMission <<entity>> {
+    deliveryCode
+    orderId
+    courierId
+    deliveryMode
+    destinationType
+    status
+  }
+  class DeliveryPin <<entity>>
+  class DeliveryMissionIdempotencyKey <<entity>>
+  class DeliveryProblemResolutionRecord <<entity>>
+  class CourierAvailabilityStateRecord <<entity>>
+}
+
+package "relay" {
+  class RelayParcelController <<controller>>
+  class RelayParcelApplicationService <<service>>
+  class RelayParcelPersistenceService <<service>>
+  class RelayStorageFeeService <<domain>>
+  class RelayParcelRecord <<entity>> {
+    relayPointId
+    lockerId
+    orderId
+    deliveryMissionId
+    returnId
+    status
+    category
+  }
+  class RelayPickupCodeRecord <<entity>>
+  class RelayCustodyEventRecord <<entity>>
+  class RelayStorageFeeAssessmentRecord <<entity>>
+}
+
+package "returns" {
+  class ReturnController <<controller>>
+  class ReturnPersistenceService <<service>>
+  class ReturnRequestRecord <<entity>> {
+    orderId
+    customerId
+    status
+    requestedRefundCfa
+  }
+}
+
+package "party + hub" {
+  class User <<entity>>
+  class MerchantRecord <<entity>>
+  class CourierRecord <<entity>>
+  class RelayPointRecord <<entity>>
+  class RelayLockerRecord <<entity>>
+}
+
+enum OrderServiceLevel {
+  Regular
+  PrimeMonthly
+  PrimeMultiYear
+}
+enum OrderRoute {
+  FastDelivery
+  GroupedSequo
+  Pickup
+  PointDeRelai
+}
+enum CustomerOrderStatus {
+  ACCEPTED_FOR_FULFILLMENT
+  DELIVERED
+  CANCELLED
+  RETURN_REQUESTED
+  REFUNDED
+}
+enum MerchantSubOrderStatus {
+  MERCHANT_PENDING
+  ACCEPTED
+  PREPARING
+  PACKED_READY
+  HANDED_TO_COURIER
+  REJECTED
+  CANCELLED
+}
+enum DeliveryMissionRecordStatus {
+  CREATED
+  OFFERED_TO_COURIER
+  ACCEPTED_BY_COURIER
+  PICKED_UP_FROM_SELLER
+  DEPOSITED_AT_RELAY
+  DELIVERED_TO_CUSTOMER
+  RELEASED_BY_RELAY
+  PROBLEM_REPORTED
+  CANCELLED
+}
+enum RelayParcelStatus {
+  Created
+  Deposited
+  PickedUp
+  CollectedBySequo
+  Delayed
+  ReturnToSellerReview
+  ReturnedToSeller
+  Problem
+}
+enum ReturnStatus {
+  Requested
+  AwaitingRelayDropoff
+  DroppedAtRelay
+  ReceivedBySequo
+  RefundPending
+  Rejected
+}
+
+OrderController --> OrderFulfillmentPersistenceService
+OrderController --> PendingPaymentCheckoutService
+OrderController --> CustomerPickupConfirmationService
+OrderFulfillmentPersistenceService --> MerchantFulfillmentService
+OrderFulfillmentPersistenceService --> PendingPaymentCheckoutRecord
+OrderFulfillmentPersistenceService --> OrderPricingSnapshotRecord
+OrderFulfillmentPersistenceService --> CustomerOrderRecord
+
+MerchantFulfillmentController --> MerchantFulfillmentService
+MerchantFulfillmentService --> MerchantSubOrder
+MerchantFulfillmentService --> MerchantFulfillmentEscalationRecord
+
+DeliveryMissionController --> DeliveryMissionService
+DeliveryMissionController --> DeliveryReadinessDispatchService
+DeliveryMissionController --> DeliveryPinService
+DeliveryMissionController --> CourierAvailabilityService
+DeliveryTrackingController --> DeliveryMissionService
+DeliveryMissionService --> DeliveryMission
+DeliveryMissionService --> DeliveryMissionIdempotencyKey
+DeliveryMissionService --> DeliveryProblemResolutionRecord
+DeliveryPinService --> DeliveryPin
+CourierAvailabilityService --> CourierAvailabilityStateRecord
+
+RelayParcelController --> RelayParcelApplicationService
+RelayParcelApplicationService --> RelayParcelPersistenceService
+RelayParcelApplicationService --> RelayStorageFeeService
+RelayParcelPersistenceService --> RelayParcelRecord
+RelayParcelPersistenceService --> RelayPickupCodeRecord
+RelayParcelPersistenceService --> RelayCustodyEventRecord
+RelayParcelPersistenceService --> RelayStorageFeeAssessmentRecord
+
+ReturnController --> ReturnPersistenceService
+ReturnPersistenceService --> ReturnRequestRecord
+
+CustomerOrderRecord "1" o-- "*" CustomerOrderLineRecord
+CustomerOrderRecord "1" o-- "*" CustomerOrderEventRecord
+CustomerOrderRecord "1" o-- "0..1" OrderPricingSnapshotRecord
+CustomerOrderRecord "1" o-- "*" CustomerPickupConfirmationRecord
+CustomerOrderRecord "*" --> "1" User : customer
+CustomerOrderRecord --> OrderServiceLevel
+CustomerOrderRecord --> OrderRoute
+CustomerOrderRecord --> CustomerOrderStatus
+
+CustomerOrderLineRecord "*" --> "1" MerchantRecord : seller
+MerchantSubOrder "*" --> "1" CustomerOrderRecord
+MerchantSubOrder "*" --> "1" MerchantRecord
+MerchantSubOrder --> MerchantSubOrderStatus
+MerchantFulfillmentEscalationRecord "*" --> "1" MerchantSubOrder
+
+DeliveryMission "*" --> "1" CustomerOrderRecord
+DeliveryMission "*" --> "0..1" MerchantSubOrder
+DeliveryMission "*" --> "0..1" CourierRecord
+DeliveryMission --> DeliveryMissionRecordStatus
+DeliveryPin "*" --> "1" DeliveryMission
+DeliveryMissionIdempotencyKey "*" --> "1" DeliveryMission
+DeliveryProblemResolutionRecord "*" --> "1" DeliveryMission
+
+RelayParcelRecord "*" --> "1" RelayPointRecord
+RelayParcelRecord "*" --> "0..1" RelayLockerRecord
+RelayParcelRecord "*" --> "0..1" CustomerOrderRecord
+RelayParcelRecord "*" --> "0..1" DeliveryMission
+RelayParcelRecord "*" --> "0..1" ReturnRequestRecord
+RelayParcelRecord --> RelayParcelStatus
+RelayPickupCodeRecord "*" --> "1" RelayParcelRecord
+RelayCustodyEventRecord "*" --> "1" RelayParcelRecord
+RelayStorageFeeAssessmentRecord "0..1" --> "1" RelayParcelRecord
+
+ReturnRequestRecord "*" --> "1" CustomerOrderRecord
+ReturnRequestRecord "*" --> "1" User : customer
+ReturnRequestRecord --> ReturnStatus
+
+@enduml
