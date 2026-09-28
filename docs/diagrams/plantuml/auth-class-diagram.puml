@@ -1,0 +1,184 @@
+@startuml
+title Sequo API - Auth, Google Login, JWT, Sessions
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty methods
+
+package "transport" {
+  class AuthController <<controller>> {
+    +signUp()
+    +login()
+    +loginSocial()
+    +refresh()
+    +logout()
+    +logoutAll()
+    +sessions()
+    +currentUser()
+  }
+}
+
+package "application services" {
+  class AuthService <<service>> {
+    +signUp()
+    +login()
+    +loginWithSocialToken()
+    +refreshTokens()
+    +logout()
+    +logoutAll()
+  }
+  class JwtService <<service>> {
+    +generateAccessToken()
+    +parseAccessToken()
+    +refreshExpiresAt()
+  }
+  class RefreshSessionService <<service>> {
+    +issueRawToken()
+    +create()
+    +findByToken()
+    +rotate()
+    +revokeAllForUser()
+  }
+  class PasswordPolicy <<service>>
+  class PasswordResetTokenService <<service>>
+  class AuthRateLimiter <<service>>
+}
+
+package "social verification" {
+  interface SocialTokenVerifier
+  interface GoogleTokenVerifier
+  class GoogleIdTokenVerifierAdapter <<adapter>> {
+    +verifyAccount(idToken)
+  }
+  class FacebookTokenVerifier <<adapter>>
+  class AppleTokenVerifier <<adapter>>
+  class VerifiedGoogleAccount <<dto>>
+  class GoogleTokenRejection <<dto>>
+}
+
+package "security filter" {
+  class SecurityConfig <<configuration>>
+  class JwtAuthenticationFilter <<filter>>
+  class JwtAuthenticationDetails <<dto>>
+  class RoleGroups <<policy>>
+}
+
+package "persistence" {
+  class User <<entity>> {
+    id
+    email
+    passwordHash
+    provider
+    status
+    providerId
+  }
+  class SocialIdentity <<entity>> {
+    provider
+    providerSubject
+    verifiedEmail
+    lastLoginAt
+  }
+  class RefreshSession <<entity>> {
+    tokenHash
+    expiresAt
+    revokedAt
+  }
+  class MerchantMembership <<entity>> {
+    merchantId
+    role
+    active
+  }
+  interface UserRepository <<repository>>
+  interface SocialIdentityRepository <<repository>>
+  interface RefreshSessionRepository <<repository>>
+  interface MerchantMembershipRepository <<repository>>
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  LOCKED
+  SUSPENDED
+  DELETED
+}
+
+enum RoleCode {
+  CUSTOMER
+  MERCHANT_OWNER
+  MERCHANT_STAFF
+  COURIER
+  RELAY_PARTNER
+  SUPPORT_AGENT
+  ADMIN
+  SUPER_ADMIN
+}
+
+class AuthTokens <<dto>> {
+  accessToken
+  refreshToken
+  expiresIn
+}
+
+class UserSession <<dto>> {
+  userId
+  email
+  provider
+  roles
+  merchantScopeIds
+  sessionId
+}
+
+AuthController --> AuthRateLimiter
+AuthController --> AuthService
+AuthService --> UserRepository
+AuthService --> SocialIdentityRepository
+AuthService --> MerchantMembershipRepository
+AuthService --> RefreshSessionService
+AuthService --> JwtService
+AuthService --> PasswordPolicy
+AuthService --> PasswordResetTokenService
+AuthService --> GoogleTokenVerifier
+AuthService --> FacebookTokenVerifier
+AuthService --> AppleTokenVerifier
+
+GoogleTokenVerifier <|.. GoogleIdTokenVerifierAdapter
+SocialTokenVerifier <|-- GoogleTokenVerifier
+SocialTokenVerifier <|.. FacebookTokenVerifier
+SocialTokenVerifier <|.. AppleTokenVerifier
+GoogleIdTokenVerifierAdapter --> VerifiedGoogleAccount
+GoogleIdTokenVerifierAdapter --> GoogleTokenRejection
+
+RefreshSessionService --> RefreshSessionRepository
+RefreshSessionService --> PasswordResetTokenService : hashes opaque tokens
+JwtService --> UserSession
+JwtService --> AuthTokens
+JwtAuthenticationFilter --> JwtService
+JwtAuthenticationFilter --> JwtAuthenticationDetails
+SecurityConfig --> JwtAuthenticationFilter
+SecurityConfig --> RoleGroups
+
+User "1" o-- "*" SocialIdentity
+User "1" o-- "*" RefreshSession
+User "1" o-- "*" MerchantMembership
+User --> AuthProvider
+User --> UserStatus
+User --> RoleCode
+SocialIdentity --> AuthProvider
+MerchantMembership --> RoleCode
+
+note right of AuthService
+Google login flow:
+verify Google ID token -> find/link social identity ->
+create user if needed -> persist hashed refresh session ->
+return access JWT plus raw opaque refresh token.
+end note
+
+@enduml
