@@ -54,7 +54,7 @@ Important values:
 | Variable | Notes |
 | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | Keep as `prod` for VPS deployment. |
-| `SEQUO_API_BIND` | Defaults to `0.0.0.0` so mobile apps can reach `http://vps-d4bc6ae7.vps.ovh.net:8080`. |
+| `SEQUO_API_BIND` | Defaults to `0.0.0.0`; public clients should use `https://api.sequoservice.com` through the TLS reverse proxy. |
 | `SEQUO_API_PORT` | Host port for the API, default `8080`. |
 | `POSTGRES_PASSWORD` | Use a unique random password. |
 | `JWT_SECRET` | At least 32 random characters. |
@@ -77,7 +77,7 @@ openssl rand -base64 48
 The Compose file binds the API to `0.0.0.0:8080` by default for direct mobile testing. For production TLS, put Nginx, Caddy, or another reverse proxy in front of it:
 
 ```text
-https://api.your-domain.com -> http://127.0.0.1:8080
+https://api.sequoservice.com -> http://127.0.0.1:8080
 ```
 
 Set `CORS_ALLOWED_ORIGINS` to the public HTTPS origins used by your frontend/admin apps.
@@ -106,8 +106,10 @@ curl http://127.0.0.1:8080/actuator/health/readiness
 From an external device, verify the public bind:
 
 ```bash
-curl -i http://vps-d4bc6ae7.vps.ovh.net:8080/actuator/health
+curl -i https://api.sequoservice.com/actuator/health
 ```
+
+The raw VPS endpoint, `http://vps-d4bc6ae7.vps.ovh.net:8080`, is still useful for low-level diagnostics when the reverse proxy or DNS is being changed.
 
 ## Updates
 
