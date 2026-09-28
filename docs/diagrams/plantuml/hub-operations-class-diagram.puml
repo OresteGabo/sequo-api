@@ -1,0 +1,181 @@
+@startuml
+title Sequo API - Hub Mobile, Admin Monitoring, Operations Class Diagram
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty methods
+
+package "hub REST" {
+  class HubMobileController <<controller>>
+  class AccountController <<controller>>
+  class UserPreferenceController <<controller>>
+}
+
+package "hub application" {
+  class HubMobileService <<service>>
+  class HubScanResolveCommand <<dto>>
+  class HubSummarySnapshot <<dto>>
+  class LockerAvailabilityCommand <<dto>>
+  class SaveHubOpeningHoursCommand <<dto>>
+  class HubControlDecisionCommand <<dto>>
+  class AccountDeletionRequestCommand <<dto>>
+  class UserAppPreferencePatch <<dto>>
+}
+
+package "hub persistence" {
+  class RelayLockerRecord <<entity>> {
+    relayPointId
+    lockerCode
+    status
+    relayLockerGridId
+  }
+  class RelayLockerGridRecord <<entity>>
+  class HubOpeningHourRecord <<entity>>
+  class HubOpeningHourExceptionRecord <<entity>>
+  class AccountDeletionRequestRecord <<entity>>
+  class HubControlDecisionRecord <<entity>>
+  class UserAppPreferenceRecord <<entity>>
+  interface RelayLockerRepository <<repository>>
+  interface HubOpeningHourRepository <<repository>>
+  interface HubOpeningHourExceptionRepository <<repository>>
+  interface AccountDeletionRequestRepository <<repository>>
+  interface HubControlDecisionRepository <<repository>>
+  interface UserAppPreferenceRepository <<repository>>
+}
+
+package "shared operational data" {
+  class RelayParcelRecord <<entity>>
+  class RelayPickupCodeRecord <<entity>>
+  class RelayStorageFeeAssessmentRecord <<entity>>
+  class RelayPointRecord <<entity>>
+  class User <<entity>>
+}
+
+package "admin monitoring" {
+  class AdminMonitoringController <<controller>>
+  class AdminMonitoringService <<service>>
+  class AdminOperationsSnapshot <<dto>>
+  class DeliveryCapacitySnapshot <<dto>>
+  class MerchantFulfillmentMonitoringSnapshot <<dto>>
+  class RelayOperationsSnapshot <<dto>>
+  class NotificationOutboxMonitoringSnapshot <<dto>>
+  class PayoutQueueSnapshot <<dto>>
+  class ReturnBottleneckSnapshot <<dto>>
+}
+
+package "schedulers" {
+  class NotificationOutboxScheduler <<scheduler>>
+  class DeviceTokenPruningScheduler <<scheduler>>
+  class NotificationProviderDeliveryScheduler <<scheduler>>
+  class RefreshSessionCleanupScheduler <<scheduler>>
+  class RelayDelayedParcelScheduler <<scheduler>>
+  class DeliveryMissionExpiryScheduler <<scheduler>>
+  class DeliveryReadinessDispatchScheduler <<scheduler>>
+  class MerchantFulfillmentSlaWarningScheduler <<scheduler>>
+  class SettlementEligibilityScheduler <<scheduler>>
+}
+
+enum HubScanCredentialType {
+  AUTO
+  DEPOSIT_CODE
+  PICKUP_CODE
+  RETURN_PIN
+  LOCKER_CODE
+}
+enum HubLockerStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+enum AccountDeletionRequestStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+enum HubControlTarget {
+  HUB
+  LOCKER_INTAKE
+  CUSTOMER_PICKUP
+  CUSTOMER_RETURNS
+  SEQUO_COLLECTION
+  PLAN_B_DROP_OFF
+}
+enum HubControlStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+enum HubControlActorType {
+  SEQUO_OPERATOR
+  SEQUO_AI
+  SYSTEM_POLICY
+}
+enum UserPreferenceTheme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+HubMobileController --> HubMobileService
+AccountController --> HubMobileService
+UserPreferenceController --> HubMobileService
+
+HubMobileService --> RelayParcelRecord
+HubMobileService --> RelayPickupCodeRecord
+HubMobileService --> RelayStorageFeeAssessmentRecord
+HubMobileService --> RelayLockerRepository
+HubMobileService --> HubOpeningHourRepository
+HubMobileService --> HubOpeningHourExceptionRepository
+HubMobileService --> AccountDeletionRequestRepository
+HubMobileService --> HubControlDecisionRepository
+HubMobileService --> UserAppPreferenceRepository
+HubMobileService --> HubScanResolveCommand
+HubMobileService --> HubSummarySnapshot
+HubMobileService --> LockerAvailabilityCommand
+HubMobileService --> SaveHubOpeningHoursCommand
+HubMobileService --> HubControlDecisionCommand
+HubMobileService --> AccountDeletionRequestCommand
+HubMobileService --> UserAppPreferencePatch
+
+RelayLockerRecord "*" --> "1" RelayPointRecord
+RelayLockerRecord "*" --> "1" RelayLockerGridRecord
+HubOpeningHourRecord "*" --> "1" RelayPointRecord
+HubOpeningHourExceptionRecord "*" --> "1" RelayPointRecord
+HubControlDecisionRecord "*" --> "1" RelayPointRecord
+AccountDeletionRequestRecord "*" --> "1" User
+UserAppPreferenceRecord "*" --> "1" User
+
+RelayLockerRecord --> HubLockerStatus
+AccountDeletionRequestRecord --> AccountDeletionRequestStatus
+HubControlDecisionRecord --> HubControlTarget
+HubControlDecisionRecord --> HubControlStatus
+HubControlDecisionRecord --> HubControlActorType
+UserAppPreferenceRecord --> UserPreferenceTheme
+
+AdminMonitoringController --> AdminMonitoringService
+AdminMonitoringService --> AdminOperationsSnapshot
+AdminOperationsSnapshot o-- DeliveryCapacitySnapshot
+AdminOperationsSnapshot o-- MerchantFulfillmentMonitoringSnapshot
+AdminOperationsSnapshot o-- RelayOperationsSnapshot
+AdminOperationsSnapshot o-- NotificationOutboxMonitoringSnapshot
+AdminOperationsSnapshot o-- PayoutQueueSnapshot
+AdminOperationsSnapshot o-- ReturnBottleneckSnapshot
+
+NotificationOutboxScheduler --> AdminMonitoringService : operational health signal
+RelayDelayedParcelScheduler --> HubMobileService : relay/hub state
+DeliveryMissionExpiryScheduler --> AdminMonitoringService
+DeliveryReadinessDispatchScheduler --> AdminMonitoringService
+MerchantFulfillmentSlaWarningScheduler --> AdminMonitoringService
+SettlementEligibilityScheduler --> AdminMonitoringService
+
+note right of HubMobileService
+Hub endpoints resolve scans, locker availability,
+opening hours, account deletion requests,
+app preferences, and hub control decisions.
+end note
+
+@enduml
