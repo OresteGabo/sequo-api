@@ -1,0 +1,216 @@
+@startuml
+title Sequo API - Whole API Class Overview
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "config" {
+  class SecurityConfig <<configuration>>
+  class JwtAuthenticationFilter <<filter>>
+  class ApiContentTypeFilter <<filter>>
+  class ApiRequestRateLimitFilter <<filter>>
+  class ProductionStartupGuardrails <<guardrail>>
+}
+
+package "auth" {
+  class AuthController <<controller>>
+  class AuthService <<service>>
+  class JwtService <<service>>
+  class PasswordPolicy <<service>>
+  class PasswordResetTokenService <<service>>
+  class RefreshSessionService <<service>>
+  class User <<entity>>
+  class SocialIdentity <<entity>>
+  class RefreshSession <<entity>>
+  class MerchantMembership <<entity>>
+  interface UserRepository <<repository>>
+  interface SocialIdentityRepository <<repository>>
+  interface RefreshSessionRepository <<repository>>
+  interface MerchantMembershipRepository <<repository>>
+  interface GoogleTokenVerifier <<port>>
+}
+
+package "party + catalog" {
+  class MerchantRecord <<entity>>
+  class CourierRecord <<entity>>
+  class RelayPointRecord <<entity>>
+  class ProductRecord <<entity>>
+  class CatalogImageRecord <<entity>>
+  class ProductMediaPolicyService <<service>>
+  class FoodCustomizationService <<service>>
+}
+
+package "order + pricing" {
+  class OrderController <<controller>>
+  class OrderFulfillmentPersistenceService <<service>>
+  class PendingPaymentCheckoutService <<service>>
+  class CustomerPickupConfirmationService <<service>>
+  class DeliveryPricingService <<service>>
+  class CustomerOrderRecord <<entity>>
+  class CustomerOrderLineRecord <<entity>>
+  class CustomerOrderEventRecord <<entity>>
+  class OrderPricingSnapshotRecord <<entity>>
+  class PendingPaymentCheckoutRecord <<entity>>
+}
+
+package "payment + commission" {
+  class PaymentWebhookController <<controller>>
+  class PaymentWebhookService <<service>>
+  class PaymentProcessor <<service>>
+  class PaymentPolicy <<policy>>
+  class YasTogoPaymentMethod <<adapter>>
+  class MoovAfricaPaymentMethod <<adapter>>
+  class MerchantCommissionController <<controller>>
+  class MerchantCommissionConfigurationService <<service>>
+  class PaymentWebhookEventRecord <<entity>>
+  class MerchantCommissionOverrideRecord <<entity>>
+}
+
+package "delivery + relay + hub" {
+  class MerchantFulfillmentController <<controller>>
+  class DeliveryMissionController <<controller>>
+  class DeliveryTrackingController <<controller>>
+  class RelayParcelController <<controller>>
+  class HubMobileController <<controller>>
+  class MerchantFulfillmentService <<service>>
+  class DeliveryMissionService <<service>>
+  class DeliveryReadinessDispatchService <<service>>
+  class RelayParcelApplicationService <<service>>
+  class RelayParcelPersistenceService <<service>>
+  class HubMobileService <<service>>
+  class MerchantSubOrder <<entity>>
+  class DeliveryMission <<entity>>
+  class RelayParcelRecord <<entity>>
+  class RelayPickupCodeRecord <<entity>>
+  class RelayLockerRecord <<entity>>
+  class HubControlDecisionRecord <<entity>>
+}
+
+package "returns + settlement" {
+  class ReturnController <<controller>>
+  class ReturnPersistenceService <<service>>
+  class SettlementController <<controller>>
+  class SettlementPersistenceService <<service>>
+  class SettlementLedgerService <<domain>>
+  class ReturnRequestRecord <<entity>>
+  class MerchantPayoutAccrualRecord <<entity>>
+  class SettlementLedgerEntryRecord <<entity>>
+}
+
+package "notifications + realtime" {
+  class DeviceTokenController <<controller>>
+  class NotificationPreferenceController <<controller>>
+  class NotificationController <<controller>>
+  class RealtimeWebSocketConfig <<configuration>>
+  class NotificationRoutingService <<service>>
+  class NotificationOutboxService <<service>>
+  class NotificationDispatchService <<service>>
+  class NotificationProviderDeliveryService <<service>>
+  class RealtimeNotificationPublisher <<service>>
+  class DeviceFcmTokenRecord <<entity>>
+  class NotificationPreferenceRecord <<entity>>
+  class NotificationMessageRecord <<entity>>
+  class NotificationOutboxRecord <<entity>>
+}
+
+package "admin + operations" {
+  class AdminMonitoringController <<controller>>
+  class AdminMonitoringService <<service>>
+  class OperationalSchedulers <<scheduler>>
+}
+
+SecurityConfig --> JwtAuthenticationFilter
+JwtAuthenticationFilter --> JwtService
+
+AuthController --> AuthService
+AuthService --> UserRepository
+AuthService --> SocialIdentityRepository
+AuthService --> RefreshSessionService
+AuthService --> JwtService
+AuthService --> GoogleTokenVerifier
+AuthService --> MerchantMembershipRepository
+User "1" o-- "*" SocialIdentity
+User "1" o-- "*" RefreshSession
+User "1" o-- "*" MerchantMembership
+MerchantRecord "1" o-- "*" MerchantMembership
+
+OrderController --> OrderFulfillmentPersistenceService
+OrderController --> PendingPaymentCheckoutService
+OrderController --> CustomerPickupConfirmationService
+OrderFulfillmentPersistenceService --> DeliveryPricingService
+OrderFulfillmentPersistenceService --> PaymentProcessor
+OrderFulfillmentPersistenceService --> MerchantFulfillmentService
+OrderFulfillmentPersistenceService --> SettlementPersistenceService
+CustomerOrderRecord "1" o-- "*" CustomerOrderLineRecord
+CustomerOrderRecord "1" o-- "*" CustomerOrderEventRecord
+CustomerOrderRecord "1" o-- "0..1" OrderPricingSnapshotRecord
+CustomerOrderRecord "*" --> "1" User : customer
+CustomerOrderLineRecord "*" --> "1" MerchantRecord : seller
+CustomerOrderLineRecord "*" --> "0..1" ProductRecord
+
+PaymentWebhookController --> PaymentWebhookService
+PaymentWebhookService --> PendingPaymentCheckoutService
+PaymentProcessor --> PaymentPolicy
+PaymentProcessor --> YasTogoPaymentMethod
+PaymentProcessor --> MoovAfricaPaymentMethod
+MerchantCommissionController --> MerchantCommissionConfigurationService
+MerchantCommissionConfigurationService --> MerchantCommissionOverrideRecord
+
+MerchantFulfillmentController --> MerchantFulfillmentService
+DeliveryMissionController --> DeliveryMissionService
+DeliveryMissionController --> DeliveryReadinessDispatchService
+RelayParcelController --> RelayParcelApplicationService
+HubMobileController --> HubMobileService
+MerchantSubOrder "*" --> "1" CustomerOrderRecord
+MerchantSubOrder "*" --> "1" MerchantRecord
+DeliveryMission "*" --> "1" CustomerOrderRecord
+DeliveryMission "*" --> "0..1" MerchantSubOrder
+DeliveryMission "*" --> "0..1" CourierRecord
+RelayParcelRecord "*" --> "1" RelayPointRecord
+RelayParcelRecord "*" --> "0..1" RelayLockerRecord
+RelayParcelRecord "*" --> "0..1" CustomerOrderRecord
+RelayParcelRecord "*" --> "0..1" DeliveryMission
+HubMobileService --> RelayParcelPersistenceService
+
+ReturnController --> ReturnPersistenceService
+SettlementController --> SettlementPersistenceService
+SettlementPersistenceService --> SettlementLedgerService
+ReturnRequestRecord "*" --> "1" CustomerOrderRecord
+ReturnRequestRecord "*" --> "1" User : customer
+MerchantPayoutAccrualRecord "*" --> "1" MerchantRecord
+MerchantPayoutAccrualRecord "*" --> "1" CustomerOrderRecord
+MerchantPayoutAccrualRecord "*" --> "1" MerchantSubOrder
+SettlementLedgerEntryRecord "*" --> "0..1" MerchantRecord
+SettlementLedgerEntryRecord "*" --> "0..1" CourierRecord
+SettlementLedgerEntryRecord "*" --> "0..1" RelayPointRecord
+
+DeviceTokenController --> NotificationRoutingService
+NotificationPreferenceController --> NotificationRoutingService
+NotificationController --> NotificationRoutingService
+NotificationOutboxService --> NotificationOutboxRecord
+NotificationDispatchService --> NotificationMessageRecord
+NotificationProviderDeliveryService --> DeviceFcmTokenRecord
+RealtimeWebSocketConfig --> RealtimeNotificationPublisher
+NotificationMessageRecord "*" --> "1" User : recipient
+NotificationPreferenceRecord "*" --> "1" User
+DeviceFcmTokenRecord "*" --> "1" User
+
+AdminMonitoringController --> AdminMonitoringService
+AdminMonitoringService --> DeliveryMission
+AdminMonitoringService --> MerchantSubOrder
+AdminMonitoringService --> RelayParcelRecord
+AdminMonitoringService --> NotificationOutboxRecord
+AdminMonitoringService --> MerchantPayoutAccrualRecord
+OperationalSchedulers --> NotificationOutboxService
+OperationalSchedulers --> DeliveryMissionService
+OperationalSchedulers --> MerchantFulfillmentService
+OperationalSchedulers --> SettlementPersistenceService
+
+note bottom
+This overview intentionally groups API-scale class families.
+See the focused diagrams for deeper auth, order/delivery, payment, notification, and hub relationships.
+end note
+
+@enduml
