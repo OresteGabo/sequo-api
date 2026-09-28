@@ -40,8 +40,10 @@ Default production bindings expose the API publicly while keeping database/admin
 
 | Service | URL |
 | --- | --- |
-| API | `http://0.0.0.0:8080` / `http://vps-d4bc6ae7.vps.ovh.net:8080` |
-| API readiness | `http://vps-d4bc6ae7.vps.ovh.net:8080/actuator/health/readiness` |
+| Public API | `https://api.sequoservice.com` |
+| Public API health | `https://api.sequoservice.com/actuator/health` |
+| Direct API bind | `http://0.0.0.0:8080` / `http://vps-d4bc6ae7.vps.ovh.net:8080` |
+| Direct API readiness | `http://vps-d4bc6ae7.vps.ovh.net:8080/actuator/health/readiness` |
 | PostgreSQL from host | `127.0.0.1:5432` |
 | PostgreSQL from API container | `postgres:5432` |
 | Adminer, optional | `http://127.0.0.1:8081` |
