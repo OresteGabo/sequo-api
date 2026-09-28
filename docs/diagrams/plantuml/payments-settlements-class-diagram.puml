@@ -1,0 +1,199 @@
+@startuml
+title Sequo API - Payments, Commissions, Settlements Class Diagram
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty methods
+
+package "payment transport" {
+  class PaymentWebhookController <<controller>>
+}
+
+package "payment domain" {
+  class PaymentProcessor <<service>>
+  abstract class PaymentPolicy <<policy>>
+  class ConfigurablePaymentPolicy <<policy>>
+  abstract class SequoPaymentMethod <<adapter>>
+  class YasTogoPaymentMethod <<adapter>>
+  class MoovAfricaPaymentMethod <<adapter>>
+  class PaymentAttemptRequest <<dto>>
+  class PaymentValidationRequest <<dto>>
+  class PaymentRefundRequest <<dto>>
+  class PaymentValidationResult <<dto>>
+  class PaymentProviderId <<value>>
+}
+
+package "webhook persistence" {
+  class PaymentWebhookService <<service>>
+  class PaymentWebhookEventRecord <<entity>> {
+    provider
+    eventId
+    checkoutId
+    paymentReference
+    paymentStatus
+  }
+  interface PaymentWebhookEventRepository <<repository>>
+}
+
+package "checkout + order" {
+  class PendingPaymentCheckoutService <<service>>
+  class PendingPaymentCheckoutRecord <<entity>>
+  class CustomerOrderRecord <<entity>>
+  class MerchantSubOrder <<entity>>
+}
+
+package "commission" {
+  class MerchantCommissionController <<controller>>
+  class MerchantCommissionConfigurationService <<service>>
+  class MerchantCommissionOverrideRecord <<entity>>
+  class MerchantCommissionRule <<domain>>
+  class MerchantCommissionCalculator <<domain>>
+}
+
+package "settlement" {
+  class SettlementController <<controller>>
+  class SettlementPersistenceService <<service>>
+  class SettlementLedgerService <<domain>>
+  class MerchantPayoutAccrualRecord <<entity>> {
+    merchantId
+    orderId
+    sourceOrderItemId
+    merchantNetCfa
+    commissionCfa
+    status
+  }
+  class SettlementLedgerEntryRecord <<entity>> {
+    account
+    direction
+    amountCfa
+    sourceType
+    sourceId
+  }
+}
+
+package "actors" {
+  class User <<entity>>
+  class MerchantRecord <<entity>>
+  class CourierRecord <<entity>>
+  class RelayPointRecord <<entity>>
+}
+
+enum PaymentFeature {
+  CustomerCheckout
+  PaymentCancellation
+  Refund
+  SubscriptionRenewal
+  ReferralDeliveryCredit
+  CashWithdrawal
+  CashReferralPayout
+}
+
+enum PaymentValidationStatus {
+  Pending
+  Validated
+  Failed
+  Cancelled
+  BlockedByPolicy
+}
+
+enum PaymentWebhookProviderStatus {
+  PENDING
+  VALIDATED
+  FAILED
+  CANCELLED
+}
+enum SettlementLedgerDirection {
+  Debit
+  Credit
+}
+enum SettlementLedgerAccount {
+  MerchantPayable
+  CourierPayable
+  RelayPayable
+  SequoCommissionRevenue
+  SequoPlatformMarginRevenue
+  SequoDeliveryShortfallExpense
+  RefundLiability
+  Adjustment
+  Hold
+}
+enum SettlementSourceType {
+  OrderItem
+  DeliveryMission
+  RelayParcel
+  ReturnRequest
+  Refund
+  Payout
+  Adjustment
+}
+enum MerchantPayoutStatus {
+  Accrued
+  HeldReturnWindow
+  HeldDispute
+  Eligible
+  Batched
+  Approved
+  SentToProvider
+  Paid
+  Failed
+  Adjusted
+}
+enum SettlementWorkflowType {
+  DeliveryConfirmed
+  CustomerPickupConfirmed
+  SequoCustodyConfirmed
+}
+
+PaymentWebhookController --> PaymentWebhookService
+PaymentWebhookService --> PaymentWebhookEventRepository
+PaymentWebhookService --> PaymentWebhookEventRecord
+PaymentWebhookService --> PendingPaymentCheckoutService : completes checkout by webhook
+
+PaymentProcessor --> PaymentPolicy
+PaymentProcessor --> SequoPaymentMethod
+PaymentProcessor --> PaymentAttemptRequest
+PaymentProcessor --> PaymentValidationRequest
+PaymentProcessor --> PaymentRefundRequest
+PaymentProcessor --> PaymentValidationResult
+SequoPaymentMethod <|-- YasTogoPaymentMethod
+SequoPaymentMethod <|-- MoovAfricaPaymentMethod
+PaymentPolicy <|-- ConfigurablePaymentPolicy
+PaymentFeature --> ConfigurablePaymentPolicy
+
+MerchantCommissionController --> MerchantCommissionConfigurationService
+MerchantCommissionConfigurationService --> MerchantCommissionOverrideRecord
+MerchantCommissionConfigurationService --> MerchantCommissionRule
+MerchantCommissionConfigurationService --> MerchantCommissionCalculator
+MerchantCommissionOverrideRecord "*" --> "1" User : updatedBy
+
+SettlementController --> SettlementPersistenceService
+SettlementPersistenceService --> SettlementLedgerService
+SettlementPersistenceService --> MerchantPayoutAccrualRecord
+SettlementPersistenceService --> SettlementLedgerEntryRecord
+MerchantPayoutAccrualRecord --> MerchantPayoutStatus
+MerchantPayoutAccrualRecord --> SettlementWorkflowType
+MerchantPayoutAccrualRecord "*" --> "1" MerchantRecord
+MerchantPayoutAccrualRecord "*" --> "1" CustomerOrderRecord
+MerchantPayoutAccrualRecord "*" --> "1" MerchantSubOrder
+SettlementLedgerEntryRecord --> SettlementLedgerAccount
+SettlementLedgerEntryRecord --> SettlementLedgerDirection
+SettlementLedgerEntryRecord --> SettlementSourceType
+SettlementLedgerEntryRecord "*" --> "0..1" MerchantRecord
+SettlementLedgerEntryRecord "*" --> "0..1" CourierRecord
+SettlementLedgerEntryRecord "*" --> "0..1" RelayPointRecord
+
+PendingPaymentCheckoutRecord "*" --> "1" User : customer
+CustomerOrderRecord "*" --> "1" User : customer
+
+note right of PaymentPolicy
+Policy blocks unsupported/cash-like features.
+Only configured wallet providers are allowed.
+end note
+
+note bottom of SettlementLedgerService
+Settlement domain converts delivery/customer pickup/Sequo custody facts
+into immutable payout accruals and ledger entries.
+end note
+
+@enduml
