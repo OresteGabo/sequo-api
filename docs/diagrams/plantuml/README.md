@@ -20,6 +20,12 @@ plantuml -tsvg -o generated docs/diagrams/plantuml/*.puml
 | --- | --- |
 | `system-context.puml` | External actors, Sequo API, storage, wallet, notification, and observability systems |
 | `module-boundaries.puml` | Backend package/module ownership boundaries |
+| `api-class-overview.puml` | Whole API class-family overview across controllers, services, entities, repositories, and schedulers |
+| `auth-class-diagram.puml` | Authentication, Google social login, JWT access tokens, refresh sessions, and RBAC classes |
+| `orders-delivery-relay-class-diagram.puml` | Order, merchant fulfillment, delivery mission, relay parcel, and return class relationships |
+| `payments-settlements-class-diagram.puml` | Payment policy/adapters, webhooks, commissions, settlement accruals, and ledger classes |
+| `notifications-class-diagram.puml` | Notification controllers, outbox, inbox, FCM tokens, provider delivery, and WebSocket realtime classes |
+| `hub-operations-class-diagram.puml` | Hub mobile, relay lockers, opening hours, control decisions, admin monitoring, and schedulers |
 | `checkout-order-sequence.puml` | Customer checkout, pricing, wallet validation, and order handoff |
 | `payment-processing-sequence.puml` | Payment attempt, provider callback, validation, cancellation, and refund responsibilities |
 | `payment-policy-activity.puml` | Payment provider/feature policy checks, including no-cash constraints |
