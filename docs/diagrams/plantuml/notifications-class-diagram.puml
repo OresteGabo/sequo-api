@@ -1,0 +1,201 @@
+@startuml
+title Sequo API - Notifications, Outbox, FCM, WebSocket Class Diagram
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty methods
+
+package "REST transport" {
+  class DeviceTokenController <<controller>>
+  class NotificationPreferenceController <<controller>>
+  class NotificationController <<controller>>
+}
+
+package "realtime transport" {
+  class RealtimeWebSocketConfig <<configuration>>
+  class RealtimeSubscriptionAuthorizationService <<service>>
+  class RealtimeNotificationPublisher <<service>>
+  class WebSocketPresenceService <<service>>
+  class WebSocketPresenceEventListener <<listener>>
+}
+
+package "application services" {
+  class DeviceTokenService <<service>>
+  class NotificationPreferenceService <<service>>
+  class NotificationReadService <<service>>
+  class NotificationRoutingService <<service>>
+  class NotificationOutboxService <<service>>
+  class NotificationDispatchService <<service>>
+  class NotificationProviderDeliveryService <<service>>
+  class NotificationOutboxWorker <<worker>>
+  class NotificationProviderDeliveryWorker <<worker>>
+  class NotificationChannelPolicy <<policy>>
+  class FcmTokenProtector <<crypto>>
+}
+
+package "events" {
+  class NotificationWorkflowEvent <<event>>
+  class NotificationOutboxEventListener <<listener>>
+  class BargainingRealtimeService <<service>>
+  class RiderRadarRealtimeService <<service>>
+}
+
+package "persistence" {
+  class DeviceFcmTokenRecord <<entity>> {
+    userId
+    deviceId
+    appFamily
+    platform
+    status
+  }
+  class NotificationPreferenceRecord <<entity>> {
+    userId
+    appFamily
+    eventType
+    pushEnabled
+    inAppEnabled
+    smsEnabled
+  }
+  class NotificationMessageRecord <<entity>> {
+    recipientUserId
+    eventType
+    severity
+    readAt
+    archivedAt
+  }
+  class NotificationDeliveryRecord <<entity>> {
+    messageId
+    channel
+    status
+    attemptCount
+  }
+  class NotificationOutboxRecord <<entity>> {
+    eventId
+    eventType
+    aggregateType
+    status
+    attemptCount
+  }
+  interface DeviceFcmTokenRepository <<repository>>
+  interface NotificationPreferenceRepository <<repository>>
+  interface NotificationMessageRepository <<repository>>
+  interface NotificationDeliveryRepository <<repository>>
+  interface NotificationOutboxRepository <<repository>>
+}
+
+class User <<entity>>
+class JwtService <<service>>
+
+enum NotificationAppFamily {
+  SEQUO_CUSTOMER
+  SEQUO_MERCHANT
+  SEQUO_HUB
+  SEQUO_RIDER
+  SEQUO_ADMIN
+}
+enum NotificationPlatform {
+  ANDROID
+  IOS
+  WEB
+}
+enum DeviceFcmTokenStatus {
+  ACTIVE
+  REVOKED
+  STALE
+  FAILED
+}
+enum NotificationChannel {
+  IN_APP
+  FCM
+  WEBSOCKET
+  SMS
+  EMAIL
+  WHATSAPP
+}
+enum NotificationDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED_RETRYABLE
+  FAILED_FINAL
+  SUPPRESSED
+}
+enum NotificationOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED_RETRYABLE
+  FAILED_FINAL
+}
+enum NotificationSeverity {
+  INFO
+  ACTION_REQUIRED
+  URGENT
+  SECURITY
+  FINANCIAL
+}
+enum NotificationEventType {
+  ORDER_CREATED
+  PAYMENT_CONFIRMED
+  MERCHANT_SLA_WARNING
+  RIDER_MISSION_OFFERED
+  RIDER_PICKED_UP
+  DIRECT_DELIVERED
+  RELAY_PARCEL_DEPOSITED
+  RETURN_REQUESTED
+  REFUND_TRIGGERED
+  DELIVERY_PROBLEM_REPORTED
+}
+
+DeviceTokenController --> DeviceTokenService
+NotificationPreferenceController --> NotificationPreferenceService
+NotificationController --> NotificationReadService
+
+DeviceTokenService --> DeviceFcmTokenRepository
+DeviceTokenService --> FcmTokenProtector
+NotificationPreferenceService --> NotificationPreferenceRepository
+NotificationReadService --> NotificationMessageRepository
+
+NotificationWorkflowEvent --> NotificationOutboxEventListener
+NotificationOutboxEventListener --> NotificationOutboxService
+NotificationOutboxService --> NotificationOutboxRepository
+NotificationOutboxWorker --> NotificationDispatchService
+NotificationDispatchService --> NotificationRoutingService
+NotificationDispatchService --> NotificationChannelPolicy
+NotificationDispatchService --> NotificationMessageRepository
+NotificationDispatchService --> NotificationDeliveryRepository
+NotificationProviderDeliveryWorker --> NotificationProviderDeliveryService
+NotificationProviderDeliveryService --> DeviceFcmTokenRepository
+NotificationProviderDeliveryService --> NotificationDeliveryRepository
+NotificationProviderDeliveryService --> FcmTokenProtector
+
+RealtimeWebSocketConfig --> JwtService
+RealtimeWebSocketConfig --> RealtimeSubscriptionAuthorizationService
+RealtimeNotificationPublisher --> NotificationMessageRepository
+WebSocketPresenceEventListener --> WebSocketPresenceService
+BargainingRealtimeService --> RealtimeNotificationPublisher
+RiderRadarRealtimeService --> RealtimeNotificationPublisher
+
+DeviceFcmTokenRecord "*" --> "1" User
+NotificationPreferenceRecord "*" --> "1" User
+NotificationMessageRecord "*" --> "1" User : recipient
+NotificationDeliveryRecord "*" --> "1" NotificationMessageRecord
+
+DeviceFcmTokenRecord --> NotificationAppFamily
+DeviceFcmTokenRecord --> NotificationPlatform
+DeviceFcmTokenRecord --> DeviceFcmTokenStatus
+NotificationPreferenceRecord --> NotificationAppFamily
+NotificationMessageRecord --> NotificationAppFamily
+NotificationMessageRecord --> NotificationEventType
+NotificationMessageRecord --> NotificationSeverity
+NotificationDeliveryRecord --> NotificationChannel
+NotificationDeliveryRecord --> NotificationDeliveryStatus
+NotificationOutboxRecord --> NotificationOutboxStatus
+
+note bottom
+Domain services publish NotificationWorkflowEvent.
+The outbox worker turns events into inbox messages, delivery rows, FCM sends, and realtime pushes.
+end note
+
+@enduml
