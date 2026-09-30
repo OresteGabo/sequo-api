@@ -1,9 +1,12 @@
 package dev.orestegabo.sequo_api.domain.catalog
 
+import dev.orestegabo.sequo_api.domain.commerce.CommerceProductRepository
+import dev.orestegabo.sequo_api.domain.commerce.CommerceService
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -12,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional
 @SpringBootTest
 @Transactional
 class ProductRelatedServiceTest @Autowired constructor(
-    private val productRepository: ProductRepository,
-    private val productRelatedService: ProductRelatedService,
+    private val productRepository: CommerceProductRepository,
+    private val commerceService: CommerceService,
 ) {
     @Test
     fun relatedProductsUseSameCategoryActiveProductsAndExcludeTarget() {
@@ -57,7 +60,7 @@ class ProductRelatedServiceTest @Autowired constructor(
             )
         )
 
-        val related = productRelatedService.getRelatedProducts(targetId, limit = 6)
+        val related = commerceService.relatedProducts(targetId.toString(), limit = 6)
 
         assertEquals(listOf(newestRelatedId, olderRelatedId), related.map { it.id })
         assertTrue(related.none { it.id == targetId.toString() })
@@ -85,9 +88,13 @@ class ProductRelatedServiceTest @Autowired constructor(
             )
         }
 
-        assertEquals(3, productRelatedService.getRelatedProducts(targetId, limit = 3).size)
-        assertEquals(6, productRelatedService.getRelatedProducts(targetId, limit = 99).size)
-        assertTrue(productRelatedService.getRelatedProducts(targetId, limit = 0).isEmpty())
+        assertEquals(3, commerceService.relatedProducts(targetId.toString(), limit = 3).size)
+        assertFailsWith<IllegalArgumentException> {
+            commerceService.relatedProducts(targetId.toString(), limit = 99)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            commerceService.relatedProducts(targetId.toString(), limit = 0)
+        }
     }
 
     private fun product(
