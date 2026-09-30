@@ -73,7 +73,7 @@ class AuthProviderCollisionTest {
         val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
         assertEquals("invalid_google_token", body.error)
-        assertEquals("invalid_signature", body.reason)
+        assertEquals("Google sign-in could not be completed with the provided token.", body.message)
         assertEquals(0, userRepository.count())
     }
 
@@ -98,7 +98,7 @@ class AuthProviderCollisionTest {
         val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
         assertEquals("invalid_google_token", body.error)
-        assertEquals("invalid_audience", body.reason)
+        assertEquals("Google sign-in could not be completed with the provided token.", body.message)
         assertEquals(0, userRepository.count())
     }
 
@@ -114,7 +114,7 @@ class AuthProviderCollisionTest {
 
         val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
-        assertEquals("expired_token", body.reason)
+        assertEquals("Google sign-in could not be completed with the provided token.", body.message)
         assertEquals(0, userRepository.count())
     }
 
@@ -137,7 +137,7 @@ class AuthProviderCollisionTest {
 
         val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
-        assertEquals("missing_email", body.reason)
+        assertEquals("Google sign-in could not be completed with the provided token.", body.message)
         assertEquals(0, userRepository.count())
     }
 
@@ -303,7 +303,7 @@ class AuthProviderCollisionTest {
 
         val body = response.body as AuthController.InvalidGoogleTokenResponse
         assertEquals(401, response.statusCode.value())
-        assertEquals("unverified_email", body.reason)
+        assertEquals("Google sign-in could not be completed with the provided token.", body.message)
         assertEquals(0, userRepository.count())
     }
 
