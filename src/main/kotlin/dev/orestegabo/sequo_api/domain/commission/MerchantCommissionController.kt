@@ -29,8 +29,6 @@ class MerchantCommissionController(
         val override: MerchantCommissionOverrideSnapshot?,
     )
 
-    data class ErrorResponse(val code: String, val message: String)
-
     @GetMapping("/{merchantId}")
     fun get(
         authentication: Authentication?,
@@ -79,14 +77,5 @@ class MerchantCommissionController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(RoleGroups.AdminOnly)) {
             ResponseEntity.status(403).build()
-        } else try {
-            operation(authentication)
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse(
-                    code = "invalid_merchant_commission_request",
-                    message = e.message ?: "Invalid merchant commission request.",
-                )
-            )
-        }
+        } else operation(authentication)
 }
