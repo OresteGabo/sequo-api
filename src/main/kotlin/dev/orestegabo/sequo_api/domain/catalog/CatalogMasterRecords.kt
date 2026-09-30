@@ -48,8 +48,35 @@ class ProductRecord(
     @Column(name = "category", length = 128)
     var category: String? = null,
 
+    @Column(name = "subcategory", length = 128)
+    var subcategory: String? = null,
+
+    @Column(name = "detail", length = 500)
+    var detail: String? = null,
+
     @Column(name = "base_price_cfa")
     var basePriceCfa: Int? = null,
+
+    @Column(name = "option_hint", length = 240)
+    var optionHint: String? = null,
+
+    @Column(name = "original_price_cfa")
+    var originalPriceCfa: Int? = null,
+
+    @Column(name = "bargaining_enabled", nullable = false)
+    var bargainingEnabled: Boolean = false,
+
+    @Column(name = "bargain_floor_cfa")
+    var bargainFloorCfa: Int? = null,
+
+    @Column(name = "camera_verified", nullable = false)
+    var cameraVerified: Boolean = false,
+
+    @Column(name = "captured_at_label", length = 120)
+    var capturedAtLabel: String? = null,
+
+    @Column(name = "sort_order", nullable = false)
+    var sortOrder: Int = 0,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
