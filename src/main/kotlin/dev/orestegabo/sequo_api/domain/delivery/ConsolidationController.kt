@@ -142,12 +142,9 @@ class ConsolidationController(
     ): ResponseEntity<Any> = when {
         authentication == null -> ResponseEntity.status(401).build()
         !authentication.hasAnyRole(roles) -> ResponseEntity.status(403).build()
-        else -> try { operation(authentication) } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(ErrorResponse("invalid_consolidation_request", e.message ?: "Invalid consolidation request."))
-        }
+        else -> operation(authentication)
     }
 
-    data class ErrorResponse(val code: String, val message: String)
     data class ReadyRequest(val merchantId: String, val at: Instant = Instant.now())
     data class CollectedRequest(val at: Instant = Instant.now())
     data class FinalPackageDispatchRequest(
