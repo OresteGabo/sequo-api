@@ -269,7 +269,6 @@ data class CreateCooperativeRequest(val code: String, val name: String, val city
 data class AddCooperativeMemberRequest(val merchantId: String, val role: CooperativeMemberRole = CooperativeMemberRole.MEMBER)
 data class ReviewCooperativeRequest(val status: CooperativeApprovalStatus)
 
-data class PlatformCommerceErrorResponse(val code: String, val message: String)
 data class CustomerProfileDto(
     val userId: String,
     val displayName: String,
@@ -711,12 +710,7 @@ class CooperativeController(private val service: PlatformCommerceService) {
         platformAuthenticated(reviewerUserId) { service.reviewCooperative(cooperativeId, it, request) }
 }
 
-private fun platformSafe(block: () -> Any): ResponseEntity<Any> =
-    try {
-        ResponseEntity.ok(block())
-    } catch (e: IllegalArgumentException) {
-        ResponseEntity.badRequest().body(PlatformCommerceErrorResponse("invalid_platform_commerce_request", e.message ?: "Invalid platform commerce request."))
-    }
+private fun platformSafe(block: () -> Any): ResponseEntity<Any> = ResponseEntity.ok(block())
 
 private fun platformAuthenticated(userId: String?, block: (String) -> Any): ResponseEntity<Any> {
     if (userId == null) return ResponseEntity.status(401).build()
