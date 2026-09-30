@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -243,6 +244,40 @@ data class CommerceCartDto(val items: List<CommerceCartItemDto>, val totalItems:
 data class CommerceCartItemDto(val id: String, val product: CatalogProductDto, val quantity: Int, val lineTotalCfa: Int)
 data class UpsertCartItemRequest(val productId: String, val quantity: Int)
 
+data class ManageCatalogProductRequest(
+    val merchantId: String? = null,
+    val name: String,
+    val kind: CatalogProductKind = CatalogProductKind.SellerSpecific,
+    val status: CatalogProductStatus = CatalogProductStatus.ACTIVE,
+    val category: String? = null,
+    val subcategory: String? = null,
+    val detail: String? = null,
+    val basePriceCfa: Int? = null,
+    val optionHint: String? = null,
+    val originalPriceCfa: Int? = null,
+    val bargainingEnabled: Boolean = false,
+    val bargainFloorCfa: Int? = null,
+    val cameraVerified: Boolean = false,
+    val capturedAtLabel: String? = null,
+    val sortOrder: Int = 0,
+)
+
+data class PatchCatalogProductRequest(
+    val name: String? = null,
+    val status: CatalogProductStatus? = null,
+    val category: String? = null,
+    val subcategory: String? = null,
+    val detail: String? = null,
+    val basePriceCfa: Int? = null,
+    val optionHint: String? = null,
+    val originalPriceCfa: Int? = null,
+    val bargainingEnabled: Boolean? = null,
+    val bargainFloorCfa: Int? = null,
+    val cameraVerified: Boolean? = null,
+    val capturedAtLabel: String? = null,
+    val sortOrder: Int? = null,
+)
+
 data class CreateBargainingThreadRequest(val productId: String, val amountCfa: Int, val message: String? = null)
 data class CreateBargainingOfferRequest(val amountCfa: Int? = null, val message: String? = null)
 data class BargainingThreadDto(
@@ -363,6 +398,78 @@ class CommerceService(
             .sortedWith(compareBy<ProductRecord> { it.sortOrder }.thenByDescending { it.createdAt })
             .map { it.toDto() }
     }
+
+    @Transactional
+    fun createProduct(request: ManageCatalogProductRequest): CatalogProductDto {
+        val merchantId = ApiInputPolicy.optionalIdentifier(request.merchantId, "merchantId")
+        merchantId?.let {
+            require(merchants.existsById(it)) { "merchantId does not reference an existing merchant." }
+        }
+        val price = request.basePriceCfa
+        require(price == null || price >= 0) { "basePriceCfa must be non-negative." }
+        request.originalPriceCfa?.let { require(it >= 0) { "originalPriceCfa must be non-negative." } }
+        request.bargainFloorCfa?.let { require(it >= 0) { "bargainFloorCfa must be non-negative." } }
+
+        val now = Instant.now()
+        return products.save(
+            ProductRecord(
+                id = UUID.randomUUID().toString(),
+                merchantId = merchantId,
+                name = ApiInputPolicy.requiredShortText(request.name, "name", 180),
+                kind = request.kind,
+                status = request.status,
+                category = ApiInputPolicy.optionalIdentifier(request.category, "category"),
+                subcategory = ApiInputPolicy.optionalShortText(request.subcategory, "subcategory", 128),
+                detail = ApiInputPolicy.optionalLongText(request.detail, "detail", 500),
+                basePriceCfa = price,
+                optionHint = ApiInputPolicy.optionalShortText(request.optionHint, "optionHint", 240),
+                originalPriceCfa = request.originalPriceCfa,
+                bargainingEnabled = request.bargainingEnabled,
+                bargainFloorCfa = request.bargainFloorCfa,
+                cameraVerified = request.cameraVerified,
+                capturedAtLabel = ApiInputPolicy.optionalShortText(request.capturedAtLabel, "capturedAtLabel", 120),
+                sortOrder = request.sortOrder,
+                createdAt = now,
+                updatedAt = now,
+            )
+        ).toDto()
+    }
+
+    @Transactional
+    fun updateProduct(productId: String, request: PatchCatalogProductRequest): CatalogProductDto {
+        val safeProductId = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        val product = products.findById(safeProductId).orElseThrow {
+            IllegalArgumentException("productId does not reference an existing product.")
+        }
+        request.name?.let { product.name = ApiInputPolicy.requiredShortText(it, "name", 180) }
+        request.status?.let { product.status = it }
+        request.category?.let { product.category = ApiInputPolicy.optionalIdentifier(it, "category") }
+        request.subcategory?.let { product.subcategory = ApiInputPolicy.optionalShortText(it, "subcategory", 128) }
+        request.detail?.let { product.detail = ApiInputPolicy.optionalLongText(it, "detail", 500) }
+        request.basePriceCfa?.let {
+            require(it >= 0) { "basePriceCfa must be non-negative." }
+            product.basePriceCfa = it
+        }
+        request.optionHint?.let { product.optionHint = ApiInputPolicy.optionalShortText(it, "optionHint", 240) }
+        request.originalPriceCfa?.let {
+            require(it >= 0) { "originalPriceCfa must be non-negative." }
+            product.originalPriceCfa = it
+        }
+        request.bargainingEnabled?.let { product.bargainingEnabled = it }
+        request.bargainFloorCfa?.let {
+            require(it >= 0) { "bargainFloorCfa must be non-negative." }
+            product.bargainFloorCfa = it
+        }
+        request.cameraVerified?.let { product.cameraVerified = it }
+        request.capturedAtLabel?.let { product.capturedAtLabel = ApiInputPolicy.optionalShortText(it, "capturedAtLabel", 120) }
+        request.sortOrder?.let { product.sortOrder = it }
+        product.updatedAt = Instant.now()
+        return product.toDto()
+    }
+
+    @Transactional
+    fun archiveProduct(productId: String): CatalogProductDto =
+        updateProduct(productId, PatchCatalogProductRequest(status = CatalogProductStatus.ARCHIVED))
 
     @Transactional(readOnly = true)
     fun cart(userId: String): CommerceCartDto {
@@ -528,6 +635,18 @@ class CatalogController(private val commerce: CommerceService) {
             includeArchived,
         )
     }
+
+    @PostMapping("/products")
+    fun createProduct(@RequestBody request: ManageCatalogProductRequest): ResponseEntity<Any> =
+        safe { commerce.createProduct(request) }
+
+    @PatchMapping("/products/{productId}")
+    fun updateProduct(@PathVariable productId: String, @RequestBody request: PatchCatalogProductRequest): ResponseEntity<Any> =
+        safe { commerce.updateProduct(productId, request) }
+
+    @PostMapping("/products/{productId}/archive")
+    fun archiveProduct(@PathVariable productId: String): ResponseEntity<Any> =
+        safe { commerce.archiveProduct(productId) }
 }
 
 @RestController
