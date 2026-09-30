@@ -1,12 +1,12 @@
 # CI/CD Pipeline
 
-This repository uses GitHub Actions for the first production-ready automation layer. The pipeline currently provides continuous integration plus a continuous-delivery artifact. Production deployment should be added after the hosting target is chosen.
+This repository uses GitHub Actions for the first production-ready automation layer. The pipeline provides continuous integration, deployable build artifacts, Docker validation, PostgreSQL migration validation, and an optional production-host deployment job for pushes to `main`.
 
 ## Active Automation
 
 | File | Purpose |
 | --- | --- |
-| `.github/workflows/ci-cd.yml` | Runs the Gradle build, executes tests, validates Flyway migrations against PostgreSQL, builds the Docker image, reviews dependency changes, and publishes the boot JAR artifact from `main`. |
+| `.github/workflows/ci-cd.yml` | Runs the Gradle build, executes tests, validates Flyway migrations against PostgreSQL, builds the Docker image, reviews dependency changes, publishes the boot JAR artifact from `main`, and can deploy `main` to a configured production host when enabled. |
 | `.github/dependabot.yml` | Opens weekly dependency update PRs for Gradle and GitHub Actions dependencies. |
 
 ## Workflow Triggers
@@ -16,6 +16,7 @@ This repository uses GitHub Actions for the first production-ready automation la
 | Pull request to `main` or `develop` | Runs build, tests, and dependency review. |
 | Push to `main` or `develop` | Runs build and tests. |
 | Push to `main` | Uploads the Spring Boot JAR artifact after the build succeeds. |
+| Push to `main` with `AUTO_DEPLOY_ENABLED=true` | Deploys the latest `main` branch to the configured production host after build, Docker image validation, and PostgreSQL migration validation succeed. |
 | Manual `workflow_dispatch` | Allows maintainers to run the pipeline on demand. |
 
 ## CI Gates
@@ -39,25 +40,64 @@ Required checks before merge:
 | Dependency review | Yes for PRs | Fails PRs that introduce high-severity or critical vulnerable dependency changes. |
 | Test reports artifact | Yes | Uploaded on every run for debugging failed CI results. |
 | Boot JAR artifact | Yes on `main` | Uploaded after successful pushes to `main`. |
+| Production-host deployment | Optional on `main` | Runs only when the repository variable `AUTO_DEPLOY_ENABLED` is set to `true`. |
 
 ## Continuous Delivery
 
-The current CD stage produces a deployable boot JAR artifact on successful pushes to `main`:
+The pipeline produces a deployable boot JAR artifact on successful pushes to `main`:
 
 ```text
 build/libs/*.jar, excluding build/libs/*-plain.jar
 ```
 
-This is intentionally provider-neutral. Once the production target is selected, add a deployment job after the build passes. Recommended options for this backend are:
+The optional deployment job connects to a configured production host over SSH, updates the checked-out repository to `origin/main`, rebuilds the Docker Compose API service, and checks both the local readiness endpoint and the public health endpoint.
 
-| Target | Fit |
+Remote deployment command:
+
+```bash
+cd "${DEPLOY_APP_DIR:-/root/sequo-api}"
+git fetch origin main
+git checkout main
+git reset --hard origin/main
+docker compose up -d --build --remove-orphans
+curl --fail http://127.0.0.1:8080/actuator/health/readiness
+```
+
+Public smoke test:
+
+```bash
+curl --fail https://api.sequoservice.com/actuator/health
+```
+
+The deploy job is intentionally disabled by default so regular pushes do not fail while production SSH access is unavailable or unset.
+
+## Automatic Deployment Setup
+
+Add these repository secrets in GitHub under `Settings > Secrets and variables > Actions > Repository secrets`:
+
+| Secret | Required | Example | Purpose |
+| --- | --- | --- | --- |
+| `DEPLOY_HOST` | Yes | `54.37.12.31` | Production host or IP used by GitHub Actions SSH. |
+| `DEPLOY_USER` | Yes | `root` | Remote user that can run `git` and `docker compose` in the app folder. |
+| `DEPLOY_SSH_KEY` | Yes | Private OpenSSH key | Private key matching a public key in the remote user's `~/.ssh/authorized_keys`. |
+| `DEPLOY_SSH_PORT` | No | `22` | SSH port. Defaults to `22` when omitted. |
+| `DEPLOY_APP_DIR` | No | `/root/sequo-api` | Remote folder containing this repository and the production `.env`. |
+
+Add this repository variable in `Settings > Secrets and variables > Actions > Variables`:
+
+| Variable | Value | Purpose |
+| --- | --- | --- |
+| `AUTO_DEPLOY_ENABLED` | `true` | Enables automatic production deployment after successful pushes to `main`. Leave unset or set to `false` while SSH is broken. |
+
+The VPS must already have:
+
+| Requirement | Notes |
 | --- | --- |
-| Render, Fly.io, Railway | Good for early managed deployments with simple secret configuration. |
-| AWS ECS or App Runner | Good when Sequo needs stronger production isolation and cloud-native scaling. |
-| Google Cloud Run | Good for containerized deployment with simple traffic splitting and rollback. |
-| Kubernetes | Good later, when multiple services and workers exist. |
-
-Production deployment should use GitHub Environments with required reviewers, environment-scoped secrets, and rollback instructions.
+| Working SSH access from GitHub Actions | Port `22` or the configured `DEPLOY_SSH_PORT` must accept connections. |
+| Git repository checkout | Default path is `/root/sequo-api`. |
+| Docker and Docker Compose plugin | The workflow runs `docker compose up -d --build --remove-orphans`. |
+| Production `.env` on the VPS | Secrets such as database password and JWT keys stay on the server and are not committed. |
+| Caddy or reverse proxy already configured | Public health check expects `https://api.sequoservice.com/actuator/health`. |
 
 ## Docker
 
