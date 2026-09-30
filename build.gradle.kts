@@ -60,4 +60,6 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+    maxHeapSize = "1536m"
+    forkEvery = 100
 }
