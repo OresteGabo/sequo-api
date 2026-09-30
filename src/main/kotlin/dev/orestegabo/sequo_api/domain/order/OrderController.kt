@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.payment.PaymentProcessor
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
 import org.springframework.http.ResponseEntity
@@ -66,7 +67,8 @@ class OrderController(
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
         return try {
-            fulfillmentPersistence.getForCustomer(orderId, userId)?.let { ResponseEntity.ok(it) }
+            val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
+            fulfillmentPersistence.getForCustomer(safeOrderId, userId)?.let { ResponseEntity.ok(it) }
                 ?: ResponseEntity.notFound().build()
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(CustomerOrderErrorResponse("invalid_order_query", e.message ?: "Invalid order query."))
@@ -82,13 +84,14 @@ class OrderController(
         if (userId == null) return ResponseEntity.status(401).build()
 
         return try {
+            val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
             customerPickupConfirmationService.confirm(
                 ConfirmCustomerPickupCommand(
-                    orderId = orderId,
+                    orderId = safeOrderId,
                     customerId = userId,
                     actorUserId = userId,
-                    idempotencyKey = request.idempotencyKey,
-                    proofMetadata = request.proofMetadata,
+                    idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
+                    proofMetadata = ApiInputPolicy.optionalLongText(request.proofMetadata, "proofMetadata"),
                 )
             ).toResponse()
         } catch (e: IllegalArgumentException) {
@@ -109,7 +112,8 @@ class OrderController(
         if (userId == null) return ResponseEntity.status(401).build()
 
         return try {
-            ResponseEntity.ok(customerPickupConfirmationService.listForOrder(orderId, userId))
+            val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
+            ResponseEntity.ok(customerPickupConfirmationService.listForOrder(safeOrderId, userId))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(
                 CustomerPickupErrorResponse(
