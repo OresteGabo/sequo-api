@@ -167,11 +167,7 @@ class ReturnController(
     ): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
         else if (!authentication.hasAnyRole(roles)) ResponseEntity.status(403).build()
-        else try {
-            operation(authentication)
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(ErrorResponse("invalid_return_request", e.message ?: "Invalid return request."))
-        }
+        else operation(authentication)
 }
 
 private fun PersistedReturnResult.toResponse(): ResponseEntity<Any> = when (this) {
