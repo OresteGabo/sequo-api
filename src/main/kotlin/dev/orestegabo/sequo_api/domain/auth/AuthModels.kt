@@ -91,4 +91,4 @@ class AccountLinkRequiredException(
 
 class InvalidGoogleTokenException(
     val rejection: GoogleTokenRejection
-) : RuntimeException(rejection.reason)
+) : RuntimeException("Google sign-in token was rejected.")
