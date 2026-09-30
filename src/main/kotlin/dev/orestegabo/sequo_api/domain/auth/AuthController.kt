@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import java.time.Instant
@@ -54,8 +55,9 @@ class AuthController(
     @PostMapping("/signup")
     fun signUp(@RequestBody request: SignUpRequest): ResponseEntity<Any> {
         return try {
-            authRateLimiter.checkSignUp(request.email)
-            ResponseEntity.ok(authService.signUp(request))
+            val normalizedEmail = ApiInputPolicy.normalizedEmail(request.email)
+            authRateLimiter.checkSignUp(normalizedEmail)
+            ResponseEntity.ok(authService.signUp(request.copy(email = normalizedEmail)))
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: AuthProviderRequiredException) {
@@ -68,20 +70,23 @@ class AuthController(
                 )
             )
         } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().build()
+            invalidAuthRequest(e)
         }
     }
 
     @PostMapping("/login")
     fun login(@RequestBody request: LoginWithEmailRequest): ResponseEntity<Any> {
         return try {
-            authRateLimiter.checkEmailLogin(request.email)
-            val tokens = authService.login(request)
+            val normalizedEmail = ApiInputPolicy.normalizedEmail(request.email)
+            authRateLimiter.checkEmailLogin(normalizedEmail)
+            val tokens = authService.login(request.copy(email = normalizedEmail))
             tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: AuthProviderRequiredException) {
             authProviderRequiredResponse(e.requiredProvider)
+        } catch (e: IllegalArgumentException) {
+            invalidAuthRequest(e)
         }
     }
 
@@ -89,15 +94,16 @@ class AuthController(
     fun loginSocial(@RequestBody request: LoginWithSocialRequest): ResponseEntity<Any> {
         return try {
             if (request.provider != AuthProvider.GOOGLE) return ResponseEntity.badRequest().build()
+            val token = ApiInputPolicy.requiredToken(request.token, "token")
             authRateLimiter.checkSocialLogin(request.provider)
-            val tokens = authService.loginWithSocialToken(request.provider, request.token)
+            val tokens = authService.loginWithSocialToken(request.provider, token)
             tokens?.let { ResponseEntity.ok(it) } ?: invalidGoogleTokenResponse("invalid_token")
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: InvalidGoogleTokenException) {
             invalidGoogleTokenResponse(e.rejection.reason)
         } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().build()
+            invalidAuthRequest(e)
         } catch (e: AccountLinkRequiredException) {
             ResponseEntity.status(409).body(
                 AuthErrorResponse(
@@ -113,18 +119,25 @@ class AuthController(
     @PostMapping("/refresh")
     fun refresh(@RequestBody request: RefreshRequest): ResponseEntity<Any> {
         return try {
-            authRateLimiter.checkRefresh(request.refreshToken)
-            val tokens = authService.refreshTokens(request.refreshToken)
+            val refreshToken = ApiInputPolicy.requiredShortToken(request.refreshToken, "refreshToken")
+            authRateLimiter.checkRefresh(refreshToken)
+            val tokens = authService.refreshTokens(refreshToken)
             tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).build()
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
+        } catch (e: IllegalArgumentException) {
+            invalidAuthRequest(e)
         }
     }
 
     @PostMapping("/logout")
     fun logout(@RequestBody request: LogoutRequest): ResponseEntity<Void> {
-        authService.logout(request.refreshToken)
-        return ResponseEntity.noContent().build()
+        return try {
+            authService.logout(ApiInputPolicy.requiredShortToken(request.refreshToken, "refreshToken"))
+            ResponseEntity.noContent().build()
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().build()
+        }
     }
 
     @PostMapping("/logout-all")
@@ -178,21 +191,25 @@ class AuthController(
     @PostMapping("/forgot-password")
     fun forgotPassword(@RequestBody request: ForgotPasswordRequest): ResponseEntity<Map<String, String>> {
         return try {
-            authRateLimiter.checkForgotPassword(request.email)
-            authService.forgotPassword(request.email)
+            val normalizedEmail = ApiInputPolicy.normalizedEmail(request.email)
+            authRateLimiter.checkForgotPassword(normalizedEmail)
+            authService.forgotPassword(normalizedEmail)
             ResponseEntity.ok(
                 mapOf("message" to "If the account exists, password reset instructions will be sent.")
             )
         } catch (e: RateLimitExceededException) {
             rateLimitedMapResponse(e)
+        } catch (e: IllegalArgumentException) {
+            invalidAuthMapRequest(e)
         }
     }
 
     @PostMapping("/reset-password")
     fun resetPassword(@RequestBody request: ResetPasswordRequest): ResponseEntity<Map<String, String>> {
         return try {
-            authRateLimiter.checkResetPassword(request.token)
-            val success = authService.resetPassword(request)
+            val token = ApiInputPolicy.requiredShortToken(request.token, "token")
+            authRateLimiter.checkResetPassword(token)
+            val success = authService.resetPassword(request.copy(token = token))
             if (success) {
                 ResponseEntity.ok(mapOf("message" to "Password reset successful"))
             } else {
@@ -200,6 +217,8 @@ class AuthController(
             }
         } catch (e: RateLimitExceededException) {
             rateLimitedMapResponse(e)
+        } catch (e: IllegalArgumentException) {
+            invalidAuthMapRequest(e)
         }
     }
 
@@ -231,6 +250,22 @@ class AuthController(
                 code = "auth_provider_required",
                 message = "This account uses ${providerLabel(provider)} sign-in. Continue with ${providerLabel(provider)} to access it.",
                 requiredProvider = provider
+            )
+        )
+
+    private fun invalidAuthRequest(error: IllegalArgumentException): ResponseEntity<Any> =
+        ResponseEntity.badRequest().body(
+            AuthErrorResponse(
+                code = "invalid_auth_request",
+                message = error.message ?: "Invalid authentication request.",
+            )
+        )
+
+    private fun invalidAuthMapRequest(error: IllegalArgumentException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.badRequest().body(
+            mapOf(
+                "code" to "invalid_auth_request",
+                "message" to (error.message ?: "Invalid authentication request."),
             )
         )
 
