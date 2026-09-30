@@ -25,7 +25,7 @@ class PaymentWebhookController(
         @RequestHeader("X-Sequo-Webhook-Timestamp") timestamp: Long,
         @RequestHeader("X-Sequo-Webhook-Signature") signature: String,
         @RequestBody rawPayload: String,
-    ): ResponseEntity<Any> = try {
+    ): ResponseEntity<Any> {
         require(rawPayload.toByteArray(Charsets.UTF_8).size <= maxWebhookPayloadBytes) {
             "Payment webhook payload cannot exceed $maxWebhookPayloadBytes bytes."
         }
@@ -46,9 +46,7 @@ class PaymentWebhookController(
                 rawPayload = rawPayload,
             )
         )
-        ResponseEntity.accepted().body(result)
-    } catch (e: IllegalArgumentException) {
-        ResponseEntity.badRequest().body(mapOf("code" to "invalid_payment_webhook", "message" to (e.message ?: "Invalid payment webhook.")))
+        return ResponseEntity.accepted().body(result)
     }
 }
 
