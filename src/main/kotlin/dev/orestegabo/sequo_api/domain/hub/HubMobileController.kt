@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.hub
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -88,10 +89,10 @@ class HubMobileController(
             ResponseEntity.ok(
                 service.resolveScan(
                     HubScanResolveCommand(
-                        hubId = request.hubId,
-                        credential = request.credential,
+                        hubId = ApiInputPolicy.requiredIdentifier(request.hubId, "hubId"),
+                        credential = ApiInputPolicy.requiredShortText(request.credential, "credential", 256),
                         credentialType = request.credentialType,
-                        idempotencyKey = request.idempotencyKey,
+                        idempotencyKey = ApiInputPolicy.optionalIdempotencyKey(request.idempotencyKey),
                     )
                 )
             )
@@ -103,7 +104,8 @@ class HubMobileController(
         @RequestParam hubId: String,
     ): ResponseEntity<Any> =
         hubAccessRequired(authentication, hubId) {
-            ResponseEntity.ok(service.summary(hubId))
+            val safeHubId = ApiInputPolicy.requiredIdentifier(hubId, "hubId")
+            ResponseEntity.ok(service.summary(safeHubId))
         }
 
     @PostMapping("/lockers/{lockerId}/availability")
@@ -117,7 +119,7 @@ class HubMobileController(
                 service.updateLockerAvailability(
                     LockerAvailabilityCommand(
                         lockerId = lockerId,
-                        relayPointId = request.relayPointId,
+                        relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
                         status = request.status,
                         reason = request.reason,
                         expectedAvailableAt = request.expectedAvailableAt,
@@ -133,7 +135,8 @@ class HubMobileController(
         @RequestParam relayPointId: String,
     ): ResponseEntity<Any> =
         hubAccessRequired(authentication, relayPointId) {
-            ResponseEntity.ok(service.getOpeningHours(relayPointId))
+            val safeRelayPointId = ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")
+            ResponseEntity.ok(service.getOpeningHours(safeRelayPointId))
         }
 
     @PutMapping("/opening-hours")
@@ -145,8 +148,8 @@ class HubMobileController(
             ResponseEntity.ok(
                 service.saveOpeningHours(
                     SaveHubOpeningHoursCommand(
-                        relayPointId = request.relayPointId,
-                        timezone = request.timezone,
+                        relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
+                        timezone = ApiInputPolicy.requiredShortText(request.timezone, "timezone", 128),
                         weeklyHours = request.weeklyHours.map {
                             WeeklyOpeningHourCommand(
                                 dayOfWeek = it.dayOfWeek,
@@ -161,11 +164,11 @@ class HubMobileController(
                                 isClosed = it.isClosed,
                                 opensAt = it.opensAt,
                                 closesAt = it.closesAt,
-                                reason = it.reason,
+                                reason = ApiInputPolicy.optionalShortText(it.reason, "reason"),
                                 effectiveUntil = it.effectiveUntil,
                             )
                         },
-                        idempotencyKey = request.idempotencyKey,
+                        idempotencyKey = ApiInputPolicy.optionalIdempotencyKey(request.idempotencyKey),
                     )
                 )
             )
@@ -177,7 +180,8 @@ class HubMobileController(
         @RequestParam relayPointId: String,
     ): ResponseEntity<Any> =
         hubControlReadAccessRequired(authentication, relayPointId) {
-            ResponseEntity.ok(service.getControlState(relayPointId))
+            val safeRelayPointId = ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")
+            ResponseEntity.ok(service.getControlState(safeRelayPointId))
         }
 
     @PostMapping("/control-state")
@@ -190,18 +194,18 @@ class HubMobileController(
                 ResponseEntity.ok(
                     service.applyControlDecision(
                         HubControlDecisionCommand(
-                            relayPointId = request.relayPointId,
+                            relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
                             target = request.target,
                             status = request.status,
                             reasonCode = request.reasonCode,
-                            staffMessage = request.staffMessage,
-                            customerMessage = request.customerMessage,
+                            staffMessage = ApiInputPolicy.requiredShortText(request.staffMessage, "staffMessage"),
+                            customerMessage = ApiInputPolicy.optionalShortText(request.customerMessage, "customerMessage"),
                             effectiveUntil = request.effectiveUntil,
                             actorType = request.actorType,
                             actorId = authenticated.name,
-                            source = request.source ?: "hub-control-api",
-                            incidentReferenceId = request.incidentReferenceId,
-                            idempotencyKey = request.idempotencyKey,
+                            source = ApiInputPolicy.optionalIdentifier(request.source, "source") ?: "hub-control-api",
+                            incidentReferenceId = ApiInputPolicy.optionalIdentifier(request.incidentReferenceId, "incidentReferenceId"),
+                            idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
                         )
                     )
                 )
@@ -220,9 +224,10 @@ class HubMobileController(
         @RequestParam(required = false) limit: Int?,
     ): ResponseEntity<Any> =
         hubControlReadAccessRequired(authentication, relayPointId) {
+            val safeRelayPointId = ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")
             ResponseEntity.ok(
                 service.controlHistory(
-                    relayPointId = relayPointId,
+                    relayPointId = safeRelayPointId,
                     target = target,
                     limit = limit ?: 50,
                 )
