@@ -36,11 +36,6 @@ class DeviceTokenController(
         val lastSeenAt: String?,
     )
 
-    data class ErrorResponse(
-        val code: String,
-        val message: String,
-    )
-
     @PostMapping("/fcm")
     fun registerFcmToken(
         @AuthenticationPrincipal userId: String?,
@@ -50,28 +45,19 @@ class DeviceTokenController(
             return ResponseEntity.status(401).build()
         }
 
-        return try {
-            val token = deviceTokenService.registerOrRotate(
-                RegisterFcmTokenCommand(
-                    userId = userId,
-                    deviceId = request.deviceId,
-                    fcmToken = request.fcmToken,
-                    appFamily = request.appFamily,
-                    platform = request.platform,
-                    appVersion = request.appVersion,
-                    locale = request.locale,
-                    timezone = request.timezone,
-                )
+        val token = deviceTokenService.registerOrRotate(
+            RegisterFcmTokenCommand(
+                userId = userId,
+                deviceId = request.deviceId,
+                fcmToken = request.fcmToken,
+                appFamily = request.appFamily,
+                platform = request.platform,
+                appVersion = request.appVersion,
+                locale = request.locale,
+                timezone = request.timezone,
             )
-            ResponseEntity.ok(token.toResponse())
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse(
-                    code = "invalid_device_token_request",
-                    message = e.message ?: "Device token registration request is invalid.",
-                )
-            )
-        }
+        )
+        return ResponseEntity.ok(token.toResponse())
     }
 
     @DeleteMapping("/{appFamily}/{deviceId}")
