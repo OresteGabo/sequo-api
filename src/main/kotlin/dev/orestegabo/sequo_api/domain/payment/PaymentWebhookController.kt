@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.payment
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import java.time.Instant
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
@@ -16,6 +17,7 @@ class PaymentWebhookController(
     private val service: PaymentWebhookService,
 ) {
     private val objectMapper = ObjectMapper()
+    private val maxWebhookPayloadBytes = 64 * 1024
 
     @PostMapping("/{provider}")
     fun receive(
@@ -24,20 +26,23 @@ class PaymentWebhookController(
         @RequestHeader("X-Sequo-Webhook-Signature") signature: String,
         @RequestBody rawPayload: String,
     ): ResponseEntity<Any> = try {
+        require(rawPayload.toByteArray(Charsets.UTF_8).size <= maxWebhookPayloadBytes) {
+            "Payment webhook payload cannot exceed $maxWebhookPayloadBytes bytes."
+        }
         val root = objectMapper.readTree(rawPayload)
         val result = service.accept(
             PaymentWebhookCommand(
-                provider = provider.toPaymentProviderId(),
-                eventId = root.requiredText("eventId"),
-                checkoutId = root.requiredText("checkoutId"),
-                paymentReference = root.requiredText("paymentReference"),
-                providerReference = root.optionalText("providerReference"),
+                provider = ApiInputPolicy.requiredIdentifier(provider, "provider").toPaymentProviderId(),
+                eventId = ApiInputPolicy.requiredIdentifier(root.requiredText("eventId"), "eventId"),
+                checkoutId = ApiInputPolicy.requiredIdentifier(root.requiredText("checkoutId"), "checkoutId"),
+                paymentReference = ApiInputPolicy.requiredIdentifier(root.requiredText("paymentReference"), "paymentReference"),
+                providerReference = ApiInputPolicy.optionalIdentifier(root.optionalText("providerReference"), "providerReference"),
                 amountCfa = root.requiredInt("amountCfa"),
                 status = root.requiredText("status").uppercase().toPaymentWebhookStatus(),
                 occurredAt = Instant.parse(root.requiredText("occurredAt")),
                 receivedAt = Instant.now(),
                 signatureTimestamp = Instant.ofEpochSecond(timestamp),
-                signature = signature,
+                signature = ApiInputPolicy.requiredShortToken(signature, "signature"),
                 rawPayload = rawPayload,
             )
         )
