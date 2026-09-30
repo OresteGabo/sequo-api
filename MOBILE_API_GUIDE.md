@@ -121,7 +121,7 @@ Important order enums:
 
 Related products:
 
-- `GET /api/v1/products/{productId}/related?limit=6` returns active products dynamically linked by the same catalog category.
+- `GET /api/catalog/products/{productId}/related?limit=6` returns active products dynamically linked by the same catalog category.
 - The target product is never included in the response. There is no manual related-products join table to sync.
 
 The server replaces `customerId` with the authenticated user ID. A successful payment can return `200`;
