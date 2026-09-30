@@ -40,7 +40,7 @@ Required checks before merge:
 | Dependency review | Yes for PRs | Fails PRs that introduce high-severity or critical vulnerable dependency changes. |
 | Test reports artifact | Yes | Uploaded on every run for debugging failed CI results. |
 | Boot JAR artifact | Yes on `main` | Uploaded after successful pushes to `main`. |
-| Production-host deployment | Optional on `main` | Runs only when the repository variable `AUTO_DEPLOY_ENABLED` is set to `true`. |
+| Production-host deployment | Enabled on `main` when configured | Runs only when the repository variable `AUTO_DEPLOY_ENABLED` is set to `true`. |
 
 ## Continuous Delivery
 
@@ -55,7 +55,7 @@ The optional deployment job connects to a configured production host over SSH, u
 Remote deployment command:
 
 ```bash
-cd "${DEPLOY_APP_DIR:-/root/sequo-api}"
+cd "${DEPLOY_APP_DIR:-/home/ubuntu/sequo-api}"
 git fetch origin main
 git checkout main
 git reset --hard origin/main
@@ -69,7 +69,7 @@ Public smoke test:
 curl --fail https://api.sequoservice.com/actuator/health
 ```
 
-The deploy job is intentionally disabled by default so regular pushes do not fail while production SSH access is unavailable or unset.
+In the current VPS setup, normal deployments are automatic: push to `main`, wait for GitHub Actions, and SSH only for debugging or `.env` changes.
 
 ## Automatic Deployment Setup
 
@@ -78,10 +78,10 @@ Add these repository secrets in GitHub under `Settings > Secrets and variables >
 | Secret | Required | Example | Purpose |
 | --- | --- | --- | --- |
 | `DEPLOY_HOST` | Yes | `54.37.12.31` | Production host or IP used by GitHub Actions SSH. |
-| `DEPLOY_USER` | Yes | `root` | Remote user that can run `git` and `docker compose` in the app folder. |
+| `DEPLOY_USER` | Yes | `ubuntu` | Remote user that can run `git` and `docker compose` in the app folder. |
 | `DEPLOY_SSH_KEY` | Yes | Private OpenSSH key | Private key matching a public key in the remote user's `~/.ssh/authorized_keys`. |
 | `DEPLOY_SSH_PORT` | No | `22` | SSH port. Defaults to `22` when omitted. |
-| `DEPLOY_APP_DIR` | No | `/root/sequo-api` | Remote folder containing this repository and the production `.env`. |
+| `DEPLOY_APP_DIR` | No | `/home/ubuntu/sequo-api` | Remote folder containing this repository and the production `.env`. |
 
 Add this repository variable in `Settings > Secrets and variables > Actions > Variables`:
 
@@ -94,10 +94,21 @@ The VPS must already have:
 | Requirement | Notes |
 | --- | --- |
 | Working SSH access from GitHub Actions | Port `22` or the configured `DEPLOY_SSH_PORT` must accept connections. |
-| Git repository checkout | Default path is `/root/sequo-api`. |
+| Git repository checkout | Current VPS path is `/home/ubuntu/sequo-api`. |
 | Docker and Docker Compose plugin | The workflow runs `docker compose up -d --build --remove-orphans`. |
 | Production `.env` on the VPS | Secrets such as database password and JWT keys stay on the server and are not committed. |
 | Caddy or reverse proxy already configured | Public health check expects `https://api.sequoservice.com/actuator/health`. |
+
+## Flyway Migration Rule
+
+Do not edit, delete, rename, or squash migration files that may already have run on a deployed database.
+Flyway stores checksums in `flyway_schema_history`; changing an applied migration causes startup failure.
+
+When schema changes are needed, add a new migration with the next version number, for example:
+
+```text
+src/main/resources/db/migration/V33__describe_change.sql
+```
 
 ## Docker
 
@@ -148,7 +159,7 @@ Add these once the project moves closer to production:
 | --- | --- |
 | Add a Dockerfile and container image build. | Implemented |
 | Publish container images to GHCR or the selected cloud registry. | Not implemented |
-| Add Flyway or Liquibase migration validation in CI. | Implemented with Flyway baseline plus PostgreSQL validation job. |
+| Add Flyway or Liquibase migration validation in CI. | Implemented with incremental Flyway migrations plus PostgreSQL validation job. |
 | Add OWASP dependency scanning or Snyk after the dependency policy is chosen. | Not implemented |
 | Add CodeQL/SAST if GitHub code scanning is available for the repository plan. | Not implemented |
 | Add deployment smoke tests against the selected environment. | Not implemented |
