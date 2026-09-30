@@ -53,11 +53,7 @@ class OrderController(
         @AuthenticationPrincipal userId: String?,
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
-        return try {
-            ResponseEntity.ok(fulfillmentPersistence.listForCustomer(userId))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(CustomerOrderErrorResponse("invalid_order_query", e.message ?: "Invalid order query."))
-        }
+        return ResponseEntity.ok(fulfillmentPersistence.listForCustomer(userId))
     }
 
     @GetMapping("/{orderId}")
@@ -66,13 +62,9 @@ class OrderController(
         @PathVariable orderId: String,
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
-        return try {
-            val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
-            fulfillmentPersistence.getForCustomer(safeOrderId, userId)?.let { ResponseEntity.ok(it) }
-                ?: ResponseEntity.notFound().build()
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(CustomerOrderErrorResponse("invalid_order_query", e.message ?: "Invalid order query."))
-        }
+        val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
+        return fulfillmentPersistence.getForCustomer(safeOrderId, userId)?.let { ResponseEntity.ok(it) }
+            ?: ResponseEntity.notFound().build()
     }
 
     @PostMapping("/{orderId}/pickup-confirmations")
@@ -83,25 +75,16 @@ class OrderController(
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
 
-        return try {
-            val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
-            customerPickupConfirmationService.confirm(
-                ConfirmCustomerPickupCommand(
-                    orderId = safeOrderId,
-                    customerId = userId,
-                    actorUserId = userId,
-                    idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
-                    proofMetadata = ApiInputPolicy.optionalLongText(request.proofMetadata, "proofMetadata"),
+        val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
+        return customerPickupConfirmationService.confirm(
+            ConfirmCustomerPickupCommand(
+                orderId = safeOrderId,
+                customerId = userId,
+                actorUserId = userId,
+                idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
+                proofMetadata = ApiInputPolicy.optionalLongText(request.proofMetadata, "proofMetadata"),
                 )
-            ).toResponse()
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                CustomerPickupErrorResponse(
-                    code = "invalid_customer_pickup_request",
-                    message = e.message ?: "Invalid customer pickup request.",
-                )
-            )
-        }
+        ).toResponse()
     }
 
     @GetMapping("/{orderId}/pickup-confirmations")
@@ -131,7 +114,6 @@ data class ConfirmCustomerPickupRequest(
 )
 
 data class CustomerPickupErrorResponse(val code: String, val message: String)
-data class CustomerOrderErrorResponse(val code: String, val message: String)
 
 private fun CustomerPickupConfirmationResult.toResponse(): ResponseEntity<Any> =
     when (this) {
