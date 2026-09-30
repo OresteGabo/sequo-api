@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.hub
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.notification.NotificationAppFamily
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -35,9 +36,9 @@ class AccountController(
                 service.requestAccountDeletion(
                     AccountDeletionRequestCommand(
                         userId = userId,
-                        confirmation = request.confirmation,
-                        reason = request.reason,
-                        idempotencyKey = request.idempotencyKey,
+                        confirmation = ApiInputPolicy.requiredShortText(request.confirmation, "confirmation", 32),
+                        reason = ApiInputPolicy.optionalLongText(request.reason, "reason"),
+                        idempotencyKey = ApiInputPolicy.optionalIdempotencyKey(request.idempotencyKey),
                     )
                 )
             )
@@ -89,7 +90,7 @@ class UserPreferenceController(
                         userId = userId,
                         appFamily = appFamily ?: NotificationAppFamily.SEQUO_HUB,
                         theme = request.theme,
-                        language = request.language,
+                        language = ApiInputPolicy.optionalLanguageTag(request.language),
                         quickScanOnOpen = request.quickScanOnOpen,
                         soundFeedback = request.soundFeedback,
                         largeLockerLabels = request.largeLockerLabels,
