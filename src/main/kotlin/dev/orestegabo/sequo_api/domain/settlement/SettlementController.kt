@@ -61,15 +61,7 @@ class SettlementController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(roles)) {
             ResponseEntity.status(403).build()
-        } else try {
-            operation(authentication)
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse("invalid_settlement_request", e.message ?: "Invalid settlement request.")
-            )
-        }
-
-    data class ErrorResponse(val code: String, val message: String)
+        } else operation(authentication)
 }
 
 data class MerchantPayoutResponse(
