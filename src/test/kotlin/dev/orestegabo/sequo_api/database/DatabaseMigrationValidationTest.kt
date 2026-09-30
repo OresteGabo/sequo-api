@@ -72,6 +72,16 @@ class DatabaseMigrationValidationTest @Autowired constructor(
             "CUSTOMER_CART_ITEMS",
             "BARGAINING_THREADS",
             "BARGAINING_OFFERS",
+            "CUSTOMER_PROFILES",
+            "CUSTOMER_ADDRESSES",
+            "SUBSCRIPTION_PLANS",
+            "CUSTOMER_SUBSCRIPTIONS",
+            "REFERRAL_DELIVERY_CREDITS",
+            "PAYMENT_PROVIDER_CONFIGURATIONS",
+            "PRODUCT_CUSTOMIZATION_GROUPS",
+            "PRODUCT_CUSTOMIZATION_OPTIONS",
+            "MERCHANT_COOPERATIVES",
+            "MERCHANT_COOPERATIVE_MEMBERS",
         )
 
         expectedTables.forEach { tableName ->
