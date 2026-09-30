@@ -71,6 +71,7 @@ Responsibilities:
 - Enforce product stock rules and delivery eligibility.
 - Enforce media evidence policy: seller-specific goods require real-time camera evidence, while approved generic sealed items can use catalog/reference images.
 - Support food customization groups for toppings, options, required choices, optional choices, and price deltas.
+- Serve dynamic related products without a manual join table: related items are active products in the same category, exclude the target product, and are capped for fast mobile responses.
 
 Delivery modes:
 
@@ -86,6 +87,7 @@ Invariants:
 
 - Reduced price must be lower than base price when promotions are implemented.
 - A product with bargaining disabled cannot receive offers.
+- Related products must remain an implicit read model unless curated merchandising requires explicit manual links.
 - Listing price calculations must come from the pricing engine, not ad hoc controller code.
 - Gallery uploads or web images must not replace required live product evidence for seller-specific goods.
 - Food customization selections must be copied into checkout and order item snapshots.
