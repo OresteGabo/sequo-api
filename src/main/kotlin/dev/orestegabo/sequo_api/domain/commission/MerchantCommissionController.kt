@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.commission
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import org.springframework.http.ResponseEntity
@@ -35,11 +36,12 @@ class MerchantCommissionController(
         authentication: Authentication?,
         @PathVariable merchantId: String,
     ): ResponseEntity<Any> = adminOnly(authentication) {
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
         ResponseEntity.ok(
             MerchantCommissionRateResponse(
-                merchantId = merchantId,
-                commissionRateBps = service.resolveRateBps(merchantId),
-                override = service.getOverride(merchantId),
+                merchantId = safeMerchantId,
+                commissionRateBps = service.resolveRateBps(safeMerchantId),
+                override = service.getOverride(safeMerchantId),
             )
         )
     }
@@ -52,10 +54,10 @@ class MerchantCommissionController(
     ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
         ResponseEntity.ok(
             service.upsertOverride(
-                merchantId = merchantId,
+                merchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId"),
                 commissionRateBps = request.commissionRateBps,
                 updatedByUserId = authenticated.name,
-                reason = request.reason,
+                reason = ApiInputPolicy.optionalShortText(request.reason, "reason"),
             )
         )
     }
@@ -65,7 +67,7 @@ class MerchantCommissionController(
         authentication: Authentication?,
         @PathVariable merchantId: String,
     ): ResponseEntity<Any> = adminOnly(authentication) {
-        service.clearOverride(merchantId)
+        service.clearOverride(ApiInputPolicy.requiredIdentifier(merchantId, "merchantId"))
         ResponseEntity.noContent().build()
     }
 
