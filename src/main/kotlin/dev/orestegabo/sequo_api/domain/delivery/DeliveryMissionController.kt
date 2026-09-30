@@ -350,7 +350,7 @@ class DeliveryMissionController(
     private fun adminOnly(authentication: Authentication?, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
         else if (!authentication.hasAnyRole(RoleGroups.AdminOnly)) ResponseEntity.status(403).build()
-        else try { operation(authentication) } catch (e: IllegalArgumentException) { badRequest(e) }
+        else operation(authentication)
 
     private fun roleActorRequired(
         authentication: Authentication?,
@@ -360,7 +360,7 @@ class DeliveryMissionController(
     ): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
         else if (!authentication.hasAnyRole(roles)) ResponseEntity.status(403).build()
-        else try { operation(userId ?: authentication.name) } catch (e: IllegalArgumentException) { badRequest(e) }
+        else operation(userId ?: authentication.name)
 
     private fun missionReadRequired(
         authentication: Authentication?,
@@ -370,20 +370,16 @@ class DeliveryMissionController(
     ): ResponseEntity<Any> {
         if (authentication == null) return ResponseEntity.status(401).build()
         if (!authentication.hasAnyRole(RoleGroups.DeliveryMissionReaders)) return ResponseEntity.status(403).build()
-        return try {
-            val actorId = userId ?: authentication.name
-            if (authentication.hasRole(RoleCode.COURIER) && !authentication.hasAnyRole(RoleGroups.AdminOperations)) {
-                val visibleCourierId = requestedCourierId ?: actorId
-                if (visibleCourierId != actorId) {
-                    ResponseEntity.status(403).build()
-                } else {
-                    operation(visibleCourierId)
-                }
+        val actorId = userId ?: authentication.name
+        return if (authentication.hasRole(RoleCode.COURIER) && !authentication.hasAnyRole(RoleGroups.AdminOperations)) {
+            val visibleCourierId = requestedCourierId ?: actorId
+            if (visibleCourierId != actorId) {
+                ResponseEntity.status(403).build()
             } else {
-                operation(requestedCourierId)
+                operation(visibleCourierId)
             }
-        } catch (e: IllegalArgumentException) {
-            badRequest(e)
+        } else {
+            operation(requestedCourierId)
         }
     }
 
@@ -394,9 +390,6 @@ class DeliveryMissionController(
     ): Boolean =
         authentication.hasAnyRole(RoleGroups.AdminOperations) ||
             (authentication.hasRole(RoleCode.COURIER) && mission.courierId == actorId)
-
-    private fun badRequest(error: IllegalArgumentException): ResponseEntity<Any> =
-        ResponseEntity.badRequest().body(ErrorResponse("invalid_delivery_request", error.message ?: "Invalid delivery request."))
 
     private fun DeliveryMissionServiceResult.markOrderDelivered(actorUserId: String): DeliveryMissionServiceResult {
         if (this is DeliveryMissionServiceResult.Success) {
