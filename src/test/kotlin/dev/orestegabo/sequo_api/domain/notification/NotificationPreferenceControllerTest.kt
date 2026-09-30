@@ -7,6 +7,7 @@ import java.time.LocalTime
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
@@ -93,16 +94,16 @@ class NotificationPreferenceControllerTest @Autowired constructor(
     fun rejectsInvalidPreferenceUpdate() {
         val userId = createUser("preference-controller-invalid@sequo.test")
 
-        val response = controller.savePreference(
-            userId = userId,
-            appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
-            request = NotificationPreferenceController.SavePreferenceRequest(
-                quietHoursStart = LocalTime.of(22, 0),
-                quietHoursEnd = null,
-            ),
-        )
-
-        assertEquals(400, response.statusCode.value())
+        assertFailsWith<IllegalArgumentException> {
+            controller.savePreference(
+                userId = userId,
+                appFamily = NotificationAppFamily.SEQUO_CUSTOMER,
+                request = NotificationPreferenceController.SavePreferenceRequest(
+                    quietHoursStart = LocalTime.of(22, 0),
+                    quietHoursEnd = null,
+                ),
+            )
+        }
     }
 
     private fun createUser(email: String): String =
