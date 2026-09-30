@@ -173,9 +173,7 @@ class RelayParcelController(
     private fun roleRequired(authentication: Authentication?, roles: Set<RoleCode>, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
         else if (!authentication.hasAnyRole(roles)) ResponseEntity.status(403).build()
-        else try { operation(authentication) } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(ErrorResponse("invalid_relay_request", e.message ?: "Invalid relay request."))
-        }
+        else operation(authentication)
 
     data class ErrorResponse(val code: String, val message: String)
 }
