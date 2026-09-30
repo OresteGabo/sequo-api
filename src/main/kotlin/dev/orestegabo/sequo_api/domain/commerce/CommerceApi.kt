@@ -1,0 +1,705 @@
+package dev.orestegabo.sequo_api.domain.commerce
+
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
+import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
+import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
+import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
+import dev.orestegabo.sequo_api.domain.notification.NotificationInboxQuery
+import dev.orestegabo.sequo_api.domain.notification.NotificationMessageSnapshot
+import dev.orestegabo.sequo_api.domain.notification.NotificationReadService
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderDetails
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
+import dev.orestegabo.sequo_api.domain.order.OrderFulfillmentPersistenceService
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
+import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToOne
+import jakarta.persistence.Table
+import jakarta.persistence.Version
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.UUID
+
+@Entity
+@Table(name = "catalog_categories")
+class CatalogCategoryRecord(
+    @Id @Column(name = "category_key") val key: String,
+    @Column(nullable = false) val title: String,
+    @Column(name = "support_label", nullable = false) val supportLabel: String,
+    @Column(name = "accent_hex", nullable = false) val accentHex: String,
+    @Column(name = "sort_order", nullable = false) val sortOrder: Int,
+    @Column(nullable = false) val active: Boolean = true,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+)
+
+@Entity
+@Table(name = "merchant_storefronts")
+class MerchantStorefrontRecord(
+    @Id @Column(name = "merchant_id") val merchantId: String,
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_merchant_storefronts_merchant"))
+    val merchant: MerchantRecord? = null,
+    @Column val area: String? = null,
+    @Column val kind: String? = null,
+    @Column(name = "distance_km") val distanceKm: Double? = null,
+    @Column val eta: String? = null,
+    @Column(name = "photo_status") val photoStatus: String? = null,
+    @Column(name = "open_status") val openStatus: String? = null,
+    @Column val rating: String? = null,
+    @Column val consolidation: String? = null,
+    @Column(nullable = false) val active: Boolean = true,
+    @Column(name = "sort_order", nullable = false) val sortOrder: Int = 0,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+    @Column(name = "updated_at", nullable = false) var updatedAt: Instant = createdAt,
+    @Version @Column(nullable = false) var version: Long = 0,
+)
+
+@Entity
+@Table(name = "catalog_promotions")
+class CatalogPromotionRecord(
+    @Id val id: String,
+    @Column(nullable = false) val headline: String,
+    @Column(nullable = false) val title: String,
+    @Column(nullable = false) val subtitle: String,
+    @Column(name = "product_id", nullable = false) val productId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_catalog_promotions_product"))
+    val product: ProductRecord? = null,
+    @Column(name = "starts_at") val startsAt: Instant? = null,
+    @Column(name = "ends_at") val endsAt: Instant? = null,
+    @Column(name = "sort_order", nullable = false) val sortOrder: Int,
+    @Column(nullable = false) val active: Boolean = true,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+)
+
+@Entity
+@Table(name = "customer_cart_items")
+class CustomerCartItemRecord(
+    @Id val id: String,
+    @Column(name = "user_id", nullable = false) val userId: String,
+    @Column(name = "product_id", nullable = false) val productId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_cart_items_product"))
+    val product: ProductRecord? = null,
+    @Column(nullable = false) var quantity: Int,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+    @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.now(),
+    @Column(nullable = false) var version: Long = 0,
+)
+
+enum class BargainingThreadStatus { OPEN, ACCEPTED, REJECTED, EXPIRED, CANCELLED }
+enum class BargainingActorType { CUSTOMER, MERCHANT, SUPPORT }
+enum class BargainingOfferType { OFFER, COUNTER_OFFER, ACCEPT, REJECT, MESSAGE }
+
+@Entity
+@Table(name = "bargaining_threads")
+class BargainingThreadRecord(
+    @Id val id: String,
+    @Column(name = "customer_id", nullable = false) val customerId: String,
+    @Column(name = "merchant_id", nullable = false) val merchantId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merchant_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_bargaining_threads_merchant"))
+    val merchant: MerchantRecord? = null,
+    @Column(name = "product_id", nullable = false) val productId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_bargaining_threads_product"))
+    val product: ProductRecord? = null,
+    @Enumerated(EnumType.STRING) @Column(nullable = false) var status: BargainingThreadStatus = BargainingThreadStatus.OPEN,
+    @Column(name = "opened_at", nullable = false) val openedAt: Instant = Instant.now(),
+    @Column(name = "closed_at") var closedAt: Instant? = null,
+    @Column(name = "expires_at") val expiresAt: Instant? = null,
+    @Column(name = "last_offer_cfa") var lastOfferCfa: Int? = null,
+    @Column(name = "accepted_price_cfa") var acceptedPriceCfa: Int? = null,
+    @Version @Column(nullable = false) var version: Long = 0,
+)
+
+@Entity
+@Table(name = "bargaining_offers")
+class BargainingOfferRecord(
+    @Id val id: String,
+    @Column(name = "thread_id", nullable = false) val threadId: String,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thread_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_bargaining_offers_thread"))
+    val thread: BargainingThreadRecord? = null,
+    @Column(name = "actor_user_id", nullable = false) val actorUserId: String,
+    @Enumerated(EnumType.STRING) @Column(name = "actor_type", nullable = false) val actorType: BargainingActorType,
+    @Enumerated(EnumType.STRING) @Column(name = "offer_type", nullable = false) val offerType: BargainingOfferType,
+    @Column(name = "amount_cfa") val amountCfa: Int? = null,
+    @Column(length = 500) val message: String? = null,
+    @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+)
+
+interface CatalogCategoryRepository : JpaRepository<CatalogCategoryRecord, String> {
+    fun findByActiveTrueOrderBySortOrderAsc(): List<CatalogCategoryRecord>
+}
+
+interface CommerceProductRepository : JpaRepository<ProductRecord, String> {
+    fun findByStatusOrderBySortOrderAscCreatedAtDesc(status: CatalogProductStatus): List<ProductRecord>
+    fun findByIdAndStatus(id: String, status: CatalogProductStatus): ProductRecord?
+}
+
+interface CommerceMerchantRepository : JpaRepository<MerchantRecord, String>
+
+interface MerchantStorefrontRepository : JpaRepository<MerchantStorefrontRecord, String> {
+    fun findByActiveTrueOrderBySortOrderAsc(): List<MerchantStorefrontRecord>
+    fun findByMerchantIdIn(merchantIds: Collection<String>): List<MerchantStorefrontRecord>
+}
+
+interface CatalogPromotionRepository : JpaRepository<CatalogPromotionRecord, String> {
+    fun findByActiveTrueOrderBySortOrderAsc(): List<CatalogPromotionRecord>
+}
+
+interface CustomerCartItemRepository : JpaRepository<CustomerCartItemRecord, String> {
+    fun findByUserIdOrderByUpdatedAtDesc(userId: String): List<CustomerCartItemRecord>
+    fun findByIdAndUserId(id: String, userId: String): CustomerCartItemRecord?
+    fun findByUserIdAndProductId(userId: String, productId: String): CustomerCartItemRecord?
+    fun deleteByUserId(userId: String): Long
+}
+
+interface BargainingThreadRepository : JpaRepository<BargainingThreadRecord, String> {
+    fun findByCustomerIdOrderByOpenedAtDesc(customerId: String): List<BargainingThreadRecord>
+    fun findByIdAndCustomerId(id: String, customerId: String): BargainingThreadRecord?
+}
+
+interface BargainingOfferRepository : JpaRepository<BargainingOfferRecord, String> {
+    fun findByThreadIdOrderByCreatedAtAsc(threadId: String): List<BargainingOfferRecord>
+}
+
+data class CommerceHomeDto(
+    val categories: List<CatalogCategoryDto>,
+    val merchants: List<MerchantStorefrontDto>,
+    val products: List<CatalogProductDto>,
+    val promotions: List<CatalogPromotionDto>,
+)
+
+data class CatalogCategoryDto(val key: String, val title: String, val supportLabel: String, val accentHex: String)
+
+data class MerchantStorefrontDto(
+    val id: String,
+    val name: String,
+    val status: String,
+    val area: String?,
+    val kind: String?,
+    val distanceKm: Double?,
+    val eta: String?,
+    val photoStatus: String?,
+    val openStatus: String?,
+    val rating: String?,
+    val consolidation: String?,
+    val products: List<CatalogProductDto> = emptyList(),
+)
+
+data class CatalogProductDto(
+    val id: String,
+    val merchantId: String?,
+    val name: String,
+    val kind: CatalogProductKind,
+    val status: CatalogProductStatus,
+    val category: String?,
+    val subcategory: String?,
+    val detail: String?,
+    val priceCfa: Int?,
+    val optionHint: String?,
+    val originalPriceCfa: Int?,
+    val hasDiscount: Boolean,
+    val bargainingEnabled: Boolean,
+    val bargainFloorCfa: Int?,
+    val cameraVerified: Boolean,
+    val capturedAtLabel: String?,
+)
+
+data class CatalogPromotionDto(
+    val id: String,
+    val headline: String,
+    val title: String,
+    val subtitle: String,
+    val productId: String,
+)
+
+data class CommerceCartDto(val items: List<CommerceCartItemDto>, val totalItems: Int, val subtotalCfa: Int)
+data class CommerceCartItemDto(val id: String, val product: CatalogProductDto, val quantity: Int, val lineTotalCfa: Int)
+data class UpsertCartItemRequest(val productId: String, val quantity: Int)
+
+data class CreateBargainingThreadRequest(val productId: String, val amountCfa: Int, val message: String? = null)
+data class CreateBargainingOfferRequest(val amountCfa: Int? = null, val message: String? = null)
+data class BargainingThreadDto(
+    val id: String,
+    val customerId: String,
+    val merchantId: String,
+    val productId: String,
+    val status: BargainingThreadStatus,
+    val lastOfferCfa: Int?,
+    val acceptedPriceCfa: Int?,
+    val openedAt: Instant,
+    val offers: List<BargainingOfferDto>,
+)
+data class BargainingOfferDto(
+    val id: String,
+    val actorUserId: String,
+    val actorType: BargainingActorType,
+    val offerType: BargainingOfferType,
+    val amountCfa: Int?,
+    val message: String?,
+    val createdAt: Instant,
+)
+
+data class CommerceOrderItemDto(val name: String, val quantity: Int)
+data class CommerceOrderDto(
+    val id: String,
+    val sellers: List<String>,
+    val items: List<CommerceOrderItemDto>,
+    val state: String,
+    val stateLabel: String,
+    val dateLine: String,
+    val note: String,
+    val amountCfa: Int,
+    val paymentMethod: String,
+    val pickupCode: String?,
+)
+
+data class CommerceNotificationDto(
+    val id: String,
+    val eventType: String,
+    val severity: String,
+    val title: String,
+    val body: String,
+    val actionUrl: String?,
+    val read: Boolean,
+    val archived: Boolean,
+    val createdAt: Instant,
+)
+
+data class CommerceApiErrorResponse(val code: String, val message: String)
+
+@Service
+class CommerceService(
+    private val categories: CatalogCategoryRepository,
+    private val products: CommerceProductRepository,
+    private val merchants: CommerceMerchantRepository,
+    private val storefronts: MerchantStorefrontRepository,
+    private val promotions: CatalogPromotionRepository,
+    private val cartItems: CustomerCartItemRepository,
+    private val bargainingThreads: BargainingThreadRepository,
+    private val bargainingOffers: BargainingOfferRepository,
+    private val orderPersistence: OrderFulfillmentPersistenceService,
+    private val notificationReadService: NotificationReadService,
+) {
+    @Transactional(readOnly = true)
+    fun home(category: String? = null, subcategory: String? = null): CommerceHomeDto {
+        val activeProducts = products.findByStatusOrderBySortOrderAscCreatedAtDesc(CatalogProductStatus.ACTIVE)
+            .filter { category == null || it.category == category }
+            .filter { subcategory == null || it.subcategory == subcategory }
+        val productsByMerchant = activeProducts.groupBy { it.merchantId }
+        val merchantIds = activeProducts.mapNotNull { it.merchantId }.distinct()
+        val storefrontDtos = if (merchantIds.isEmpty()) {
+            emptyList()
+        } else {
+            val merchantsById = merchants.findAllById(merchantIds).associateBy { it.id }
+            storefronts.findByMerchantIdIn(merchantIds)
+                .filter { it.active }
+                .sortedBy { it.sortOrder }
+                .map { storefront -> storefront.toDto(merchantsById[storefront.merchantId], productsByMerchant[storefront.merchantId].orEmpty()) }
+        }
+
+        return CommerceHomeDto(
+            categories = categories.findByActiveTrueOrderBySortOrderAsc().map { it.toDto() },
+            merchants = storefrontDtos,
+            products = activeProducts.map { it.toDto() },
+            promotions = promotions.findByActiveTrueOrderBySortOrderAsc()
+                .filter { promo -> activeProducts.any { it.id == promo.productId } }
+                .map { it.toDto() },
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listMerchants(category: String?, subcategory: String?, area: String?, sort: String?): List<MerchantStorefrontDto> {
+        val sortMode = sort?.lowercase()
+        val filtered = home(category, subcategory).merchants.filter { merchant ->
+            area == null || merchant.area?.contains(area, ignoreCase = true) == true || merchant.name.contains(area, ignoreCase = true)
+        }
+        return when (sortMode) {
+            "fastest" -> filtered.sortedBy { it.eta?.filter(Char::isDigit)?.toIntOrNull() ?: Int.MAX_VALUE }
+            "rating" -> filtered.sortedByDescending { it.rating?.toDoubleOrNull() ?: 0.0 }
+            "delivery" -> filtered.sortedBy { it.distanceKm ?: Double.MAX_VALUE }
+            else -> filtered.sortedBy { it.distanceKm ?: Double.MAX_VALUE }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun listProducts(category: String?, subcategory: String?, merchantId: String?, includeArchived: Boolean): List<CatalogProductDto> {
+        val allowedStatuses = if (includeArchived) {
+            setOf(CatalogProductStatus.ACTIVE, CatalogProductStatus.INACTIVE, CatalogProductStatus.ARCHIVED)
+        } else {
+            setOf(CatalogProductStatus.ACTIVE)
+        }
+        return products.findAll()
+            .filter { it.status in allowedStatuses }
+            .filter { category == null || it.category == category }
+            .filter { subcategory == null || it.subcategory == subcategory }
+            .filter { merchantId == null || it.merchantId == merchantId }
+            .sortedWith(compareBy<ProductRecord> { it.sortOrder }.thenByDescending { it.createdAt })
+            .map { it.toDto() }
+    }
+
+    @Transactional(readOnly = true)
+    fun cart(userId: String): CommerceCartDto {
+        val items = cartItems.findByUserIdOrderByUpdatedAtDesc(userId).mapNotNull { item ->
+            val product = item.product ?: products.findById(item.productId).orElse(null) ?: return@mapNotNull null
+            CommerceCartItemDto(
+                id = item.id,
+                product = product.toDto(),
+                quantity = item.quantity,
+                lineTotalCfa = (product.basePriceCfa ?: 0) * item.quantity,
+            )
+        }
+        return CommerceCartDto(items, items.sumOf { it.quantity }, items.sumOf { it.lineTotalCfa })
+    }
+
+    @Transactional
+    fun putCartItem(userId: String, request: UpsertCartItemRequest): CommerceCartDto {
+        val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
+        require(request.quantity in 1..99) { "quantity must be between 1 and 99." }
+        products.findByIdAndStatus(productId, CatalogProductStatus.ACTIVE)
+            ?: throw IllegalArgumentException("productId does not reference an active product.")
+
+        cartItems.findByUserIdAndProductId(userId, productId)?.also {
+            it.quantity = request.quantity
+            it.updatedAt = Instant.now()
+        } ?: cartItems.save(
+            CustomerCartItemRecord(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                productId = productId,
+                quantity = request.quantity,
+            )
+        )
+        return cart(userId)
+    }
+
+    @Transactional
+    fun removeCartItem(userId: String, itemId: String): CommerceCartDto {
+        val safeItemId = ApiInputPolicy.requiredIdentifier(itemId, "itemId")
+        cartItems.findByIdAndUserId(safeItemId, userId)?.let(cartItems::delete)
+        return cart(userId)
+    }
+
+    @Transactional
+    fun clearCart(userId: String): CommerceCartDto {
+        cartItems.deleteByUserId(userId)
+        return cart(userId)
+    }
+
+    @Transactional
+    fun createBargainingThread(userId: String, request: CreateBargainingThreadRequest): BargainingThreadDto {
+        val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
+        require(request.amountCfa >= 0) { "amountCfa must be non-negative." }
+        val product = products.findByIdAndStatus(productId, CatalogProductStatus.ACTIVE)
+            ?: throw IllegalArgumentException("productId does not reference an active product.")
+        require(product.bargainingEnabled) { "This product does not accept bargaining." }
+        val merchantId = product.merchantId ?: throw IllegalArgumentException("Product has no merchant to bargain with.")
+        product.bargainFloorCfa?.let { floor -> require(request.amountCfa >= floor) { "amountCfa is below the bargaining floor." } }
+
+        val thread = bargainingThreads.save(
+            BargainingThreadRecord(
+                id = UUID.randomUUID().toString(),
+                customerId = userId,
+                merchantId = merchantId,
+                productId = productId,
+                lastOfferCfa = request.amountCfa,
+            )
+        )
+        bargainingOffers.save(
+            BargainingOfferRecord(
+                id = UUID.randomUUID().toString(),
+                threadId = thread.id,
+                actorUserId = userId,
+                actorType = BargainingActorType.CUSTOMER,
+                offerType = BargainingOfferType.OFFER,
+                amountCfa = request.amountCfa,
+                message = ApiInputPolicy.optionalLongText(request.message, "message", 500),
+            )
+        )
+        return thread.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(thread.id))
+    }
+
+    @Transactional(readOnly = true)
+    fun bargainingThreads(userId: String): List<BargainingThreadDto> =
+        bargainingThreads.findByCustomerIdOrderByOpenedAtDesc(userId)
+            .map { it.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(it.id)) }
+
+    @Transactional
+    fun addCustomerBargainingOffer(userId: String, threadId: String, request: CreateBargainingOfferRequest): BargainingThreadDto {
+        val safeThreadId = ApiInputPolicy.requiredIdentifier(threadId, "threadId")
+        val thread = bargainingThreads.findByIdAndCustomerId(safeThreadId, userId)
+            ?: throw IllegalArgumentException("threadId does not reference one of this customer's bargaining threads.")
+        require(thread.status == BargainingThreadStatus.OPEN) { "Bargaining thread is not open." }
+        request.amountCfa?.let { require(it >= 0) { "amountCfa must be non-negative." } }
+        require(request.amountCfa != null || !request.message.isNullOrBlank()) { "amountCfa or message is required." }
+
+        val offerType = if (request.amountCfa == null) BargainingOfferType.MESSAGE else BargainingOfferType.OFFER
+        request.amountCfa?.let { thread.lastOfferCfa = it }
+        bargainingOffers.save(
+            BargainingOfferRecord(
+                id = UUID.randomUUID().toString(),
+                threadId = thread.id,
+                actorUserId = userId,
+                actorType = BargainingActorType.CUSTOMER,
+                offerType = offerType,
+                amountCfa = request.amountCfa,
+                message = ApiInputPolicy.optionalLongText(request.message, "message", 500),
+            )
+        )
+        return thread.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(thread.id))
+    }
+
+    @Transactional(readOnly = true)
+    fun orders(userId: String): List<CommerceOrderDto> =
+        orderPersistence.listForCustomer(userId).map { it.toCommerceOrder() }
+
+    @Transactional(readOnly = true)
+    fun notifications(userId: String, includeArchived: Boolean, limit: Int): List<CommerceNotificationDto> =
+        notificationReadService.listInbox(NotificationInboxQuery(userId, includeArchived, limit))
+            .map { it.toCommerceNotification() }
+}
+
+@RestController
+@RequestMapping("/api/catalog")
+class CatalogController(private val commerce: CommerceService) {
+    @GetMapping("/home")
+    fun home(@RequestParam(required = false) category: String?, @RequestParam(required = false) subcategory: String?): ResponseEntity<Any> = safe {
+        commerce.home(
+            ApiInputPolicy.optionalIdentifier(category, "category"),
+            ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
+        )
+    }
+
+    @GetMapping("/categories")
+    fun categories(): ResponseEntity<Any> = safe { commerce.home().categories }
+
+    @GetMapping("/merchants")
+    fun merchants(
+        @RequestParam(required = false) category: String?,
+        @RequestParam(required = false) subcategory: String?,
+        @RequestParam(required = false) area: String?,
+        @RequestParam(required = false) sort: String?,
+    ): ResponseEntity<Any> = safe {
+        commerce.listMerchants(
+            ApiInputPolicy.optionalIdentifier(category, "category"),
+            ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
+            ApiInputPolicy.optionalShortText(area, "area"),
+            ApiInputPolicy.optionalShortText(sort, "sort"),
+        )
+    }
+
+    @GetMapping("/products")
+    fun products(
+        @RequestParam(required = false) category: String?,
+        @RequestParam(required = false) subcategory: String?,
+        @RequestParam(required = false) merchantId: String?,
+        @RequestParam(defaultValue = "false") includeArchived: Boolean,
+    ): ResponseEntity<Any> = safe {
+        commerce.listProducts(
+            ApiInputPolicy.optionalIdentifier(category, "category"),
+            ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
+            ApiInputPolicy.optionalIdentifier(merchantId, "merchantId"),
+            includeArchived,
+        )
+    }
+}
+
+@RestController
+@RequestMapping("/api/cart")
+class CommerceCartController(private val commerce: CommerceService) {
+    @GetMapping
+    fun cart(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> =
+        authenticated(userId) { commerce.cart(it) }
+
+    @PutMapping("/items")
+    fun putItem(@AuthenticationPrincipal userId: String?, @RequestBody request: UpsertCartItemRequest): ResponseEntity<Any> =
+        authenticated(userId) { commerce.putCartItem(it, request) }
+
+    @DeleteMapping("/items/{itemId}")
+    fun removeItem(@AuthenticationPrincipal userId: String?, @PathVariable itemId: String): ResponseEntity<Any> =
+        authenticated(userId) { commerce.removeCartItem(it, itemId) }
+
+    @DeleteMapping
+    fun clear(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> =
+        authenticated(userId) { commerce.clearCart(it) }
+}
+
+@RestController
+@RequestMapping("/api/bargaining")
+class BargainingController(private val commerce: CommerceService) {
+    @GetMapping("/threads")
+    fun threads(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> =
+        authenticated(userId) { commerce.bargainingThreads(it) }
+
+    @PostMapping("/threads")
+    fun createThread(@AuthenticationPrincipal userId: String?, @RequestBody request: CreateBargainingThreadRequest): ResponseEntity<Any> =
+        authenticated(userId) { commerce.createBargainingThread(it, request) }
+
+    @PostMapping("/threads/{threadId}/offers")
+    fun addOffer(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable threadId: String,
+        @RequestBody request: CreateBargainingOfferRequest,
+    ): ResponseEntity<Any> =
+        authenticated(userId) { commerce.addCustomerBargainingOffer(it, threadId, request) }
+}
+
+@RestController
+@RequestMapping("/api/customer")
+class CustomerCommerceController(private val commerce: CommerceService) {
+    @GetMapping("/orders")
+    fun orders(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> =
+        authenticated(userId) { commerce.orders(it) }
+
+    @GetMapping("/notifications")
+    fun notifications(
+        @AuthenticationPrincipal userId: String?,
+        @RequestParam(defaultValue = "false") includeArchived: Boolean,
+        @RequestParam(defaultValue = "50") limit: Int,
+    ): ResponseEntity<Any> =
+        authenticated(userId) { commerce.notifications(it, includeArchived, limit) }
+}
+
+private fun safe(block: () -> Any): ResponseEntity<Any> =
+    try {
+        ResponseEntity.ok(block())
+    } catch (e: IllegalArgumentException) {
+        ResponseEntity.badRequest().body(CommerceApiErrorResponse("invalid_commerce_request", e.message ?: "Invalid commerce request."))
+    }
+
+private fun authenticated(userId: String?, block: (String) -> Any): ResponseEntity<Any> {
+    if (userId == null) return ResponseEntity.status(401).build()
+    return safe { block(userId) }
+}
+
+private fun CatalogCategoryRecord.toDto(): CatalogCategoryDto =
+    CatalogCategoryDto(key, title, supportLabel, accentHex)
+
+private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord?, storeProducts: List<ProductRecord>): MerchantStorefrontDto =
+    MerchantStorefrontDto(
+        id = merchantId,
+        name = merchantRecord?.name ?: merchantId,
+        status = merchantRecord?.status ?: "UNKNOWN",
+        area = area,
+        kind = kind,
+        distanceKm = distanceKm,
+        eta = eta,
+        photoStatus = photoStatus,
+        openStatus = openStatus,
+        rating = rating,
+        consolidation = consolidation,
+        products = storeProducts.map { it.toDto() },
+    )
+
+private fun ProductRecord.toDto(): CatalogProductDto =
+    CatalogProductDto(
+        id = id,
+        merchantId = merchantId,
+        name = name,
+        kind = kind,
+        status = status,
+        category = category,
+        subcategory = subcategory,
+        detail = detail,
+        priceCfa = basePriceCfa,
+        optionHint = optionHint,
+        originalPriceCfa = originalPriceCfa,
+        hasDiscount = originalPriceCfa?.let { original -> basePriceCfa?.let { original > it } } ?: false,
+        bargainingEnabled = bargainingEnabled,
+        bargainFloorCfa = bargainFloorCfa,
+        cameraVerified = cameraVerified,
+        capturedAtLabel = capturedAtLabel,
+    )
+
+private fun CatalogPromotionRecord.toDto(): CatalogPromotionDto =
+    CatalogPromotionDto(id, headline, title, subtitle, productId)
+
+private fun BargainingThreadRecord.toDto(offers: List<BargainingOfferRecord>): BargainingThreadDto =
+    BargainingThreadDto(
+        id = id,
+        customerId = customerId,
+        merchantId = merchantId,
+        productId = productId,
+        status = status,
+        lastOfferCfa = lastOfferCfa,
+        acceptedPriceCfa = acceptedPriceCfa,
+        openedAt = openedAt,
+        offers = offers.map { it.toDto() },
+    )
+
+private fun BargainingOfferRecord.toDto(): BargainingOfferDto =
+    BargainingOfferDto(id, actorUserId, actorType, offerType, amountCfa, message, createdAt)
+
+private fun CustomerOrderDetails.toCommerceOrder(): CommerceOrderDto {
+    val state = commerceState()
+    return CommerceOrderDto(
+        id = order.id,
+        sellers = lines.map { it.sellerName }.distinct(),
+        items = lines.map { CommerceOrderItemDto(it.productName, it.quantity) },
+        state = state,
+        stateLabel = state.replace(Regex("(?<=[a-z])(?=[A-Z])"), " "),
+        dateLine = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm").withZone(ZoneOffset.UTC).format(order.createdAt),
+        note = order.customerFacingStatus,
+        amountCfa = order.totalCfa,
+        paymentMethod = order.paymentProvider,
+        pickupCode = null,
+    )
+}
+
+private fun CustomerOrderDetails.commerceState(): String =
+    when (order.orderStatus) {
+        CustomerOrderStatus.DELIVERED -> "Delivered"
+        CustomerOrderStatus.RETURN_REQUESTED -> "ReturnRequested"
+        CustomerOrderStatus.REFUNDED -> "RefundIssued"
+        CustomerOrderStatus.CANCELLED -> "Cancelled"
+        CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT -> when (order.paymentStatus) {
+            PaymentValidationStatus.Pending -> "PaymentPending"
+            PaymentValidationStatus.Validated -> if (merchantSubOrders.any { it.status.name.contains("ACCEPTED") || it.status.name.contains("PREPAR") }) {
+                "MerchantAccepted"
+            } else {
+                "Paid"
+            }
+            PaymentValidationStatus.Failed,
+            PaymentValidationStatus.Cancelled,
+            PaymentValidationStatus.BlockedByPolicy -> "Cancelled"
+        }
+    }
+
+private fun NotificationMessageSnapshot.toCommerceNotification(): CommerceNotificationDto =
+    CommerceNotificationDto(
+        id = id,
+        eventType = eventType.name,
+        severity = severity.name,
+        title = title,
+        body = body,
+        actionUrl = actionUrl,
+        read = readAt != null,
+        archived = archivedAt != null,
+        createdAt = createdAt,
+    )
