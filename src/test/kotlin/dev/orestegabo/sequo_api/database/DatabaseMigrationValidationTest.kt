@@ -12,6 +12,7 @@ import kotlin.test.assertFailsWith
     properties = [
         "spring.datasource.url=jdbc:h2:mem:hibernate_schema_validation;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.properties.hibernate.hbm2ddl.default_constraint_mode=CONSTRAINT",
         "spring.flyway.enabled=false"
     ]
 )
