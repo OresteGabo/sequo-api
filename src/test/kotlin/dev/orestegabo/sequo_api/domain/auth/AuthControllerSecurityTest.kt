@@ -76,6 +76,46 @@ class AuthControllerSecurityTest {
     }
 
     @Test
+    fun forgotPasswordRejectsMalformedEmailBeforeGenericResponse() {
+        val response = authController.forgotPassword(
+            AuthController.ForgotPasswordRequest("not-an-email")
+        )
+
+        assertEquals(400, response.statusCode.value())
+        val body = requireNotNull(response.body)
+        assertEquals("invalid_auth_request", body["code"])
+    }
+
+    @Test
+    fun signUpRejectsMalformedEmail() {
+        val response = authController.signUp(
+            AuthController.SignUpRequest(
+                email = "not-an-email",
+                password = "OldPassword2026!",
+                name = "Malformed Email",
+            )
+        )
+
+        assertEquals(400, response.statusCode.value())
+        val body = response.body as AuthErrorResponse
+        assertEquals("invalid_auth_request", body.code)
+    }
+
+    @Test
+    fun loginRejectsMalformedEmail() {
+        val response = authController.login(
+            AuthController.LoginWithEmailRequest(
+                email = "not-an-email",
+                password = "OldPassword2026!",
+            )
+        )
+
+        assertEquals(400, response.statusCode.value())
+        val body = response.body as AuthErrorResponse
+        assertEquals("invalid_auth_request", body.code)
+    }
+
+    @Test
     fun currentUserReturnsOnlySafeProfileFields() {
         val user = userRepository.save(
             User(
