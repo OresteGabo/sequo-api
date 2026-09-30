@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.returns
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -54,17 +55,18 @@ class ReturnController(
         @RequestBody request: CreateReturnRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.CUSTOMER) + RoleGroups.AdminOperations) { authenticated ->
         val actorId = userId ?: authenticated.name
-        if (authenticated.hasRole(RoleCode.CUSTOMER) && request.customerId != actorId) {
+        val safeCustomerId = ApiInputPolicy.requiredIdentifier(request.customerId, "customerId")
+        if (authenticated.hasRole(RoleCode.CUSTOMER) && safeCustomerId != actorId) {
             return@roleRequired ResponseEntity.status(403).build()
         }
         service.requestReturn(
             PersistedReturnRequestCommand(
-                returnId = request.returnId,
-                orderId = request.orderId,
-                customerId = request.customerId,
-                reason = request.reason,
+                returnId = ApiInputPolicy.requiredIdentifier(request.returnId, "returnId"),
+                orderId = ApiInputPolicy.requiredIdentifier(request.orderId, "orderId"),
+                customerId = safeCustomerId,
+                reason = ApiInputPolicy.requiredShortText(request.reason, "reason"),
                 requestedRefundCfa = request.requestedRefundCfa,
-                rawReturnPin = request.rawReturnPin,
+                rawReturnPin = ApiInputPolicy.requiredShortText(request.rawReturnPin, "rawReturnPin", 64),
                 requestedAt = request.requestedAt,
                 productReturnable = request.productReturnable,
                 merchantAllowsReturn = request.merchantAllowsReturn,
@@ -83,7 +85,7 @@ class ReturnController(
         val returns = when {
             authenticated.hasRole(RoleCode.CUSTOMER) -> service.listForCustomer(userId ?: authenticated.name)
             status != null -> service.listByStatus(status)
-            !customerId.isNullOrBlank() -> service.listForCustomer(customerId)
+            !customerId.isNullOrBlank() -> service.listForCustomer(ApiInputPolicy.requiredIdentifier(customerId, "customerId"))
             else -> service.listByStatus(ReturnStatus.ReceivedBySequo)
         }
         ResponseEntity.ok(returns)
@@ -95,7 +97,7 @@ class ReturnController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable returnId: String,
     ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.CUSTOMER) + RoleGroups.AdminOperations + RoleGroups.RelayOperators) { authenticated ->
-        val item = service.get(returnId) ?: return@roleRequired ResponseEntity.notFound().build()
+        val item = service.get(ApiInputPolicy.requiredIdentifier(returnId, "returnId")) ?: return@roleRequired ResponseEntity.notFound().build()
         val actorId = userId ?: authenticated.name
         if (authenticated.hasRole(RoleCode.CUSTOMER) && item.customerId != actorId) {
             return@roleRequired ResponseEntity.status(403).build()
@@ -106,7 +108,7 @@ class ReturnController(
     @GetMapping("/orders/{orderId}")
     fun listForOrder(authentication: Authentication?, @PathVariable orderId: String): ResponseEntity<Any> =
         roleRequired(authentication, RoleGroups.AdminOperations) {
-            ResponseEntity.ok(service.listForOrder(orderId))
+            ResponseEntity.ok(service.listForOrder(ApiInputPolicy.requiredIdentifier(orderId, "orderId")))
         }
 
     @PostMapping("/{returnId}/relay-dropoff")
@@ -117,9 +119,9 @@ class ReturnController(
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) {
         service.recordRelayDropoff(
             PersistedRelayDropoffCommand(
-                returnId = returnId,
-                relayPointId = request.relayPointId,
-                rawReturnPin = request.rawReturnPin,
+                returnId = ApiInputPolicy.requiredIdentifier(returnId, "returnId"),
+                relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
+                rawReturnPin = ApiInputPolicy.requiredShortText(request.rawReturnPin, "rawReturnPin", 64),
                 droppedAt = request.droppedAt,
             )
         ).toResponse()
@@ -133,12 +135,12 @@ class ReturnController(
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) { authenticated ->
         service.recordPhysicalReceipt(
             PersistedPhysicalReceiptCommand(
-                returnId = returnId,
+                returnId = ApiInputPolicy.requiredIdentifier(returnId, "returnId"),
                 operatorId = authenticated.name,
                 receivedAt = request.receivedAt,
-                conditionAssessment = request.conditionAssessment,
+                conditionAssessment = ApiInputPolicy.requiredLongText(request.conditionAssessment, "conditionAssessment"),
                 responsibility = request.responsibility,
-                idempotencyKey = request.idempotencyKey,
+                idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
             )
         ).toResponse()
     }
@@ -151,9 +153,9 @@ class ReturnController(
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOnly) {
         service.triggerRefund(
             PersistedRefundTriggerCommand(
-                returnId = returnId,
+                returnId = ApiInputPolicy.requiredIdentifier(returnId, "returnId"),
                 amountCfa = request.amountCfa,
-                idempotencyKey = request.idempotencyKey,
+                idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
             )
         ).toResponse()
     }
