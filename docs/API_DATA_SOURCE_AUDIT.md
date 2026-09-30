@@ -51,7 +51,7 @@ The main exceptions are:
 | Returns | `/api/returns/**` | Real DB | Reads/writes return requests and updates order state where relevant. Also checks order lines/categories from DB. |
 | Settlements | `/api/settlements/**` | Real DB | Reads/writes merchant payout accruals and settlement ledger entries. |
 | Payment webhooks | `POST /api/payments/webhooks/{provider}` | Real DB | Stores webhook events and publishes reconciliation events. Request validation is real; provider-side integration remains partial. |
-| Product related | `GET /api/v1/products/{id}/related` | Real DB | Queries `products` by category/status/created date. No hardcoded product list is returned by the endpoint. |
+| Product related | `GET /api/catalog/products/{id}/related` | Real DB | Queries `products` by category/status/created date. No hardcoded product list is returned by the endpoint. |
 | Product/media policy services | No public upload controller found in this audit | Code policy, storage abstraction | Media validation checks content type and file bytes in code. A public controller for upload was not found in the current endpoint scan. |
 | Notifications devices | `/api/notifications/devices/**` | Real DB | Stores encrypted FCM tokens and token statuses. |
 | Notifications preferences | `/api/notifications/preferences/**` | Real DB | Reads/writes notification preferences, falls back to defaults in code when no DB row exists. |
