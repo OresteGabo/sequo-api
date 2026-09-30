@@ -230,16 +230,7 @@ class MerchantFulfillmentController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(roles)) {
             ResponseEntity.status(403).build()
-        } else try {
-            operation(authentication)
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse(
-                    code = "invalid_merchant_fulfillment_request",
-                    message = e.message ?: "Invalid merchant request.",
-                )
-            )
-        }
+        } else operation(authentication)
 }
 
 private fun MerchantFulfillmentServiceResult.toResponse(): ResponseEntity<Any> =
