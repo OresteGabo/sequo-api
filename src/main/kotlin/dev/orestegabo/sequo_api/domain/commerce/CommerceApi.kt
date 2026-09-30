@@ -4,14 +4,7 @@ import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
-import dev.orestegabo.sequo_api.domain.notification.NotificationInboxQuery
-import dev.orestegabo.sequo_api.domain.notification.NotificationMessageSnapshot
-import dev.orestegabo.sequo_api.domain.notification.NotificationReadService
-import dev.orestegabo.sequo_api.domain.order.CustomerOrderDetails
-import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
-import dev.orestegabo.sequo_api.domain.order.OrderFulfillmentPersistenceService
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
-import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -25,6 +18,9 @@ import jakarta.persistence.OneToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Service
@@ -40,8 +36,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Entity
@@ -160,6 +154,23 @@ interface CatalogCategoryRepository : JpaRepository<CatalogCategoryRecord, Strin
 interface CommerceProductRepository : JpaRepository<ProductRecord, String> {
     fun findByStatusOrderBySortOrderAscCreatedAtDesc(status: CatalogProductStatus): List<ProductRecord>
     fun findByIdAndStatus(id: String, status: CatalogProductStatus): ProductRecord?
+
+    @Query(
+        """
+        select related
+        from ProductRecord related
+        where related.id <> :targetId
+          and related.status = dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus.ACTIVE
+          and related.category is not null
+          and related.category = (
+              select target.category
+              from ProductRecord target
+              where target.id = :targetId
+          )
+        order by related.createdAt desc
+        """
+    )
+    fun findRelatedActiveProductsByCategory(targetId: String, pageable: Pageable): List<ProductRecord>
 }
 
 interface CommerceMerchantRepository : JpaRepository<MerchantRecord, String>
@@ -301,34 +312,6 @@ data class BargainingOfferDto(
     val createdAt: Instant,
 )
 
-data class CommerceOrderItemDto(val name: String, val quantity: Int)
-data class CommerceOrderDto(
-    val id: String,
-    val sellers: List<String>,
-    val items: List<CommerceOrderItemDto>,
-    val state: String,
-    val stateLabel: String,
-    val dateLine: String,
-    val note: String,
-    val amountCfa: Int,
-    val paymentMethod: String,
-    val pickupCode: String?,
-)
-
-data class CommerceNotificationDto(
-    val id: String,
-    val eventType: String,
-    val severity: String,
-    val title: String,
-    val body: String,
-    val actionUrl: String?,
-    val read: Boolean,
-    val archived: Boolean,
-    val createdAt: Instant,
-)
-
-data class CommerceApiErrorResponse(val code: String, val message: String)
-
 @Service
 class CommerceService(
     private val categories: CatalogCategoryRepository,
@@ -339,8 +322,6 @@ class CommerceService(
     private val cartItems: CustomerCartItemRepository,
     private val bargainingThreads: BargainingThreadRepository,
     private val bargainingOffers: BargainingOfferRepository,
-    private val orderPersistence: OrderFulfillmentPersistenceService,
-    private val notificationReadService: NotificationReadService,
 ) {
     @Transactional(readOnly = true)
     fun home(category: String? = null, subcategory: String? = null): CommerceHomeDto {
@@ -396,6 +377,17 @@ class CommerceService(
             .filter { subcategory == null || it.subcategory == subcategory }
             .filter { merchantId == null || it.merchantId == merchantId }
             .sortedWith(compareBy<ProductRecord> { it.sortOrder }.thenByDescending { it.createdAt })
+            .map { it.toDto() }
+    }
+
+    @Transactional(readOnly = true)
+    fun relatedProducts(productId: String, limit: Int): List<CatalogProductDto> {
+        val safeProductId = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        require(limit in 1..MAX_RELATED_PRODUCTS_LIMIT) {
+            "limit must be between 1 and $MAX_RELATED_PRODUCTS_LIMIT."
+        }
+        return products
+            .findRelatedActiveProductsByCategory(safeProductId, PageRequest.of(0, limit))
             .map { it.toDto() }
     }
 
@@ -582,21 +574,15 @@ class CommerceService(
         return thread.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(thread.id))
     }
 
-    @Transactional(readOnly = true)
-    fun orders(userId: String): List<CommerceOrderDto> =
-        orderPersistence.listForCustomer(userId).map { it.toCommerceOrder() }
-
-    @Transactional(readOnly = true)
-    fun notifications(userId: String, includeArchived: Boolean, limit: Int): List<CommerceNotificationDto> =
-        notificationReadService.listInbox(NotificationInboxQuery(userId, includeArchived, limit))
-            .map { it.toCommerceNotification() }
 }
+
+private const val MAX_RELATED_PRODUCTS_LIMIT = 6
 
 @RestController
 @RequestMapping("/api/catalog")
 class CatalogController(private val commerce: CommerceService) {
     @GetMapping("/home")
-    fun home(@RequestParam(required = false) category: String?, @RequestParam(required = false) subcategory: String?): ResponseEntity<Any> = safe {
+    fun home(@RequestParam(required = false) category: String?, @RequestParam(required = false) subcategory: String?): ResponseEntity<Any> = ok {
         commerce.home(
             ApiInputPolicy.optionalIdentifier(category, "category"),
             ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
@@ -604,7 +590,7 @@ class CatalogController(private val commerce: CommerceService) {
     }
 
     @GetMapping("/categories")
-    fun categories(): ResponseEntity<Any> = safe { commerce.home().categories }
+    fun categories(): ResponseEntity<Any> = ok { commerce.home().categories }
 
     @GetMapping("/merchants")
     fun merchants(
@@ -612,7 +598,7 @@ class CatalogController(private val commerce: CommerceService) {
         @RequestParam(required = false) subcategory: String?,
         @RequestParam(required = false) area: String?,
         @RequestParam(required = false) sort: String?,
-    ): ResponseEntity<Any> = safe {
+    ): ResponseEntity<Any> = ok {
         commerce.listMerchants(
             ApiInputPolicy.optionalIdentifier(category, "category"),
             ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
@@ -627,7 +613,7 @@ class CatalogController(private val commerce: CommerceService) {
         @RequestParam(required = false) subcategory: String?,
         @RequestParam(required = false) merchantId: String?,
         @RequestParam(defaultValue = "false") includeArchived: Boolean,
-    ): ResponseEntity<Any> = safe {
+    ): ResponseEntity<Any> = ok {
         commerce.listProducts(
             ApiInputPolicy.optionalIdentifier(category, "category"),
             ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
@@ -636,17 +622,23 @@ class CatalogController(private val commerce: CommerceService) {
         )
     }
 
+    @GetMapping("/products/{productId}/related")
+    fun relatedProducts(
+        @PathVariable productId: String,
+        @RequestParam(defaultValue = "6") limit: Int,
+    ): ResponseEntity<Any> = ok { commerce.relatedProducts(productId, limit) }
+
     @PostMapping("/products")
     fun createProduct(@RequestBody request: ManageCatalogProductRequest): ResponseEntity<Any> =
-        safe { commerce.createProduct(request) }
+        ok { commerce.createProduct(request) }
 
     @PatchMapping("/products/{productId}")
     fun updateProduct(@PathVariable productId: String, @RequestBody request: PatchCatalogProductRequest): ResponseEntity<Any> =
-        safe { commerce.updateProduct(productId, request) }
+        ok { commerce.updateProduct(productId, request) }
 
     @PostMapping("/products/{productId}/archive")
     fun archiveProduct(@PathVariable productId: String): ResponseEntity<Any> =
-        safe { commerce.archiveProduct(productId) }
+        ok { commerce.archiveProduct(productId) }
 }
 
 @RestController
@@ -689,32 +681,11 @@ class BargainingController(private val commerce: CommerceService) {
         authenticated(userId) { commerce.addCustomerBargainingOffer(it, threadId, request) }
 }
 
-@RestController
-@RequestMapping("/api/customer")
-class CustomerCommerceController(private val commerce: CommerceService) {
-    @GetMapping("/orders")
-    fun orders(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> =
-        authenticated(userId) { commerce.orders(it) }
-
-    @GetMapping("/notifications")
-    fun notifications(
-        @AuthenticationPrincipal userId: String?,
-        @RequestParam(defaultValue = "false") includeArchived: Boolean,
-        @RequestParam(defaultValue = "50") limit: Int,
-    ): ResponseEntity<Any> =
-        authenticated(userId) { commerce.notifications(it, includeArchived, limit) }
-}
-
-private fun safe(block: () -> Any): ResponseEntity<Any> =
-    try {
-        ResponseEntity.ok(block())
-    } catch (e: IllegalArgumentException) {
-        ResponseEntity.badRequest().body(CommerceApiErrorResponse("invalid_commerce_request", e.message ?: "Invalid commerce request."))
-    }
+private fun ok(block: () -> Any): ResponseEntity<Any> = ResponseEntity.ok(block())
 
 private fun authenticated(userId: String?, block: (String) -> Any): ResponseEntity<Any> {
     if (userId == null) return ResponseEntity.status(401).build()
-    return safe { block(userId) }
+    return ok { block(userId) }
 }
 
 private fun CatalogCategoryRecord.toDto(): CatalogCategoryDto =
@@ -774,51 +745,3 @@ private fun BargainingThreadRecord.toDto(offers: List<BargainingOfferRecord>): B
 
 private fun BargainingOfferRecord.toDto(): BargainingOfferDto =
     BargainingOfferDto(id, actorUserId, actorType, offerType, amountCfa, message, createdAt)
-
-private fun CustomerOrderDetails.toCommerceOrder(): CommerceOrderDto {
-    val state = commerceState()
-    return CommerceOrderDto(
-        id = order.id,
-        sellers = lines.map { it.sellerName }.distinct(),
-        items = lines.map { CommerceOrderItemDto(it.productName, it.quantity) },
-        state = state,
-        stateLabel = state.replace(Regex("(?<=[a-z])(?=[A-Z])"), " "),
-        dateLine = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm").withZone(ZoneOffset.UTC).format(order.createdAt),
-        note = order.customerFacingStatus,
-        amountCfa = order.totalCfa,
-        paymentMethod = order.paymentProvider,
-        pickupCode = null,
-    )
-}
-
-private fun CustomerOrderDetails.commerceState(): String =
-    when (order.orderStatus) {
-        CustomerOrderStatus.DELIVERED -> "Delivered"
-        CustomerOrderStatus.RETURN_REQUESTED -> "ReturnRequested"
-        CustomerOrderStatus.REFUNDED -> "RefundIssued"
-        CustomerOrderStatus.CANCELLED -> "Cancelled"
-        CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT -> when (order.paymentStatus) {
-            PaymentValidationStatus.Pending -> "PaymentPending"
-            PaymentValidationStatus.Validated -> if (merchantSubOrders.any { it.status.name.contains("ACCEPTED") || it.status.name.contains("PREPAR") }) {
-                "MerchantAccepted"
-            } else {
-                "Paid"
-            }
-            PaymentValidationStatus.Failed,
-            PaymentValidationStatus.Cancelled,
-            PaymentValidationStatus.BlockedByPolicy -> "Cancelled"
-        }
-    }
-
-private fun NotificationMessageSnapshot.toCommerceNotification(): CommerceNotificationDto =
-    CommerceNotificationDto(
-        id = id,
-        eventType = eventType.name,
-        severity = severity.name,
-        title = title,
-        body = body,
-        actionUrl = actionUrl,
-        read = readAt != null,
-        archived = archivedAt != null,
-        createdAt = createdAt,
-    )
