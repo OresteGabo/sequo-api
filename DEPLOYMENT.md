@@ -113,7 +113,10 @@ The raw VPS endpoint, `http://vps-d4bc6ae7.vps.ovh.net:8080`, is still useful fo
 
 ## Updates
 
-Pull or copy the new code, rebuild, and restart:
+Normal production updates are handled by GitHub Actions after a successful push to `main`.
+The workflow SSHs to the VPS, updates the checkout, rebuilds the Compose stack, and runs health checks.
+
+Manual updates should be used only for debugging or if GitHub Actions is unavailable:
 
 ```bash
 git pull
@@ -122,6 +125,13 @@ docker compose ps
 ```
 
 Compose keeps PostgreSQL data in the named volume `sequo-api_postgres-data` unless you explicitly remove volumes.
+
+## Flyway Migration Safety
+
+Once a database has applied a Flyway migration, treat that migration file as immutable.
+Do not edit, delete, rename, or squash applied migration files. Add a new `V<number>__description.sql` file instead.
+
+Flyway compares checksums at startup. If an already-applied migration changes, the API fails to start with a checksum mismatch.
 
 ## Backup And Restore
 
