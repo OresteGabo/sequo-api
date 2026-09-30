@@ -198,13 +198,13 @@ jobs:
           git reset --hard origin/main
           docker compose up -d --build --remove-orphans
           docker compose ps
-          curl --fail --silent --show-error --retry 12 --retry-delay 5 http://127.0.0.1:8080/actuator/health/readiness
+          curl --fail --silent --show-error --retry 24 --retry-delay 5 --retry-all-errors http://127.0.0.1:8080/actuator/health/readiness
           REMOTE_DEPLOY
 
       - name: Verify public health endpoint
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 12 --retry-delay 5 https://api.sequoservice.com/actuator/health
+          curl --fail --silent --show-error --retry 24 --retry-delay 5 --retry-all-errors https://api.sequoservice.com/actuator/health
 
   dependency-review:
     name: Dependency Review
