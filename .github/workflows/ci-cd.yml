@@ -146,6 +146,66 @@ jobs:
       - name: Validate migrations against PostgreSQL
         run: ./gradlew test --tests dev.orestegabo.sequo_api.SequoApiApplicationTests --no-daemon --stacktrace
 
+  deploy-production:
+    name: Deploy to Production Host
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AUTO_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - build-test
+      - docker-build
+      - postgres-migration-validation
+    environment:
+      name: production
+      url: https://api.sequoservice.com/actuator/health
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+      DEPLOY_APP_DIR: ${{ secrets.DEPLOY_APP_DIR }}
+
+    steps:
+      - name: Validate deployment secrets
+        run: |
+          set -euo pipefail
+          test -n "${DEPLOY_HOST}" || { echo "Missing DEPLOY_HOST secret"; exit 1; }
+          test -n "${DEPLOY_USER}" || { echo "Missing DEPLOY_USER secret"; exit 1; }
+          test -n "${DEPLOY_SSH_KEY}" || { echo "Missing DEPLOY_SSH_KEY secret"; exit 1; }
+
+      - name: Prepare SSH key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_SSH_PORT:-22}" -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Deploy latest main branch
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key \
+            -p "${DEPLOY_SSH_PORT:-22}" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "APP_DIR='${DEPLOY_APP_DIR:-/root/sequo-api}' bash -s" <<'REMOTE_DEPLOY'
+          set -euo pipefail
+          cd "${APP_DIR}"
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          docker compose up -d --build --remove-orphans
+          docker compose ps
+          curl --fail --silent --show-error --retry 12 --retry-delay 5 http://127.0.0.1:8080/actuator/health/readiness
+          REMOTE_DEPLOY
+
+      - name: Verify public health endpoint
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 12 --retry-delay 5 https://api.sequoservice.com/actuator/health
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
