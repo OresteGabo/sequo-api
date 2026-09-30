@@ -20,8 +20,6 @@ class DeliveryTrackingController(
     private val service: DeliveryMissionService,
     private val orders: OrderFulfillmentPersistenceService,
 ) {
-    data class ErrorResponse(val code: String, val message: String)
-
     @GetMapping("/{deliveryCode}")
     fun track(
         authentication: Authentication?,
@@ -52,14 +50,5 @@ class DeliveryTrackingController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(roles)) {
             ResponseEntity.status(403).build()
-        } else try {
-            operation()
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse(
-                    code = "invalid_delivery_tracking_request",
-                    message = e.message ?: "Invalid delivery tracking request.",
-                )
-            )
-        }
+        } else operation()
 }
