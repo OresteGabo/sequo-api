@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.settlement
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -24,8 +25,9 @@ class SettlementController(
         @RequestParam merchantId: String,
         @RequestParam(required = false) status: MerchantPayoutStatus?,
     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.MerchantOperators) { auth ->
-        if (!auth.canReadMerchantPayouts(merchantId)) return@authenticated ResponseEntity.status(403).build()
-        ResponseEntity.ok(service.listMerchantPayouts(merchantId, status).map { it.toResponse() })
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
+        if (!auth.canReadMerchantPayouts(safeMerchantId)) return@authenticated ResponseEntity.status(403).build()
+        ResponseEntity.ok(service.listMerchantPayouts(safeMerchantId, status).map { it.toResponse() })
     }
 
     @GetMapping("/ledger")
@@ -34,7 +36,7 @@ class SettlementController(
         @RequestParam sourceType: SettlementSourceType,
         @RequestParam sourceId: String,
     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOnly) {
-        ResponseEntity.ok(service.listLedgerEntries(sourceType, sourceId).map { it.toResponse() })
+        ResponseEntity.ok(service.listLedgerEntries(sourceType, ApiInputPolicy.requiredIdentifier(sourceId, "sourceId")).map { it.toResponse() })
     }
 
     @PostMapping("/merchant-payouts/evaluate-eligible")
