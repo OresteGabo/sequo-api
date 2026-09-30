@@ -65,6 +65,7 @@ class DatabaseMigrationValidationTest @Autowired constructor(
             "NOTIFICATION_OUTBOX",
             "PRODUCTS",
             "CATALOG_IMAGES",
+            "DELIVERY_PRICING_SETTINGS",
         )
 
         expectedTables.forEach { tableName ->
