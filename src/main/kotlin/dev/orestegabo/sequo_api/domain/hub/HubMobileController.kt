@@ -78,8 +78,6 @@ class HubMobileController(
         val idempotencyKey: String,
     )
 
-    data class ErrorResponse(val code: String, val message: String)
-
     @PostMapping("/scan/resolve")
     fun resolveScan(
         authentication: Authentication?,
@@ -190,30 +188,24 @@ class HubMobileController(
         @RequestBody request: ApplyControlStateRequest,
     ): ResponseEntity<Any> =
         controlMutationRequired(authentication, request.actorType) { authenticated ->
-            try {
-                ResponseEntity.ok(
-                    service.applyControlDecision(
-                        HubControlDecisionCommand(
-                            relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
-                            target = request.target,
-                            status = request.status,
-                            reasonCode = request.reasonCode,
-                            staffMessage = ApiInputPolicy.requiredShortText(request.staffMessage, "staffMessage"),
-                            customerMessage = ApiInputPolicy.optionalShortText(request.customerMessage, "customerMessage"),
-                            effectiveUntil = request.effectiveUntil,
-                            actorType = request.actorType,
-                            actorId = authenticated.name,
-                            source = ApiInputPolicy.optionalIdentifier(request.source, "source") ?: "hub-control-api",
-                            incidentReferenceId = ApiInputPolicy.optionalIdentifier(request.incidentReferenceId, "incidentReferenceId"),
-                            idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
-                        )
+            ResponseEntity.ok(
+                service.applyControlDecision(
+                    HubControlDecisionCommand(
+                        relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
+                        target = request.target,
+                        status = request.status,
+                        reasonCode = request.reasonCode,
+                        staffMessage = ApiInputPolicy.requiredShortText(request.staffMessage, "staffMessage"),
+                        customerMessage = ApiInputPolicy.optionalShortText(request.customerMessage, "customerMessage"),
+                        effectiveUntil = request.effectiveUntil,
+                        actorType = request.actorType,
+                        actorId = authenticated.name,
+                        source = ApiInputPolicy.optionalIdentifier(request.source, "source") ?: "hub-control-api",
+                        incidentReferenceId = ApiInputPolicy.optionalIdentifier(request.incidentReferenceId, "incidentReferenceId"),
+                        idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
                     )
                 )
-            } catch (e: IllegalArgumentException) {
-                ResponseEntity.badRequest().body(
-                    ErrorResponse("invalid_hub_control_request", e.message ?: "Invalid hub control request.")
-                )
-            }
+            )
         }
 
     @GetMapping("/control-state/history")
@@ -245,15 +237,7 @@ class HubMobileController(
             ResponseEntity.status(403).build()
         } else if (authentication.hasRole(RoleCode.RELAY_PARTNER) && !authentication.hasAnyRole(RoleGroups.AdminOperations) && authentication.name != hubId) {
             ResponseEntity.status(403).build()
-        } else {
-            try {
-                operation(authentication)
-            } catch (e: IllegalArgumentException) {
-                ResponseEntity.badRequest().body(
-                    ErrorResponse("invalid_hub_request", e.message ?: "Invalid hub request.")
-                )
-            }
-        }
+        } else operation(authentication)
 
     private fun hubAccessRequired(
         authentication: Authentication?,
@@ -266,15 +250,7 @@ class HubMobileController(
             ResponseEntity.status(403).build()
         } else if (authentication.hasRole(RoleCode.RELAY_PARTNER) && !authentication.hasAnyRole(RoleGroups.AdminOperations) && authentication.name != hubId) {
             ResponseEntity.status(403).build()
-        } else {
-            try {
-                operation(authentication)
-            } catch (e: IllegalArgumentException) {
-                ResponseEntity.badRequest().body(
-                    ErrorResponse("invalid_hub_request", e.message ?: "Invalid hub request.")
-                )
-            }
-        }
+        } else operation(authentication)
 
     private fun controlMutationRequired(
         authentication: Authentication?,
