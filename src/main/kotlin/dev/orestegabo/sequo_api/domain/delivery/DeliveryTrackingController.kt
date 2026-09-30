@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -29,10 +30,12 @@ class DeliveryTrackingController(
     ): ResponseEntity<Any> {
         val auth = authentication ?: return ResponseEntity.status(401).build()
         return roleRequired(auth, RoleGroups.CustomerDeliveryTrackingReaders) {
-            if (requiresCustomerOwnership(auth) && orders.getForCustomer(orderId, auth.name) == null) {
+            val safeOrderId = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
+            val safeDeliveryCode = ApiInputPolicy.requiredIdentifier(deliveryCode, "deliveryCode")
+            if (requiresCustomerOwnership(auth) && orders.getForCustomer(safeOrderId, auth.name) == null) {
                 return@roleRequired ResponseEntity.notFound().build()
             }
-            service.track(deliveryCode, orderId)?.let { ResponseEntity.ok(it) }
+            service.track(safeDeliveryCode, safeOrderId)?.let { ResponseEntity.ok(it) }
                 ?: ResponseEntity.notFound().build()
         }
     }
