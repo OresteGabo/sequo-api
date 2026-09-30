@@ -123,7 +123,7 @@ Rate-limited responses must use HTTP `429` and include a `Retry-After` header wh
 | --- | --- | --- | --- |
 | `GET` | `/merchants` | Optional | Browse public active merchants |
 | `GET` | `/merchants/{merchantId}` | Optional | Merchant storefront |
-| `GET` | `/api/v1/products/{productId}/related` | Yes | Dynamic related products from the same active category |
+| `GET` | `/api/catalog/products/{productId}/related` | Optional | Dynamic related products from the same active category |
 | `POST` | `/admin/merchants` | Admin | Create/approve merchant |
 | `PATCH` | `/admin/merchants/{merchantId}/commission` | Admin | Set commission between 5% and 15% |
 | `GET` | `/merchant/products` | Merchant | Own catalog |
@@ -135,9 +135,9 @@ Rate-limited responses must use HTTP `429` and include a `Retry-After` header wh
 | `POST` | `/merchant/products/{productId}/customization-groups` | Merchant owner | Create food topping/option group |
 | `PATCH` | `/merchant/products/{productId}/customization-groups/{groupId}` | Merchant owner | Update topping/option group |
 
-Related products are implicit. The backend does not store manual product-to-product links; `GET /api/v1/products/{productId}/related`
+Related products are implicit. The backend does not store manual product-to-product links; `GET /api/catalog/products/{productId}/related`
 returns up to 6 active products from the same catalog category, excludes `{productId}`, and orders fallback results by newest first.
-When tag or attribute tables are introduced, ranking can be extended in `ProductRepository.findRelatedActiveProductsByCategory`
+When tag or attribute tables are introduced, ranking can be extended in `CommerceProductRepository.findRelatedActiveProductsByCategory`
 without adding a combinatorial join table.
 
 ### Cooperative Markets
