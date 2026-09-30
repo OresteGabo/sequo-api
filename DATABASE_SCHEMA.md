@@ -214,7 +214,7 @@ Unique: `(relay_point_id, locker_code)`.
 
 Related products are a derived relationship, not a table. The current implementation links products at read time by matching
 the target product's active catalog category, excluding the target product itself, and limiting the response to 6 items through
-`GET /api/v1/products/{productId}/related`. Keep this implicit unless the business needs curated/manual relationships.
+`GET /api/catalog/products/{productId}/related`. Keep this implicit unless the business needs curated/manual relationships.
 
 ### `product_variants`
 
