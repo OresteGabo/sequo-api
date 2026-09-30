@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -68,15 +69,20 @@ class RelayParcelController(
         @RequestParam relayPointId: String,
         @RequestParam(required = false) status: RelayParcelStatus?,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) {
-        ResponseEntity.ok(service.listParcels(relayPointId, status).map { toResponse(it) })
+        ResponseEntity.ok(
+            service.listParcels(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId"), status)
+                .map { toResponse(it) }
+        )
     }
 
     @GetMapping("/{parcelId}")
     fun get(authentication: Authentication?, @PathVariable parcelId: String, @RequestParam(required = false) relayPointId: String?): ResponseEntity<Any> =
         roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
-            val parcel = service.getParcel(parcelId)
+            val safeParcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId")
+            val safeRelayPointId = ApiInputPolicy.optionalIdentifier(relayPointId, "relayPointId")
+            val parcel = service.getParcel(safeParcelId)
                 ?: return@roleRequired ResponseEntity.notFound().build()
-            if (authenticated.hasRole(RoleCode.RELAY_PARTNER) && parcel.relayPointId != relayPointId) {
+            if (authenticated.hasRole(RoleCode.RELAY_PARTNER) && parcel.relayPointId != safeRelayPointId) {
                 return@roleRequired ResponseEntity.status(403).build()
             }
             ResponseEntity.ok(toResponse(parcel))
@@ -89,10 +95,10 @@ class RelayParcelController(
         @RequestBody request: PickupCodeRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) {
         service.createPickupCode(
-            parcelId = parcelId,
-            codeId = request.codeId,
-            rawNumericCode = request.rawNumericCode,
-            rawQrNonce = request.rawQrNonce,
+            parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
+            codeId = ApiInputPolicy.requiredIdentifier(request.codeId, "codeId"),
+            rawNumericCode = ApiInputPolicy.requiredShortText(request.rawNumericCode, "rawNumericCode", 32),
+            rawQrNonce = ApiInputPolicy.optionalShortText(request.rawQrNonce, "rawQrNonce", 256),
             identityCheckRequired = request.identityCheckRequired,
             expiresAt = request.expiresAt,
         ).toResponse()
@@ -105,14 +111,14 @@ class RelayParcelController(
         @RequestBody request: ReleaseRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
         service.verifyPickup(
-            parcelId = parcelId,
-            relayPointId = request.relayPointId,
+            parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
+            relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
             actorUserId = authenticated.name,
-            rawNumericCode = request.rawNumericCode,
-            rawQrNonce = request.rawQrNonce,
+            rawNumericCode = ApiInputPolicy.optionalShortText(request.rawNumericCode, "rawNumericCode", 32),
+            rawQrNonce = ApiInputPolicy.optionalShortText(request.rawQrNonce, "rawQrNonce", 256),
             identityDocumentMatched = request.identityDocumentMatched,
-            eventId = request.eventId,
-            idempotencyKey = request.idempotencyKey,
+            eventId = ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
+            idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
         ).toResponse()
     }
 
@@ -122,7 +128,13 @@ class RelayParcelController(
         @PathVariable parcelId: String,
         @RequestBody request: ProblemRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
-        service.reportProblem(parcelId, authenticated.name, request.eventId, request.idempotencyKey, request.metadata).toResponse()
+        service.reportProblem(
+            ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
+            authenticated.name,
+            ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
+            ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
+            ApiInputPolicy.requiredLongText(request.metadata, "metadata"),
+        ).toResponse()
     }
 
     @PostMapping("/{parcelId}/return-to-seller")
@@ -132,11 +144,11 @@ class RelayParcelController(
         @RequestBody request: ReturnToSellerRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) { authenticated ->
         service.returnToSeller(
-            parcelId = parcelId,
+            parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             actorUserId = authenticated.name,
-            eventId = request.eventId,
-            idempotencyKey = request.idempotencyKey,
-            metadata = request.metadata,
+            eventId = ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
+            idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
+            metadata = ApiInputPolicy.requiredLongText(request.metadata, "metadata"),
             returnedAt = request.returnedAt,
         ).toResponse()
     }
@@ -146,7 +158,8 @@ class RelayParcelController(
         authentication: Authentication?,
         @RequestBody request: StorageFeeAssessmentRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) {
-        ResponseEntity.ok(service.assessStorageFees(request.relayPointId, request.dailyFeeCfa, request.evaluatedAt))
+        require(request.dailyFeeCfa in 0..100_000) { "dailyFeeCfa must be between 0 and 100000." }
+        ResponseEntity.ok(service.assessStorageFees(ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"), request.dailyFeeCfa, request.evaluatedAt))
     }
 
     @GetMapping("/storage-fees")
@@ -154,7 +167,7 @@ class RelayParcelController(
         authentication: Authentication?,
         @RequestParam relayPointId: String,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) {
-        ResponseEntity.ok(service.listStorageFeeAssessments(relayPointId))
+        ResponseEntity.ok(service.listStorageFeeAssessments(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")))
     }
 
     private fun roleRequired(authentication: Authentication?, roles: Set<RoleCode>, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
