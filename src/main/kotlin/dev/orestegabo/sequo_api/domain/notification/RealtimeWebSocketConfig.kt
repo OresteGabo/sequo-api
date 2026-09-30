@@ -56,13 +56,13 @@ class StompJwtAuthenticationInterceptor(
 
         val rawHeader = accessor.getFirstNativeHeader("Authorization")
             ?: accessor.getFirstNativeHeader("authorization")
-            ?: throw RealtimeAuthenticationException("Missing Authorization header.")
+            ?: throw RealtimeAuthenticationException()
         if (!rawHeader.startsWith("Bearer ")) {
-            throw RealtimeAuthenticationException("Authorization header must use Bearer token.")
+            throw RealtimeAuthenticationException()
         }
 
         val session = jwtService.parseAccessToken(rawHeader.removePrefix("Bearer ").trim())
-            ?: throw RealtimeAuthenticationException("Invalid access token.")
+            ?: throw RealtimeAuthenticationException()
         val authentication = UsernamePasswordAuthenticationToken(
             session.userId,
             null,
@@ -93,11 +93,11 @@ class StompSubscriptionAuthorizationInterceptor(
         if (accessor.command != StompCommand.SUBSCRIBE) return message
 
         val authentication = accessor.user as? Authentication
-            ?: throw RealtimeAuthenticationException("WebSocket subscription requires authentication.")
+            ?: throw RealtimeAuthenticationException()
         val destination = accessor.destination
-            ?: throw RealtimeAuthorizationException("WebSocket subscription destination is required.")
+            ?: throw RealtimeAuthorizationException()
         val decision = authorization.authorize(authentication, destination)
-        if (!decision.allowed) throw RealtimeAuthorizationException(decision.reason)
+        if (!decision.allowed) throw RealtimeAuthorizationException()
         return message
     }
 }
@@ -146,5 +146,5 @@ class RealtimeSubscriptionAuthorizationService {
     private fun deny(reason: String) = RealtimeAuthorizationDecision(false, reason)
 }
 
-class RealtimeAuthenticationException(message: String) : RuntimeException(message)
-class RealtimeAuthorizationException(message: String) : RuntimeException(message)
+class RealtimeAuthenticationException : RuntimeException("WebSocket authentication failed.")
+class RealtimeAuthorizationException : RuntimeException("WebSocket subscription is not allowed.")
