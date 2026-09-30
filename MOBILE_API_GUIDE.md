@@ -119,6 +119,11 @@ Important order enums:
   Seller-specific products require live camera evidence; gallery uploads are rejected.
 - `paymentProvider.value`: `yas_togo` or `moov_africa`.
 
+Related products:
+
+- `GET /api/v1/products/{productId}/related?limit=6` returns active products dynamically linked by the same catalog category.
+- The target product is never included in the response. There is no manual related-products join table to sync.
+
 The server replaces `customerId` with the authenticated user ID. A successful payment can return `200`;
 a provider-pending payment can return `202`; a rejected order returns `400`.
 
