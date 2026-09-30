@@ -35,8 +35,6 @@ class NotificationPreferenceController(
         val quietHoursEnd: LocalTime? = null,
     )
 
-    data class ErrorResponse(val code: String, val message: String)
-
     @GetMapping("/{appFamily}/effective")
     fun effectivePreference(
         @AuthenticationPrincipal userId: String?,
@@ -44,15 +42,7 @@ class NotificationPreferenceController(
         @RequestParam eventType: NotificationEventType,
     ): ResponseEntity<Any> {
         userId ?: return ResponseEntity.status(401).build()
-        return try {
-            ResponseEntity.ok(
-                preferenceService.resolve(userId, appFamily, eventType).toResponse()
-            )
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse("invalid_notification_preference", e.message ?: "Invalid notification preference request.")
-            )
-        }
+        return ResponseEntity.ok(preferenceService.resolve(userId, appFamily, eventType).toResponse())
     }
 
     @PutMapping("/{appFamily}")
@@ -62,26 +52,20 @@ class NotificationPreferenceController(
         @RequestBody request: SavePreferenceRequest,
     ): ResponseEntity<Any> {
         userId ?: return ResponseEntity.status(401).build()
-        return try {
-            ResponseEntity.ok(
-                preferenceService.savePreference(
-                    SaveNotificationPreferenceCommand(
-                        userId = userId,
-                        appFamily = appFamily,
-                        eventType = request.eventType,
-                        pushEnabled = request.pushEnabled,
-                        inAppEnabled = request.inAppEnabled,
-                        smsEnabled = request.smsEnabled,
-                        quietHoursStart = request.quietHoursStart,
-                        quietHoursEnd = request.quietHoursEnd,
-                    )
-                ).toResponse()
-            )
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse("invalid_notification_preference", e.message ?: "Invalid notification preference request.")
-            )
-        }
+        return ResponseEntity.ok(
+            preferenceService.savePreference(
+                SaveNotificationPreferenceCommand(
+                    userId = userId,
+                    appFamily = appFamily,
+                    eventType = request.eventType,
+                    pushEnabled = request.pushEnabled,
+                    inAppEnabled = request.inAppEnabled,
+                    smsEnabled = request.smsEnabled,
+                    quietHoursStart = request.quietHoursStart,
+                    quietHoursEnd = request.quietHoursEnd,
+                )
+            ).toResponse()
+        )
     }
 }
 
