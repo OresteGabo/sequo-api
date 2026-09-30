@@ -4,6 +4,7 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryAssignmentPolicy
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionWorkflow
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentWorkflow
 import dev.orestegabo.sequo_api.domain.payment.*
+import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingSettingsRepository
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelPolicy
 import org.springframework.context.annotation.Bean
@@ -13,7 +14,8 @@ import org.springframework.context.annotation.Configuration
 class DomainConfig {
 
     @Bean
-    fun deliveryPricingService() = DeliveryPricingService()
+    fun deliveryPricingService(settingsRepository: DeliveryPricingSettingsRepository) =
+        DeliveryPricingService(settingsRepository)
 
     @Bean
     fun deliveryAssignmentPolicy() = DeliveryAssignmentPolicy()
