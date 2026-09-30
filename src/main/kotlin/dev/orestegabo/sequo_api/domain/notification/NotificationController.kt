@@ -23,11 +23,7 @@ class NotificationController(
         @RequestParam(defaultValue = "50") limit: Int,
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
-        return try {
-            ResponseEntity.ok(readService.listInbox(NotificationInboxQuery(userId, includeArchived, limit)))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(ErrorResponse("invalid_inbox_query", e.message ?: "Invalid inbox query."))
-        }
+        return ResponseEntity.ok(readService.listInbox(NotificationInboxQuery(userId, includeArchived, limit)))
     }
 
     @PatchMapping("/{messageId}/read")
@@ -53,13 +49,7 @@ class NotificationController(
         operation: (String) -> NotificationMessageSnapshot?,
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
-        return try {
-            operation(userId)?.let { ResponseEntity.ok(it) }
-                ?: ResponseEntity.notFound().build()
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(ErrorResponse("invalid_notification_request", e.message ?: "Invalid notification request."))
-        }
+        return operation(userId)?.let { ResponseEntity.ok(it) }
+            ?: ResponseEntity.notFound().build()
     }
-
-    data class ErrorResponse(val code: String, val message: String)
 }
