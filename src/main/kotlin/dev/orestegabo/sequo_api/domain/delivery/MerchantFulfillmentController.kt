@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -41,11 +42,12 @@ class MerchantFulfillmentController(
         @RequestParam merchantId: String,
         @RequestParam(required = false) status: MerchantSubOrderStatus?,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        if (!merchantScopeAllowed(authenticated, merchantId)) {
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
+        if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
         val statuses = status?.let { setOf(it) } ?: MerchantFulfillmentService.activeMerchantStatuses
-        ResponseEntity.ok(service.listForMerchant(merchantId, statuses))
+        ResponseEntity.ok(service.listForMerchant(safeMerchantId, statuses))
     }
 
     @PostMapping("/sla/publish-overdue")
@@ -53,6 +55,7 @@ class MerchantFulfillmentController(
         authentication: Authentication?,
         @RequestBody request: PublishSlaWarningsRequest,
     ): ResponseEntity<Any> = operationsOnly(authentication) {
+        require(request.limit in 1..500) { "limit must be between 1 and 500." }
         ResponseEntity.ok(service.publishOverdueSlaWarnings(request.evaluatedAt, request.limit))
     }
 
@@ -61,7 +64,7 @@ class MerchantFulfillmentController(
         authentication: Authentication?,
         @PathVariable subOrderId: String,
     ): ResponseEntity<Any> = operationsOnly(authentication) {
-        ResponseEntity.ok(service.listEscalations(subOrderId))
+        ResponseEntity.ok(service.listEscalations(ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")))
     }
 
     @PostMapping("/{subOrderId}/escalations")
@@ -70,7 +73,14 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestBody request: EscalateRequest,
     ): ResponseEntity<Any> = operationsOnly(authentication) { authenticated ->
-        ResponseEntity.ok(service.escalate(subOrderId, authenticated.name, request.reason, request.note))
+        ResponseEntity.ok(
+            service.escalate(
+                ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId"),
+                authenticated.name,
+                request.reason,
+                ApiInputPolicy.requiredShortText(request.note, "note"),
+            )
+        )
     }
 
     @GetMapping("/{subOrderId}")
@@ -79,8 +89,10 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestParam(required = false) merchantId: String?,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        val subOrder = service.get(subOrderId) ?: return@merchantRequired ResponseEntity.notFound().build()
-        if (!authenticated.hasAnyRole(RoleGroups.AdminOnly) && !merchantCanSee(authenticated, subOrder.merchantId, merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.optionalIdentifier(merchantId, "merchantId")
+        val subOrder = service.get(safeSubOrderId) ?: return@merchantRequired ResponseEntity.notFound().build()
+        if (!authenticated.hasAnyRole(RoleGroups.AdminOnly) && !merchantCanSee(authenticated, subOrder.merchantId, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
         ResponseEntity.ok(subOrder)
@@ -92,11 +104,13 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestParam(required = false) merchantId: String?,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        val subOrder = service.get(subOrderId) ?: return@merchantRequired ResponseEntity.notFound().build()
-        if (!authenticated.hasAnyRole(RoleGroups.AdminOnly) && !merchantCanSee(authenticated, subOrder.merchantId, merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.optionalIdentifier(merchantId, "merchantId")
+        val subOrder = service.get(safeSubOrderId) ?: return@merchantRequired ResponseEntity.notFound().build()
+        if (!authenticated.hasAnyRole(RoleGroups.AdminOnly) && !merchantCanSee(authenticated, subOrder.merchantId, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        service.sla(subOrderId)?.let { ResponseEntity.ok(it) } ?: ResponseEntity.notFound().build()
+        service.sla(safeSubOrderId)?.let { ResponseEntity.ok(it) } ?: ResponseEntity.notFound().build()
     }
 
     @PostMapping("/{subOrderId}/accept")
@@ -105,10 +119,12 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestBody request: MerchantActionRequest,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        if (!merchantScopeAllowed(authenticated, request.merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(request.merchantId, "merchantId")
+        if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        service.accept(subOrderId, request.merchantId).toResponse()
+        service.accept(safeSubOrderId, safeMerchantId).toResponse()
     }
 
     @PostMapping("/{subOrderId}/start-preparation")
@@ -117,10 +133,12 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestBody request: MerchantActionRequest,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        if (!merchantScopeAllowed(authenticated, request.merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(request.merchantId, "merchantId")
+        if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        service.startPreparation(subOrderId, request.merchantId).toResponse()
+        service.startPreparation(safeSubOrderId, safeMerchantId).toResponse()
     }
 
     @PostMapping("/{subOrderId}/mark-packed")
@@ -129,10 +147,12 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestBody request: MarkPackedRequest,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        if (!merchantScopeAllowed(authenticated, request.merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(request.merchantId, "merchantId")
+        if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        service.markPacked(subOrderId, request.merchantId, request.packageCount).toResponse()
+        service.markPacked(safeSubOrderId, safeMerchantId, request.packageCount).toResponse()
     }
 
     @PostMapping("/{subOrderId}/handoff")
@@ -141,10 +161,12 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestBody request: MerchantActionRequest,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        if (!merchantScopeAllowed(authenticated, request.merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(request.merchantId, "merchantId")
+        if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        service.confirmCourierHandoff(subOrderId, request.merchantId).toResponse()
+        service.confirmCourierHandoff(safeSubOrderId, safeMerchantId).toResponse()
     }
 
     @PostMapping("/{subOrderId}/reject")
@@ -153,10 +175,16 @@ class MerchantFulfillmentController(
         @PathVariable subOrderId: String,
         @RequestBody request: RejectRequest,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
-        if (!merchantScopeAllowed(authenticated, request.merchantId)) {
+        val safeSubOrderId = ApiInputPolicy.requiredIdentifier(subOrderId, "subOrderId")
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(request.merchantId, "merchantId")
+        if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        service.reject(subOrderId, request.merchantId, request.reason).toResponse()
+        service.reject(
+            safeSubOrderId,
+            safeMerchantId,
+            ApiInputPolicy.requiredShortText(request.reason, "reason"),
+        ).toResponse()
     }
 
     private fun adminOnly(
