@@ -23,30 +23,22 @@ class AccountController(
         val idempotencyKey: String? = null,
     )
 
-    data class ErrorResponse(val code: String, val message: String)
-
     @PostMapping("/deletion-requests")
     fun requestDeletion(
         @AuthenticationPrincipal userId: String?,
         @RequestBody request: DeletionRequest,
     ): ResponseEntity<Any> {
         userId ?: return ResponseEntity.status(401).build()
-        return try {
-            ResponseEntity.ok(
-                service.requestAccountDeletion(
-                    AccountDeletionRequestCommand(
-                        userId = userId,
-                        confirmation = ApiInputPolicy.requiredShortText(request.confirmation, "confirmation", 32),
-                        reason = ApiInputPolicy.optionalLongText(request.reason, "reason"),
-                        idempotencyKey = ApiInputPolicy.optionalIdempotencyKey(request.idempotencyKey),
-                    )
+        return ResponseEntity.ok(
+            service.requestAccountDeletion(
+                AccountDeletionRequestCommand(
+                    userId = userId,
+                    confirmation = ApiInputPolicy.requiredShortText(request.confirmation, "confirmation", 32),
+                    reason = ApiInputPolicy.optionalLongText(request.reason, "reason"),
+                    idempotencyKey = ApiInputPolicy.optionalIdempotencyKey(request.idempotencyKey),
                 )
             )
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse("invalid_account_deletion_request", e.message ?: "Invalid account deletion request.")
-            )
-        }
+        )
     }
 }
 
@@ -62,8 +54,6 @@ class UserPreferenceController(
         val soundFeedback: Boolean? = null,
         val largeLockerLabels: Boolean? = null,
     )
-
-    data class ErrorResponse(val code: String, val message: String)
 
     @GetMapping
     fun getPreferences(
@@ -83,24 +73,18 @@ class UserPreferenceController(
         @RequestBody request: PatchPreferenceRequest,
     ): ResponseEntity<Any> {
         userId ?: return ResponseEntity.status(401).build()
-        return try {
-            ResponseEntity.ok(
-                service.patchUserPreferences(
-                    UserAppPreferencePatch(
-                        userId = userId,
-                        appFamily = appFamily ?: NotificationAppFamily.SEQUO_HUB,
-                        theme = request.theme,
-                        language = ApiInputPolicy.optionalLanguageTag(request.language),
-                        quickScanOnOpen = request.quickScanOnOpen,
-                        soundFeedback = request.soundFeedback,
-                        largeLockerLabels = request.largeLockerLabels,
-                    )
+        return ResponseEntity.ok(
+            service.patchUserPreferences(
+                UserAppPreferencePatch(
+                    userId = userId,
+                    appFamily = appFamily ?: NotificationAppFamily.SEQUO_HUB,
+                    theme = request.theme,
+                    language = ApiInputPolicy.optionalLanguageTag(request.language),
+                    quickScanOnOpen = request.quickScanOnOpen,
+                    soundFeedback = request.soundFeedback,
+                    largeLockerLabels = request.largeLockerLabels,
                 )
             )
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(
-                ErrorResponse("invalid_user_preference_request", e.message ?: "Invalid user preference request.")
-            )
-        }
+        )
     }
 }
