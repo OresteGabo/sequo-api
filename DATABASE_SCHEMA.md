@@ -212,6 +212,10 @@ Unique: `(relay_point_id, locker_code)`.
 | `status` | Draft/active/paused/archived |
 | `created_at`, `updated_at` | Timestamps |
 
+Related products are a derived relationship, not a table. The current implementation links products at read time by matching
+the target product's active catalog category, excluding the target product itself, and limiting the response to 6 items through
+`GET /api/v1/products/{productId}/related`. Keep this implicit unless the business needs curated/manual relationships.
+
 ### `product_variants`
 
 | Column | Notes |
@@ -837,6 +841,7 @@ Unique: `(actor_key, idempotency_key)`.
 - `merchant_sub_orders(merchant_id, status, created_at desc)`.
 - `products(merchant_id, status)`.
 - `products(bargaining_enabled, status)`.
+- `products(category, created_at desc)` partial where `status = 'ACTIVE'`.
 - `product_media(product_id, source_type)`.
 - `cooperative_requests(status, created_at)`.
 - `bargaining_sessions(customer_id, merchant_id, product_id, variant_id, status)`.
