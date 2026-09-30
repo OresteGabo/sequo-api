@@ -49,7 +49,7 @@ class AuthController(
     )
     data class InvalidGoogleTokenResponse(
         val error: String = "invalid_google_token",
-        val reason: String,
+        val message: String,
     )
 
     @PostMapping("/signup")
@@ -97,11 +97,11 @@ class AuthController(
             val token = ApiInputPolicy.requiredToken(request.token, "token")
             authRateLimiter.checkSocialLogin(request.provider)
             val tokens = authService.loginWithSocialToken(request.provider, token)
-            tokens?.let { ResponseEntity.ok(it) } ?: invalidGoogleTokenResponse("invalid_token")
+            tokens?.let { ResponseEntity.ok(it) } ?: invalidGoogleTokenResponse()
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: InvalidGoogleTokenException) {
-            invalidGoogleTokenResponse(e.rejection.reason)
+            invalidGoogleTokenResponse()
         } catch (e: IllegalArgumentException) {
             invalidAuthRequest(e)
         } catch (e: AccountLinkRequiredException) {
@@ -269,9 +269,9 @@ class AuthController(
             )
         )
 
-    private fun invalidGoogleTokenResponse(reason: String): ResponseEntity<Any> =
+    private fun invalidGoogleTokenResponse(): ResponseEntity<Any> =
         ResponseEntity.status(401).body(
-            InvalidGoogleTokenResponse(reason = reason)
+            InvalidGoogleTokenResponse(message = "Google sign-in could not be completed with the provided token.")
         )
 
     private fun providerLabel(provider: AuthProvider): String =
