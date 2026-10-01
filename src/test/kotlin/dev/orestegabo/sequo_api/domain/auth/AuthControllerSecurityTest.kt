@@ -1,5 +1,8 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
+import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
+import dev.orestegabo.sequo_api.domain.commerce.CommerceProductRepository
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -35,8 +38,12 @@ class AuthControllerSecurityTest {
     @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
+    @Autowired
+    private lateinit var productRepository: CommerceProductRepository
+
     @BeforeEach
     fun cleanDatabase() {
+        productRepository.deleteAll()
         refreshSessionRepository.deleteAll()
         socialIdentityRepository.deleteAll()
         userRepository.deleteAll()
@@ -149,4 +156,99 @@ class AuthControllerSecurityTest {
         assertEquals(200, response.statusCode())
         assertTrue(response.body().contains("\"status\":\"UP\""))
     }
+
+    @Test
+    fun publicCatalogDiscoveryEndpointsDoNotRequireAuthentication() {
+        productRepository.save(
+            ProductRecord(
+                id = "public-active-product",
+                name = "Active meal",
+                status = CatalogProductStatus.ACTIVE,
+                category = "food",
+                basePriceCfa = 2500,
+            )
+        )
+
+        val client = HttpClient.newHttpClient()
+        val endpoints = listOf(
+            "/api/catalog/home",
+            "/api/catalog/categories",
+            "/api/catalog/merchants",
+            "/api/catalog/products",
+            "/api/catalog/products/public-active-product/related",
+            "/api/catalog/products/public-active-product/customizations",
+            "/api/subscriptions/plans",
+            "/api/payments/providers",
+        )
+
+        endpoints.forEach { path ->
+            val response = client.send(get(path), HttpResponse.BodyHandlers.ofString())
+
+            assertEquals(200, response.statusCode(), "$path should be public")
+        }
+    }
+
+    @Test
+    fun anonymousCatalogAccessCannotReadArchivedProductsOrMutateCatalogAndCart() {
+        productRepository.saveAll(
+            listOf(
+                ProductRecord(
+                    id = "public-active-product",
+                    name = "Active meal",
+                    status = CatalogProductStatus.ACTIVE,
+                    category = "food",
+                    basePriceCfa = 2500,
+                ),
+                ProductRecord(
+                    id = "archived-product",
+                    name = "Archived meal",
+                    status = CatalogProductStatus.ARCHIVED,
+                    category = "food",
+                    basePriceCfa = 2500,
+                ),
+            )
+        )
+
+        val client = HttpClient.newHttpClient()
+        val publicProducts = client.send(
+            get("/api/catalog/products?includeArchived=true"),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
+        assertEquals(200, publicProducts.statusCode())
+        assertTrue(publicProducts.body().contains("Active meal"))
+        assertTrue(!publicProducts.body().contains("Archived meal"))
+
+        val createProduct = client.send(
+            post("/api/catalog/products", """{"name":"Anonymous product"}"""),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        val putCart = client.send(
+            put("/api/cart/items", """{"productId":"public-active-product","quantity":1}"""),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
+        assertEquals(403, createProduct.statusCode())
+        assertEquals(403, putCart.statusCode())
+    }
+
+    private fun get(path: String): HttpRequest =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://localhost:$port$path"))
+            .GET()
+            .build()
+
+    private fun post(path: String, body: String): HttpRequest =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://localhost:$port$path"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build()
+
+    private fun put(path: String, body: String): HttpRequest =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://localhost:$port$path"))
+            .header("Content-Type", "application/json")
+            .PUT(HttpRequest.BodyPublishers.ofString(body))
+            .build()
 }
