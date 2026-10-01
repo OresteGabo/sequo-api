@@ -21,8 +21,9 @@ class ProductRelatedServiceTest @Autowired constructor(
     @Test
     fun relatedProductsUseSameCategoryActiveProductsAndExcludeTarget() {
         val targetId = UUID.randomUUID()
-        val newestRelatedId = UUID.randomUUID().toString()
-        val olderRelatedId = UUID.randomUUID().toString()
+        val closestRiceId = UUID.randomUUID().toString()
+        val fartherRiceId = UUID.randomUUID().toString()
+        val newerOtherSubcategoryId = UUID.randomUUID().toString()
 
         productRepository.saveAll(
             listOf(
@@ -30,39 +31,55 @@ class ProductRelatedServiceTest @Autowired constructor(
                     id = targetId.toString(),
                     name = "Target rice",
                     category = "GeneralGoods",
+                    subcategory = "Rice",
+                    basePriceCfa = 5_000,
                     createdAt = Instant.parse("2026-09-01T10:00:00Z"),
                 ),
                 product(
-                    id = olderRelatedId,
-                    name = "Older rice",
+                    id = fartherRiceId,
+                    name = "Farther rice",
                     category = "GeneralGoods",
+                    subcategory = "Rice",
+                    basePriceCfa = 6_500,
                     createdAt = Instant.parse("2026-09-02T10:00:00Z"),
                 ),
                 product(
-                    id = newestRelatedId,
-                    name = "Newer rice",
+                    id = closestRiceId,
+                    name = "Closest rice",
                     category = "GeneralGoods",
+                    subcategory = "Rice",
+                    basePriceCfa = 5_200,
                     createdAt = Instant.parse("2026-09-03T10:00:00Z"),
                 ),
                 product(
                     id = UUID.randomUUID().toString(),
                     name = "Inactive rice",
                     category = "GeneralGoods",
+                    subcategory = "Rice",
+                    basePriceCfa = 4_900,
                     status = CatalogProductStatus.INACTIVE,
                     createdAt = Instant.parse("2026-09-04T10:00:00Z"),
+                ),
+                product(
+                    id = newerOtherSubcategoryId,
+                    name = "Newer oil",
+                    category = "GeneralGoods",
+                    subcategory = "Oil",
+                    basePriceCfa = 5_050,
+                    createdAt = Instant.parse("2026-09-05T10:00:00Z"),
                 ),
                 product(
                     id = UUID.randomUUID().toString(),
                     name = "Chicken plate",
                     category = "Food",
-                    createdAt = Instant.parse("2026-09-05T10:00:00Z"),
+                    createdAt = Instant.parse("2026-09-06T10:00:00Z"),
                 ),
             )
         )
 
         val related = commerceService.relatedProducts(targetId.toString(), limit = 6)
 
-        assertEquals(listOf(newestRelatedId, olderRelatedId), related.map { it.id })
+        assertEquals(listOf(closestRiceId, fartherRiceId, newerOtherSubcategoryId), related.map { it.id })
         assertTrue(related.none { it.id == targetId.toString() })
     }
 
@@ -101,6 +118,8 @@ class ProductRelatedServiceTest @Autowired constructor(
         id: String,
         name: String,
         category: String?,
+        subcategory: String? = null,
+        basePriceCfa: Int = 1_000,
         status: CatalogProductStatus = CatalogProductStatus.ACTIVE,
         createdAt: Instant,
     ): ProductRecord =
@@ -110,7 +129,8 @@ class ProductRelatedServiceTest @Autowired constructor(
             name = name,
             status = status,
             category = category,
-            basePriceCfa = 1_000,
+            subcategory = subcategory,
+            basePriceCfa = basePriceCfa,
             createdAt = createdAt,
             updatedAt = createdAt,
         )
