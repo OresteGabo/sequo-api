@@ -5,6 +5,7 @@ import dev.orestegabo.sequo_api.config.ApiRequestRateLimitFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -40,6 +41,17 @@ class SecurityConfig(
                     .requestMatchers("/api/auth/logout-all").authenticated()
                     .requestMatchers("/api/auth/me", "/api/auth/sessions/**").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/catalog/home",
+                        "/api/catalog/categories",
+                        "/api/catalog/merchants",
+                        "/api/catalog/products",
+                        "/api/catalog/products/*/related",
+                        "/api/catalog/products/*/customizations",
+                        "/api/subscriptions/plans",
+                        "/api/payments/providers",
+                    ).permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
