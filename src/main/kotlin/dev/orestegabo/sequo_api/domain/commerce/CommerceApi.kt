@@ -160,16 +160,23 @@ interface CommerceProductRepository : JpaRepository<ProductRecord, String> {
     @Query(
         """
         select related
-        from ProductRecord related
-        where related.id <> :targetId
+        from ProductRecord related, ProductRecord target
+        where target.id = :targetId
+          and related.id <> target.id
           and related.status = dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus.ACTIVE
           and related.category is not null
-          and related.category = (
-              select target.category
-              from ProductRecord target
-              where target.id = :targetId
-          )
-        order by related.createdAt desc
+          and related.category = target.category
+        order by
+          case
+              when target.subcategory is not null and related.subcategory = target.subcategory then 0
+              else 1
+          end,
+          case
+              when target.basePriceCfa is not null and related.basePriceCfa is not null
+                  then abs(related.basePriceCfa - target.basePriceCfa)
+              else 2147483647
+          end,
+          related.createdAt desc
         """
     )
     fun findRelatedActiveProductsByCategory(targetId: String, pageable: Pageable): List<ProductRecord>
