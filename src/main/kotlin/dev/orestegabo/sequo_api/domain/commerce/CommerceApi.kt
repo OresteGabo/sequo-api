@@ -22,6 +22,8 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
+import org.springframework.security.authentication.AnonymousAuthenticationToken
+import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -609,6 +611,7 @@ class CatalogController(private val commerce: CommerceService) {
 
     @GetMapping("/products")
     fun products(
+        authentication: Authentication?,
         @RequestParam(required = false) category: String?,
         @RequestParam(required = false) subcategory: String?,
         @RequestParam(required = false) merchantId: String?,
@@ -618,7 +621,7 @@ class CatalogController(private val commerce: CommerceService) {
             ApiInputPolicy.optionalIdentifier(category, "category"),
             ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
             ApiInputPolicy.optionalIdentifier(merchantId, "merchantId"),
-            includeArchived,
+            includeArchived && authentication.isLoggedIn(),
         )
     }
 
@@ -687,6 +690,9 @@ private fun authenticated(userId: String?, block: (String) -> Any): ResponseEnti
     if (userId == null) return ResponseEntity.status(401).build()
     return ok { block(userId) }
 }
+
+private fun Authentication?.isLoggedIn(): Boolean =
+    this != null && isAuthenticated && this !is AnonymousAuthenticationToken
 
 private fun CatalogCategoryRecord.toDto(): CatalogCategoryDto =
     CatalogCategoryDto(key, title, supportLabel, accentHex)
