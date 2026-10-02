@@ -8,9 +8,8 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
@@ -19,16 +18,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val inMemoryRateLimiter: InMemoryRateLimiter,
     @Value("\${sequo.security.cors.allowed-origins:}")
     private val corsAllowedOrigins: List<String>
 ) {
-
-    @Bean
-    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
-
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
@@ -38,8 +34,15 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                    .requestMatchers("/api/v1/auth/logout-all").authenticated()
+                    .requestMatchers("/api/v1/auth/me", "/api/v1/auth/sessions/**").authenticated()
+                    .requestMatchers("/api/v1/auth/passkey/register/**").authenticated()
+                    .requestMatchers("/api/v1/auth/cross-device/resolve").authenticated()
+                    .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/api/auth/logout-all").authenticated()
                     .requestMatchers("/api/auth/me", "/api/auth/sessions/**").authenticated()
+                    .requestMatchers("/api/auth/passkey/register/**").authenticated()
+                    .requestMatchers("/api/auth/cross-device/resolve").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers(
                         HttpMethod.GET,
