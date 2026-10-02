@@ -17,10 +17,10 @@ import java.time.Instant
 
 @Entity
 @Table(
-    name = "social_identities",
-    uniqueConstraints = [UniqueConstraint(name = "uk_social_identity_provider_subject", columnNames = ["provider", "provider_subject"])],
+    name = "user_identities",
+    uniqueConstraints = [UniqueConstraint(name = "uk_user_identities_provider_user", columnNames = ["provider", "provider_user_id"])],
 )
-class SocialIdentity(
+class UserIdentity(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: String? = null,
@@ -36,11 +36,14 @@ class SocialIdentity(
     @Column(name = "provider", nullable = false, length = 32)
     val provider: AuthProvider,
 
-    @Column(name = "provider_subject", nullable = false, length = 255)
-    val providerSubject: String,
+    @Column(name = "provider_user_id", nullable = false, length = 512)
+    val providerUserId: String,
 
-    @Column(name = "verified_email", length = 255)
-    val verifiedEmail: String? = null,
+    @Column(name = "credential_public_key", columnDefinition = "text")
+    var credentialPublicKey: String? = null,
+
+    @Column(name = "sign_count", nullable = false)
+    var signCount: Long = 0,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
@@ -50,8 +53,10 @@ class SocialIdentity(
 ) {
     init {
         require(userId.isNotBlank()) { "userId cannot be blank." }
-        require(provider != AuthProvider.EMAIL) { "Social identities cannot use the EMAIL provider." }
-        require(providerSubject.isNotBlank()) { "providerSubject cannot be blank." }
-        require(verifiedEmail?.isNotBlank() ?: true) { "verifiedEmail cannot be blank." }
+        require(provider in setOf(AuthProvider.GOOGLE, AuthProvider.APPLE, AuthProvider.FACEBOOK, AuthProvider.PASSKEY)) {
+            "User identities must use a supported passwordless provider."
+        }
+        require(providerUserId.isNotBlank()) { "providerUserId cannot be blank." }
+        require(signCount >= 0) { "signCount cannot be negative." }
     }
 }
