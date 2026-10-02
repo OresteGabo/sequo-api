@@ -133,6 +133,34 @@ class AuthRateLimiter(
         )
     }
 
+    fun checkOtpRequest(phoneNumber: String) {
+        enforce(
+            rateLimiter.consume("auth.otp.request.ip", clientSubject(), OTP_REQUEST_BY_IP),
+            rateLimiter.consume("auth.otp.request.phone", normalizedSubject(phoneNumber), OTP_REQUEST_BY_PHONE),
+        )
+    }
+
+    fun checkOtpVerify(phoneNumber: String) {
+        enforce(
+            rateLimiter.consume("auth.otp.verify.ip", clientSubject(), OTP_VERIFY_BY_IP),
+            rateLimiter.consume("auth.otp.verify.phone", normalizedSubject(phoneNumber), OTP_VERIFY_BY_PHONE),
+        )
+    }
+
+    fun checkPasskey(subject: String) {
+        enforce(
+            rateLimiter.consume("auth.passkey.ip", clientSubject(), PASSKEY_BY_IP),
+            rateLimiter.consume("auth.passkey.subject", normalizedSubject(subject), PASSKEY_BY_SUBJECT),
+        )
+    }
+
+    fun checkCrossDevice(phoneNumber: String) {
+        enforce(
+            rateLimiter.consume("auth.cross-device.ip", clientSubject(), CROSS_DEVICE_BY_IP),
+            rateLimiter.consume("auth.cross-device.phone", normalizedSubject(phoneNumber), CROSS_DEVICE_BY_PHONE),
+        )
+    }
+
     fun checkRefresh(refreshToken: String) {
         enforce(
             rateLimiter.consume("auth.refresh.ip", clientSubject(), REFRESH_BY_IP),
@@ -191,6 +219,14 @@ class AuthRateLimiter(
         private val LOGIN_BY_EMAIL = RateLimitRule(maxAttempts = 10, window = Duration.ofMinutes(15))
         private val SOCIAL_LOGIN_BY_IP = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
         private val SOCIAL_LOGIN_BY_PROVIDER = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
+        private val OTP_REQUEST_BY_IP = RateLimitRule(maxAttempts = 12, window = Duration.ofHours(1))
+        private val OTP_REQUEST_BY_PHONE = RateLimitRule(maxAttempts = 3, window = Duration.ofMinutes(15))
+        private val OTP_VERIFY_BY_IP = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
+        private val OTP_VERIFY_BY_PHONE = RateLimitRule(maxAttempts = 8, window = Duration.ofMinutes(15))
+        private val PASSKEY_BY_IP = RateLimitRule(maxAttempts = 60, window = Duration.ofMinutes(15))
+        private val PASSKEY_BY_SUBJECT = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
+        private val CROSS_DEVICE_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
+        private val CROSS_DEVICE_BY_PHONE = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
         private val REFRESH_BY_IP = RateLimitRule(maxAttempts = 120, window = Duration.ofMinutes(15))
         private val REFRESH_BY_TOKEN = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
         private val FORGOT_PASSWORD_BY_IP = RateLimitRule(maxAttempts = 10, window = Duration.ofHours(1))
