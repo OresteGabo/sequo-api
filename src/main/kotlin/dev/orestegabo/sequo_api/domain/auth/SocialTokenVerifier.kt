@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.util.UriComponentsBuilder
 import java.time.Instant
 import java.util.Base64
 
@@ -172,18 +173,23 @@ class GoogleIdTokenVerifierAdapter(
 
 @Service
 class FacebookTokenVerifier(
-    @Value("\${sequo.auth.facebook.app-id}") private val appId: String
+    @Value("\${sequo.auth.facebook.app-id}") private val appId: String,
+    @Value("\${sequo.auth.facebook.app-access-token:}") private val appAccessToken: String,
 ) : SocialTokenVerifier {
+    private val logger = LoggerFactory.getLogger(FacebookTokenVerifier::class.java)
     private val restTemplate = RestTemplate()
+    private val configuredAppId = appId
+        .trim()
+        .takeIf { it.isNotBlank() && !it.startsWith("facebook_dev_") && !it.startsWith("facebook_docker_dev_") }
+    private val configuredAppAccessToken = appAccessToken.trim().takeIf { it.isNotBlank() }
 
     override fun verify(token: String): SocialUser? {
-        // Implementation for Facebook Graph API verification
-        // In production, you can also use appId to verify the token was generated for your app
         return try {
-            val url = "https://graph.facebook.com/me?fields=id,name,email,picture&access_token=$token"
-            val response = restTemplate.getForObject(url, Map::class.java) ?: return null
+            if (!validateTokenForApp(token)) return null
+            val response = fetchFacebookProfile(token) ?: return null
+            val providerId = response["id"] as? String ?: return null
             SocialUser(
-                providerId = response["id"] as String,
+                providerId = providerId,
                 provider = AuthProvider.FACEBOOK,
                 email = response["email"] as? String,
                 name = response["name"] as? String,
@@ -191,8 +197,53 @@ class FacebookTokenVerifier(
                 emailVerified = true
             )
         } catch (e: Exception) {
+            logger.warn("Facebook login rejected: {}", e.message)
             null
         }
+    }
+
+    private fun validateTokenForApp(token: String): Boolean {
+        val accessToken = configuredAppAccessToken ?: run {
+            logger.warn("Facebook app access token is not configured; skipping debug_token audience validation.")
+            return true
+        }
+        val expectedAppId = configuredAppId ?: run {
+            logger.warn("Facebook app id is not configured; skipping debug_token audience validation.")
+            return true
+        }
+        val url = UriComponentsBuilder
+            .fromUriString("https://graph.facebook.com/debug_token")
+            .queryParam("input_token", token)
+            .queryParam("access_token", accessToken)
+            .build()
+            .encode()
+            .toUriString()
+        val response = restTemplate.getForObject(url, Map::class.java) ?: return false
+        val data = response["data"] as? Map<*, *> ?: return false
+        val isValid = data["is_valid"] as? Boolean ?: false
+        val tokenAppId = data["app_id"]?.toString()
+        val userId = data["user_id"]?.toString()
+        if (!isValid || tokenAppId != expectedAppId || userId.isNullOrBlank()) {
+            logger.warn(
+                "Facebook login rejected: valid={} appIdMatches={} userIdPresent={}",
+                isValid,
+                tokenAppId == expectedAppId,
+                !userId.isNullOrBlank(),
+            )
+            return false
+        }
+        return true
+    }
+
+    private fun fetchFacebookProfile(token: String): Map<*, *>? {
+        val url = UriComponentsBuilder
+            .fromUriString("https://graph.facebook.com/me")
+            .queryParam("fields", "id,name,email,picture")
+            .queryParam("access_token", token)
+            .build()
+            .encode()
+            .toUriString()
+        return restTemplate.getForObject(url, Map::class.java)
     }
 }
 
