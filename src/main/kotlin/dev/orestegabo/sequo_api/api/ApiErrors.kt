@@ -99,5 +99,6 @@ class ApiExceptionHandler {
             AuthProvider.GOOGLE -> "Google"
             AuthProvider.FACEBOOK -> "Facebook"
             AuthProvider.APPLE -> "Apple"
+            AuthProvider.PASSKEY -> "Passkey"
         }
 }
