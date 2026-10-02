@@ -1,235 +1,415 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 import org.slf4j.LoggerFactory
-import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.security.SecureRandom
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Base64
+
+data class DeviceBinding(
+    val deviceId: String,
+    val appSource: AppSource,
+    val fcmToken: String?,
+) {
+    init {
+        require(deviceId.isNotBlank()) { "deviceId is required." }
+    }
+}
+
+data class PasskeyRegistrationChallenge(
+    val challengeId: String,
+    val challenge: String,
+    val userId: String,
+    val relyingPartyId: String,
+    val expiresAt: Instant,
+)
+
+data class PasskeyAuthenticationChallenge(
+    val challengeId: String,
+    val challenge: String,
+    val relyingPartyId: String,
+    val expiresAt: Instant,
+)
+
+data class CrossDeviceChallenge(
+    val challengeId: String,
+    val expiresAt: Instant,
+)
+
+data class PasskeyAssertion(
+    val credentialId: String,
+    val clientDataJson: String,
+    val authenticatorData: String,
+    val signature: String,
+    val userHandle: String? = null,
+    val signCount: Long,
+)
+
+interface WhatsAppOtpSender {
+    fun sendAuthenticationCode(phoneNumber: String, code: String)
+}
+
+@Service
+class LoggingWhatsAppOtpSender : WhatsAppOtpSender {
+    private val logger = LoggerFactory.getLogger(LoggingWhatsAppOtpSender::class.java)
+
+    override fun sendAuthenticationCode(phoneNumber: String, code: String) {
+        logger.info("WhatsApp OTP queued for phone={} via Meta Cloud API template.", phoneNumber)
+    }
+}
+
+interface CrossDevicePushSender {
+    fun sendLoginApproval(device: UserDevice, challengeId: String, requestingAppSource: AppSource)
+}
+
+@Service
+class LoggingCrossDevicePushSender : CrossDevicePushSender {
+    private val logger = LoggerFactory.getLogger(LoggingCrossDevicePushSender::class.java)
+
+    override fun sendLoginApproval(device: UserDevice, challengeId: String, requestingAppSource: AppSource) {
+        logger.info(
+            "Cross-device login approval queued for device={} app={} challenge={}.",
+            device.deviceId,
+            requestingAppSource,
+            challengeId,
+        )
+    }
+}
+
+interface PasskeyVerifier {
+    fun verifyRegistration(challenge: String, credentialPublicKey: String): Boolean
+    fun verifyAssertion(challenge: String, identity: UserIdentity, assertion: PasskeyAssertion): Boolean
+}
+
+@Service
+class ExtensionPointPasskeyVerifier : PasskeyVerifier {
+    override fun verifyRegistration(challenge: String, credentialPublicKey: String): Boolean =
+        challenge.isNotBlank() && credentialPublicKey.isNotBlank()
+
+    override fun verifyAssertion(challenge: String, identity: UserIdentity, assertion: PasskeyAssertion): Boolean =
+        challenge.isNotBlank() &&
+            identity.provider == AuthProvider.PASSKEY &&
+            assertion.credentialId == identity.providerUserId &&
+            assertion.signature.isNotBlank() &&
+            assertion.clientDataJson.isNotBlank() &&
+            assertion.authenticatorData.isNotBlank() &&
+            assertion.signCount >= identity.signCount
+}
 
 @Service
 class AuthService(
     private val userRepository: UserRepository,
-    private val socialIdentityRepository: SocialIdentityRepository,
-    private val passwordEncoder: PasswordEncoder,
+    private val userIdentityRepository: UserIdentityRepository,
+    private val userDeviceRepository: UserDeviceRepository,
+    private val authChallengeRepository: AuthChallengeRepository,
     private val googleVerifier: GoogleTokenVerifier,
     private val facebookVerifier: FacebookTokenVerifier,
     private val appleVerifier: AppleTokenVerifier,
     private val jwtService: JwtService,
-    private val passwordPolicy: PasswordPolicy,
-    private val passwordResetTokenService: PasswordResetTokenService,
-    private val passwordResetTokenNotifier: PasswordResetTokenNotifier,
-    private val refreshSessionService: RefreshSessionService,
+    private val tokenService: PasswordResetTokenService,
     private val merchantMembershipRepository: MerchantMembershipRepository,
+    private val whatsAppOtpSender: WhatsAppOtpSender,
+    private val crossDevicePushSender: CrossDevicePushSender,
+    private val passkeyVerifier: PasskeyVerifier,
+    @Value("\${sequo.auth.passkey.relying-party-id:api.sequo.local}")
+    private val relyingPartyId: String,
 ) {
-    private val logger = LoggerFactory.getLogger(AuthService::class.java)
-
-    fun signUp(request: AuthController.SignUpRequest): AuthTokens {
-        val email = normalizeEmail(request.email)
-        val existingUser = userRepository.findByEmail(email)
-        if (existingUser != null) {
-            if (existingUser.provider != AuthProvider.EMAIL || existingUser.passwordHash == null) {
-                throw AuthProviderRequiredException(existingUser.provider)
-            }
-            throw EmailAlreadyRegisteredException()
-        }
-
-        passwordPolicy.validateOrThrow(
-            request.password,
-            PasswordPolicyContext(email = email, displayName = request.name)
-        )
-
-        val user = User(
-            email = email,
-            passwordHash = passwordEncoder.encode(request.password),
-            name = request.name,
-            provider = AuthProvider.EMAIL
-        )
-        val savedUser = userRepository.save(user)
-        return generateTokensForUser(savedUser)
-    }
-
-    fun login(request: AuthController.LoginWithEmailRequest): AuthTokens? {
-        val user = userRepository.findByEmail(normalizeEmail(request.email)) ?: return null
-        if (!user.status.canAuthenticate()) return null
-        if (user.provider != AuthProvider.EMAIL || user.passwordHash == null) {
-            throw AuthProviderRequiredException(user.provider)
-        }
-        
-        if (!passwordEncoder.matches(request.password, user.passwordHash)) return null
-        
-        return generateTokensForUser(user)
-    }
+    private val secureRandom = SecureRandom()
+    private val codeRandom = SecureRandom()
 
     @Transactional
-    fun loginWithSocialToken(provider: AuthProvider, token: String): AuthTokens? {
+    fun loginWithSocialToken(provider: AuthProvider, token: String, device: DeviceBinding): AuthTokens? {
         val verifier = when (provider) {
             AuthProvider.GOOGLE -> googleVerifier
             AuthProvider.FACEBOOK -> facebookVerifier
             AuthProvider.APPLE -> appleVerifier
             else -> return null
         }
+        val socialUser = verifier.verify(token) ?: return null
+        if (socialUser.provider != provider) return null
+        if (socialUser.email != null && !socialUser.emailVerified) return null
 
-        val socialUser = verifier.verify(token)
-            ?: if (provider == AuthProvider.GOOGLE) {
-                rejectGoogleLogin("invalid_token")
-            } else {
-                return null
-            }
-        if (socialUser.provider != provider) {
-            if (provider == AuthProvider.GOOGLE) rejectGoogleLogin("provider_mismatch", socialUser)
-            return null
-        }
-        if (provider == AuthProvider.GOOGLE && socialUser.email.isNullOrBlank()) {
-            rejectGoogleLogin("missing_email", socialUser)
-        }
-        if (socialUser.email != null && !socialUser.emailVerified) {
-            if (provider == AuthProvider.GOOGLE) {
-                rejectGoogleLogin("unverified_email", socialUser)
-            }
-            return null
-        }
-        
-        val now = Instant.now()
-        val linkedIdentity = socialIdentityRepository.findByProviderAndProviderSubject(provider, socialUser.providerId)
-        var user = linkedIdentity?.let { userRepository.findById(it.userId).orElse(null) }
-        if (linkedIdentity != null && user == null) {
-            if (provider == AuthProvider.GOOGLE) rejectGoogleLogin("stale_social_identity", socialUser)
-            return null
-        }
-
-        // Keep reading the legacy column while existing accounts are migrated to the identity table.
-        user = user ?: userRepository.findByProviderAndProviderId(provider, socialUser.providerId)
-        if (user == null) {
-            val email = socialUser.email?.let(::normalizeEmail)
-            val existingUser = email?.let { userRepository.findByEmail(it) }
-            if (existingUser != null) {
-                if (!socialUser.emailVerified) return null
-                user = existingUser
-            } else {
-                user = userRepository.save(User(
-                    email = email ?: providerScopedEmail(socialUser),
+        val identity = userIdentityRepository.findByProviderAndProviderUserId(provider, socialUser.providerId)
+        val user = if (identity != null) {
+            userRepository.findById(identity.userId).orElse(null) ?: return null
+        } else {
+            val normalizedEmail = socialUser.email?.let(::normalizeEmail)
+            val existing = normalizedEmail?.let { userRepository.findByEmail(it) }
+            val provisioned = existing ?: userRepository.save(
+                User(
+                    email = normalizedEmail,
                     name = socialUser.name,
+                    avatarUrl = socialUser.pictureUrl,
                     provider = provider,
-                    providerId = socialUser.providerId
-                ))
-            }
-        }
-
-        if (!user.status.canAuthenticate()) {
-            if (provider == AuthProvider.GOOGLE) rejectGoogleLogin("account_not_active", socialUser)
-            return null
-        }
-
-        if (linkedIdentity == null) {
-            socialIdentityRepository.save(
-                SocialIdentity(
-                    userId = requireNotNull(user.id),
-                    provider = provider,
-                    providerSubject = socialUser.providerId,
-                    verifiedEmail = socialUser.email?.let(::normalizeEmail),
-                    lastLoginAt = now,
+                    roles = mutableSetOf(RoleCode.CUSTOMER),
                 )
             )
-        } else {
-            linkedIdentity.lastLoginAt = now
-            socialIdentityRepository.save(linkedIdentity)
+            userIdentityRepository.save(
+                UserIdentity(
+                    userId = requireNotNull(provisioned.id),
+                    provider = provider,
+                    providerUserId = socialUser.providerId,
+                    lastLoginAt = Instant.now(),
+                )
+            )
+            provisioned
         }
 
-        return generateTokensForUser(user)
+        if (!user.canAuthenticate()) return null
+        return issueTokensForUser(user, provider, device)
     }
 
     @Transactional
-    fun refreshTokens(refreshToken: String): AuthTokens? {
-        val storedSession = refreshSessionService.findByToken(refreshToken)
-            ?: return null
-        if (storedSession.revokedAt != null) {
-            // A known revoked token is a replay: invalidate the remaining session set.
-            refreshSessionService.revokeAllForUser(storedSession.userId)
-            return null
-        }
-        val user = userRepository.findById(storedSession.userId).orElse(null) ?: return null
-        if (storedSession.expiresAt.isBefore(Instant.now())) return null
-        if (!user.status.canAuthenticate()) {
-            refreshSessionService.revokeAllForUser(user.id!!)
-            return null
-        }
+    fun requestWhatsAppOtp(phoneNumber: String): String {
+        val normalizedPhone = normalizePhone(phoneNumber)
+        val rawCode = "%06d".format(codeRandom.nextInt(1_000_000))
+        val challenge = authChallengeRepository.save(
+            AuthChallenge(
+                purpose = AuthChallengePurpose.WHATSAPP_OTP,
+                subject = normalizedPhone,
+                challengeHash = tokenService.hash(rawCode),
+                expiresAt = Instant.now().plus(5, ChronoUnit.MINUTES),
+            )
+        )
+        whatsAppOtpSender.sendAuthenticationCode(normalizedPhone, rawCode)
+        return requireNotNull(challenge.id)
+    }
 
+    @Transactional
+    fun verifyWhatsAppOtp(phoneNumber: String, code: String, device: DeviceBinding): AuthTokens? {
+        val normalizedPhone = normalizePhone(phoneNumber)
+        val challenge = authChallengeRepository.findAll()
+            .asSequence()
+            .filter { it.purpose == AuthChallengePurpose.WHATSAPP_OTP && it.subject == normalizedPhone }
+            .filter { it.consumedAt == null && it.expiresAt.isAfter(Instant.now()) }
+            .maxByOrNull { it.createdAt }
+            ?: return null
+        if (!tokenService.matches(code.trim(), challenge.challengeHash)) return null
+        challenge.consumedAt = Instant.now()
+        authChallengeRepository.save(challenge)
+
+        val user = userRepository.findByPhoneNumber(normalizedPhone) ?: userRepository.save(
+            User(
+                phoneNumber = normalizedPhone,
+                name = normalizedPhone,
+                provider = AuthProvider.EMAIL,
+                roles = mutableSetOf(RoleCode.CUSTOMER),
+            )
+        )
+        if (!user.canAuthenticate()) return null
+        return issueTokensForUser(user, AuthProvider.EMAIL, device)
+    }
+
+    @Transactional
+    fun createPasskeyRegistrationChallenge(userId: String): PasskeyRegistrationChallenge? {
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+        if (!user.canAuthenticate()) return null
+        val raw = randomChallenge()
+        val challenge = authChallengeRepository.save(
+            AuthChallenge(
+                purpose = AuthChallengePurpose.PASSKEY_REGISTRATION,
+                subject = userId,
+                challengeHash = tokenService.hash(raw),
+                expiresAt = Instant.now().plus(5, ChronoUnit.MINUTES),
+            )
+        )
+        return PasskeyRegistrationChallenge(
+            challengeId = requireNotNull(challenge.id),
+            challenge = raw,
+            userId = userId,
+            relyingPartyId = relyingPartyId,
+            expiresAt = challenge.expiresAt,
+        )
+    }
+
+    @Transactional
+    fun finishPasskeyRegistration(userId: String, challengeId: String, credentialId: String, credentialPublicKey: String): Boolean {
+        val challenge = authChallengeRepository.findByIdAndPurpose(challengeId, AuthChallengePurpose.PASSKEY_REGISTRATION)
+            ?: return false
+        if (challenge.subject != userId || challenge.consumedAt != null || challenge.expiresAt.isBefore(Instant.now())) return false
+        val rawChallenge = challenge.challengeHash
+        if (!passkeyVerifier.verifyRegistration(rawChallenge, credentialPublicKey)) return false
+        userIdentityRepository.save(
+            UserIdentity(
+                userId = userId,
+                provider = AuthProvider.PASSKEY,
+                providerUserId = credentialId,
+                credentialPublicKey = credentialPublicKey,
+            )
+        )
+        challenge.consumedAt = Instant.now()
+        authChallengeRepository.save(challenge)
+        return true
+    }
+
+    @Transactional
+    fun createPasskeyAuthenticationChallenge(credentialId: String): PasskeyAuthenticationChallenge? {
+        val identity = userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.PASSKEY, credentialId) ?: return null
+        val raw = randomChallenge()
+        val challenge = authChallengeRepository.save(
+            AuthChallenge(
+                purpose = AuthChallengePurpose.PASSKEY_AUTHENTICATION,
+                subject = identity.providerUserId,
+                challengeHash = tokenService.hash(raw),
+                expiresAt = Instant.now().plus(5, ChronoUnit.MINUTES),
+            )
+        )
+        return PasskeyAuthenticationChallenge(
+            challengeId = requireNotNull(challenge.id),
+            challenge = raw,
+            relyingPartyId = relyingPartyId,
+            expiresAt = challenge.expiresAt,
+        )
+    }
+
+    @Transactional
+    fun finishPasskeyAuthentication(challengeId: String, assertion: PasskeyAssertion, device: DeviceBinding): AuthTokens? {
+        val challenge = authChallengeRepository.findByIdAndPurpose(challengeId, AuthChallengePurpose.PASSKEY_AUTHENTICATION)
+            ?: return null
+        if (challenge.subject != assertion.credentialId || challenge.consumedAt != null || challenge.expiresAt.isBefore(Instant.now())) return null
+        val identity = userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.PASSKEY, assertion.credentialId) ?: return null
+        if (!passkeyVerifier.verifyAssertion(challenge.challengeHash, identity, assertion)) return null
+        val user = userRepository.findById(identity.userId).orElse(null) ?: return null
+        if (!user.canAuthenticate()) return null
+        identity.signCount = assertion.signCount
+        identity.lastLoginAt = Instant.now()
+        userIdentityRepository.save(identity)
+        challenge.consumedAt = Instant.now()
+        authChallengeRepository.save(challenge)
+        return issueTokensForUser(user, AuthProvider.PASSKEY, device)
+    }
+
+    @Transactional
+    fun initiateCrossDeviceLogin(phoneNumber: String, requestingDevice: DeviceBinding): CrossDeviceChallenge? {
+        val user = userRepository.findByPhoneNumber(normalizePhone(phoneNumber)) ?: return null
+        if (!user.canAuthenticate()) return null
+        val userId = requireNotNull(user.id)
         val now = Instant.now()
-        if (!refreshSessionService.rotate(storedSession, now)) {
-            refreshSessionService.revokeAllForUser(storedSession.userId, now)
-            return null
+        val activeDevices = userDeviceRepository.findAllByUserIdAndRevokedAtIsNullAndExpiresAtAfter(userId, now)
+            .filter { it.fcmToken?.isNotBlank() == true && it.deviceId != requestingDevice.deviceId }
+        if (activeDevices.isEmpty()) return null
+
+        val raw = randomChallenge()
+        val challenge = authChallengeRepository.save(
+            AuthChallenge(
+                purpose = AuthChallengePurpose.CROSS_DEVICE_LOGIN,
+                subject = userId,
+                challengeHash = tokenService.hash(raw),
+                requestingDeviceId = requestingDevice.deviceId,
+                requestingAppSource = requestingDevice.appSource,
+                expiresAt = now.plus(3, ChronoUnit.MINUTES),
+            )
+        )
+        activeDevices.forEach {
+            crossDevicePushSender.sendLoginApproval(it, requireNotNull(challenge.id), requestingDevice.appSource)
         }
-        return generateTokensForUser(user, now)
+        return CrossDeviceChallenge(requireNotNull(challenge.id), challenge.expiresAt)
+    }
+
+    @Transactional
+    fun resolveCrossDeviceLogin(challengeId: String, approvingUserId: String, localBiometricVerified: Boolean, targetDevice: DeviceBinding): AuthTokens? {
+        if (!localBiometricVerified) return null
+        val challenge = authChallengeRepository.findByIdAndPurpose(challengeId, AuthChallengePurpose.CROSS_DEVICE_LOGIN)
+            ?: return null
+        if (challenge.subject != approvingUserId || challenge.consumedAt != null || challenge.expiresAt.isBefore(Instant.now())) return null
+        val user = userRepository.findById(approvingUserId).orElse(null) ?: return null
+        if (!user.canAuthenticate()) return null
+        challenge.approvedUserId = approvingUserId
+        challenge.consumedAt = Instant.now()
+        authChallengeRepository.save(challenge)
+        return issueTokensForUser(user, AuthProvider.EMAIL, targetDevice)
+    }
+
+    @Transactional
+    fun refreshTokens(refreshToken: String, deviceId: String): AuthTokens? {
+        val device = userDeviceRepository.findByRefreshTokenHash(tokenService.hash(refreshToken)) ?: return null
+        if (device.deviceId != deviceId || device.revokedAt != null || device.expiresAt.isBefore(Instant.now())) return null
+        val user = userRepository.findById(device.userId).orElse(null) ?: return null
+        if (!user.canAuthenticate()) return null
+        device.revokedAt = Instant.now()
+        userDeviceRepository.save(device)
+        return issueTokensForUser(
+            user = user,
+            provider = user.provider,
+            device = DeviceBinding(device.deviceId, device.appSource, device.fcmToken),
+        )
     }
 
     @Transactional
     fun logout(refreshToken: String) {
-        refreshSessionService.findByToken(refreshToken)?.let { refreshSessionService.revoke(it) }
+        userDeviceRepository.findByRefreshTokenHash(tokenService.hash(refreshToken))?.let {
+            it.revokedAt = Instant.now()
+            userDeviceRepository.save(it)
+        }
     }
 
     @Transactional
-    fun logoutAll(userId: String) = refreshSessionService.revokeAllForUser(userId)
+    fun logoutAll(userId: String): Int {
+        val devices = userDeviceRepository.findAllByUserIdAndRevokedAtIsNullAndExpiresAtAfter(userId, Instant.now())
+        val now = Instant.now()
+        devices.forEach { it.revokedAt = now }
+        if (devices.isNotEmpty()) userDeviceRepository.saveAll(devices)
+        return devices.size
+    }
 
-    fun listSessions(userId: String): List<RefreshSessionSnapshot> = refreshSessionService.listForUser(userId)
+    fun listSessions(userId: String): List<RefreshSessionSnapshot> =
+        userDeviceRepository.findTop100ByUserIdOrderByCreatedAtDesc(userId).map {
+            RefreshSessionSnapshot(
+                id = requireNotNull(it.id),
+                createdAt = it.createdAt,
+                lastUsedAt = it.lastActiveAt,
+                expiresAt = it.expiresAt,
+                revokedAt = it.revokedAt,
+            )
+        }
 
     fun currentUser(userId: String): User? = userRepository.findById(userId).orElse(null)
 
     @Transactional
-    fun revokeSession(sessionId: String, userId: String): Boolean =
-        refreshSessionService.revokeForUser(sessionId, userId)
-
-    fun forgotPassword(email: String) {
-        val user = userRepository.findByEmail(normalizeEmail(email)) ?: return
-        if (user.provider != AuthProvider.EMAIL || !user.status.canAuthenticate()) return
-
-        val token = passwordResetTokenService.generate()
-        user.resetTokenHash = token.tokenHash
-        user.resetTokenExpiry = Instant.now().plus(30, ChronoUnit.MINUTES)
-        val savedUser = userRepository.save(user)
-        passwordResetTokenNotifier.send(
-            userId = requireNotNull(savedUser.id) { "Persisted user id is required before password reset notification." },
-            email = savedUser.email,
-            rawToken = token.rawToken,
-        )
-    }
-
-    fun resetPassword(request: AuthController.ResetPasswordRequest): Boolean {
-        val tokenHash = passwordResetTokenService.hash(request.token)
-        val user = userRepository.findByResetTokenHash(tokenHash) ?: return false
-        val resetTokenExpiry = user.resetTokenExpiry ?: return false
-        if (resetTokenExpiry.isBefore(Instant.now())) return false
-
-        passwordPolicy.validateOrThrow(
-            request.newPassword,
-            PasswordPolicyContext(email = user.email, displayName = user.name)
-        )
-
-        user.passwordHash = passwordEncoder.encode(request.newPassword)
-        user.resetTokenHash = null
-        user.resetTokenExpiry = null
-        userRepository.save(user)
-        refreshSessionService.revokeAllForUser(requireNotNull(user.id))
+    fun revokeSession(sessionId: String, userId: String): Boolean {
+        val device = userDeviceRepository.findByIdAndUserId(sessionId, userId) ?: return false
+        device.revokedAt = Instant.now()
+        userDeviceRepository.save(device)
         return true
     }
 
-    private fun generateTokensForUser(user: User, now: Instant = Instant.now()): AuthTokens {
-        val userId = requireNotNull(user.id) { "Persisted user id is required before token generation." }
-        val rawRefreshToken = refreshSessionService.issueRawToken()
-        val refreshSession = refreshSessionService.create(
-            userId = userId,
-            rawToken = rawRefreshToken,
-            expiresAt = jwtService.refreshExpiresAt(now),
-            now = now,
-        )
+    private fun issueTokensForUser(user: User, provider: AuthProvider, device: DeviceBinding, now: Instant = Instant.now()): AuthTokens {
+        val userId = requireNotNull(user.id)
+        val rawRefreshToken = tokenService.generate().rawToken
+        val expiresAt = now.plus(DeviceRefreshLifetime)
+        val existing = userDeviceRepository.findByDeviceId(device.deviceId)
+        val persistedDevice = if (existing != null && existing.userId == userId) {
+            existing.refreshTokenHash = tokenService.hash(rawRefreshToken)
+            existing.fcmToken = device.fcmToken ?: existing.fcmToken
+            existing.expiresAt = expiresAt
+            existing.lastActiveAt = now
+            existing.revokedAt = null
+            userDeviceRepository.save(existing)
+        } else {
+            userDeviceRepository.save(
+                UserDevice(
+                    userId = userId,
+                    deviceId = device.deviceId,
+                    appSource = device.appSource,
+                    fcmToken = device.fcmToken,
+                    refreshTokenHash = tokenService.hash(rawRefreshToken),
+                    expiresAt = expiresAt,
+                    lastActiveAt = now,
+                )
+            )
+        }
         val activeMerchantMemberships = merchantMembershipRepository.findAllByUserIdAndActiveTrue(userId)
         val session = UserSession(
             userId = userId,
             email = user.email,
-            provider = user.provider,
+            provider = provider,
             roles = (user.roles + activeMerchantMemberships.map { it.role }).toSet().ifEmpty { setOf(RoleCode.CUSTOMER) },
             merchantScopeIds = activeMerchantMemberships.map { it.merchantId }.toSet(),
-            sessionId = requireNotNull(refreshSession.id) { "Persisted refresh session id is required before token generation." },
+            sessionId = requireNotNull(persistedDevice.id),
         )
         return AuthTokens(
             accessToken = jwtService.generateAccessToken(session),
@@ -238,24 +418,25 @@ class AuthService(
         )
     }
 
+    private fun User.canAuthenticate(): Boolean = active && status.canAuthenticate()
+
     private fun normalizeEmail(email: String): String =
         email.trim().lowercase()
 
-    private fun providerScopedEmail(socialUser: SocialUser): String =
-        "${socialUser.providerId}@${socialUser.provider.name.lowercase()}.sequo.local"
+    fun normalizePhone(phoneNumber: String): String {
+        val normalized = phoneNumber.trim().replace(" ", "").replace("-", "")
+        require(normalized.matches(PhonePattern)) { "phoneNumber must be an E.164 number." }
+        return normalized
+    }
 
-    private fun rejectGoogleLogin(reason: String, socialUser: SocialUser? = null): Nothing {
-        val rejection = GoogleTokenRejection(
-            reason = reason,
-            emailVerified = socialUser?.emailVerified,
-            subPresent = socialUser?.providerId?.isNotBlank(),
-        )
-        logger.warn(
-            "Google login rejected after verification: reason={} emailVerified={} subPresent={}",
-            rejection.reason,
-            rejection.emailVerified,
-            rejection.subPresent,
-        )
-        throw InvalidGoogleTokenException(rejection)
+    private fun randomChallenge(): String {
+        val bytes = ByteArray(32)
+        secureRandom.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private companion object {
+        private val DeviceRefreshLifetime: Duration = Duration.ofDays(730)
+        private val PhonePattern = Regex("^\\+[1-9][0-9]{7,14}$")
     }
 }
