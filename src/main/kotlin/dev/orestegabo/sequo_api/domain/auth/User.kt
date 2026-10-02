@@ -10,18 +10,24 @@ class User(
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: String? = null,
 
-    @Column(unique = true, nullable = false)
-    val email: String,
+    @Column(name = "phone_number", unique = true)
+    var phoneNumber: String? = null,
 
-    @Column
-    var passwordHash: String? = null,
+    @Column(unique = true)
+    var email: String? = null,
 
-    @Column
+    @Column(name = "display_name")
     var name: String? = null,
+
+    @Column(name = "avatar_url")
+    var avatarUrl: String? = null,
+
+    @Column(name = "is_active", nullable = false)
+    var active: Boolean = true,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    val provider: AuthProvider,
+    var provider: AuthProvider = AuthProvider.EMAIL,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -33,12 +39,37 @@ class User(
     @Column(name = "role_code", nullable = false)
     var roles: MutableSet<RoleCode> = mutableSetOf(RoleCode.CUSTOMER),
 
-    @Column(unique = true)
-    val providerId: String? = null,
-
-    @Column(name = "reset_token_hash")
-    var resetTokenHash: String? = null,
+    @Column
+    var createdAt: Instant = Instant.now(),
 
     @Column
-    var resetTokenExpiry: Instant? = null
-)
+    var updatedAt: Instant = Instant.now(),
+
+    @get:Transient
+    var passwordHash: String? = null,
+
+    @get:Transient
+    var resetTokenHash: String? = null,
+
+    @get:Transient
+    var resetTokenExpiry: Instant? = null,
+) {
+    @get:Transient
+    var displayName: String?
+        get() = name
+        set(value) {
+            name = value
+        }
+
+    @PrePersist
+    fun beforePersist() {
+        val now = Instant.now()
+        if (createdAt == Instant.EPOCH) createdAt = now
+        updatedAt = now
+    }
+
+    @PreUpdate
+    fun beforeUpdate() {
+        updatedAt = Instant.now()
+    }
+}
