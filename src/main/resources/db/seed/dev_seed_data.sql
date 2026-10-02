@@ -6,15 +6,15 @@
 
 begin;
 
-insert into users (id, email, password_hash, name, provider, status, provider_id)
+insert into users (id, email, display_name, provider, status, avatar_url, is_active, created_at, updated_at)
 values
-  ('seed-customer-1', 'customer.seed@sequo.test', null, 'Afi Customer', 'EMAIL', 'ACTIVE', null),
-  ('seed-merchant-owner-1', 'merchant.owner.seed@sequo.test', null, 'Kossi Merchant', 'EMAIL', 'ACTIVE', null),
-  ('seed-courier-user-1', 'courier.seed@sequo.test', null, 'Ama Courier', 'EMAIL', 'ACTIVE', null),
-  ('seed-relay-user-1', 'relay.seed@sequo.test', null, 'Yao Relay Operator', 'EMAIL', 'ACTIVE', null),
-  ('seed-support-1', 'support.seed@sequo.test', null, 'Sequo Support', 'EMAIL', 'ACTIVE', null),
-  ('seed-admin-1', 'admin.seed@sequo.test', null, 'Sequo Admin', 'EMAIL', 'ACTIVE', null),
-  ('seed-google-user-1', 'google.seed@sequo.test', null, 'Google Seed User', 'GOOGLE', 'ACTIVE', 'google-seed-subject-1')
+  ('seed-customer-1', 'customer.seed@sequo.test', 'Afi Customer', 'EMAIL', 'ACTIVE', null, true, now(), now()),
+  ('seed-merchant-owner-1', 'merchant.owner.seed@sequo.test', 'Kossi Merchant', 'EMAIL', 'ACTIVE', null, true, now(), now()),
+  ('seed-courier-user-1', 'courier.seed@sequo.test', 'Ama Courier', 'EMAIL', 'ACTIVE', null, true, now(), now()),
+  ('seed-relay-user-1', 'relay.seed@sequo.test', 'Yao Relay Operator', 'EMAIL', 'ACTIVE', null, true, now(), now()),
+  ('seed-support-1', 'support.seed@sequo.test', 'Sequo Support', 'EMAIL', 'ACTIVE', null, true, now(), now()),
+  ('seed-admin-1', 'admin.seed@sequo.test', 'Sequo Admin', 'EMAIL', 'ACTIVE', null, true, now(), now()),
+  ('seed-google-user-1', 'google.seed@sequo.test', 'Google Seed User', 'GOOGLE', 'ACTIVE', null, true, now(), now())
 on conflict (id) do nothing;
 
 insert into user_roles (user_id, role_code)
@@ -31,17 +31,18 @@ values
   ('seed-google-user-1', 'CUSTOMER')
 on conflict do nothing;
 
-insert into social_identities (id, user_id, provider, provider_subject, verified_email, created_at, last_login_at)
+insert into user_identities (id, user_id, provider, provider_user_id, credential_public_key, sign_count, created_at, last_login_at)
 values (
   'seed-social-google-1',
   'seed-google-user-1',
   'GOOGLE',
   'google-seed-subject-1',
-  'google.seed@sequo.test',
+  null,
+  0,
   now() - interval '5 days',
   now() - interval '1 hour'
 )
-on conflict (provider, provider_subject) do nothing;
+on conflict (provider, provider_user_id) do nothing;
 
 insert into merchants (id, owner_user_id, name, status, commission_rate_bps, wallet_provider, wallet_account_ref, created_at, updated_at, version)
 values
