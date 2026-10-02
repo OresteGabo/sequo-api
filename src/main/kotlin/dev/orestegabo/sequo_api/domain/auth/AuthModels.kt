@@ -1,7 +1,7 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 enum class AuthProvider {
-    EMAIL, GOOGLE, FACEBOOK, APPLE
+    EMAIL, GOOGLE, FACEBOOK, APPLE, PASSKEY
 }
 
 enum class UserStatus {
@@ -70,6 +70,19 @@ data class UserSession(
     val merchantScopeIds: Set<String> = emptySet(),
     val sessionId: String? = null,
 )
+
+enum class AppSource {
+    SEQUO_APP,
+    SEQUO_HUB,
+    SEQUO_RIDER
+}
+
+enum class AuthChallengePurpose {
+    WHATSAPP_OTP,
+    PASSKEY_REGISTRATION,
+    PASSKEY_AUTHENTICATION,
+    CROSS_DEVICE_LOGIN
+}
 
 data class AuthErrorResponse(
     val code: String,
