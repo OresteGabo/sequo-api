@@ -3,7 +3,6 @@ package dev.orestegabo.sequo_api.domain.auth
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.security.crypto.password.PasswordEncoder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -18,46 +17,40 @@ class AuthControllerRateLimitTest {
     private lateinit var authRateLimiter: AuthRateLimiter
 
     @Autowired
+    private lateinit var authChallengeRepository: AuthChallengeRepository
+
+    @Autowired
+    private lateinit var userDeviceRepository: UserDeviceRepository
+
+    @Autowired
+    private lateinit var userIdentityRepository: UserIdentityRepository
+
+    @Autowired
     private lateinit var userRepository: UserRepository
-
-    @Autowired
-    private lateinit var socialIdentityRepository: SocialIdentityRepository
-
-    @Autowired
-    private lateinit var refreshSessionRepository: RefreshSessionRepository
-
-    @Autowired
-    private lateinit var passwordEncoder: PasswordEncoder
 
     @BeforeEach
     fun cleanDatabase() {
         authRateLimiter.resetForTests()
-        refreshSessionRepository.deleteAll()
-        socialIdentityRepository.deleteAll()
+        authChallengeRepository.deleteAll()
+        userDeviceRepository.deleteAll()
+        userIdentityRepository.deleteAll()
         userRepository.deleteAll()
     }
 
     @Test
-    fun forgotPasswordReturns429AfterEmailBudgetIsConsumed() {
-        userRepository.save(
-            User(
-                email = "rate-limit@sequo.test",
-                passwordHash = passwordEncoder.encode("OldPassword2026!"),
-                name = "Rate Limited Customer",
-                provider = AuthProvider.EMAIL,
-            )
-        )
-        val request = AuthController.ForgotPasswordRequest("rate-limit@sequo.test")
+    fun whatsappOtpRequestReturns429AfterPhoneBudgetIsConsumed() {
+        val request = AuthController.WhatsAppOtpRequest("+15551234567")
 
         repeat(3) {
-            assertEquals(200, authController.forgotPassword(request).statusCode.value())
+            assertEquals(200, authController.requestWhatsAppOtp(request).statusCode.value())
         }
 
-        val blocked = authController.forgotPassword(request)
+        val blocked = authController.requestWhatsAppOtp(request)
+        val body = blocked.body as AuthController.RateLimitErrorResponse
 
         assertEquals(429, blocked.statusCode.value())
         assertNotNull(blocked.headers["Retry-After"])
-        assertEquals("rate_limited", blocked.body?.get("code"))
-        assertTrue(requireNotNull(blocked.body?.get("message")).contains("Too many attempts"))
+        assertEquals("rate_limited", body.code)
+        assertTrue(body.message.contains("Too many attempts"))
     }
 }
