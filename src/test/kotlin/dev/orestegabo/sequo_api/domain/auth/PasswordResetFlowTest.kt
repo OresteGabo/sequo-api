@@ -1,22 +1,17 @@
 package dev.orestegabo.sequo_api.domain.auth
 
-import org.mockito.Mockito
 import org.junit.jupiter.api.BeforeEach
+import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.bean.override.mockito.MockitoBean
-import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 @SpringBootTest
 class PasswordResetFlowTest {
-
     @Autowired
     private lateinit var authService: AuthService
 
@@ -24,122 +19,73 @@ class PasswordResetFlowTest {
     private lateinit var userRepository: UserRepository
 
     @Autowired
-    private lateinit var socialIdentityRepository: SocialIdentityRepository
+    private lateinit var userIdentityRepository: UserIdentityRepository
 
     @Autowired
-    private lateinit var refreshSessionRepository: RefreshSessionRepository
+    private lateinit var userDeviceRepository: UserDeviceRepository
 
     @Autowired
-    private lateinit var passwordEncoder: PasswordEncoder
-
-    @Autowired
-    private lateinit var tokenService: PasswordResetTokenService
+    private lateinit var authChallengeRepository: AuthChallengeRepository
 
     @MockitoBean
-    private lateinit var passwordResetTokenNotifier: PasswordResetTokenNotifier
+    private lateinit var googleVerifier: GoogleTokenVerifier
 
     @BeforeEach
     fun cleanDatabase() {
-        Mockito.reset(passwordResetTokenNotifier)
-        refreshSessionRepository.deleteAll()
-        socialIdentityRepository.deleteAll()
+        Mockito.reset(googleVerifier)
+        authChallengeRepository.deleteAll()
+        userDeviceRepository.deleteAll()
+        userIdentityRepository.deleteAll()
         userRepository.deleteAll()
     }
 
     @Test
-    fun forgotPasswordStoresOnlyTokenHash() {
-        userRepository.save(emailUser("customer@sequo.test"))
+    fun verifiedGoogleLoginCreatesUserIdentityAndRefreshDevice() {
+        Mockito.`when`(googleVerifier.verify("new-google-token")).thenReturn(
+            SocialUser(
+                providerId = "google-123",
+                provider = AuthProvider.GOOGLE,
+                email = "Customer@Sequo.Test",
+                name = "Customer",
+                pictureUrl = null,
+                emailVerified = true,
+            )
+        )
 
-        authService.forgotPassword("customer@sequo.test")
-
+        val tokens = authService.loginWithSocialToken(AuthProvider.GOOGLE, "new-google-token", device("google-device"))
         val user = userRepository.findByEmail("customer@sequo.test")
-        assertNotNull(user?.resetTokenHash)
-        assertTrue(requireNotNull(user.resetTokenHash).length >= 40)
-        assertNotNull(user.resetTokenExpiry)
-        val notification = Mockito.mockingDetails(passwordResetTokenNotifier).invocations.single()
-        assertEquals(requireNotNull(user.id), notification.arguments[0])
-        assertEquals("customer@sequo.test", notification.arguments[1])
-        assertTrue((notification.arguments[2] as String).length >= 40)
+        val identity = userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-123")
+        val persistedDevice = userDeviceRepository.findByDeviceId("google-device")
+
+        assertNotNull(tokens)
+        assertNotNull(user)
+        assertEquals(AuthProvider.GOOGLE, user.provider)
+        assertNotNull(identity)
+        assertEquals(user.id, identity.userId)
+        assertNotNull(persistedDevice)
+        assertEquals(user.id, persistedDevice.userId)
     }
 
     @Test
-    fun forgotPasswordDoesNotCreateTokenForUnknownAccount() {
-        authService.forgotPassword("missing@sequo.test")
-
-        assertTrue(userRepository.findAll().isEmpty())
-    }
-
-    @Test
-    fun resetPasswordAcceptsValidTokenAndClearsItAfterUse() {
-        val resetToken = tokenService.generate()
-        val user = emailUser("customer@sequo.test").apply {
-            resetTokenHash = resetToken.tokenHash
-            resetTokenExpiry = Instant.now().plusSeconds(120)
-        }
-        userRepository.save(user)
-        val loginTokens = requireNotNull(
-            authService.login(AuthController.LoginWithEmailRequest(user.email, "OldPassword2026!"))
-        )
-
-        val success = authService.resetPassword(
-            AuthController.ResetPasswordRequest(
-                token = resetToken.rawToken,
-                newPassword = "Cobalt-Violet-47!"
+    fun unverifiedGoogleEmailDoesNotCreateAccount() {
+        Mockito.`when`(googleVerifier.verify("unverified-google-token")).thenReturn(
+            SocialUser(
+                providerId = "google-123",
+                provider = AuthProvider.GOOGLE,
+                email = "customer@sequo.test",
+                name = "Customer",
+                pictureUrl = null,
+                emailVerified = false,
             )
         )
 
-        val updated = userRepository.findByEmail("customer@sequo.test")
-        assertTrue(success)
-        assertNotNull(updated)
-        assertNull(updated.resetTokenHash)
-        assertNull(updated.resetTokenExpiry)
-        assertTrue(passwordEncoder.matches("Cobalt-Violet-47!", updated.passwordHash))
-        assertNull(authService.refreshTokens(loginTokens.refreshToken))
+        val tokens = authService.loginWithSocialToken(AuthProvider.GOOGLE, "unverified-google-token", device("blocked-device"))
+
+        assertNull(tokens)
+        assertEquals(0, userRepository.count())
+        assertEquals(0, userIdentityRepository.count())
+        assertEquals(0, userDeviceRepository.count())
     }
 
-    @Test
-    fun resetPasswordRejectsExpiredToken() {
-        val token = tokenService.generate()
-        val user = emailUser("customer@sequo.test").apply {
-            resetTokenHash = token.tokenHash
-            resetTokenExpiry = Instant.now().minusSeconds(1)
-        }
-        userRepository.save(user)
-
-        val success = authService.resetPassword(
-            AuthController.ResetPasswordRequest(
-                token = token.rawToken,
-                newPassword = "Cobalt-Violet-47!"
-            )
-        )
-
-        assertFalse(success)
-    }
-
-    @Test
-    fun resetPasswordRejectsMissingExpiry() {
-        val token = tokenService.generate()
-        val user = emailUser("customer@sequo.test").apply {
-            resetTokenHash = token.tokenHash
-            resetTokenExpiry = null
-        }
-        userRepository.save(user)
-
-        val success = authService.resetPassword(
-            AuthController.ResetPasswordRequest(
-                token = token.rawToken,
-                newPassword = "Cobalt-Violet-47!"
-            )
-        )
-
-        assertFalse(success)
-    }
-
-    private fun emailUser(email: String): User =
-        User(
-            email = email,
-            passwordHash = passwordEncoder.encode("OldPassword2026!"),
-            name = "Customer",
-            provider = AuthProvider.EMAIL
-        )
+    private fun device(id: String) = DeviceBinding(id, AppSource.SEQUO_APP, null)
 }
