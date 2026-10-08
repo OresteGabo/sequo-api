@@ -95,6 +95,17 @@ class AuthController(
         val retryAfterSeconds: Long,
     )
 
+    data class InvalidGoogleTokenResponse(
+        val error: String,
+        val reason: String,
+        val code: String,
+        val message: String,
+        val audience: String?,
+        val issuer: String?,
+        val emailVerified: Boolean?,
+        val subPresent: Boolean?,
+    )
+
     @PostMapping("/social/{provider}")
     fun loginSocial(
         @PathVariable provider: AuthProvider,
@@ -110,7 +121,18 @@ class AuthController(
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: InvalidGoogleTokenException) {
-            ResponseEntity.status(401).body(AuthErrorResponse("invalid_google_token", "Google sign-in could not be completed."))
+            ResponseEntity.status(401).body(
+                InvalidGoogleTokenResponse(
+                    error = "invalid_google_token",
+                    reason = e.rejection.reason,
+                    code = e.rejection.reason,
+                    message = "Google sign-in could not be completed.",
+                    audience = e.rejection.audience,
+                    issuer = e.rejection.issuer,
+                    emailVerified = e.rejection.emailVerified,
+                    subPresent = e.rejection.subPresent,
+                )
+            )
         } catch (e: IllegalArgumentException) {
             invalidAuthRequest(e)
         }
