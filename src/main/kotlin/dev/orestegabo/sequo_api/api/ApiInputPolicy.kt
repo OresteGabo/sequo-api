@@ -23,6 +23,18 @@ object ApiInputPolicy {
         return normalized
     }
 
+    fun normalizedIdentityEmail(value: String, field: String = "email"): String {
+        val normalized = normalizedEmail(value, field)
+        val localPart = normalized.substringBefore("@")
+        val domain = normalized.substringAfter("@")
+
+        if (domain !in GmailDomains) return normalized
+
+        val canonicalLocalPart = localPart.substringBefore("+").replace(".", "")
+        require(canonicalLocalPart.isNotBlank()) { "$field must be a valid email address." }
+        return "$canonicalLocalPart@gmail.com"
+    }
+
     fun requiredToken(value: String, field: String = "token", maxLength: Int = MaxLongTokenLength): String {
         requireNoControlChars(value, field)
         val normalized = value.trim()
@@ -93,4 +105,6 @@ object ApiInputPolicy {
     private fun requireNoControlChars(value: String, field: String) {
         require(value.none { it.isISOControl() }) { "$field cannot contain control characters." }
     }
+
+    private val GmailDomains = setOf("gmail.com", "googlemail.com")
 }
