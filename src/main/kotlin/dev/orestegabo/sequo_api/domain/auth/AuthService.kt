@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -421,7 +422,7 @@ class AuthService(
     private fun User.canAuthenticate(): Boolean = active && status.canAuthenticate()
 
     private fun normalizeEmail(email: String): String =
-        email.trim().lowercase()
+        ApiInputPolicy.normalizedIdentityEmail(email)
 
     fun normalizePhone(phoneNumber: String): String {
         val normalized = phoneNumber.trim().replace(" ", "").replace("-", "")
