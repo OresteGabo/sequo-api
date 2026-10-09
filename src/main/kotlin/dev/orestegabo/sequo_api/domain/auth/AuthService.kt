@@ -383,7 +383,21 @@ class AuthService(
         val rawRefreshToken = tokenService.generate().rawToken
         val expiresAt = now.plus(DeviceRefreshLifetime)
         val existing = userDeviceRepository.findByDeviceId(device.deviceId)
-        val persistedDevice = if (existing != null && existing.userId == userId) {
+
+        val persistedDevice = if (existing != null) {
+            val belongsToAnotherActiveUser =
+                existing.userId != userId &&
+                        existing.revokedAt == null &&
+                        existing.expiresAt.isAfter(now)
+
+            if (belongsToAnotherActiveUser) {
+                throw IllegalStateException(
+                    "This device is still signed in to another account. Log out before switching accounts."
+                )
+            }
+
+            // The previous session was revoked, so this device may switch accounts.
+            existing.userId = userId
             existing.refreshTokenHash = tokenService.hash(rawRefreshToken)
             existing.fcmToken = device.fcmToken ?: existing.fcmToken
             existing.expiresAt = expiresAt
