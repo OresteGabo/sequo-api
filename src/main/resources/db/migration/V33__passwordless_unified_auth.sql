@@ -58,8 +58,7 @@ where exists (
     select 1
     from information_schema.tables
     where table_name = 'social_identities'
-)
-on conflict do nothing;
+);
 
 drop table if exists social_identities;
 
