@@ -59,8 +59,9 @@ sequo:
     google:
       client-id: ${GOOGLE_CLIENT_ID:google_docker_dev_client_id}
       allowed-client-ids:
-        - ${GOOGLE_ANDROID_CLIENT_ID:543119759762-f4s16bdo6sjhqsbk15na7df96dib6kmo.apps.googleusercontent.com}
+        - ${GOOGLE_ANDROID_CLIENT_ID:543119759762-k7d6pjd4l24jf1pac78idfrffimq2ia9.apps.googleusercontent.com}
         - ${GOOGLE_IOS_CLIENT_ID:543119759762-ehcnb5lpi883c94457ogrgqsd0nshde2.apps.googleusercontent.com}
+        - ${GOOGLE_WEB_CLIENT_ID:543119759762-5vi3qqvr26o3adoqe7v68stbic1vh2i2.apps.googleusercontent.com}
     facebook:
       app-id: ${FACEBOOK_APP_ID:facebook_docker_dev_app_id}
       app-access-token: ${FACEBOOK_APP_ACCESS_TOKEN:}
