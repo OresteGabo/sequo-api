@@ -9,7 +9,7 @@ import kotlin.test.assertFailsWith
 
 class GoogleIdTokenVerifierAdapterTest {
     private val objectMapper = ObjectMapper()
-    private val androidClientId = "543119759762-f4s16bdo6sjhqsbk15na7df96dib6kmo.apps.googleusercontent.com"
+    private val androidClientId = "543119759762-k7d6pjd4l24jf1pac78idfrffimq2ia9.apps.googleusercontent.com"
     private val iosClientId = "543119759762-ehcnb5lpi883c94457ogrgqsd0nshde2.apps.googleusercontent.com"
 
     @Test
