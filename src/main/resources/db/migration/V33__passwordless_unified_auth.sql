@@ -9,9 +9,9 @@ drop index if exists idx_users_reset_token_hash;
 alter table users add column if not exists phone_number varchar(255);
 alter table users add column if not exists display_name varchar(255);
 alter table users add column if not exists avatar_url varchar(1024);
-alter table users add column if not exists is_active boolean not null default true;
-alter table users add column if not exists created_at timestamp with time zone not null default current_timestamp;
-alter table users add column if not exists updated_at timestamp with time zone not null default current_timestamp;
+alter table users add column if not exists is_active boolean;
+alter table users add column if not exists created_at timestamp with time zone default current_timestamp;
+alter table users add column if not exists updated_at timestamp with time zone default current_timestamp;
 
 update users
 set display_name = coalesce(display_name, name)
@@ -23,7 +23,29 @@ where display_name is null
       and column_name = 'name'
   );
 
+update users
+set is_active = true
+where is_active is null;
+
+update users
+set created_at = current_timestamp
+where created_at is null;
+
+update users
+set updated_at = current_timestamp
+where updated_at is null;
+
+alter table users alter column is_active set default true;
+alter table users alter column is_active set not null;
+
+alter table users alter column created_at set default current_timestamp;
+alter table users alter column created_at set not null;
+
+alter table users alter column updated_at set default current_timestamp;
+alter table users alter column updated_at set not null;
+
 alter table users alter column email drop not null;
+
 alter table users drop column if exists password_hash;
 alter table users drop column if exists reset_token_hash;
 alter table users drop column if exists reset_token_expiry;
@@ -43,26 +65,41 @@ create table user_identities (
     created_at timestamp with time zone not null default current_timestamp,
     last_login_at timestamp with time zone,
     primary key (id),
-    constraint fk_user_identities_user foreign key (user_id) references users(id) on delete cascade,
-    constraint uk_user_identities_provider_user unique (provider, provider_user_id),
-    constraint chk_user_identities_provider check (provider in ('GOOGLE', 'APPLE', 'FACEBOOK', 'PASSKEY')),
-    constraint chk_user_identities_sign_count check (sign_count >= 0)
+    constraint fk_user_identities_user
+        foreign key (user_id) references users(id) on delete cascade,
+    constraint uk_user_identities_provider_user
+        unique (provider, provider_user_id),
+    constraint chk_user_identities_provider
+        check (provider in ('GOOGLE', 'APPLE', 'FACEBOOK', 'PASSKEY')),
+    constraint chk_user_identities_sign_count
+        check (sign_count >= 0)
 );
 
 insert into user_identities (
-    id, user_id, provider, provider_user_id, credential_public_key, sign_count, created_at, last_login_at
+    id,
+    user_id,
+    provider,
+    provider_user_id,
+    credential_public_key,
+    sign_count,
+    created_at,
+    last_login_at
 )
-select id, user_id, provider, provider_subject, null, 0, created_at, last_login_at
-from social_identities
-where exists (
-    select 1
-    from information_schema.tables
-    where table_name = 'social_identities'
-);
+select
+    id,
+    user_id,
+    provider,
+    provider_subject,
+    null,
+    0,
+    created_at,
+    last_login_at
+from social_identities;
 
 drop table if exists social_identities;
 
-create index idx_user_identities_user on user_identities(user_id);
+create index idx_user_identities_user
+    on user_identities(user_id);
 
 create table user_devices (
     id varchar(255) not null,
@@ -76,14 +113,21 @@ create table user_devices (
     last_active_at timestamp with time zone not null default current_timestamp,
     revoked_at timestamp with time zone,
     primary key (id),
-    constraint fk_user_devices_user foreign key (user_id) references users(id) on delete cascade,
-    constraint uk_user_devices_device_id unique (device_id),
-    constraint uk_user_devices_refresh_token_hash unique (refresh_token_hash),
-    constraint chk_user_devices_app_source check (app_source in ('SEQUO_APP', 'SEQUO_HUB', 'SEQUO_RIDER'))
+    constraint fk_user_devices_user
+        foreign key (user_id) references users(id) on delete cascade,
+    constraint uk_user_devices_device_id
+        unique (device_id),
+    constraint uk_user_devices_refresh_token_hash
+        unique (refresh_token_hash),
+    constraint chk_user_devices_app_source
+        check (app_source in ('SEQUO_APP', 'SEQUO_HUB', 'SEQUO_RIDER'))
 );
 
-create index idx_user_devices_user_active on user_devices(user_id, revoked_at, expires_at);
-create index idx_user_devices_last_active on user_devices(user_id, last_active_at desc);
+create index idx_user_devices_user_active
+    on user_devices(user_id, revoked_at, expires_at);
+
+create index idx_user_devices_last_active
+    on user_devices(user_id, last_active_at desc);
 
 create table auth_challenges (
     id varchar(255) not null,
@@ -97,17 +141,28 @@ create table auth_challenges (
     expires_at timestamp with time zone not null,
     consumed_at timestamp with time zone,
     primary key (id),
-    constraint chk_auth_challenges_purpose check (purpose in (
-        'WHATSAPP_OTP',
-        'PASSKEY_REGISTRATION',
-        'PASSKEY_AUTHENTICATION',
-        'CROSS_DEVICE_LOGIN'
-    )),
-    constraint chk_auth_challenges_requesting_app check (
-        requesting_app_source is null
-        or requesting_app_source in ('SEQUO_APP', 'SEQUO_HUB', 'SEQUO_RIDER')
-    )
+    constraint chk_auth_challenges_purpose
+        check (
+            purpose in (
+                'WHATSAPP_OTP',
+                'PASSKEY_REGISTRATION',
+                'PASSKEY_AUTHENTICATION',
+                'CROSS_DEVICE_LOGIN'
+            )
+        ),
+    constraint chk_auth_challenges_requesting_app
+        check (
+            requesting_app_source is null
+            or requesting_app_source in (
+                'SEQUO_APP',
+                'SEQUO_HUB',
+                'SEQUO_RIDER'
+            )
+        )
 );
 
-create index idx_auth_challenges_subject_purpose on auth_challenges(subject, purpose, expires_at desc);
-create index idx_auth_challenges_expires_at on auth_challenges(expires_at);
+create index idx_auth_challenges_subject_purpose
+    on auth_challenges(subject, purpose, expires_at desc);
+
+create index idx_auth_challenges_expires_at
+    on auth_challenges(expires_at);
