@@ -26,7 +26,7 @@ class UserDevice(
     val id: String? = null,
 
     @Column(name = "user_id", nullable = false)
-    val userId: String,
+    var userId: String,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_devices_user"))
