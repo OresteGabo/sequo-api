@@ -246,13 +246,15 @@ class DatabaseMigrationValidationTest @Autowired constructor(
                 id,
                 email,
                 provider,
-                status
-            ) values (?, ?, ?, ?)
+                status,
+                is_active
+            ) values (?, ?, ?, ?, ?)
             """.trimIndent(),
             "user-notification-constraint",
             "notification-constraint@sequo.test",
             "EMAIL",
             "ACTIVE",
+            true
         )
         jdbcTemplate.update(
             """
