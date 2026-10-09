@@ -45,13 +45,13 @@ class User(
     @Column
     var updatedAt: Instant = Instant.now(),
 
-    @get:Transient
+    @Transient
     var passwordHash: String? = null,
 
-    @get:Transient
+    @Transient
     var resetTokenHash: String? = null,
 
-    @get:Transient
+    @Transient
     var resetTokenExpiry: Instant? = null,
 ) {
     @get:Transient
