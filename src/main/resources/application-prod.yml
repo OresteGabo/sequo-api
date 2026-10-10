@@ -68,9 +68,9 @@ sequo:
         - ${GOOGLE_IOS_RIDER_CLIENT_ID:543119759762-6bgv32vtn9gigcqdhraocrh02576i8l8.apps.googleusercontent.com}
         - ${GOOGLE_IOS_VENDOR_CLIENT_ID:543119759762-i32k35p3aku6ap9busskcvabqg1hvjj6.apps.googleusercontent.com}
         - ${GOOGLE_WEB_CLIENT_ID:543119759762-5vi3qqvr26o3adoqe7v68stbic1vh2i2.apps.googleusercontent.com}
-        - ${GOOGLE_WEB_HUB_CLIENT_ID:}
-        - ${GOOGLE_WEB_RIDER_CLIENT_ID:}
-        - ${GOOGLE_WEB_VENDOR_CLIENT_ID:}
+        - ${GOOGLE_WEB_HUB_CLIENT_ID:543119759762-setlst6nt41hcik3kmkk64770h86kaqu.apps.googleusercontent.com}
+        - ${GOOGLE_WEB_RIDER_CLIENT_ID:543119759762-fmeaucus4h8cl7f9ojaa9sjnjjl8eb1s.apps.googleusercontent.com}
+        - ${GOOGLE_WEB_VENDOR_CLIENT_ID:543119759762-ep5qfncioe001l6n2e97tk6d3cviatls.apps.googleusercontent.com}
     facebook:
       app-id: ${FACEBOOK_APP_ID:facebook_docker_dev_app_id}
       app-access-token: ${FACEBOOK_APP_ACCESS_TOKEN:}
