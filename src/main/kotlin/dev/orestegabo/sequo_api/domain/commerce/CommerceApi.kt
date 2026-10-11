@@ -6,6 +6,8 @@ import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
+import dev.orestegabo.sequo_api.domain.catalog.ProductMediaModerationStatus
+import dev.orestegabo.sequo_api.domain.catalog.ProductMediaSource
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import jakarta.persistence.Column
@@ -301,6 +303,30 @@ data class PatchCatalogProductRequest(
     val sortOrder: Int? = null,
 )
 
+data class MerchantProductPhotoRequest(
+    val merchantId: String? = null,
+    val source: ProductMediaSource,
+    val capturedAt: Instant? = null,
+    val deviceId: String? = null,
+    val contentHash: String? = null,
+    val catalogImageId: String? = null,
+    val sourceUrl: String? = null,
+)
+
+data class MerchantProductPhotoStatusDto(
+    val productId: String,
+    val productKind: CatalogProductKind,
+    val source: ProductMediaSource,
+    val cameraVerified: Boolean,
+    val moderationStatus: ProductMediaModerationStatus,
+    val capturedAt: Instant?,
+    val catalogImageId: String?,
+    val publicUrl: String?,
+    val storageReady: Boolean,
+    val uploadRequired: Boolean,
+    val status: String,
+)
+
 data class CreateBargainingThreadRequest(val productId: String, val amountCfa: Int, val message: String? = null)
 data class CreateBargainingOfferRequest(val amountCfa: Int? = null, val message: String? = null)
 data class BargainingThreadDto(
@@ -498,8 +524,93 @@ class CommerceService(
     fun activateMerchantProduct(merchantId: String, productId: String): CatalogProductDto =
         updateMerchantProduct(merchantId, productId, PatchCatalogProductRequest(status = CatalogProductStatus.ACTIVE))
 
+    @Transactional
+    fun prepareMerchantProductPhoto(
+        merchantId: String,
+        productId: String,
+        request: MerchantProductPhotoRequest,
+    ): MerchantProductPhotoStatusDto {
+        val product = merchantProduct(merchantId, productId)
+        request.merchantId?.let {
+            require(ApiInputPolicy.requiredIdentifier(it, "merchantId") == product.merchantId) {
+                "merchantId must match the authenticated merchant scope."
+            }
+        }
+
+        val now = Instant.now()
+        return when (request.source) {
+            ProductMediaSource.LiveCamera -> {
+                require(product.kind == CatalogProductKind.SellerSpecific) {
+                    "Live camera photos are required only for seller-specific products."
+                }
+                val capturedAt = request.capturedAt ?: throw IllegalArgumentException("capturedAt is required.")
+                require(!capturedAt.isAfter(now.plusSeconds(60))) {
+                    "capturedAt cannot be in the future."
+                }
+                ApiInputPolicy.requiredShortText(request.deviceId ?: "", "deviceId", 128)
+                val contentHash = ApiInputPolicy.requiredShortText(request.contentHash ?: "", "contentHash", 128)
+                require(contentHash.startsWith("sha256:")) {
+                    "contentHash must be a sha256 hash."
+                }
+                product.cameraVerified = false
+                product.capturedAtLabel = "Photo metadata received; binary upload storage pending."
+                product.updatedAt = now
+                MerchantProductPhotoStatusDto(
+                    productId = product.id,
+                    productKind = product.kind,
+                    source = ProductMediaSource.LiveCamera,
+                    cameraVerified = product.cameraVerified,
+                    moderationStatus = ProductMediaModerationStatus.NeedsReview,
+                    capturedAt = capturedAt,
+                    catalogImageId = null,
+                    publicUrl = null,
+                    storageReady = false,
+                    uploadRequired = true,
+                    status = "PENDING_UPLOAD_STORAGE",
+                )
+            }
+
+            ProductMediaSource.GenericCatalogReference -> {
+                require(product.kind == CatalogProductKind.GenericSealedItem) {
+                    "Generic catalog references are allowed only for generic sealed products."
+                }
+                val catalogImageId = ApiInputPolicy.requiredIdentifier(request.catalogImageId ?: "", "catalogImageId")
+                val sourceUrl = request.sourceUrl?.trim()
+                if (sourceUrl != null) {
+                    require(sourceUrl.startsWith("https://")) {
+                        "sourceUrl must use HTTPS."
+                    }
+                    ApiInputPolicy.optionalLongText(sourceUrl, "sourceUrl", 500)
+                }
+                product.cameraVerified = false
+                product.capturedAtLabel = "Approved generic catalog image"
+                product.updatedAt = now
+                MerchantProductPhotoStatusDto(
+                    productId = product.id,
+                    productKind = product.kind,
+                    source = ProductMediaSource.GenericCatalogReference,
+                    cameraVerified = product.cameraVerified,
+                    moderationStatus = ProductMediaModerationStatus.Approved,
+                    capturedAt = null,
+                    catalogImageId = catalogImageId,
+                    publicUrl = sourceUrl,
+                    storageReady = false,
+                    uploadRequired = false,
+                    status = "GENERIC_REFERENCE_APPROVED",
+                )
+            }
+
+            ProductMediaSource.GalleryUpload,
+            ProductMediaSource.WebImage -> throw IllegalArgumentException("${request.source.name} is not accepted for merchant product photos.")
+        }
+    }
+
     @Transactional(readOnly = true)
     fun requireMerchantProductOwnership(merchantId: String, productId: String) {
+        merchantProduct(merchantId, productId)
+    }
+
+    private fun merchantProduct(merchantId: String, productId: String): ProductRecord {
         val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
         val safeProductId = ApiInputPolicy.requiredIdentifier(productId, "productId")
         val product = products.findById(safeProductId).orElseThrow {
@@ -508,6 +619,7 @@ class CommerceService(
         require(product.merchantId == safeMerchantId) {
             "productId does not belong to the authenticated merchant."
         }
+        return product
     }
 
     @Transactional(readOnly = true)
@@ -718,6 +830,16 @@ class MerchantCatalogController(private val commerce: CommerceService) {
     fun activateProduct(authentication: Authentication?, @PathVariable productId: String): ResponseEntity<Any> =
         merchantCatalogAccess(authentication, null) { merchantId ->
             commerce.activateMerchantProduct(merchantId, productId)
+        }
+
+    @PostMapping("/products/{productId}/photos")
+    fun prepareProductPhoto(
+        authentication: Authentication?,
+        @PathVariable productId: String,
+        @RequestBody request: MerchantProductPhotoRequest,
+    ): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, request.merchantId) { merchantId ->
+            commerce.prepareMerchantProductPhoto(merchantId, productId, request)
         }
 }
 

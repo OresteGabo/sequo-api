@@ -172,6 +172,17 @@ must send its own merchant ID and must be authenticated as that merchant.
 | POST | `/api/merchant/sub-orders/{subOrderId}/handoff` | `merchantId` | Confirm merchant handoff. |
 | POST | `/api/merchant/sub-orders/{subOrderId}/reject` | `merchantId`, `reason` | Reject the sub-order. |
 | POST | `/api/merchant/sub-orders/{subOrderId}/escalations` | `reason`, `note` | Create an operator escalation. |
+| POST | `/api/merchant/catalog/products` | product fields, optional `merchantId` | Create a product for the authenticated merchant. |
+| PATCH | `/api/merchant/catalog/products/{productId}` | product patch fields | Update a product owned by the authenticated merchant. |
+| POST | `/api/merchant/catalog/products/{productId}/deactivate` | none | Pause/deactivate a product owned by the authenticated merchant. |
+| POST | `/api/merchant/catalog/products/{productId}/activate` | none | Reactivate a product owned by the authenticated merchant. |
+| POST | `/api/merchant/catalog/products/{productId}/photos` | `source`, metadata | Prepare product photo metadata and return safe verification status. |
+
+Product photo metadata currently supports `LiveCamera` and `GenericCatalogReference`.
+`GalleryUpload` and `WebImage` are rejected. Live camera submissions are metadata-only until binary
+object storage is wired; the response marks them `PENDING_UPLOAD_STORAGE` with `storageReady=false`.
+Generic catalog references are allowed only for `GenericSealedItem` products and require HTTPS URLs when
+a URL is supplied.
 
 ## Courier And Operations Missions
 

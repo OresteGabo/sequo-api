@@ -6,6 +6,8 @@ import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import dev.orestegabo.sequo_api.domain.auth.UserStatus
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
+import dev.orestegabo.sequo_api.domain.catalog.ProductMediaModerationStatus
+import dev.orestegabo.sequo_api.domain.catalog.ProductMediaSource
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
@@ -121,6 +124,84 @@ class CommerceServiceTest @Autowired constructor(
     }
 
     @Test
+    fun merchantProductPhotoEndpointAcceptsLiveCameraMetadataWithoutBinaryStorage() {
+        seedCatalog()
+
+        val status = service.prepareMerchantProductPhoto(
+            merchantId = "merchant-test",
+            productId = "test-product",
+            request = MerchantProductPhotoRequest(
+                source = ProductMediaSource.LiveCamera,
+                capturedAt = Instant.parse("2026-09-08T10:00:00Z"),
+                deviceId = "vendor-device-1",
+                contentHash = "sha256:abc123",
+            ),
+        )
+
+        assertEquals("test-product", status.productId)
+        assertEquals(ProductMediaSource.LiveCamera, status.source)
+        assertEquals(ProductMediaModerationStatus.NeedsReview, status.moderationStatus)
+        assertEquals(false, status.cameraVerified)
+        assertEquals(false, status.storageReady)
+        assertEquals(true, status.uploadRequired)
+        assertEquals("PENDING_UPLOAD_STORAGE", status.status)
+    }
+
+    @Test
+    fun merchantProductPhotoEndpointAllowsGenericReferencesOnlyForSealedItems() {
+        seedCatalog()
+
+        val accepted = service.prepareMerchantProductPhoto(
+            merchantId = "merchant-test",
+            productId = "sealed-product",
+            request = MerchantProductPhotoRequest(
+                source = ProductMediaSource.GenericCatalogReference,
+                catalogImageId = "catalog-rice-photo",
+                sourceUrl = "https://cdn.sequo.example/catalog/rice.webp",
+            ),
+        )
+
+        assertEquals(ProductMediaModerationStatus.Approved, accepted.moderationStatus)
+        assertEquals("catalog-rice-photo", accepted.catalogImageId)
+        assertEquals(false, accepted.uploadRequired)
+        assertFailsWith<IllegalArgumentException> {
+            service.prepareMerchantProductPhoto(
+                merchantId = "merchant-test",
+                productId = "test-product",
+                request = MerchantProductPhotoRequest(
+                    source = ProductMediaSource.GenericCatalogReference,
+                    catalogImageId = "catalog-plate-photo",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun merchantProductPhotoEndpointRejectsGallerySourcesAndWrongOwners() {
+        seedCatalog()
+
+        assertFailsWith<IllegalArgumentException> {
+            service.prepareMerchantProductPhoto(
+                merchantId = "merchant-test",
+                productId = "test-product",
+                request = MerchantProductPhotoRequest(source = ProductMediaSource.GalleryUpload),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            service.prepareMerchantProductPhoto(
+                merchantId = "other-merchant",
+                productId = "test-product",
+                request = MerchantProductPhotoRequest(
+                    source = ProductMediaSource.LiveCamera,
+                    capturedAt = Instant.parse("2026-09-08T10:00:00Z"),
+                    deviceId = "vendor-device-1",
+                    contentHash = "sha256:abc123",
+                ),
+            )
+        }
+    }
+
+    @Test
     fun bargainingThreadRequiresNegotiableProductAndStoresOffers() {
         seedCatalog()
         val userId = createCustomer("bargain@sequo.test")
@@ -181,6 +262,19 @@ class CommerceServiceTest @Autowired constructor(
                 bargainingEnabled = true,
                 bargainFloorCfa = 1000,
                 sortOrder = 2,
+            )
+        )
+        products.save(
+            ProductRecord(
+                id = "sealed-product",
+                merchantId = "merchant-test",
+                name = "Sealed rice",
+                kind = CatalogProductKind.GenericSealedItem,
+                status = CatalogProductStatus.ACTIVE,
+                category = "food",
+                detail = "Factory sealed rice",
+                basePriceCfa = 3500,
+                sortOrder = 3,
             )
         )
         promotions.save(CatalogPromotionRecord("promo-test-product", "Ready now", "Test plate", "Warm test meal", "test-product", sortOrder = 1))
