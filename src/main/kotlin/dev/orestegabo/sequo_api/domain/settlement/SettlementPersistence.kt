@@ -95,6 +95,12 @@ interface SettlementLedgerEntryRecordRepository : JpaRepository<SettlementLedger
         sourceType: SettlementSourceType,
         sourceId: String,
     ): List<SettlementLedgerEntryRecord>
+
+    fun findByCourierIdOrderByCreatedAtDesc(courierId: String): List<SettlementLedgerEntryRecord>
+}
+
+interface SettlementCourierRecordRepository : JpaRepository<CourierRecord, String> {
+    fun findByUserId(userId: String): CourierRecord?
 }
 
 @Service
@@ -102,6 +108,7 @@ class SettlementPersistenceService(
     private val domain: SettlementLedgerService = SettlementLedgerService(),
     private val payouts: MerchantPayoutAccrualRecordRepository,
     private val ledger: SettlementLedgerEntryRecordRepository,
+    private val couriers: SettlementCourierRecordRepository,
 ) {
     @Transactional
     fun accrueMerchantPayout(command: MerchantPayoutAccrualCommand): SettlementResult {
@@ -178,6 +185,120 @@ class SettlementPersistenceService(
     fun countPayoutsByStatus(statuses: Collection<MerchantPayoutStatus>): Long {
         require(statuses.isNotEmpty()) { "At least one payout status is required." }
         return payouts.countByStatusIn(statuses)
+    }
+
+    @Transactional(readOnly = true)
+    fun riderPayoutSummary(userId: String): RiderPayoutSummaryResponse {
+        require(userId.isNotBlank()) { "userId is required." }
+        val context = riderPayoutContext(userId)
+        val records = ledger.findByCourierIdOrderByCreatedAtDesc(context.courierId)
+        val entries = records.map { it.toDomain().toRiderPayoutHistoryItem(context) }
+        return RiderPayoutSummaryResponse(
+            riderId = context.courierId,
+            workforceType = context.workforceType,
+            payable = context.payable,
+            availableBalanceCfa = entries.filter { it.status == RiderPayoutEntryStatus.AVAILABLE }.sumOf { it.payableAmountCfa },
+            onHoldCfa = entries.filter { it.status == RiderPayoutEntryStatus.ON_HOLD }.sumOf { it.payableAmountCfa },
+            paidOrProcessingCfa = entries.filter { it.status == RiderPayoutEntryStatus.PAID || it.status == RiderPayoutEntryStatus.PROCESSING }.sumOf { it.payableAmountCfa },
+            historyCount = entries.size,
+            message = if (context.payable) {
+                "Freelancer payout visibility is available."
+            } else {
+                "Internal salaried couriers do not receive per-order freelancer payouts."
+            },
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun riderPayoutHistory(userId: String): List<RiderPayoutHistoryItemResponse> {
+        require(userId.isNotBlank()) { "userId is required." }
+        val context = riderPayoutContext(userId)
+        return ledger.findByCourierIdOrderByCreatedAtDesc(context.courierId)
+            .map { it.toDomain().toRiderPayoutHistoryItem(context) }
+    }
+
+    private fun riderPayoutContext(userId: String): RiderPayoutContext {
+        val courier = couriers.findByUserId(userId) ?: couriers.findById(userId).orElse(null)
+        val courierId = courier?.id ?: userId
+        val workforceType = courier?.workforceType?.takeIf { it.isNotBlank() } ?: "UNKNOWN"
+        val payable = workforceType.equals("FREELANCER", ignoreCase = true)
+        return RiderPayoutContext(courierId, workforceType, payable)
+    }
+}
+
+data class RiderPayoutSummaryResponse(
+    val riderId: String,
+    val workforceType: String,
+    val payable: Boolean,
+    val availableBalanceCfa: Int,
+    val onHoldCfa: Int,
+    val paidOrProcessingCfa: Int,
+    val historyCount: Int,
+    val message: String,
+)
+
+enum class RiderPayoutEntryStatus {
+    NOT_APPLICABLE,
+    AVAILABLE,
+    ON_HOLD,
+    PROCESSING,
+    PAID,
+    CORRECTED,
+}
+
+data class RiderPayoutHistoryItemResponse(
+    val id: String,
+    val missionId: String,
+    val account: SettlementLedgerAccount,
+    val direction: SettlementLedgerDirection,
+    val amountCfa: Int,
+    val payableAmountCfa: Int,
+    val status: RiderPayoutEntryStatus,
+    val payableToRider: Boolean,
+    val description: String,
+    val createdAt: Instant,
+)
+
+private data class RiderPayoutContext(
+    val courierId: String,
+    val workforceType: String,
+    val payable: Boolean,
+)
+
+private fun SettlementLedgerEntry.toRiderPayoutHistoryItem(context: RiderPayoutContext): RiderPayoutHistoryItemResponse {
+    val status = riderPayoutStatus(context.payable)
+    val payableAmount = if (
+        context.payable &&
+        account == SettlementLedgerAccount.CourierPayable &&
+        direction == SettlementLedgerDirection.Credit &&
+        status == RiderPayoutEntryStatus.AVAILABLE
+    ) amountCfa else 0
+    return RiderPayoutHistoryItemResponse(
+        id = id,
+        missionId = sourceId,
+        account = account,
+        direction = direction,
+        amountCfa = amountCfa,
+        payableAmountCfa = payableAmount,
+        status = status,
+        payableToRider = payableAmount > 0,
+        description = description,
+        createdAt = createdAt,
+    )
+}
+
+private fun SettlementLedgerEntry.riderPayoutStatus(payableRider: Boolean): RiderPayoutEntryStatus {
+    if (!payableRider) return RiderPayoutEntryStatus.NOT_APPLICABLE
+    return when {
+        account == SettlementLedgerAccount.CourierPayable && direction == SettlementLedgerDirection.Credit ->
+            RiderPayoutEntryStatus.AVAILABLE
+        account == SettlementLedgerAccount.Hold ->
+            RiderPayoutEntryStatus.ON_HOLD
+        account == SettlementLedgerAccount.Adjustment ->
+            RiderPayoutEntryStatus.CORRECTED
+        sourceType == SettlementSourceType.Payout && direction == SettlementLedgerDirection.Debit ->
+            RiderPayoutEntryStatus.PAID
+        else -> RiderPayoutEntryStatus.NOT_APPLICABLE
     }
 }
 
