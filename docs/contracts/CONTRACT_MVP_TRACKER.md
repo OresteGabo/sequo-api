@@ -21,7 +21,7 @@ Status legend:
 | `SequoVendor` | Merchant/vendor mobile app iOS/Android | Vendor app has auth, dashboard, order fulfillment, catalog browsing/editor UI, local store availability/hours, notifications, account/settings. Some catalog/store writes remain local because merchant-scoped backend routes are not present. |
 | `SequoRider` | Courier mobile app iOS/Android | Mostly app scaffold plus network/theme and extensive dispatch/route/payout documentation. The operational mission app is not complete yet. |
 | `SequoHub` | Relay-point module/app | Hub app exists with auth, dashboard, lockers, scan/receive, handover, activity, settings and relay workflow docs. Much of the current UI is local/sample state; backend hub/relay APIs exist separately. |
-| `sequo-admin` | Internal SEQUO web admin interface | Vue/Vite/TypeScript admin template exists with broad operational demo screens and planning docs. It is not yet a production admin web app wired to real auth/API data. |
+| `sequo-admin` | Internal SEQUO web admin interface | Vue/Vite/TypeScript admin app exists with a contract-focused operational shell, mocked login fallback, and the MVP sections mapped to `/api/admin/web` read endpoints. It is not yet a fully authenticated production admin workspace. |
 
 Additional folders found but not counted as contract MVP app deliverables: `sequo-developers` is a developer documentation site, and `sequo-services` is the public marketing/product website.
 
@@ -33,7 +33,7 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 | [x] | Yes | Customer mobile app for iOS and Android | `Sequo/shared`, `Sequo/androidApp`, `Sequo/iosApp` | Some server integrations may still need final production wiring. |
 | [ ] | Yes | Rider mobile app for iOS and Android | `SequoRider/shared`, `SequoRider/androidApp`, `SequoRider/iosApp` | App shell/network/theme exist, but mission acceptance, pickup, delivery status, history and payout screens are not complete. |
 | [x] | Yes | Vendor/merchant mobile app for iOS and Android | `SequoVendor/shared`, `SequoVendor/androidApp`, `SequoVendor/iosApp` | Seller catalog and store-hours writes are local/mock until backend routes exist. |
-| [ ] | Yes | Internal SEQUO web admin interface | `sequo-admin` exists as a Vue/Vite/TypeScript admin template with demo operational screens and docs; backend admin monitoring exists in `sequo-api/domain/admin`. | Replace template/demo content with real admin auth, API-backed dashboards, users, merchants, orders, deliveries, payments, commissions, settings and relay controls. |
+| [ ] | Yes | Internal SEQUO web admin interface | `sequo-admin/src/App.vue`, `sequo-api/domain/admin/AdminMonitoring.kt`, `sequo-api/domain/admin/AdminWebSurface.kt`. | Shell and read endpoints exist; next steps are real auth/session wiring, API-backed fetches, safe mutation screens, and production role guards. |
 | [x] | Yes, if needed | Minimum relay-point module | `sequo-api/domain/relay`, `sequo-api/domain/hub`, `SequoHub/shared` | Dedicated relay app can be post-MVP by contract, but current `SequoHub` already covers much of the relay module. |
 
 ## Accounts, Roles, Access
