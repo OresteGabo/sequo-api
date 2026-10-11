@@ -7,6 +7,7 @@ import dev.orestegabo.sequo_api.domain.payment.*
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingSettingsRepository
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelPolicy
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -30,14 +31,34 @@ class DomainConfig {
     fun relayParcelPolicy() = RelayParcelPolicy()
 
     @Bean
-    fun paymentProcessor(): PaymentProcessor {
-        val yasTogo = YasTogoPaymentMethod(
-            validateHandler = { PaymentValidationResult.pending("Yas Togo payment validation adapter is not configured.") }
+    fun paymentProcessor(
+        @Value("\${sequo.wallets.yas-togo.api-base-url:}") yasTogoApiBaseUrl: String,
+        @Value("\${sequo.wallets.yas-togo.api-key:}") yasTogoApiKey: String,
+        @Value("\${sequo.wallets.yas-togo.merchant-account-id:}") yasTogoMerchantAccountId: String,
+        @Value("\${sequo.wallets.yas-togo.webhook-secret:}") yasTogoWebhookSecret: String,
+        @Value("\${sequo.wallets.moov-africa.api-base-url:}") moovAfricaApiBaseUrl: String,
+        @Value("\${sequo.wallets.moov-africa.api-key:}") moovAfricaApiKey: String,
+        @Value("\${sequo.wallets.moov-africa.merchant-account-id:}") moovAfricaMerchantAccountId: String,
+        @Value("\${sequo.wallets.moov-africa.webhook-secret:}") moovAfricaWebhookSecret: String,
+    ): PaymentProcessor =
+        PaymentProcessor(
+            listOf(
+                YasTogoPaymentProviderAdapter(
+                    PaymentProviderAdapterConfiguration(
+                        apiBaseUrl = yasTogoApiBaseUrl,
+                        apiKey = yasTogoApiKey,
+                        merchantAccountId = yasTogoMerchantAccountId,
+                        webhookSecret = yasTogoWebhookSecret,
+                    )
+                ).asPaymentMethod(),
+                MoovAfricaPaymentProviderAdapter(
+                    PaymentProviderAdapterConfiguration(
+                        apiBaseUrl = moovAfricaApiBaseUrl,
+                        apiKey = moovAfricaApiKey,
+                        merchantAccountId = moovAfricaMerchantAccountId,
+                        webhookSecret = moovAfricaWebhookSecret,
+                    )
+                ).asPaymentMethod(),
+            )
         )
-        val moovAfrica = MoovAfricaPaymentMethod(
-            validateHandler = { PaymentValidationResult.pending("Moov Africa payment validation adapter is not configured.") }
-        )
-
-        return PaymentProcessor(listOf(yasTogo, moovAfrica))
-    }
 }
