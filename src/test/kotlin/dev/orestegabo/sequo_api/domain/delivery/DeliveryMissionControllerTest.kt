@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class DeliveryMissionControllerTest @Autowired constructor(
     private val controller: DeliveryMissionController,
+    private val riderController: RiderMissionController,
     private val trackingController: DeliveryTrackingController,
     private val service: DeliveryMissionService,
     private val merchantFulfillment: MerchantFulfillmentService,
@@ -61,6 +62,83 @@ class DeliveryMissionControllerTest @Autowired constructor(
         assertEquals(HttpStatus.FORBIDDEN, otherCourierList.statusCode)
         assertEquals(HttpStatus.FORBIDDEN, otherCourierDetail.statusCode)
         assertEquals(HttpStatus.OK, adminDetail.statusCode)
+    }
+
+    @Test
+    fun riderMobileEndpointsClaimAvailableMissionAndCompleteDirectDelivery() {
+        val admin = auth("admin-rider-mobile", RoleCode.ADMIN)
+        val rider = auth("courier-rider-mobile", RoleCode.COURIER)
+        val mission = service.create(
+            CreateDeliveryMissionCommand(
+                deliveryCode = "RIDER-MOBILE-DIRECT",
+                orderId = "order-rider-mobile-direct",
+                deliveryMode = DeliveryMissionRecordMode.STANDARD,
+                destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+            )
+        )
+        controller.offer(admin, mission.id)
+
+        val listBeforeAccept = riderController.list(rider, "courier-rider-mobile")
+        val accepted = riderController.accept(rider, "courier-rider-mobile", mission.id)
+        val pickupStart = riderController.startPickup(rider, "courier-rider-mobile", mission.id)
+        val pickedUp = riderController.completePickup(
+            rider,
+            "courier-rider-mobile",
+            mission.id,
+            RiderMissionController.RiderActionRequest(proofMetadata = "pickup-photo-ref"),
+        )
+        val deliveryStart = riderController.startDelivery(rider, "courier-rider-mobile", mission.id)
+        val delivered = riderController.completeDelivery(
+            rider,
+            "courier-rider-mobile",
+            mission.id,
+            RiderMissionController.RiderActionRequest(proofMetadata = "dropoff-photo-ref"),
+        )
+
+        assertEquals(HttpStatus.OK, listBeforeAccept.statusCode)
+        assertTrue(listBeforeAccept.bodyAs<List<DeliveryMissionSnapshot>>().any { it.id == mission.id })
+        assertEquals(HttpStatus.OK, accepted.statusCode)
+        accepted.bodyAs<DeliveryMissionSnapshot>().also {
+            assertEquals("courier-rider-mobile", it.courierId)
+            assertEquals(DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER, it.status)
+        }
+        assertEquals(HttpStatus.OK, pickupStart.statusCode)
+        assertEquals(HttpStatus.OK, pickedUp.statusCode)
+        assertEquals(HttpStatus.OK, deliveryStart.statusCode)
+        delivered.bodyAs<DeliveryMissionSnapshot>().also {
+            assertEquals(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, it.status)
+            assertEquals("courier-rider-mobile", it.dropoffProofActorId)
+        }
+    }
+
+    @Test
+    fun riderMobileEndpointsRejectWrongRoleAndWrongCourier() {
+        val admin = auth("admin-rider-scope", RoleCode.ADMIN)
+        val assignedRider = auth("courier-rider-scope", RoleCode.COURIER)
+        val otherRider = auth("courier-rider-other", RoleCode.COURIER)
+        val customer = auth("customer-rider-scope", RoleCode.CUSTOMER)
+        val mission = createAssignedAndOfferedMission(
+            deliveryCode = "RIDER-MOBILE-SCOPE",
+            orderId = "order-rider-mobile-scope",
+            courierId = "courier-rider-scope",
+            admin = admin,
+        )
+
+        val customerList = riderController.list(customer, "customer-rider-scope")
+        val wrongRiderDetail = riderController.get(otherRider, "courier-rider-other", mission.id)
+        val accepted = riderController.accept(assignedRider, "courier-rider-scope", mission.id)
+        val wrongRiderPickup = riderController.completePickup(
+            otherRider,
+            "courier-rider-other",
+            mission.id,
+            RiderMissionController.RiderActionRequest(proofMetadata = "wrong-rider-proof"),
+        )
+
+        assertEquals(HttpStatus.FORBIDDEN, customerList.statusCode)
+        assertEquals(HttpStatus.FORBIDDEN, wrongRiderDetail.statusCode)
+        assertEquals(HttpStatus.OK, accepted.statusCode)
+        assertEquals(HttpStatus.BAD_REQUEST, wrongRiderPickup.statusCode)
+        assertEquals("courier_scope_mismatch", wrongRiderPickup.bodyAs<DeliveryMissionController.ErrorResponse>().code)
     }
 
     @Test

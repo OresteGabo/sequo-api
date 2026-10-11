@@ -399,6 +399,187 @@ class DeliveryMissionController(
     }
 }
 
+@RestController
+@RequestMapping("/api/rider/missions")
+class RiderMissionController(
+    private val service: DeliveryMissionService,
+    private val pinService: DeliveryPinService,
+    private val orderLifecycle: OrderDeliveryLifecycleService,
+) {
+    data class RiderActionRequest(
+        val proofMetadata: String? = null,
+        val deliveryPin: String? = null,
+        val reason: String? = null,
+        val idempotencyKey: String? = null,
+    )
+
+    @GetMapping
+    fun list(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        ResponseEntity.ok(service.listForRider(riderId))
+    }
+
+    @GetMapping("/{missionId}")
+    fun get(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        val mission = service.get(missionId) ?: return@riderOnly ResponseEntity.notFound().build()
+        if (!mission.visibleToRider(riderId)) {
+            return@riderOnly ResponseEntity.status(403).build()
+        }
+        ResponseEntity.ok(mission)
+    }
+
+    @PostMapping("/{missionId}/accept")
+    fun accept(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        service.acceptForCourier(missionId, riderId).toResponse()
+    }
+
+    @PostMapping("/{missionId}/pickup/start")
+    fun startPickup(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        requireRiderMissionState(missionId, riderId, setOf(DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER))
+    }
+
+    @PostMapping("/{missionId}/pickup/complete")
+    fun completePickup(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+        @RequestBody request: RiderActionRequest,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = riderId,
+            event = DeliveryMissionEvent.CourierPicksUpFromSeller,
+            idempotencyKey = request.idempotencyKey,
+            proof = request.proofMetadata,
+        ).toResponse()
+    }
+
+    @PostMapping("/{missionId}/delivery/start")
+    fun startDelivery(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        requireRiderMissionState(missionId, riderId, setOf(DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER))
+    }
+
+    @PostMapping("/{missionId}/delivery/complete")
+    fun completeDelivery(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+        @RequestBody request: RiderActionRequest,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        service.replayIdempotentOperation(
+            missionId = missionId,
+            actorId = riderId,
+            event = DeliveryMissionEvent.CourierDeliversToCustomer,
+            idempotencyKey = request.idempotencyKey,
+        )?.let { replayed -> return@riderOnly replayed.markOrderDelivered(riderId).toResponse() }
+        if (!request.deliveryPin.isNullOrBlank()) {
+            when (val validation = service.validateDirectDeliveryAttempt(missionId, riderId)) {
+                is DeliveryMissionServiceResult.Success -> Unit
+                is DeliveryMissionServiceResult.Rejected -> return@riderOnly validation.toResponse()
+            }
+        }
+        val pinValidated = request.deliveryPin?.takeIf(String::isNotBlank)?.let { rawPin ->
+            when (val result = pinService.verify(missionId, rawPin)) {
+                is DeliveryPinResult.Accepted -> true
+                is DeliveryPinResult.Rejected -> return@riderOnly result.toResponse()
+            }
+        } ?: false
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = riderId,
+            event = DeliveryMissionEvent.CourierDeliversToCustomer,
+            idempotencyKey = request.idempotencyKey,
+            proof = request.proofMetadata,
+            deliveryPinValidated = pinValidated,
+        ).markOrderDelivered(riderId).toResponse()
+    }
+
+    @PostMapping("/{missionId}/relay-deposit")
+    fun relayDeposit(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+        @RequestBody request: RiderActionRequest,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = riderId,
+            event = DeliveryMissionEvent.CourierDepositsAtRelay,
+            idempotencyKey = request.idempotencyKey,
+            proof = request.proofMetadata,
+        ).toResponse()
+    }
+
+    @PostMapping("/{missionId}/problem")
+    fun reportProblem(
+        authentication: Authentication?,
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable missionId: String,
+        @RequestBody request: RiderActionRequest,
+    ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        service.transitionIdempotent(
+            missionId = missionId,
+            actorId = riderId,
+            event = DeliveryMissionEvent.ReportProblem,
+            idempotencyKey = request.idempotencyKey,
+            problemReason = request.reason,
+        ).toResponse()
+    }
+
+    private fun riderOnly(
+        authentication: Authentication?,
+        userId: String?,
+        operation: (String) -> ResponseEntity<Any>,
+    ): ResponseEntity<Any> =
+        if (authentication == null) ResponseEntity.status(401).build()
+        else if (!authentication.hasRole(RoleCode.COURIER)) ResponseEntity.status(403).build()
+        else operation(userId ?: authentication.name)
+
+    private fun requireRiderMissionState(
+        missionId: String,
+        riderId: String,
+        allowedStatuses: Set<DeliveryMissionRecordStatus>,
+    ): ResponseEntity<Any> {
+        val mission = service.get(missionId) ?: return ResponseEntity.notFound().build()
+        if (mission.courierId != riderId) return ResponseEntity.status(403).build()
+        if (mission.status !in allowedStatuses) {
+            return DeliveryMissionServiceResult.Rejected(
+                code = "invalid_mission_state",
+                message = "Mission is not ready for this rider action.",
+            ).toResponse()
+        }
+        return ResponseEntity.ok(mission)
+    }
+
+    private fun DeliveryMissionSnapshot.visibleToRider(riderId: String): Boolean =
+        courierId == riderId || (courierId == null && status == DeliveryMissionRecordStatus.OFFERED_TO_COURIER)
+
+    private fun DeliveryMissionServiceResult.markOrderDelivered(actorUserId: String): DeliveryMissionServiceResult {
+        if (this is DeliveryMissionServiceResult.Success) {
+            orderLifecycle.markDeliveredFromMission(mission, actorUserId)
+        }
+        return this
+    }
+}
+
 private fun DeliveryMissionServiceResult.toResponse(): ResponseEntity<Any> =
     when (this) {
         is DeliveryMissionServiceResult.Success -> ResponseEntity.ok(mission)

@@ -213,6 +213,22 @@ These routes are used by Sequo Rider, Sequo Hub, and admin applications.
 | POST | `/api/delivery/missions/{missionId}/resolve-problem` | `action`, `reason`, `replacementCourierId?` | Requeue or cancel a problem mission. |
 | GET | `/api/delivery/missions/{missionId}/problem-resolutions` | none | Read resolution history; operator/admin. |
 
+Rider mobile apps should prefer the scoped `/api/rider/missions` routes. They require the `COURIER`
+role and automatically scope list/detail/action calls to the authenticated rider. Available pool offers
+with no assigned courier are visible and can be claimed by `accept`.
+
+| Method | Path | Body | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/rider/missions` | none | List assigned rider missions plus available unassigned offers. |
+| GET | `/api/rider/missions/{missionId}` | none | Read one assigned mission or unassigned available offer. |
+| POST | `/api/rider/missions/{missionId}/accept` | none | Claim/accept an offered mission. |
+| POST | `/api/rider/missions/{missionId}/pickup/start` | none | Validate that pickup can start; no state change. |
+| POST | `/api/rider/missions/{missionId}/pickup/complete` | `proofMetadata?`, `idempotencyKey?` | Complete seller pickup with proof. |
+| POST | `/api/rider/missions/{missionId}/delivery/start` | none | Validate that final delivery can start; no state change. |
+| POST | `/api/rider/missions/{missionId}/delivery/complete` | `proofMetadata?`, `deliveryPin?`, `idempotencyKey?` | Complete direct customer delivery with proof or PIN. |
+| POST | `/api/rider/missions/{missionId}/relay-deposit` | `proofMetadata?`, `idempotencyKey?` | Deposit a relay-bound parcel. |
+| POST | `/api/rider/missions/{missionId}/problem` | `reason`, `idempotencyKey?` | Report a rider-visible mission problem. |
+
 Mission enums include `STANDARD`, `EXPRESS`, `PROGRAMMED`, `CLICK_COLLECT`, `RELAY` for mode and
 `CUSTOMER_ADDRESS`, `RELAY_POINT`, `SEQUO_CONSOLIDATION` for destination. Mission states include
 `CREATED`, `OFFERED_TO_COURIER`, `ACCEPTED_BY_COURIER`, `PICKED_UP_FROM_SELLER`, `DEPOSITED_AT_RELAY`,

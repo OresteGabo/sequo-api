@@ -283,6 +283,19 @@ class DeliveryMissionService(
     }
 
     @Transactional(readOnly = true)
+    fun listForRider(courierId: String): List<DeliveryMissionSnapshot> {
+        require(courierId.isNotBlank()) { "courierId cannot be blank." }
+        val assigned = listForCourier(courierId)
+        val availableOffers = repository
+            .findByStatusInOrderByUpdatedAtDesc(setOf(DeliveryMissionRecordStatus.OFFERED_TO_COURIER))
+            .filter { it.courierId == null }
+            .map { it.toSnapshot() }
+        return (assigned + availableOffers)
+            .distinctBy { it.id }
+            .sortedByDescending { it.updatedAt }
+    }
+
+    @Transactional(readOnly = true)
     fun listProblemResolutions(missionId: String): List<DeliveryProblemResolutionSnapshot> {
         require(missionId.isNotBlank()) { "missionId cannot be blank." }
         return problemResolutions.findByMissionIdOrderByResolvedAtAsc(missionId).map { it.toSnapshot() }
@@ -347,6 +360,37 @@ class DeliveryMissionService(
         mission.status = DeliveryMissionRecordStatus.CREATED
         mission.updatedAt = at
         return success(repository.save(mission), "Courier reassigned; mission must be offered again.")
+    }
+
+    @Transactional
+    fun acceptForCourier(missionId: String, courierId: String, at: Instant = Instant.now()): DeliveryMissionServiceResult {
+        if (courierId.isBlank()) return rejected("missing_courier", "Courier id is required.")
+        if (courierAvailability.isPaused(courierId, at)) {
+            return rejected("courier_paused", "Courier is paused and cannot accept delivery missions.")
+        }
+        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.status != DeliveryMissionRecordStatus.OFFERED_TO_COURIER) {
+            return rejected("invalid_mission_transition", "Only offered missions can be accepted by a rider.")
+        }
+        if (mission.courierId != null && mission.courierId != courierId) {
+            return rejected("courier_scope_mismatch", "Only the assigned courier can accept this mission.")
+        }
+
+        mission.courierId = courierId
+        mission.assignedAt = mission.assignedAt ?: at
+        val result = workflow.transition(
+            DeliveryMissionTransitionRequest(
+                currentStatus = mission.status.toWorkflowStatus(),
+                event = DeliveryMissionEvent.CourierAccepts,
+                destinationType = mission.destinationType.toWorkflowType(),
+            )
+        )
+        if (!result.accepted) return rejected("invalid_mission_transition", result.reason)
+
+        mission.status = result.nextStatus.toRecordStatus()
+        mission.acceptedAt = at
+        mission.updatedAt = at
+        return success(repository.save(mission), result.reason)
     }
 
     @Transactional
