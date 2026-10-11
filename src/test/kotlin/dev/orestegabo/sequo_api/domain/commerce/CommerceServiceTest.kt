@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 @SpringBootTest(
     properties = [
@@ -54,6 +55,69 @@ class CommerceServiceTest @Autowired constructor(
         assertEquals(3, cart.totalItems)
         assertEquals(6000, cart.subtotalCfa)
         assertEquals(0, service.clearCart(userId).totalItems)
+    }
+
+    @Test
+    fun merchantCatalogWritesUseAuthenticatedMerchantScopeAndValidateMoney() {
+        seedCatalog()
+
+        val created = service.createMerchantProduct(
+            merchantId = "merchant-test",
+            request = ManageCatalogProductRequest(
+                name = "Merchant mango",
+                basePriceCfa = 750,
+                bargainingEnabled = true,
+                bargainFloorCfa = 600,
+            ),
+        )
+
+        assertEquals("merchant-test", created.merchantId)
+        assertEquals(750, created.priceCfa)
+        assertTrue(created.bargainingEnabled)
+        assertFailsWith<IllegalArgumentException> {
+            service.createMerchantProduct(
+                merchantId = "merchant-test",
+                request = ManageCatalogProductRequest(
+                    merchantId = "other-merchant",
+                    name = "Bad scope",
+                    basePriceCfa = 500,
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            service.createMerchantProduct(
+                merchantId = "merchant-test",
+                request = ManageCatalogProductRequest(
+                    name = "Bad price",
+                    basePriceCfa = -1,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun merchantCatalogUpdatesRequireProductOwnershipAndToggleStatus() {
+        seedCatalog()
+
+        val updated = service.updateMerchantProduct(
+            merchantId = "merchant-test",
+            productId = "test-product",
+            request = PatchCatalogProductRequest(name = "Updated plate", basePriceCfa = 2500),
+        )
+        val inactive = service.deactivateMerchantProduct("merchant-test", "test-product")
+        val active = service.activateMerchantProduct("merchant-test", "test-product")
+
+        assertEquals("Updated plate", updated.name)
+        assertEquals(2500, updated.priceCfa)
+        assertEquals(CatalogProductStatus.INACTIVE, inactive.status)
+        assertEquals(CatalogProductStatus.ACTIVE, active.status)
+        assertFailsWith<IllegalArgumentException> {
+            service.updateMerchantProduct(
+                merchantId = "other-merchant",
+                productId = "test-product",
+                request = PatchCatalogProductRequest(name = "Not yours"),
+            )
+        }
     }
 
     @Test

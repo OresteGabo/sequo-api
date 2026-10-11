@@ -1,6 +1,9 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
+import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
@@ -472,6 +475,41 @@ class CommerceService(
     fun archiveProduct(productId: String): CatalogProductDto =
         updateProduct(productId, PatchCatalogProductRequest(status = CatalogProductStatus.ARCHIVED))
 
+    @Transactional
+    fun createMerchantProduct(merchantId: String, request: ManageCatalogProductRequest): CatalogProductDto {
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
+        require(request.merchantId == null || request.merchantId == safeMerchantId) {
+            "merchantId must match the authenticated merchant scope."
+        }
+        return createProduct(request.copy(merchantId = safeMerchantId))
+    }
+
+    @Transactional
+    fun updateMerchantProduct(merchantId: String, productId: String, request: PatchCatalogProductRequest): CatalogProductDto {
+        requireMerchantProductOwnership(merchantId, productId)
+        return updateProduct(productId, request)
+    }
+
+    @Transactional
+    fun deactivateMerchantProduct(merchantId: String, productId: String): CatalogProductDto =
+        updateMerchantProduct(merchantId, productId, PatchCatalogProductRequest(status = CatalogProductStatus.INACTIVE))
+
+    @Transactional
+    fun activateMerchantProduct(merchantId: String, productId: String): CatalogProductDto =
+        updateMerchantProduct(merchantId, productId, PatchCatalogProductRequest(status = CatalogProductStatus.ACTIVE))
+
+    @Transactional(readOnly = true)
+    fun requireMerchantProductOwnership(merchantId: String, productId: String) {
+        val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
+        val safeProductId = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        val product = products.findById(safeProductId).orElseThrow {
+            IllegalArgumentException("productId does not reference an existing product.")
+        }
+        require(product.merchantId == safeMerchantId) {
+            "productId does not belong to the authenticated merchant."
+        }
+    }
+
     @Transactional(readOnly = true)
     fun cart(userId: String): CommerceCartDto {
         val items = cartItems.findByUserIdOrderByUpdatedAtDesc(userId).mapNotNull { item ->
@@ -652,6 +690,38 @@ class CatalogController(private val commerce: CommerceService) {
 }
 
 @RestController
+@RequestMapping("/api/merchant/catalog")
+class MerchantCatalogController(private val commerce: CommerceService) {
+    @PostMapping("/products")
+    fun createProduct(authentication: Authentication?, @RequestBody request: ManageCatalogProductRequest): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, request.merchantId) { merchantId ->
+            commerce.createMerchantProduct(merchantId, request)
+        }
+
+    @PatchMapping("/products/{productId}")
+    fun updateProduct(
+        authentication: Authentication?,
+        @PathVariable productId: String,
+        @RequestBody request: PatchCatalogProductRequest,
+    ): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, null) { merchantId ->
+            commerce.updateMerchantProduct(merchantId, productId, request)
+        }
+
+    @PostMapping("/products/{productId}/deactivate")
+    fun deactivateProduct(authentication: Authentication?, @PathVariable productId: String): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, null) { merchantId ->
+            commerce.deactivateMerchantProduct(merchantId, productId)
+        }
+
+    @PostMapping("/products/{productId}/activate")
+    fun activateProduct(authentication: Authentication?, @PathVariable productId: String): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, null) { merchantId ->
+            commerce.activateMerchantProduct(merchantId, productId)
+        }
+}
+
+@RestController
 @RequestMapping("/api/cart")
 class CommerceCartController(private val commerce: CommerceService) {
     @GetMapping
@@ -689,6 +759,32 @@ class BargainingController(private val commerce: CommerceService) {
         @RequestBody request: CreateBargainingOfferRequest,
     ): ResponseEntity<Any> =
         authenticated(userId) { commerce.addCustomerBargainingOffer(it, threadId, request) }
+}
+
+private fun merchantCatalogAccess(
+    authentication: Authentication?,
+    requestedMerchantId: String?,
+    block: (String) -> Any,
+): ResponseEntity<Any> {
+    if (authentication == null || !authentication.isAuthenticated || authentication is AnonymousAuthenticationToken) {
+        return ResponseEntity.status(401).build()
+    }
+    if (!authentication.hasAnyRole(setOf(RoleCode.MERCHANT_OWNER, RoleCode.MERCHANT_STAFF))) {
+        return ResponseEntity.status(403).build()
+    }
+    val merchantId = requestedMerchantId
+        ?.let { ApiInputPolicy.requiredIdentifier(it, "merchantId") }
+        ?: authentication.name.takeIf { authentication.hasMerchantScope(it) }
+        ?: authentication.details
+            ?.let { details ->
+                (details as? dev.orestegabo.sequo_api.domain.auth.JwtAuthenticationDetails)
+                    ?.merchantScopeIds
+                    ?.singleOrNull()
+            }
+    if (merchantId == null || !authentication.hasMerchantScope(merchantId)) {
+        return ResponseEntity.status(403).build()
+    }
+    return ok { block(merchantId) }
 }
 
 private fun ok(block: () -> Any): ResponseEntity<Any> = ResponseEntity.ok(block())
