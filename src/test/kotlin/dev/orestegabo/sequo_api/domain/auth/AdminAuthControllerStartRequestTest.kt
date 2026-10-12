@@ -43,6 +43,7 @@ class AdminAuthControllerStartRequestTest @Autowired constructor(
         assertEquals(AdminLoginRequestStatus.PENDING, saved.status)
         assertEquals("adminuser@gmail.com", saved.emailNormalized)
         assertNotEquals(codeService.normalize(body.code), saved.codeHash)
+        assertNotNull(saved.codeCiphertext)
         assertTrue(codeService.verify(body.code, saved.codeHash))
         assertEquals("Chrome on MacBook Pro", saved.deviceLabel)
     }

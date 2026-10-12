@@ -23,6 +23,9 @@ class AdminLoginRequest(
     @Column(name = "code_hash", nullable = false, length = 96)
     var codeHash: String,
 
+    @Column(name = "code_ciphertext", length = 512)
+    var codeCiphertext: String? = null,
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
     var status: AdminLoginRequestStatus = AdminLoginRequestStatus.PENDING,

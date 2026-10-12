@@ -16,6 +16,7 @@ class AdminAuthControllerMobileRequestsTest @Autowired constructor(
     private val requestRepository: AdminLoginRequestRepository,
     private val userRepository: UserRepository,
     private val authRateLimiter: AuthRateLimiter,
+    private val codeProtector: AdminLoginCodeProtector,
 ) {
     @BeforeEach
     fun cleanDatabase() {
@@ -38,6 +39,7 @@ class AdminAuthControllerMobileRequestsTest @Autowired constructor(
             AdminLoginRequest(
                 emailNormalized = "admin@sequo.test",
                 codeHash = "a".repeat(64),
+                codeCiphertext = codeProtector.protect("ABC-DEF"),
                 requestedAt = now,
                 expiresAt = now.plusSeconds(180),
                 deviceLabel = "Chrome on Mac",
@@ -66,7 +68,7 @@ class AdminAuthControllerMobileRequestsTest @Autowired constructor(
         val item = body.single() as AdminAuthController.MobileLoginRequestSummaryResponse
 
         assertEquals(200, response.statusCode.value())
-        assertEquals("***-***", item.code)
+        assertTrue(item.code.matches(Regex("^[A-Z2-9]{3}-[A-Z2-9]{3}$")))
         assertEquals("Chrome on Mac", item.deviceLabel)
         assertEquals("Chrome 141", item.browserInfo)
     }

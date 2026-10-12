@@ -38,6 +38,7 @@ data class AdminLoginApprovalStatus(
 class AdminAuthService(
     private val adminLoginRequestRepository: AdminLoginRequestRepository,
     private val codeService: AdminLoginCodeService,
+    private val codeProtector: AdminLoginCodeProtector,
     private val userRepository: UserRepository,
 ) {
     @Transactional
@@ -86,7 +87,7 @@ class AdminAuthService(
             .map {
                 MobileAdminLoginRequestSummary(
                     requestId = requireNotNull(it.id),
-                    code = codeService.formatPlaceholder(),
+                    code = it.codeCiphertext?.let(codeProtector::reveal) ?: codeService.formatPlaceholder(),
                     deviceLabel = it.deviceLabel,
                     browserInfo = it.browserInfo,
                     requestedAt = it.requestedAt,
@@ -124,6 +125,7 @@ class AdminAuthService(
             AdminLoginRequest(
                 emailNormalized = normalizedEmail,
                 codeHash = generatedCode.codeHash,
+                codeCiphertext = codeProtector.protect(generatedCode.code),
                 deviceLabel = ApiInputPolicy.optionalShortText(deviceLabel, "deviceLabel"),
                 browserInfo = ApiInputPolicy.optionalShortText(browserInfo, "browserInfo"),
                 requestedAt = now,
