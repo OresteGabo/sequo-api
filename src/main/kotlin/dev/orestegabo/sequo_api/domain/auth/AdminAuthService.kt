@@ -54,6 +54,7 @@ class AdminAuthService(
     private val emailCodeSender: AdminEmailCodeSender,
     private val userRepository: UserRepository,
     private val authService: AuthService,
+    private val auditService: AdminAuthAuditService,
 ) {
     @Transactional
     fun requestEmailCode(email: String, now: Instant = Instant.now()): AdminEmailCodeRequestResult {
@@ -72,6 +73,13 @@ class AdminAuthService(
             )
             emailCodeSender.send(normalizedEmail, generatedCode.code, generatedCode.expiresAt)
         }
+        auditService.record(
+            AdminAuthAuditEvent(
+                type = AdminAuthAuditEventType.EMAIL_OTP_REQUESTED,
+                occurredAt = now,
+                userId = user?.id,
+            )
+        )
         return AdminEmailCodeRequestResult(
             expiresInSeconds = EmailCodeTtl.seconds,
             retryAfterSeconds = EmailCodeRetryDelay.seconds,
@@ -114,6 +122,14 @@ class AdminAuthService(
         emailCode.status = AdminEmailCodeStatus.CONSUMED
         emailCode.consumedAt = now
         adminEmailCodeRepository.save(emailCode)
+        auditService.record(
+            AdminAuthAuditEvent(
+                type = AdminAuthAuditEventType.EMAIL_OTP_VERIFIED,
+                occurredAt = now,
+                userId = requireNotNull(user.id),
+                requestId = emailCode.id,
+            )
+        )
         return AdminLoginExchangeResult(tokens, user)
     }
 
@@ -147,6 +163,14 @@ class AdminAuthService(
         request.status = AdminLoginRequestStatus.CONSUMED
         request.consumedAt = now
         adminLoginRequestRepository.save(request)
+        auditService.record(
+            AdminAuthAuditEvent(
+                type = AdminAuthAuditEventType.LOGIN_REQUEST_EXCHANGED,
+                occurredAt = now,
+                userId = requireNotNull(user.id),
+                requestId = requestId,
+            )
+        )
         return AdminLoginExchangeResult(tokens, user)
     }
 
@@ -158,6 +182,14 @@ class AdminAuthService(
         request.approvedAt = now
         request.approvedByUserId = requireNotNull(user.id)
         adminLoginRequestRepository.save(request)
+        auditService.record(
+            AdminAuthAuditEvent(
+                type = AdminAuthAuditEventType.LOGIN_REQUEST_APPROVED,
+                occurredAt = now,
+                userId = requireNotNull(user.id),
+                requestId = requestId,
+            )
+        )
         return AdminLoginApprovalStatus(
             status = request.status,
             approvedAt = request.approvedAt,
@@ -173,6 +205,14 @@ class AdminAuthService(
         request.rejectedAt = now
         request.rejectionReason = ApiInputPolicy.optionalShortText(reason, "reason", 100)
         adminLoginRequestRepository.save(request)
+        auditService.record(
+            AdminAuthAuditEvent(
+                type = AdminAuthAuditEventType.LOGIN_REQUEST_REJECTED,
+                occurredAt = now,
+                userId = requireNotNull(user.id),
+                requestId = requestId,
+            )
+        )
         return AdminLoginApprovalStatus(
             status = request.status,
             approvedAt = request.approvedAt,
@@ -213,6 +253,15 @@ class AdminAuthService(
         } else {
             request.status
         }
+        if (status == AdminLoginRequestStatus.EXPIRED) {
+            auditService.record(
+                AdminAuthAuditEvent(
+                    type = AdminAuthAuditEventType.LOGIN_REQUEST_EXPIRED,
+                    occurredAt = now,
+                    requestId = requestId,
+                )
+            )
+        }
         return AdminLoginRequestStatusSnapshot(
             status = status,
             expiresAt = request.expiresAt,
@@ -239,6 +288,13 @@ class AdminAuthService(
                 browserInfo = ApiInputPolicy.optionalShortText(browserInfo, "browserInfo"),
                 requestedAt = now,
                 expiresAt = generatedCode.expiresAt,
+            )
+        )
+        auditService.record(
+            AdminAuthAuditEvent(
+                type = AdminAuthAuditEventType.LOGIN_REQUEST_CREATED,
+                occurredAt = now,
+                requestId = requireNotNull(request.id),
             )
         )
         return CreatedAdminLoginRequest(

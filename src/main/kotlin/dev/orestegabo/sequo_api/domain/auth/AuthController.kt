@@ -17,6 +17,8 @@ import java.time.Instant
 class AuthController(
     private val authService: AuthService,
     private val authRateLimiter: AuthRateLimiter,
+    private val jwtService: JwtService,
+    private val adminAuthAuditService: AdminAuthAuditService,
 ) {
     data class DeviceRequest(
         val deviceId: String,
@@ -120,12 +122,38 @@ class AuthController(
             val token = ApiInputPolicy.requiredToken(request.token, "token")
             authRateLimiter.checkSocialLogin(provider)
             val tokens = authService.loginWithSocialToken(provider, token, request.device.toBinding())
-            tokens?.let { ResponseEntity.ok(it) } ?: ResponseEntity.status(401).body(
-                AuthErrorResponse("invalid_social_token", "${provider.label()} sign-in could not be completed.")
-            )
+            tokens?.let {
+                adminAuthAuditService.record(
+                    AdminAuthAuditEvent(
+                        type = AdminAuthAuditEventType.SOCIAL_LOGIN_SUCCEEDED,
+                        userId = jwtService.parseAccessToken(it.accessToken)?.userId,
+                        clientType = request.device.appSource,
+                        provider = provider,
+                    )
+                )
+                ResponseEntity.ok(it)
+            } ?: run {
+                adminAuthAuditService.record(
+                    AdminAuthAuditEvent(
+                        type = AdminAuthAuditEventType.SOCIAL_LOGIN_FAILED,
+                        clientType = request.device.appSource,
+                        provider = provider,
+                    )
+                )
+                ResponseEntity.status(401).body(
+                    AuthErrorResponse("invalid_social_token", "${provider.label()} sign-in could not be completed.")
+                )
+            }
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: InvalidGoogleTokenException) {
+            adminAuthAuditService.record(
+                AdminAuthAuditEvent(
+                    type = AdminAuthAuditEventType.SOCIAL_LOGIN_FAILED,
+                    clientType = request.device.appSource,
+                    provider = provider,
+                )
+            )
             ResponseEntity.status(401).body(
                 InvalidGoogleTokenResponse(
                     error = "invalid_google_token",

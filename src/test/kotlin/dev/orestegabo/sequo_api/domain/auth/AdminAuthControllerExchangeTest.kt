@@ -1,8 +1,11 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 import org.junit.jupiter.api.BeforeEach
+import org.mockito.ArgumentCaptor
+import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Transactional
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,8 +22,12 @@ class AdminAuthControllerExchangeTest @Autowired constructor(
     private val authRateLimiter: AuthRateLimiter,
     private val jwtService: JwtService,
 ) {
+    @MockitoBean
+    private lateinit var auditService: AdminAuthAuditService
+
     @BeforeEach
     fun cleanDatabase() {
+        Mockito.reset(auditService)
         authRateLimiter.resetForTests()
         userDeviceRepository.deleteAll()
         requestRepository.deleteAll()
@@ -45,6 +52,20 @@ class AdminAuthControllerExchangeTest @Autowired constructor(
         assertEquals(AdminLoginRequestStatus.CONSUMED, saved.status)
         assertNotNull(saved.consumedAt)
         assertEquals(401, controller.exchangeLoginRequest(start.requestId, AdminAuthController.ExchangeLoginRequest(start.code, "admin-browser-2")).statusCode.value())
+
+        val auditEvents = capturedAuditEvents()
+        assertEquals(
+            listOf(
+                AdminAuthAuditEventType.LOGIN_REQUEST_CREATED,
+                AdminAuthAuditEventType.LOGIN_REQUEST_APPROVED,
+                AdminAuthAuditEventType.LOGIN_REQUEST_EXCHANGED,
+            ),
+            auditEvents.map { it.type },
+        )
+        assertEquals(listOf(start.requestId, start.requestId, start.requestId), auditEvents.map { it.requestId })
+        assertNull(auditEvents.first().userId)
+        assertEquals(requireNotNull(admin.id), auditEvents[1].userId)
+        assertEquals(requireNotNull(admin.id), auditEvents[2].userId)
     }
 
     @Test
@@ -68,5 +89,13 @@ class AdminAuthControllerExchangeTest @Autowired constructor(
 
         assertEquals(401, controller.exchangeLoginRequest(pending.requestId, AdminAuthController.ExchangeLoginRequest(pending.code)).statusCode.value())
         assertEquals(401, controller.exchangeLoginRequest(rejected.requestId, AdminAuthController.ExchangeLoginRequest(rejected.code)).statusCode.value())
+    }
+
+    private fun capturedAuditEvents(): List<AdminAuthAuditEvent> {
+        val captor = ArgumentCaptor.forClass(AdminAuthAuditEvent::class.java)
+        Mockito.verify(auditService, Mockito.atLeastOnce()).record(
+            captor.capture() ?: AdminAuthAuditEvent(AdminAuthAuditEventType.LOGIN_REQUEST_CREATED)
+        )
+        return captor.allValues
     }
 }
