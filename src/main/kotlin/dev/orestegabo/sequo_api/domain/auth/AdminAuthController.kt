@@ -46,10 +46,63 @@ class AdminAuthController(
         val expiresAt: Instant,
     )
 
+    data class RejectLoginRequest(
+        val reason: String? = null,
+    )
+
+    data class MobileLoginApprovalResponse(
+        val status: AdminLoginRequestStatus,
+        val approvedAt: Instant?,
+        val rejectedAt: Instant?,
+    )
+
     data class AdminAuthErrorResponse(
         val code: String,
         val message: String,
     )
+
+    @PostMapping("/mobile/login-requests/{requestId}/approve")
+    fun approveMobileLoginRequest(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable requestId: String,
+    ): ResponseEntity<Any> {
+        userId ?: return ResponseEntity.status(401).build()
+        return try {
+            val safeRequestId = ApiInputPolicy.requiredIdentifier(requestId, "requestId")
+            val result = adminAuthService.approveLoginRequest(safeRequestId, userId)
+                ?: return ResponseEntity.status(403).body(
+                    AdminAuthErrorResponse(
+                        code = "admin_login_approval_denied",
+                        message = "This login request could not be approved.",
+                    )
+                )
+            ResponseEntity.ok(MobileLoginApprovalResponse(result.status, result.approvedAt, result.rejectedAt))
+        } catch (e: IllegalArgumentException) {
+            invalidRequest()
+        }
+    }
+
+    @PostMapping("/mobile/login-requests/{requestId}/reject")
+    fun rejectMobileLoginRequest(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable requestId: String,
+        @RequestBody request: RejectLoginRequest = RejectLoginRequest(),
+    ): ResponseEntity<Any> {
+        userId ?: return ResponseEntity.status(401).build()
+        return try {
+            val safeRequestId = ApiInputPolicy.requiredIdentifier(requestId, "requestId")
+            val result = adminAuthService.rejectLoginRequest(safeRequestId, userId, request.reason)
+                ?: return ResponseEntity.status(403).body(
+                    AdminAuthErrorResponse(
+                        code = "admin_login_rejection_denied",
+                        message = "This login request could not be rejected.",
+                    )
+                )
+            ResponseEntity.ok(MobileLoginApprovalResponse(result.status, result.approvedAt, result.rejectedAt))
+        } catch (e: IllegalArgumentException) {
+            invalidRequest()
+        }
+    }
 
     @GetMapping("/mobile/login-requests")
     fun mobileLoginRequests(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> {

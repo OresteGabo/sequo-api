@@ -28,12 +28,48 @@ data class MobileAdminLoginRequestSummary(
     val expiresAt: Instant,
 )
 
+data class AdminLoginApprovalStatus(
+    val status: AdminLoginRequestStatus,
+    val approvedAt: Instant?,
+    val rejectedAt: Instant?,
+)
+
 @Service
 class AdminAuthService(
     private val adminLoginRequestRepository: AdminLoginRequestRepository,
     private val codeService: AdminLoginCodeService,
     private val userRepository: UserRepository,
 ) {
+    @Transactional
+    fun approveLoginRequest(requestId: String, userId: String, now: Instant = Instant.now()): AdminLoginApprovalStatus? {
+        val user = eligibleApprover(userId) ?: return null
+        val request = approvableRequestForUser(requestId, user, now) ?: return null
+        request.status = AdminLoginRequestStatus.APPROVED
+        request.approvedAt = now
+        request.approvedByUserId = requireNotNull(user.id)
+        adminLoginRequestRepository.save(request)
+        return AdminLoginApprovalStatus(
+            status = request.status,
+            approvedAt = request.approvedAt,
+            rejectedAt = request.rejectedAt,
+        )
+    }
+
+    @Transactional
+    fun rejectLoginRequest(requestId: String, userId: String, reason: String?, now: Instant = Instant.now()): AdminLoginApprovalStatus? {
+        val user = eligibleApprover(userId) ?: return null
+        val request = approvableRequestForUser(requestId, user, now) ?: return null
+        request.status = AdminLoginRequestStatus.REJECTED
+        request.rejectedAt = now
+        request.rejectionReason = ApiInputPolicy.optionalShortText(reason, "reason", 100)
+        adminLoginRequestRepository.save(request)
+        return AdminLoginApprovalStatus(
+            status = request.status,
+            approvedAt = request.approvedAt,
+            rejectedAt = request.rejectedAt,
+        )
+    }
+
     @Transactional(readOnly = true)
     fun pendingMobileLoginRequests(userId: String, now: Instant = Instant.now()): List<MobileAdminLoginRequestSummary>? {
         val user = userRepository.findById(userId).orElse(null) ?: return null
@@ -100,6 +136,22 @@ class AdminAuthService(
             expiresAt = request.expiresAt,
             pollingIntervalSeconds = PollingIntervalSeconds,
         )
+    }
+
+    private fun approvableRequestForUser(requestId: String, user: User, now: Instant): AdminLoginRequest? {
+        val request = adminLoginRequestRepository.findByIdAndStatus(requestId, AdminLoginRequestStatus.PENDING) ?: return null
+        if (codeService.expired(request.expiresAt, now)) return null
+        val email = user.email ?: return null
+        val normalizedEmail = ApiInputPolicy.normalizedIdentityEmail(email)
+        if (request.emailNormalized != normalizedEmail && RoleCode.SUPER_ADMIN !in user.roles) return null
+        return request
+    }
+
+    private fun eligibleApprover(userId: String): User? {
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+        if (!user.active || !user.status.canAuthenticate()) return null
+        if (user.roles.none { it in AdminApproverRoles }) return null
+        return user
     }
 
     private companion object {
