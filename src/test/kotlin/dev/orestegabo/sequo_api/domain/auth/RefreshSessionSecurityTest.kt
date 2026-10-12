@@ -115,6 +115,49 @@ class RefreshSessionSecurityTest {
     }
 
     @Test
+    fun adminWebRefreshPreservesAdminSessionMetadataAndLogoutRevokesIt() {
+        val admin = userRepository.save(
+            User(
+                email = "admin-session@sequo.test",
+                name = "Admin Session",
+                provider = AuthProvider.EMAIL,
+                roles = mutableSetOf(RoleCode.ADMIN),
+            )
+        )
+
+        val first = requireNotNull(
+            authService.issueTokensForExistingUser(
+                userId = requireNotNull(admin.id),
+                provider = AuthProvider.EMAIL,
+                device = DeviceBinding(
+                    deviceId = "admin-web-session",
+                    appSource = AppSource.SEQUO_ADMIN,
+                    fcmToken = null,
+                    deviceLabel = "Admin web on Mac",
+                    browserInfo = "Chrome",
+                ),
+            )
+        )
+        val refreshed = requireNotNull(authService.refreshTokens(first.refreshToken, "admin-web-session"))
+        val device = requireNotNull(userDeviceRepository.findByDeviceId("admin-web-session"))
+
+        assertEquals(AppSource.SEQUO_ADMIN, device.appSource)
+        assertEquals("Admin web on Mac", device.deviceLabel)
+        assertEquals("Chrome", device.browserInfo)
+
+        val sessions = authController.sessions(requireNotNull(admin.id)).body as List<*>
+        val session = sessions.single() as AuthController.SessionResponse
+        assertEquals(AppSource.SEQUO_ADMIN, session.appSource)
+        assertEquals("Admin web on Mac", session.deviceLabel)
+        assertEquals("Chrome", session.browserInfo)
+
+        authService.logout(refreshed.refreshToken)
+
+        assertNull(authService.refreshTokens(refreshed.refreshToken, "admin-web-session"))
+        assertNotNull(requireNotNull(userDeviceRepository.findByDeviceId("admin-web-session")).revokedAt)
+    }
+
+    @Test
     fun logoutAllRevokesEveryActiveRefreshSession() {
         val first = loginWithGoogle("logout-all@sequo.test", "google-logout-all", "logout-all-first")
         val user = requireNotNull(userRepository.findByEmail("logout-all@sequo.test"))

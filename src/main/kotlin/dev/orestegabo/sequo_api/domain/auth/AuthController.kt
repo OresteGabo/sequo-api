@@ -22,6 +22,8 @@ class AuthController(
         val deviceId: String,
         val appSource: AppSource,
         val fcmToken: String? = null,
+        val deviceLabel: String? = null,
+        val browserInfo: String? = null,
     )
 
     data class SocialLoginRequest(
@@ -71,6 +73,9 @@ class AuthController(
 
     data class SessionResponse(
         val id: String,
+        val appSource: AppSource,
+        val deviceLabel: String?,
+        val browserInfo: String?,
         val createdAt: Instant,
         val lastUsedAt: Instant?,
         val expiresAt: Instant,
@@ -310,7 +315,16 @@ class AuthController(
         userId ?: return ResponseEntity.status(401).build()
         return ResponseEntity.ok(
             authService.listSessions(userId).map {
-                SessionResponse(it.id, it.createdAt, it.lastUsedAt, it.expiresAt, it.revokedAt)
+                SessionResponse(
+                    id = it.id,
+                    appSource = it.appSource,
+                    deviceLabel = it.deviceLabel,
+                    browserInfo = it.browserInfo,
+                    createdAt = it.createdAt,
+                    lastUsedAt = it.lastUsedAt,
+                    expiresAt = it.expiresAt,
+                    revokedAt = it.revokedAt,
+                )
             }
         )
     }
@@ -345,6 +359,8 @@ class AuthController(
             deviceId = ApiInputPolicy.requiredIdentifier(deviceId, "deviceId"),
             appSource = appSource,
             fcmToken = fcmToken?.let { ApiInputPolicy.requiredToken(it, "fcmToken") },
+            deviceLabel = ApiInputPolicy.optionalShortText(deviceLabel, "deviceLabel", 255),
+            browserInfo = ApiInputPolicy.optionalShortText(browserInfo, "browserInfo", 255),
         )
 
     private fun rateLimitedResponse(e: RateLimitExceededException): ResponseEntity<Any> =

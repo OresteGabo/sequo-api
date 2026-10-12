@@ -50,6 +50,9 @@ class RefreshSession(
 
 data class RefreshSessionSnapshot(
     val id: String,
+    val appSource: AppSource,
+    val deviceLabel: String?,
+    val browserInfo: String?,
     val createdAt: Instant,
     val lastUsedAt: Instant?,
     val expiresAt: Instant,
@@ -144,6 +147,9 @@ class RefreshSessionService(
 private fun RefreshSession.toSnapshot(): RefreshSessionSnapshot =
     RefreshSessionSnapshot(
         id = requireNotNull(id) { "Persisted refresh session id is required." },
+        appSource = AppSource.SEQUO_APP,
+        deviceLabel = null,
+        browserInfo = null,
         createdAt = createdAt,
         lastUsedAt = lastUsedAt,
         expiresAt = expiresAt,

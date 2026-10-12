@@ -15,6 +15,8 @@ data class DeviceBinding(
     val deviceId: String,
     val appSource: AppSource,
     val fcmToken: String?,
+    val deviceLabel: String? = null,
+    val browserInfo: String? = null,
 ) {
     init {
         require(deviceId.isNotBlank()) { "deviceId is required." }
@@ -361,6 +363,9 @@ class AuthService(
         userDeviceRepository.findTop100ByUserIdOrderByCreatedAtDesc(userId).map {
             RefreshSessionSnapshot(
                 id = requireNotNull(it.id),
+                appSource = it.appSource,
+                deviceLabel = it.deviceLabel,
+                browserInfo = it.browserInfo,
                 createdAt = it.createdAt,
                 lastUsedAt = it.lastActiveAt,
                 expiresAt = it.expiresAt,
@@ -407,6 +412,8 @@ class AuthService(
             existing.userId = userId
             existing.refreshTokenHash = tokenService.hash(rawRefreshToken)
             existing.fcmToken = device.fcmToken ?: existing.fcmToken
+            existing.deviceLabel = device.deviceLabel ?: existing.deviceLabel
+            existing.browserInfo = device.browserInfo ?: existing.browserInfo
             existing.expiresAt = expiresAt
             existing.lastActiveAt = now
             existing.revokedAt = null
@@ -418,6 +425,8 @@ class AuthService(
                     deviceId = device.deviceId,
                     appSource = device.appSource,
                     fcmToken = device.fcmToken,
+                    deviceLabel = device.deviceLabel,
+                    browserInfo = device.browserInfo,
                     refreshTokenHash = tokenService.hash(rawRefreshToken),
                     expiresAt = expiresAt,
                     lastActiveAt = now,

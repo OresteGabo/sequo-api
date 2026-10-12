@@ -79,7 +79,14 @@ class AdminAuthService(
     }
 
     @Transactional
-    fun verifyEmailCode(email: String, code: String, deviceId: String?, now: Instant = Instant.now()): AdminLoginExchangeResult? {
+    fun verifyEmailCode(
+        email: String,
+        code: String,
+        deviceId: String?,
+        deviceLabel: String? = null,
+        browserInfo: String? = null,
+        now: Instant = Instant.now(),
+    ): AdminLoginExchangeResult? {
         val normalizedEmail = ApiInputPolicy.normalizedIdentityEmail(email)
         val emailCode = adminEmailCodeRepository.findFirstByEmailNormalizedAndStatusOrderByRequestedAtDesc(
             normalizedEmail,
@@ -96,7 +103,13 @@ class AdminAuthService(
         val tokens = authService.issueTokensForExistingUser(
             userId = requireNotNull(user.id),
             provider = user.provider,
-            device = DeviceBinding(safeDeviceId, AppSource.SEQUO_ADMIN, null),
+            device = DeviceBinding(
+                deviceId = safeDeviceId,
+                appSource = AppSource.SEQUO_ADMIN,
+                fcmToken = null,
+                deviceLabel = ApiInputPolicy.optionalShortText(deviceLabel, "deviceLabel", 255),
+                browserInfo = ApiInputPolicy.optionalShortText(browserInfo, "browserInfo", 255),
+            ),
         ) ?: return null
         emailCode.status = AdminEmailCodeStatus.CONSUMED
         emailCode.consumedAt = now
@@ -105,7 +118,14 @@ class AdminAuthService(
     }
 
     @Transactional
-    fun exchangeLoginRequest(requestId: String, code: String, deviceId: String?, now: Instant = Instant.now()): AdminLoginExchangeResult? {
+    fun exchangeLoginRequest(
+        requestId: String,
+        code: String,
+        deviceId: String?,
+        deviceLabel: String? = null,
+        browserInfo: String? = null,
+        now: Instant = Instant.now(),
+    ): AdminLoginExchangeResult? {
         val request = adminLoginRequestRepository.findByIdAndStatus(requestId, AdminLoginRequestStatus.APPROVED) ?: return null
         if (codeService.expired(request.expiresAt, now)) return null
         if (request.consumedAt != null) return null
@@ -116,7 +136,13 @@ class AdminAuthService(
         val tokens = authService.issueTokensForExistingUser(
             userId = requireNotNull(user.id),
             provider = user.provider,
-            device = DeviceBinding(safeDeviceId, AppSource.SEQUO_ADMIN, null),
+            device = DeviceBinding(
+                deviceId = safeDeviceId,
+                appSource = AppSource.SEQUO_ADMIN,
+                fcmToken = null,
+                deviceLabel = ApiInputPolicy.optionalShortText(deviceLabel, "deviceLabel", 255) ?: request.deviceLabel,
+                browserInfo = ApiInputPolicy.optionalShortText(browserInfo, "browserInfo", 255) ?: request.browserInfo,
+            ),
         ) ?: return null
         request.status = AdminLoginRequestStatus.CONSUMED
         request.consumedAt = now

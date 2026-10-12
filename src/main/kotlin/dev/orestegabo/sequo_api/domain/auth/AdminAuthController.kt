@@ -59,6 +59,8 @@ class AdminAuthController(
     data class ExchangeLoginRequest(
         val code: String,
         val deviceId: String? = null,
+        val deviceLabel: String? = null,
+        val browserInfo: String? = null,
     )
 
     data class ExchangeLoginResponse(
@@ -82,6 +84,8 @@ class AdminAuthController(
         val email: String,
         val code: String,
         val deviceId: String? = null,
+        val deviceLabel: String? = null,
+        val browserInfo: String? = null,
     )
 
     data class AdminAuthErrorResponse(
@@ -95,7 +99,7 @@ class AdminAuthController(
             val email = ApiInputPolicy.normalizedIdentityEmail(request.email)
             val code = ApiInputPolicy.requiredShortText(request.code, "code", 16)
             authRateLimiter.checkAdminEmailCodeVerify(email)
-            val result = adminAuthService.verifyEmailCode(email, code, request.deviceId)
+            val result = adminAuthService.verifyEmailCode(email, code, request.deviceId, request.deviceLabel, request.browserInfo)
                 ?: return ResponseEntity.status(401).body(
                     AdminAuthErrorResponse(
                         code = "admin_email_code_denied",
@@ -145,7 +149,13 @@ class AdminAuthController(
         return try {
             val safeRequestId = ApiInputPolicy.requiredIdentifier(requestId, "requestId")
             val code = ApiInputPolicy.requiredShortText(request.code, "code", 16)
-            val result = adminAuthService.exchangeLoginRequest(safeRequestId, code, request.deviceId)
+            val result = adminAuthService.exchangeLoginRequest(
+                requestId = safeRequestId,
+                code = code,
+                deviceId = request.deviceId,
+                deviceLabel = request.deviceLabel,
+                browserInfo = request.browserInfo,
+            )
                 ?: return ResponseEntity.status(401).body(
                     AdminAuthErrorResponse(
                         code = "admin_login_exchange_denied",

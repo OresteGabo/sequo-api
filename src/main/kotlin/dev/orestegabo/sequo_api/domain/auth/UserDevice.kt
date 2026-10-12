@@ -42,6 +42,12 @@ class UserDevice(
     @Column(name = "fcm_token", length = 512)
     var fcmToken: String? = null,
 
+    @Column(name = "device_label", length = 255)
+    var deviceLabel: String? = null,
+
+    @Column(name = "browser_info", length = 255)
+    var browserInfo: String? = null,
+
     @Column(name = "refresh_token_hash", nullable = false, unique = true, length = 96)
     var refreshTokenHash: String,
 
