@@ -32,6 +32,14 @@ class RateLimitExceededException(
     val retryAfterSeconds: Long,
 ) : RuntimeException("Too many attempts. Please wait before trying again.")
 
+/**
+ * An in-memory rate limiter utilizing a token/leaky-bucket algorithm backed by a [ConcurrentHashMap].
+ *
+ * **warning** **Horizontal Scaling Limitation:** Because state is stored entirely in local JVM memory,
+ * rate limits are scoped strictly to a single instance. If your application runs behind a load balancer
+ * with multiple replicas (e.g., Kubernetes pods), users can bypass limits by hitting different instances.
+ * For distributed setups, consider backing this implementation with Redis.
+ */
 @Component
 class InMemoryRateLimiter {
     private val counters = ConcurrentHashMap<String, WindowCounter>()
@@ -86,6 +94,14 @@ class InMemoryRateLimiter {
         consumeCalls.set(0)
     }
 
+    /**
+     * Periodically removes stale counters to prevent unbounded memory growth.
+     *
+     * **warning** **Memory Vulnerability:** If an attacker floods the endpoint with thousands of unique
+     * randomized identifiers (such as randomized fake emails or spoofed keys), the map can reach
+     * [MAX_COUNTERS] before cleanup triggers, potentially causing high memory consumption or forcing
+     * out legitimate rate-limit counters prematurely.
+     */
     private fun cleanupIfNeeded(occurredAt: Instant) {
         if (counters.size < MAX_COUNTERS && consumeCalls.incrementAndGet() % CLEANUP_INTERVAL != 0) {
             return
@@ -161,6 +177,13 @@ class AuthRateLimiter(
         )
     }
 
+    fun checkAdminLoginRequest(email: String) {
+        enforce(
+            rateLimiter.consume("auth.admin-login.request.ip", clientSubject(), ADMIN_LOGIN_REQUEST_BY_IP),
+            rateLimiter.consume("auth.admin-login.request.email", normalizedSubject(email), ADMIN_LOGIN_REQUEST_BY_EMAIL),
+        )
+    }
+
     fun checkRefresh(refreshToken: String) {
         enforce(
             rateLimiter.consume("auth.refresh.ip", clientSubject(), REFRESH_BY_IP),
@@ -195,6 +218,14 @@ class AuthRateLimiter(
         }
     }
 
+    /**
+     * Retrieves and hashes the client's IP address from the current servlet request.
+     *
+     * **warning** **Reverse Proxy Consideration:** `request.remoteAddr` returns the direct TCP peer address.
+     * If your service sits behind a reverse proxy, CDN, or load balancer (e.g., Cloudflare, Nginx, AWS ALB),
+     * this will resolve to the internal proxy IP rather than the true client IP unless your servlet container
+     * or Spring security layer is configured to parse proxy headers (such as `X-Forwarded-For`).
+     */
     private fun clientSubject(): String {
         val request = currentRequest() ?: return "direct-test"
         return stableHash(request.remoteAddr ?: "unknown")
@@ -227,6 +258,8 @@ class AuthRateLimiter(
         private val PASSKEY_BY_SUBJECT = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
         private val CROSS_DEVICE_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
         private val CROSS_DEVICE_BY_PHONE = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
+        private val ADMIN_LOGIN_REQUEST_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
+        private val ADMIN_LOGIN_REQUEST_BY_EMAIL = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
         private val REFRESH_BY_IP = RateLimitRule(maxAttempts = 120, window = Duration.ofMinutes(15))
         private val REFRESH_BY_TOKEN = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
         private val FORGOT_PASSWORD_BY_IP = RateLimitRule(maxAttempts = 10, window = Duration.ofHours(1))
