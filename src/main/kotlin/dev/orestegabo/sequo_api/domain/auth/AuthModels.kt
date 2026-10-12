@@ -84,6 +84,14 @@ enum class AuthChallengePurpose {
     CROSS_DEVICE_LOGIN
 }
 
+enum class AdminLoginRequestStatus {
+    PENDING,
+    APPROVED,
+    REJECTED,
+    EXPIRED,
+    CONSUMED
+}
+
 data class AuthErrorResponse(
     val code: String,
     val message: String,

@@ -30,3 +30,13 @@ interface UserDeviceRepository : JpaRepository<UserDevice, String> {
 interface AuthChallengeRepository : JpaRepository<AuthChallenge, String> {
     fun findByIdAndPurpose(id: String, purpose: AuthChallengePurpose): AuthChallenge?
 }
+
+
+interface AdminLoginRequestRepository : JpaRepository<AdminLoginRequest, String> {
+    fun findByIdAndStatus(id: String, status: AdminLoginRequestStatus): AdminLoginRequest?
+    fun findAllByEmailNormalizedAndStatusAndExpiresAtAfterOrderByRequestedAtDesc(
+        emailNormalized: String,
+        status: AdminLoginRequestStatus,
+        expiresAt: java.time.Instant,
+    ): List<AdminLoginRequest>
+}
