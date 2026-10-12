@@ -368,6 +368,13 @@ class AuthService(
             )
         }
 
+    @Transactional
+    fun issueTokensForExistingUser(userId: String, provider: AuthProvider, device: DeviceBinding): AuthTokens? {
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+        if (!user.canAuthenticate()) return null
+        return issueTokensForUser(user, provider, device)
+    }
+
     fun currentUser(userId: String): User? = userRepository.findById(userId).orElse(null)
 
     @Transactional

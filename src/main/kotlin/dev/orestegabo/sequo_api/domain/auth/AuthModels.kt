@@ -74,7 +74,8 @@ data class UserSession(
 enum class AppSource {
     SEQUO_APP,
     SEQUO_HUB,
-    SEQUO_RIDER
+    SEQUO_RIDER,
+    SEQUO_ADMIN
 }
 
 enum class AuthChallengePurpose {

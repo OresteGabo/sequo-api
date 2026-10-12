@@ -56,10 +56,50 @@ class AdminAuthController(
         val rejectedAt: Instant?,
     )
 
+    data class ExchangeLoginRequest(
+        val code: String,
+        val deviceId: String? = null,
+    )
+
+    data class ExchangeLoginResponse(
+        val accessToken: String,
+        val refreshToken: String,
+        val expiresIn: Long,
+        val user: AuthController.CurrentUserResponse,
+    )
+
     data class AdminAuthErrorResponse(
         val code: String,
         val message: String,
     )
+
+    @PostMapping("/login-requests/{requestId}/exchange")
+    fun exchangeLoginRequest(
+        @PathVariable requestId: String,
+        @RequestBody request: ExchangeLoginRequest,
+    ): ResponseEntity<Any> {
+        return try {
+            val safeRequestId = ApiInputPolicy.requiredIdentifier(requestId, "requestId")
+            val code = ApiInputPolicy.requiredShortText(request.code, "code", 16)
+            val result = adminAuthService.exchangeLoginRequest(safeRequestId, code, request.deviceId)
+                ?: return ResponseEntity.status(401).body(
+                    AdminAuthErrorResponse(
+                        code = "admin_login_exchange_denied",
+                        message = "This login request could not be completed.",
+                    )
+                )
+            ResponseEntity.ok(
+                ExchangeLoginResponse(
+                    accessToken = result.tokens.accessToken,
+                    refreshToken = result.tokens.refreshToken,
+                    expiresIn = result.tokens.expiresIn,
+                    user = result.user.toCurrentUserResponse(),
+                )
+            )
+        } catch (e: IllegalArgumentException) {
+            invalidRequest()
+        }
+    }
 
     @PostMapping("/mobile/login-requests/{requestId}/approve")
     fun approveMobileLoginRequest(
@@ -189,5 +229,18 @@ class AdminAuthController(
                 code = "invalid_admin_login_request",
                 message = "We could not create this login request.",
             )
+        )
+
+    private fun User.toCurrentUserResponse(): AuthController.CurrentUserResponse =
+        AuthController.CurrentUserResponse(
+            id = requireNotNull(id),
+            phoneNumber = phoneNumber,
+            email = email,
+            displayName = displayName,
+            avatarUrl = avatarUrl,
+            provider = provider,
+            status = status,
+            active = active,
+            roles = roles,
         )
 }

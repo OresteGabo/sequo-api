@@ -34,13 +34,39 @@ data class AdminLoginApprovalStatus(
     val rejectedAt: Instant?,
 )
 
+data class AdminLoginExchangeResult(
+    val tokens: AuthTokens,
+    val user: User,
+)
+
 @Service
 class AdminAuthService(
     private val adminLoginRequestRepository: AdminLoginRequestRepository,
     private val codeService: AdminLoginCodeService,
     private val codeProtector: AdminLoginCodeProtector,
     private val userRepository: UserRepository,
+    private val authService: AuthService,
 ) {
+    @Transactional
+    fun exchangeLoginRequest(requestId: String, code: String, deviceId: String?, now: Instant = Instant.now()): AdminLoginExchangeResult? {
+        val request = adminLoginRequestRepository.findByIdAndStatus(requestId, AdminLoginRequestStatus.APPROVED) ?: return null
+        if (codeService.expired(request.expiresAt, now)) return null
+        if (request.consumedAt != null) return null
+        if (!codeService.verify(code, request.codeHash)) return null
+        val approvedUserId = request.approvedByUserId ?: return null
+        val user = eligibleApprover(approvedUserId) ?: return null
+        val safeDeviceId = deviceId?.let { ApiInputPolicy.requiredIdentifier(it, "deviceId") } ?: "sequo-admin-web-$requestId"
+        val tokens = authService.issueTokensForExistingUser(
+            userId = requireNotNull(user.id),
+            provider = user.provider,
+            device = DeviceBinding(safeDeviceId, AppSource.SEQUO_ADMIN, null),
+        ) ?: return null
+        request.status = AdminLoginRequestStatus.CONSUMED
+        request.consumedAt = now
+        adminLoginRequestRepository.save(request)
+        return AdminLoginExchangeResult(tokens, user)
+    }
+
     @Transactional
     fun approveLoginRequest(requestId: String, userId: String, now: Instant = Instant.now()): AdminLoginApprovalStatus? {
         val user = eligibleApprover(userId) ?: return null
