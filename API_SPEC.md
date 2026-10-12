@@ -6,7 +6,7 @@ This document describes the target REST API shape for Sequo API and includes fut
 
 | Convention | Rule |
 | --- | --- |
-| Base path | `/api/v1` |
+| Base path | `/api` |
 | Transport | HTTPS outside local development |
 | Auth | `Authorization: Bearer <access_token>` |
 | Content type | JSON, UTF-8 |
@@ -105,6 +105,20 @@ Rate-limited responses must use HTTP `429` and include a `Retry-After` header wh
 | `POST` | `/auth/logout` | Yes | Revoke current session |
 | `POST` | `/auth/logout-all` | Yes | Revoke all sessions for actor |
 | `GET` | `/auth/me` | Yes | Current user profile and roles |
+
+### Admin Phone-Approved Login
+
+Implemented current routes use `/api/admin-auth/...`; see `MOBILE_API_GUIDE.md` and
+`docs/ADMIN_PHONE_LOGIN_CONTRACT.md` for the source-of-truth request and response shapes.
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/api/admin-auth/login-requests` | No | Start admin web login request and receive a short code. |
+| `GET` | `/api/admin-auth/login-requests/{requestId}` | No | Poll safe request status. |
+| `POST` | `/api/admin-auth/login-requests/{requestId}/exchange` | No | Exchange approved request and code for auth tokens. |
+| `GET` | `/api/admin-auth/mobile/login-requests` | Mobile user | List pending admin web login approvals for eligible mobile user. |
+| `POST` | `/api/admin-auth/mobile/login-requests/{requestId}/approve` | Mobile user | Approve matching pending request. |
+| `POST` | `/api/admin-auth/mobile/login-requests/{requestId}/reject` | Mobile user | Reject matching pending request. |
 
 ### Users And Addresses
 

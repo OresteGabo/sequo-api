@@ -230,9 +230,12 @@ Request body:
 
 ```json
 {
-  "code": "ZXH-NVB"
+  "code": "ZXH-NVB",
+  "deviceId": "admin-browser-01"
 }
 ```
+
+`deviceId` is optional. When it is provided, it is stored as the admin web session device identifier with app source `SEQUO_ADMIN`. When it is omitted, the backend creates a safe request-scoped admin browser identifier.
 
 Success response:
 
@@ -256,6 +259,7 @@ Rules:
 - Request must not be expired.
 - Request must not be consumed.
 - Code must match the stored verifier/hash.
+- The display code is stored encrypted for mobile display and verified through the server-side hash; plaintext code is not logged.
 - The approved user must still be active and eligible for admin web access at exchange time.
 - On success, mark request `CONSUMED`.
 - The exchange is one-time only.

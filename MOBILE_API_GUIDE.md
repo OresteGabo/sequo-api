@@ -71,6 +71,59 @@ passwords, PINs, FCM tokens, or webhook signatures.
 Authentication abuse protection is applied per IP and per safe hashed subject. Auth routes are limited
 with a leaky-bucket policy and return a safe `rate_limited` response when exhausted.
 
+## Admin Phone-Approved Login
+
+These routes are for the Sequo Admin web application plus already-authenticated mobile apps. They are
+not customer shopping flows. Mobile apps should surface pending requests only to users whose account can
+approve admin access.
+
+| Method | Path | Auth | Body/query | Purpose |
+| --- | --- | --- | --- | --- |
+| POST | `/api/admin-auth/login-requests` | No | `email`, optional `deviceLabel`, `browserInfo` | Admin web starts a phone-approved login request and receives a short display code. |
+| GET | `/api/admin-auth/login-requests/{requestId}` | No | none | Admin web polls safe status: `PENDING`, `APPROVED`, `REJECTED`, `EXPIRED`, or `CONSUMED`. |
+| POST | `/api/admin-auth/login-requests/{requestId}/exchange` | No | `code`, optional `deviceId` | Admin web exchanges an approved request and matching code for normal auth tokens. |
+| GET | `/api/admin-auth/mobile/login-requests` | Bearer access token | none | Mobile app lists pending login requests for the authenticated eligible admin account. |
+| POST | `/api/admin-auth/mobile/login-requests/{requestId}/approve` | Bearer access token | empty JSON body | Mobile app approves a pending request. |
+| POST | `/api/admin-auth/mobile/login-requests/{requestId}/reject` | Bearer access token | optional `reason` | Mobile app rejects a pending request. |
+
+Start response:
+
+```json
+{
+  "requestId": "018f4b2a-6c55-7e2d-9f40-7a9f82c17411",
+  "code": "ZXH-NVB",
+  "expiresAt": "2026-10-12T09:15:00Z",
+  "pollingIntervalSeconds": 2
+}
+```
+
+Mobile pending request response:
+
+```json
+[
+  {
+    "requestId": "018f4b2a-6c55-7e2d-9f40-7a9f82c17411",
+    "code": "ZXH-NVB",
+    "deviceLabel": "Chrome on MacBook Pro",
+    "browserInfo": "Chrome 141, macOS",
+    "requestedAt": "2026-10-12T09:12:00Z",
+    "expiresAt": "2026-10-12T09:15:00Z"
+  }
+]
+```
+
+Exchange response has the same token shape as normal auth plus the safe current-user profile. The
+admin web session is registered with app source `SEQUO_ADMIN`.
+
+Security rules:
+
+- Display codes are short-lived, one-time use, stored as a verifier/hash, and encrypted for pending
+  mobile display.
+- The mobile approver must be an active eligible admin account matching the requested email.
+- Approval/rejection endpoints never return tokens.
+- Admin web UI must not show endpoint names, API base URLs, token values, debug errors, or stack traces.
+- Clients must not log display codes, access tokens, refresh tokens, OAuth tokens, or device tokens.
+
 ## Customer Orders
 
 | Method | Path | Body/query | Purpose |
