@@ -4,7 +4,7 @@ Source contract: `/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/se
 
 Scope rule for this file: this tracker lists only items that appear in the contract and its functional annex. Extra features requested later are intentionally excluded unless they overlap with contract scope.
 
-Last audit: 2026-10-11 against the contract, project READMEs, current source scans, and the added `sequo-admin`, `sequo-developers`, and `sequo-services` folders.
+Last audit: 2026-10-12 against the contract, project READMEs, current source scans, and the added `sequo-admin`, `sequo-developers`, and `sequo-services` folders.
 
 Status legend:
 
@@ -18,8 +18,8 @@ Status legend:
 | --- | --- | --- |
 | `sequo-api` | Central backend API | Broad domain coverage exists for auth, orders, delivery, merchant fulfillment, relay, returns, pricing, payments, subscriptions, referrals, bargaining, commissions, notifications, hub mobile, and admin monitoring. |
 | `Sequo` | Customer mobile app iOS/Android | Customer shopping app exists with auth, catalog/home, basket, orders, account, notifications, pricing helpers and several UI flows. Checkout/payment, returns and bargaining are not fully end-to-end with backend actions yet. |
-| `SequoVendor` | Merchant/vendor mobile app iOS/Android | Vendor app has auth, dashboard, order fulfillment, catalog browsing/editor UI, local store availability/hours, notifications, account/settings. Some catalog/store writes remain local because merchant-scoped backend routes are not present. |
-| `SequoRider` | Courier mobile app iOS/Android | Mostly app scaffold plus network/theme and extensive dispatch/route/payout documentation. The operational mission app is not complete yet. |
+| `SequoVendor` | Merchant/vendor mobile app iOS/Android | Vendor app has auth, dashboard, order fulfillment, catalog browsing/editor UI, local store availability/hours, notifications, account/settings. Merchant catalog backend routes now exist; vendor production sync and real media upload/storage still need final wiring. |
+| `SequoRider` | Courier mobile app iOS/Android | Courier app now has auth, mission list/detail, mission accept/pickup/delivery/relay/problem actions, route history, payout visibility, account/settings and rider notifications. Remaining work is production QA against real accounts/tokens and provider data. |
 | `SequoHub` | Relay-point module/app | Hub app exists with auth, dashboard, lockers, scan/receive, handover, activity, settings and relay workflow docs. Much of the current UI is local/sample state; backend hub/relay APIs exist separately. |
 | `sequo-admin` | Internal SEQUO web admin interface | Vue/Vite/TypeScript admin app exists with a contract-focused operational shell, mocked login fallback, and the MVP sections mapped to `/api/admin/web` read endpoints. It is not yet a fully authenticated production admin workspace. |
 
@@ -31,7 +31,7 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 | --- | --- | --- | --- | --- |
 | [x] | Yes | Central backend API | `sequo-api/src/main/kotlin/dev/orestegabo/sequo_api/domain` | Keep endpoint polish ongoing, but the central API exists. |
 | [x] | Yes | Customer mobile app for iOS and Android | `Sequo/shared`, `Sequo/androidApp`, `Sequo/iosApp` | Some server integrations may still need final production wiring. |
-| [ ] | Yes | Rider mobile app for iOS and Android | `SequoRider/shared`, `SequoRider/androidApp`, `SequoRider/iosApp` | App shell/network/theme exist, but mission acceptance, pickup, delivery status, history and payout screens are not complete. |
+| [x] | Yes | Rider mobile app for iOS and Android | `SequoRider/shared`, `SequoRider/androidApp`, `SequoRider/iosApp` | Core rider MVP surfaces exist; complete production QA with real courier accounts, live missions and provider data. |
 | [x] | Yes | Vendor/merchant mobile app for iOS and Android | `SequoVendor/shared`, `SequoVendor/androidApp`, `SequoVendor/iosApp` | Seller catalog and store-hours writes are local/mock until backend routes exist. |
 | [ ] | Yes | Internal SEQUO web admin interface | `sequo-admin/src/App.vue`, `sequo-api/domain/admin/AdminMonitoring.kt`, `sequo-api/domain/admin/AdminWebSurface.kt`. | Shell and read endpoints exist; next steps are real auth/session wiring, API-backed fetches, safe mutation screens, and production role guards. |
 | [x] | Yes, if needed | Minimum relay-point module | `sequo-api/domain/relay`, `sequo-api/domain/hub`, `SequoHub/shared` | Dedicated relay app can be post-MVP by contract, but current `SequoHub` already covers much of the relay module. |
@@ -40,7 +40,7 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 
 | Done | MVP | Contract item | Where done | Remaining gap |
 | --- | --- | --- | --- | --- |
-| [x] | Yes | User creation and login | `sequo-api/domain/auth`, `Sequo/core/auth`, `SequoVendor/core/auth`, `SequoHub/core/auth` | Rider app auth is not yet implemented beyond general scaffold. |
+| [x] | Yes | User creation and login | `sequo-api/domain/auth`, `Sequo/core/auth`, `SequoVendor/core/auth`, `SequoHub/core/auth`, `SequoRider/core/auth` | Keep production OAuth/client configuration validated per app. |
 | [x] | Yes | Base roles: client, courier, merchant/vendor, SEQUO admin | `sequo-api/domain/auth/RoleAuthorities.kt`, `AuthorizationPolicy.kt`, `MerchantMembership.kt` | Role-specific UI coverage is uneven, especially rider and admin web. |
 | [x] | Yes, if relay included | Simplified relay role/access | `sequo-api/domain/hub`, `SequoHub/core/auth`, `SequoHub/App.kt` | Needs final backend-role checks across all hub endpoints if not already enforced everywhere. |
 | [x] | Yes | Profile information needed for orders and deliveries | `sequo-api/domain/auth`, `sequo-api/domain/order`, `Sequo/ui/account`, `SequoVendor/ui/account` | Admin-facing profile management UI still belongs in web admin. |
@@ -49,7 +49,7 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 
 | Done | MVP | Contract item | Where done | Remaining gap |
 | --- | --- | --- | --- | --- |
-| [ ] | Yes | Merchants or SEQUO can add, edit and deactivate products | Read/catalog and local editor UI in `SequoVendor/core/catalog` and `SequoVendor/ui/catalog`; backend catalog/domain exists in `sequo-api/domain/commerce`, `domain/catalog`, `domain/platform` | Missing complete merchant-scoped product create/update/deactivate/upload API connected to vendor app. |
+| [ ] | Yes | Merchants or SEQUO can add, edit and deactivate products | Merchant catalog backend routes exist in `sequo-api/domain/commerce/CommerceApi.kt` under `/api/merchant/catalog`; read/catalog and local editor UI exist in `SequoVendor/core/catalog` and `SequoVendor/ui/catalog` | Vendor app still needs final production sync to merchant create/update/activate/deactivate/photo-preparation routes, plus real media upload/storage wiring. |
 | [x] | Yes | Manage displayed price, SEQUO margin/commission and service fees | Backend commission/pricing exists in `sequo-api/domain/commission`, `domain/pricing`, commerce/order pricing models | Admin web UI for configuring all rates remains incomplete. |
 | [x] | Yes | Product photos prioritize real-time photos when necessary | `sequo-api/domain/catalog/ProductMediaPolicy.kt`, `Sequo/CATALOG_AND_ORDERING.md`, `SequoVendor` product editor placeholder | Camera capture/upload enforcement needs final merchant write/upload endpoint. |
 | [x] | Yes | Generic images may be allowed for standard products | `sequo-api/domain/catalog/ProductMediaPolicy.kt`, `Sequo` and `SequoVendor` catalog assets | Backend policy exists; production upload workflow still needs seller endpoint. |
@@ -114,7 +114,7 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 | [x] | Yes | Seller and customer have limited attempts, default 3 | `sequo-api/domain/bargaining/Bargaining.kt`, tests | Full app UX across both sides remains partial. |
 | [x] | Yes | Lock bargaining after attempts are exhausted | `sequo-api/domain/bargaining/Bargaining.kt`, tests | Full app UX remains partial. |
 | [x] | Yes | Accepted minimum price can remain locked 24 hours | `sequo-api/domain/bargaining/Bargaining.kt`, tests | Full checkout/application of locks needs final end-to-end confirmation. |
-| [ ] | Yes | Seller can disable bargaining on products | Policy/model exists in bargaining/catalog docs and backend domain | Vendor product editor currently hides/disables bargaining; full merchant backend write route is missing. |
+| [ ] | Yes | Seller can disable bargaining on products | Backend merchant catalog request DTOs include `bargainingEnabled` / `bargainFloorCfa` in `sequo-api/domain/commerce/CommerceApi.kt`; policy/model exists in `domain/bargaining` | Vendor product editor still needs production wiring and seller response UX. |
 | [ ] | Optional if SEQUO validates | Show historical accepted minimum price | `Sequo/BARGAINING_FLOW.md` documents the rule | Not confirmed as implemented end-to-end. |
 
 ## Relay Points
@@ -163,11 +163,11 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 | [x] | Yes | Merchant receives orders and prepares packages | `SequoVendor/ui/orders`, `SequoVendor/core/fulfillment`, `sequo-api/domain/delivery/MerchantFulfillmentController.kt` | Needs real merchant context in production accounts. |
 | [x] | Yes | Merchant marks package ready for SEQUO pickup | `SequoVendor/core/fulfillment`, `MerchantFulfillmentController.kt` | None identified from contract scope. |
 | [x] | Yes | Merchant follows sales, returns and payment statuses according to rights | `SequoVendor/ui/dashboard`, `ui/orders`, `ui/account`; backend orders/settlements/returns | Returns/payment visibility can be expanded after backend endpoints are fully exposed. |
-| [ ] | Yes | Rider receives or accepts mission | `sequo-api/domain/delivery/DeliveryMissionController.kt`; `SequoRider` docs/scaffold | Rider app mission UI and API client incomplete. |
-| [ ] | Yes | Rider picks up from merchant, SEQUO or relay | Backend delivery/hub/relay domains; `SequoRider` docs | Rider app pickup flow incomplete. |
-| [ ] | Yes | Rider delivers to customer or deposits at relay | Backend delivery/relay domains; `SequoRider` docs | Rider app delivery/deposit flow incomplete. |
-| [ ] | Yes | Rider validates delivery steps in app | Backend delivery/pin services; `SequoRider` docs | Rider app validation flow incomplete. |
-| [ ] | Yes | Rider sees independent courier pay calculation | Backend settlement/delivery domains; `SequoRider/PAYOUT_STRUCTURE.md` | Rider payout UI incomplete. |
+| [x] | Yes | Rider receives or accepts mission | `sequo-api/domain/delivery/DeliveryMissionController.kt`; `SequoRider/core/missions/RiderMissionApiClient.kt`; `SequoRider/ui/missions` | Production QA against real courier tokens/live missions remains. |
+| [x] | Yes | Rider picks up from merchant, SEQUO or relay | Backend delivery/hub/relay domains; `SequoRider/core/missions/RiderMissionApiClient.kt`; `SequoRider/ui/route/ActiveRouteScreen.kt` | Production QA for proof capture and real pickup constraints remains. |
+| [x] | Yes | Rider delivers to customer or deposits at relay | Backend delivery/relay domains; `SequoRider/core/missions/RiderMissionApiClient.kt`; `SequoRider/ui/route/ActiveRouteScreen.kt` | Production QA for PIN/deposit edge cases remains. |
+| [x] | Yes | Rider validates delivery steps in app | Backend delivery/PIN services; `SequoRider/ui/route/ActiveRouteScreen.kt` | Scanner/photo proof integrations can be expanded after MVP. |
+| [x] | Yes | Rider sees independent courier pay calculation | `sequo-api/domain/settlement/RiderPayoutVisibility.kt`; `SequoRider/core/payout/RiderPayoutApiClient.kt`; `SequoRider/ui/payout/PayoutScreen.kt` | Payout execution remains outside rider app; provider payout integration still needs production setup. |
 | [x] | Yes | Relay receives package and assigns code/QR/locker | `sequo-api/domain/hub`, `domain/relay`, `SequoHub/feature/hub`, `feature/scan` | Needs final backend connectivity verification. |
 | [x] | Yes | Relay validates customer pickup and stores history | `SequoHub/feature/handover`, `feature/activity`, backend hub/relay domains | Needs final backend connectivity verification. |
 
@@ -175,16 +175,16 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 
 | Done | MVP | Configurable or prepared parameter | Where done | Remaining gap |
 | --- | --- | --- | --- | --- |
-| [x] | Yes | Minimum delivery price | `sequo-api/domain/pricing` | Admin UI incomplete. |
-| [x] | Yes | Price per kilometer | `sequo-api/domain/pricing` | Admin UI incomplete. |
-| [x] | Yes | Commission percentages | `sequo-api/domain/commission` | Admin UI incomplete. |
-| [x] | Yes | Subscriber discount rates | `sequo-api/domain/subscription`, `domain/pricing` | Admin UI incomplete. |
-| [x] | Yes | Referral credits | `sequo-api/domain/referral` | Admin UI incomplete. |
-| [x] | Yes | Bargaining attempt count | `sequo-api/domain/bargaining` | Admin UI incomplete. |
-| [x] | Yes | Negotiated price lock duration | `sequo-api/domain/bargaining` | Admin UI incomplete. |
-| [x] | Yes | Return request delay | `sequo-api/domain/returns` | Admin UI incomplete. |
-| [x] | Yes | Relay storage delay and fees | `sequo-api/domain/relay`, `SequoHub/STORAGE_PENALTIES.md` | Admin UI incomplete. |
-| [x] | Yes | Product categories excluded from relay/returns | `sequo-api/domain/relay`, `domain/returns`, catalog policy | Admin UI incomplete. |
+| [x] | Yes | Minimum delivery price | `sequo-api/domain/pricing`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Price per kilometer | `sequo-api/domain/pricing`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Commission percentages | `sequo-api/domain/commission`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Subscriber discount rates | `sequo-api/domain/subscription`, `domain/pricing`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Referral credits | `sequo-api/domain/referral`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Bargaining attempt count | `sequo-api/domain/bargaining`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Negotiated price lock duration | `sequo-api/domain/bargaining`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Return request delay | `sequo-api/domain/returns`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Relay storage delay and fees | `sequo-api/domain/relay`, `SequoHub/STORAGE_PENALTIES.md`, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
+| [x] | Yes | Product categories excluded from relay/returns | `sequo-api/domain/relay`, `domain/returns`, catalog policy, `ContractBusinessParameterReadinessTest` | Admin UI incomplete. |
 
 ## Contract Exclusions
 
@@ -208,8 +208,8 @@ These items are explicitly excluded from the fixed MVP price unless there is a s
 Only contract-listed gaps are included here.
 
 1. Finish the internal SEQUO web admin interface for users, merchants, orders, deliveries, payments, commissions, settings and relay controls.
-2. Finish SequoRider as a real mission app: receive/accept missions, pickup, delivery/deposit, delivery validation, history and freelancer payout visibility.
-3. Add merchant-scoped catalog write/upload/deactivate backend routes and wire them to `SequoVendor`.
+2. Finish production QA for SequoRider with real courier accounts, live missions, pickup/delivery/deposit validation and payout visibility.
+3. Wire `SequoVendor` to the merchant-scoped catalog create/update/activate/deactivate/photo-preparation backend routes and finish real media upload/storage.
 4. Complete production payment provider integration for Yas Togo and Moov Africa, including order validation and refund/payout execution paths.
 5. Complete cross-app bargaining UX, especially seller response and seller product-level bargaining enable/disable.
 6. Finalize customer checkout relay selection, customer return request UI, and full customer-to-hub return flow.
