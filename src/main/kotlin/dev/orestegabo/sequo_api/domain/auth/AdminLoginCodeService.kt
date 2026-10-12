@@ -50,6 +50,8 @@ class AdminLoginCodeService(
             .uppercase()
             .filter { it != '-' && !it.isWhitespace() }
 
+    fun formatPlaceholder(): String = "***-***"
+
     fun format(rawCode: String): String {
         val normalized = normalize(rawCode)
         require(normalized.length == CodeLength) { "code must contain $CodeLength characters." }

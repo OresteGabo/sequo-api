@@ -19,11 +19,46 @@ data class AdminLoginRequestStatusSnapshot(
     val rejectedAt: Instant?,
 )
 
+data class MobileAdminLoginRequestSummary(
+    val requestId: String,
+    val code: String,
+    val deviceLabel: String?,
+    val browserInfo: String?,
+    val requestedAt: Instant,
+    val expiresAt: Instant,
+)
+
 @Service
 class AdminAuthService(
     private val adminLoginRequestRepository: AdminLoginRequestRepository,
     private val codeService: AdminLoginCodeService,
+    private val userRepository: UserRepository,
 ) {
+    @Transactional(readOnly = true)
+    fun pendingMobileLoginRequests(userId: String, now: Instant = Instant.now()): List<MobileAdminLoginRequestSummary>? {
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+        if (!user.active || !user.status.canAuthenticate()) return null
+        if (user.roles.none { it in AdminApproverRoles }) return null
+        val email = user.email ?: return emptyList()
+        val normalizedEmail = ApiInputPolicy.normalizedIdentityEmail(email)
+        return adminLoginRequestRepository
+            .findAllByEmailNormalizedAndStatusAndExpiresAtAfterOrderByRequestedAtDesc(
+                normalizedEmail,
+                AdminLoginRequestStatus.PENDING,
+                now,
+            )
+            .map {
+                MobileAdminLoginRequestSummary(
+                    requestId = requireNotNull(it.id),
+                    code = codeService.formatPlaceholder(),
+                    deviceLabel = it.deviceLabel,
+                    browserInfo = it.browserInfo,
+                    requestedAt = it.requestedAt,
+                    expiresAt = it.expiresAt,
+                )
+            }
+    }
+
     @Transactional(readOnly = true)
     fun loginRequestStatus(requestId: String, now: Instant = Instant.now()): AdminLoginRequestStatusSnapshot? {
         val request = adminLoginRequestRepository.findById(requestId).orElse(null) ?: return null
@@ -69,5 +104,6 @@ class AdminAuthService(
 
     private companion object {
         private const val PollingIntervalSeconds = 2
+        private val AdminApproverRoles = setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
     }
 }

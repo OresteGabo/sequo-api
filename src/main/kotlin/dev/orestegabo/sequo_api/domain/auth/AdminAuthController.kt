@@ -2,6 +2,7 @@ package dev.orestegabo.sequo_api.domain.auth
 
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -36,10 +37,43 @@ class AdminAuthController(
         val rejectedAt: Instant?,
     )
 
+    data class MobileLoginRequestSummaryResponse(
+        val requestId: String,
+        val code: String,
+        val deviceLabel: String?,
+        val browserInfo: String?,
+        val requestedAt: Instant,
+        val expiresAt: Instant,
+    )
+
     data class AdminAuthErrorResponse(
         val code: String,
         val message: String,
     )
+
+    @GetMapping("/mobile/login-requests")
+    fun mobileLoginRequests(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> {
+        userId ?: return ResponseEntity.status(401).build()
+        val summaries = adminAuthService.pendingMobileLoginRequests(userId)
+            ?: return ResponseEntity.status(403).body(
+                AdminAuthErrorResponse(
+                    code = "admin_login_approval_forbidden",
+                    message = "This account cannot approve admin login requests.",
+                )
+            )
+        return ResponseEntity.ok(
+            summaries.map {
+                MobileLoginRequestSummaryResponse(
+                    requestId = it.requestId,
+                    code = it.code,
+                    deviceLabel = it.deviceLabel,
+                    browserInfo = it.browserInfo,
+                    requestedAt = it.requestedAt,
+                    expiresAt = it.expiresAt,
+                )
+            }
+        )
+    }
 
     @GetMapping("/login-requests/{requestId}")
     fun loginRequestStatus(@PathVariable requestId: String): ResponseEntity<Any> {
