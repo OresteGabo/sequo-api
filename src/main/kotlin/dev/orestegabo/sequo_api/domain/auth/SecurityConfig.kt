@@ -45,6 +45,7 @@ class SecurityConfig(
                     .requestMatchers("/api/auth/cross-device/resolve").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/login-requests").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/admin-auth/login-requests/*").permitAll()
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/catalog/home",

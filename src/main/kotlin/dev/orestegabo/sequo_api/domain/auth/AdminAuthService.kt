@@ -12,11 +12,34 @@ data class CreatedAdminLoginRequest(
     val pollingIntervalSeconds: Int,
 )
 
+data class AdminLoginRequestStatusSnapshot(
+    val status: AdminLoginRequestStatus,
+    val expiresAt: Instant,
+    val approvedAt: Instant?,
+    val rejectedAt: Instant?,
+)
+
 @Service
 class AdminAuthService(
     private val adminLoginRequestRepository: AdminLoginRequestRepository,
     private val codeService: AdminLoginCodeService,
 ) {
+    @Transactional(readOnly = true)
+    fun loginRequestStatus(requestId: String, now: Instant = Instant.now()): AdminLoginRequestStatusSnapshot? {
+        val request = adminLoginRequestRepository.findById(requestId).orElse(null) ?: return null
+        val status = if (request.status == AdminLoginRequestStatus.PENDING && codeService.expired(request.expiresAt, now)) {
+            AdminLoginRequestStatus.EXPIRED
+        } else {
+            request.status
+        }
+        return AdminLoginRequestStatusSnapshot(
+            status = status,
+            expiresAt = request.expiresAt,
+            approvedAt = request.approvedAt,
+            rejectedAt = request.rejectedAt,
+        )
+    }
+
     @Transactional
     fun createLoginRequest(
         email: String,

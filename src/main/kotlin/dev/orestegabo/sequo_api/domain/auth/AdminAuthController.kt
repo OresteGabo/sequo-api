@@ -2,6 +2,8 @@ package dev.orestegabo.sequo_api.domain.auth
 
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -27,10 +29,36 @@ class AdminAuthController(
         val pollingIntervalSeconds: Int,
     )
 
+    data class LoginRequestStatusResponse(
+        val status: AdminLoginRequestStatus,
+        val expiresAt: Instant,
+        val approvedAt: Instant?,
+        val rejectedAt: Instant?,
+    )
+
     data class AdminAuthErrorResponse(
         val code: String,
         val message: String,
     )
+
+    @GetMapping("/login-requests/{requestId}")
+    fun loginRequestStatus(@PathVariable requestId: String): ResponseEntity<Any> {
+        return try {
+            val safeRequestId = ApiInputPolicy.requiredIdentifier(requestId, "requestId")
+            val snapshot = adminAuthService.loginRequestStatus(safeRequestId)
+                ?: return ResponseEntity.notFound().build()
+            ResponseEntity.ok(
+                LoginRequestStatusResponse(
+                    status = snapshot.status,
+                    expiresAt = snapshot.expiresAt,
+                    approvedAt = snapshot.approvedAt,
+                    rejectedAt = snapshot.rejectedAt,
+                )
+            )
+        } catch (e: IllegalArgumentException) {
+            invalidRequest()
+        }
+    }
 
     @PostMapping("/login-requests")
     fun startLoginRequest(@RequestBody request: LoginRequestStartRequest): ResponseEntity<Any> {
