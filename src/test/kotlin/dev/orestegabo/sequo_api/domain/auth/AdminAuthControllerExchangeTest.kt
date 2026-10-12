@@ -81,6 +81,31 @@ class AdminAuthControllerExchangeTest @Autowired constructor(
     }
 
     @Test
+    fun repeatedWrongExchangeAttemptsAreRateLimited() {
+        val start = controller.startLoginRequest(AdminAuthController.LoginRequestStartRequest("exchange-limit@sequo.test")).body as AdminAuthController.LoginRequestStartResponse
+        val admin = userRepository.save(User(email = "exchange-limit@sequo.test", provider = AuthProvider.GOOGLE, roles = mutableSetOf(RoleCode.ADMIN)))
+        controller.approveMobileLoginRequest(requireNotNull(admin.id), start.requestId)
+
+        repeat(8) {
+            assertEquals(
+                401,
+                controller.exchangeLoginRequest(
+                    start.requestId,
+                    AdminAuthController.ExchangeLoginRequest("ABC-DEF", "wrong-exchange-$it"),
+                ).statusCode.value(),
+            )
+        }
+        val blocked = controller.exchangeLoginRequest(
+            start.requestId,
+            AdminAuthController.ExchangeLoginRequest("ABC-DEF", "wrong-exchange-blocked"),
+        )
+
+        assertEquals(429, blocked.statusCode.value())
+        assertNotNull(blocked.headers["Retry-After"])
+        assertNull(userDeviceRepository.findByDeviceId("wrong-exchange-blocked"))
+    }
+
+    @Test
     fun pendingAndRejectedRequestsCannotExchange() {
         val pending = controller.startLoginRequest(AdminAuthController.LoginRequestStartRequest("pending-exchange@sequo.test")).body as AdminAuthController.LoginRequestStartResponse
         val rejected = controller.startLoginRequest(AdminAuthController.LoginRequestStartRequest("rejected-exchange@sequo.test")).body as AdminAuthController.LoginRequestStartResponse

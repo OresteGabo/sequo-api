@@ -184,6 +184,13 @@ class AuthRateLimiter(
         )
     }
 
+    fun checkAdminLoginExchange(requestId: String) {
+        enforce(
+            rateLimiter.consume("auth.admin-login.exchange.ip", clientSubject(), ADMIN_LOGIN_EXCHANGE_BY_IP),
+            rateLimiter.consume("auth.admin-login.exchange.request", normalizedSubject(requestId), ADMIN_LOGIN_EXCHANGE_BY_REQUEST),
+        )
+    }
+
     fun checkAdminEmailCodeRequest(email: String) {
         enforce(
             rateLimiter.consume("auth.admin-email-code.request.ip", clientSubject(), ADMIN_EMAIL_CODE_REQUEST_BY_IP),
@@ -274,6 +281,8 @@ class AuthRateLimiter(
         private val CROSS_DEVICE_BY_PHONE = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
         private val ADMIN_LOGIN_REQUEST_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
         private val ADMIN_LOGIN_REQUEST_BY_EMAIL = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
+        private val ADMIN_LOGIN_EXCHANGE_BY_IP = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
+        private val ADMIN_LOGIN_EXCHANGE_BY_REQUEST = RateLimitRule(maxAttempts = 8, window = Duration.ofMinutes(15))
         private val ADMIN_EMAIL_CODE_REQUEST_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
         private val ADMIN_EMAIL_CODE_REQUEST_BY_EMAIL = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
         private val ADMIN_EMAIL_CODE_VERIFY_BY_IP = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))

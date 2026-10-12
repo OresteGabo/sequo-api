@@ -78,6 +78,37 @@ class AdminAuthControllerEmailCodeTest @Autowired constructor(
     }
 
     @Test
+    fun repeatedEmailCodeRequestsAndWrongVerificationsAreRateLimited() {
+        userRepository.save(User(email = "otp-limit@sequo.test", provider = AuthProvider.GOOGLE, roles = mutableSetOf(RoleCode.ADMIN)))
+        val request = AdminAuthController.EmailCodeRequest("otp-limit@sequo.test")
+
+        repeat(5) {
+            assertEquals(200, controller.requestEmailCode(request).statusCode.value())
+        }
+        val blockedRequest = controller.requestEmailCode(request)
+
+        assertEquals(429, blockedRequest.statusCode.value())
+        assertNotNull(blockedRequest.headers["Retry-After"])
+
+        authRateLimiter.resetForTests()
+        repeat(8) {
+            assertEquals(
+                401,
+                controller.verifyEmailCode(
+                    AdminAuthController.EmailCodeVerifyRequest("otp-limit@sequo.test", "ABC-DEF", "otp-limit-wrong-$it")
+                ).statusCode.value(),
+            )
+        }
+        val blockedVerify = controller.verifyEmailCode(
+            AdminAuthController.EmailCodeVerifyRequest("otp-limit@sequo.test", "ABC-DEF", "otp-limit-blocked")
+        )
+
+        assertEquals(429, blockedVerify.statusCode.value())
+        assertNotNull(blockedVerify.headers["Retry-After"])
+        assertNull(userDeviceRepository.findByDeviceId("otp-limit-blocked"))
+    }
+
+    @Test
     fun wrongExpiredAndReusedCodesDoNotIssueTokens() {
         val admin = userRepository.save(User(email = "otp-cases@sequo.test", provider = AuthProvider.GOOGLE, roles = mutableSetOf(RoleCode.ADMIN)))
         controller.requestEmailCode(AdminAuthController.EmailCodeRequest("otp-cases@sequo.test"))

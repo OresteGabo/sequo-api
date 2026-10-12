@@ -149,6 +149,7 @@ class AdminAuthController(
         return try {
             val safeRequestId = ApiInputPolicy.requiredIdentifier(requestId, "requestId")
             val code = ApiInputPolicy.requiredShortText(request.code, "code", 16)
+            authRateLimiter.checkAdminLoginExchange(safeRequestId)
             val result = adminAuthService.exchangeLoginRequest(
                 requestId = safeRequestId,
                 code = code,
@@ -170,6 +171,8 @@ class AdminAuthController(
                     user = result.user.toCurrentUserResponse(),
                 )
             )
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
         } catch (e: IllegalArgumentException) {
             invalidRequest()
         }
