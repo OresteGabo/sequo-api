@@ -47,6 +47,8 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/login-requests").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/admin-auth/login-requests/*").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/login-requests/*/exchange").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/admin-auth/email-codes").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/admin-auth/email-codes/verify").permitAll()
                     .requestMatchers("/api/admin-auth/mobile/**").authenticated()
                     .requestMatchers(
                         HttpMethod.GET,

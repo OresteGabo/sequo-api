@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.auth
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Duration
 import java.time.Instant
 
 data class CreatedAdminLoginRequest(
@@ -39,14 +40,70 @@ data class AdminLoginExchangeResult(
     val user: User,
 )
 
+data class AdminEmailCodeRequestResult(
+    val expiresInSeconds: Long,
+    val retryAfterSeconds: Long,
+)
+
 @Service
 class AdminAuthService(
     private val adminLoginRequestRepository: AdminLoginRequestRepository,
+    private val adminEmailCodeRepository: AdminEmailCodeRepository,
     private val codeService: AdminLoginCodeService,
     private val codeProtector: AdminLoginCodeProtector,
+    private val emailCodeSender: AdminEmailCodeSender,
     private val userRepository: UserRepository,
     private val authService: AuthService,
 ) {
+    @Transactional
+    fun requestEmailCode(email: String, now: Instant = Instant.now()): AdminEmailCodeRequestResult {
+        val normalizedEmail = ApiInputPolicy.normalizedIdentityEmail(email)
+        val user = eligibleAdminByEmail(normalizedEmail)
+        if (user != null) {
+            val generatedCode = codeService.generate(now = now, ttl = EmailCodeTtl)
+            adminEmailCodeRepository.save(
+                AdminEmailCode(
+                    emailNormalized = normalizedEmail,
+                    codeHash = generatedCode.codeHash,
+                    requestedAt = now,
+                    expiresAt = generatedCode.expiresAt,
+                    userId = requireNotNull(user.id),
+                )
+            )
+            emailCodeSender.send(normalizedEmail, generatedCode.code, generatedCode.expiresAt)
+        }
+        return AdminEmailCodeRequestResult(
+            expiresInSeconds = EmailCodeTtl.seconds,
+            retryAfterSeconds = EmailCodeRetryDelay.seconds,
+        )
+    }
+
+    @Transactional
+    fun verifyEmailCode(email: String, code: String, deviceId: String?, now: Instant = Instant.now()): AdminLoginExchangeResult? {
+        val normalizedEmail = ApiInputPolicy.normalizedIdentityEmail(email)
+        val emailCode = adminEmailCodeRepository.findFirstByEmailNormalizedAndStatusOrderByRequestedAtDesc(
+            normalizedEmail,
+            AdminEmailCodeStatus.PENDING,
+        ) ?: return null
+        if (codeService.expired(emailCode.expiresAt, now)) return null
+        if (!codeService.verify(code, emailCode.codeHash)) return null
+        val user = emailCode.userId
+            ?.let { eligibleApprover(it) }
+            ?.takeIf { ApiInputPolicy.normalizedIdentityEmail(it.email ?: return null) == normalizedEmail }
+            ?: return null
+        val safeDeviceId = deviceId?.let { ApiInputPolicy.requiredIdentifier(it, "deviceId") }
+            ?: "sequo-admin-email-${requireNotNull(emailCode.id)}"
+        val tokens = authService.issueTokensForExistingUser(
+            userId = requireNotNull(user.id),
+            provider = user.provider,
+            device = DeviceBinding(safeDeviceId, AppSource.SEQUO_ADMIN, null),
+        ) ?: return null
+        emailCode.status = AdminEmailCodeStatus.CONSUMED
+        emailCode.consumedAt = now
+        adminEmailCodeRepository.save(emailCode)
+        return AdminLoginExchangeResult(tokens, user)
+    }
+
     @Transactional
     fun exchangeLoginRequest(requestId: String, code: String, deviceId: String?, now: Instant = Instant.now()): AdminLoginExchangeResult? {
         val request = adminLoginRequestRepository.findByIdAndStatus(requestId, AdminLoginRequestStatus.APPROVED) ?: return null
@@ -182,8 +239,17 @@ class AdminAuthService(
         return user
     }
 
+    private fun eligibleAdminByEmail(email: String): User? {
+        val user = userRepository.findByEmail(email) ?: return null
+        if (!user.active || !user.status.canAuthenticate()) return null
+        if (user.roles.none { it in AdminApproverRoles }) return null
+        return user
+    }
+
     private companion object {
         private const val PollingIntervalSeconds = 2
+        private val EmailCodeTtl = Duration.ofMinutes(5)
+        private val EmailCodeRetryDelay = Duration.ofSeconds(60)
         private val AdminApproverRoles = setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
     }
 }

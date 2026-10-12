@@ -68,10 +68,74 @@ class AdminAuthController(
         val user: AuthController.CurrentUserResponse,
     )
 
+    data class EmailCodeRequest(
+        val email: String,
+    )
+
+    data class EmailCodeRequestResponse(
+        val status: String,
+        val expiresInSeconds: Long,
+        val retryAfterSeconds: Long,
+    )
+
+    data class EmailCodeVerifyRequest(
+        val email: String,
+        val code: String,
+        val deviceId: String? = null,
+    )
+
     data class AdminAuthErrorResponse(
         val code: String,
         val message: String,
     )
+
+    @PostMapping("/email-codes/verify")
+    fun verifyEmailCode(@RequestBody request: EmailCodeVerifyRequest): ResponseEntity<Any> {
+        return try {
+            val email = ApiInputPolicy.normalizedIdentityEmail(request.email)
+            val code = ApiInputPolicy.requiredShortText(request.code, "code", 16)
+            authRateLimiter.checkAdminEmailCodeVerify(email)
+            val result = adminAuthService.verifyEmailCode(email, code, request.deviceId)
+                ?: return ResponseEntity.status(401).body(
+                    AdminAuthErrorResponse(
+                        code = "admin_email_code_denied",
+                        message = "This code could not be verified.",
+                    )
+                )
+            ResponseEntity.ok(
+                ExchangeLoginResponse(
+                    accessToken = result.tokens.accessToken,
+                    refreshToken = result.tokens.refreshToken,
+                    expiresIn = result.tokens.expiresIn,
+                    user = result.user.toCurrentUserResponse(),
+                )
+            )
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
+        } catch (e: IllegalArgumentException) {
+            invalidEmailCodeRequest()
+        }
+    }
+
+    @PostMapping("/email-codes")
+    fun requestEmailCode(@RequestBody request: EmailCodeRequest): ResponseEntity<Any> {
+        return try {
+            val email = ApiInputPolicy.normalizedIdentityEmail(request.email)
+            authRateLimiter.checkAdminEmailCodeRequest(email)
+            val result = adminAuthService.requestEmailCode(email)
+            ResponseEntity.ok(
+                EmailCodeRequestResponse(
+                    status = "SENT_IF_ELIGIBLE",
+                    expiresInSeconds = result.expiresInSeconds,
+                    retryAfterSeconds = result.retryAfterSeconds,
+                )
+            )
+        } catch (e: RateLimitExceededException) {
+            rateLimitedResponse(e)
+        } catch (e: IllegalArgumentException) {
+            invalidEmailCodeRequest()
+        }
+    }
 
     @PostMapping("/login-requests/{requestId}/exchange")
     fun exchangeLoginRequest(
@@ -228,6 +292,14 @@ class AdminAuthController(
             AdminAuthErrorResponse(
                 code = "invalid_admin_login_request",
                 message = "We could not create this login request.",
+            )
+        )
+
+    private fun invalidEmailCodeRequest(): ResponseEntity<Any> =
+        ResponseEntity.badRequest().body(
+            AdminAuthErrorResponse(
+                code = "invalid_admin_email_code_request",
+                message = "We could not complete this request.",
             )
         )
 

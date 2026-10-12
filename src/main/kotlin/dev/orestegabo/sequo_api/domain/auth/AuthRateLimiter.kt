@@ -184,6 +184,20 @@ class AuthRateLimiter(
         )
     }
 
+    fun checkAdminEmailCodeRequest(email: String) {
+        enforce(
+            rateLimiter.consume("auth.admin-email-code.request.ip", clientSubject(), ADMIN_EMAIL_CODE_REQUEST_BY_IP),
+            rateLimiter.consume("auth.admin-email-code.request.email", normalizedSubject(email), ADMIN_EMAIL_CODE_REQUEST_BY_EMAIL),
+        )
+    }
+
+    fun checkAdminEmailCodeVerify(email: String) {
+        enforce(
+            rateLimiter.consume("auth.admin-email-code.verify.ip", clientSubject(), ADMIN_EMAIL_CODE_VERIFY_BY_IP),
+            rateLimiter.consume("auth.admin-email-code.verify.email", normalizedSubject(email), ADMIN_EMAIL_CODE_VERIFY_BY_EMAIL),
+        )
+    }
+
     fun checkRefresh(refreshToken: String) {
         enforce(
             rateLimiter.consume("auth.refresh.ip", clientSubject(), REFRESH_BY_IP),
@@ -260,6 +274,10 @@ class AuthRateLimiter(
         private val CROSS_DEVICE_BY_PHONE = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
         private val ADMIN_LOGIN_REQUEST_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
         private val ADMIN_LOGIN_REQUEST_BY_EMAIL = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
+        private val ADMIN_EMAIL_CODE_REQUEST_BY_IP = RateLimitRule(maxAttempts = 20, window = Duration.ofMinutes(15))
+        private val ADMIN_EMAIL_CODE_REQUEST_BY_EMAIL = RateLimitRule(maxAttempts = 5, window = Duration.ofMinutes(15))
+        private val ADMIN_EMAIL_CODE_VERIFY_BY_IP = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
+        private val ADMIN_EMAIL_CODE_VERIFY_BY_EMAIL = RateLimitRule(maxAttempts = 8, window = Duration.ofMinutes(15))
         private val REFRESH_BY_IP = RateLimitRule(maxAttempts = 120, window = Duration.ofMinutes(15))
         private val REFRESH_BY_TOKEN = RateLimitRule(maxAttempts = 30, window = Duration.ofMinutes(15))
         private val FORGOT_PASSWORD_BY_IP = RateLimitRule(maxAttempts = 10, window = Duration.ofHours(1))

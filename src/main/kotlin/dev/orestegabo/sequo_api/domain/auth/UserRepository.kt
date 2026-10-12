@@ -40,3 +40,10 @@ interface AdminLoginRequestRepository : JpaRepository<AdminLoginRequest, String>
         expiresAt: java.time.Instant,
     ): List<AdminLoginRequest>
 }
+
+interface AdminEmailCodeRepository : JpaRepository<AdminEmailCode, String> {
+    fun findFirstByEmailNormalizedAndStatusOrderByRequestedAtDesc(
+        emailNormalized: String,
+        status: AdminEmailCodeStatus,
+    ): AdminEmailCode?
+}
