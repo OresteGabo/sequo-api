@@ -47,7 +47,7 @@ jobs:
           cache: gradle
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Show Gradle environment
         run: ./gradlew --version --no-daemon
@@ -141,7 +141,7 @@ jobs:
           cache: gradle
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Validate migrations against PostgreSQL
         run: ./gradlew test --tests dev.orestegabo.sequo_api.SequoApiApplicationTests --no-daemon --stacktrace
