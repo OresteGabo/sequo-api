@@ -104,6 +104,23 @@ Example refresh:
 }
 ```
 
+## Customer basket and delivery quote
+
+All routes use the signed-in customer's basket.
+
+| Method | Route | Input |
+| --- | --- | --- |
+| GET | `/api/cart` | No parameters |
+| PUT | `/api/cart/items` | `productId`, absolute `quantity` (1–99), optional `selections` with `groupId` and `optionIds` |
+| DELETE | `/api/cart/items/{itemId}` | Basket line ID from the cart response |
+| GET | `/api/cart/quote?addressId={addressId}` | An active saved home-delivery address owned by the customer, with coordinates |
+
+Reads use current catalog prices and option availability. Unavailable lines stay visible with no line total so the customer can remove or replace them. The basket subtotal covers available lines. A delivery quote requires a nonempty basket with every line available.
+
+Quotes return product, option, service, and delivery amounts in XOF, plus the address ID, estimated distance in metres, distance source, and billable kilometres. The current customer service fee is zero. The existing delivery engine rounds up to whole kilometres. With default pricing, 4,999 m and 5,000 m cost 400 FCFA, and 5,001 m costs 500 FCFA. Merchant commissions use the existing settlement calculation.
+
+For a local fixture, set the Spring property `sequo.cart.straight-line-dispatch-origin=0,0` and use an owned address at latitude 0 and longitude `0.0449750735` (approximately 5,001 m). Without a configured origin, the quote returns an error. Confirm the production origin, distance source, and fractional-kilometre rule with SEQUO before enabling production estimates. Task 09 must recompute or validate the quote when submitting checkout.
+
 ## Orders
 
 | Method | Endpoint | Auth | How to test |

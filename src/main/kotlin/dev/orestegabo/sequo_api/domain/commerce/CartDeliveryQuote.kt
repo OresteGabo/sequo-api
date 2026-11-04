@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController
 data class CartDeliveryQuote(
     val addressId: String,
     val distanceMeters: Int,
+    val distanceSource: String,
     val billableKm: Int,
     val productTotalCfa: Int,
     val optionTotalCfa: Int,
@@ -60,9 +61,12 @@ class CartDeliveryQuoteService(
         val total = cart.subtotalCfa.toLong() + delivery.finalDeliveryFeeCfa
         require(total <= Int.MAX_VALUE) { "Cart quote is too large." }
         return CartDeliveryQuote(
-            address.id, meters, delivery.billableKm,
-            cart.items.sumOf { requireNotNull(it.productTotalCfa) },
-            cart.items.sumOf { requireNotNull(it.optionTotalCfa) },
+            addressId = address.id,
+            distanceMeters = meters,
+            distanceSource = distanceProvider.name,
+            billableKm = delivery.billableKm,
+            productTotalCfa = cart.items.sumOf { requireNotNull(it.productTotalCfa) },
+            optionTotalCfa = cart.items.sumOf { requireNotNull(it.optionTotalCfa) },
             serviceFeeCfa = 0,
             deliveryFeeCfa = delivery.finalDeliveryFeeCfa,
             totalCfa = total.toInt(),

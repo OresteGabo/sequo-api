@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.AuthProvider
 import dev.orestegabo.sequo_api.domain.auth.JwtService
@@ -12,6 +13,7 @@ import dev.orestegabo.sequo_api.domain.platform.CustomerAddressKind
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRecord
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRepository
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
+import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import java.net.URI
 import java.net.http.HttpClient
@@ -312,9 +314,54 @@ class MerchantCatalogHttpTest @Autowired constructor(
         assertEquals(200, quote.statusCode(), quote.body())
         val quoteJson = json.readTree(quote.body())
         assertEquals(5001, quoteJson.path("distanceMeters").asInt())
+        assertEquals("straight-line-estimator", quoteJson.path("distanceSource").asText())
+        assertEquals(6, quoteJson.path("billableKm").asInt())
         assertEquals(4000, quoteJson.path("productTotalCfa").asInt())
         assertEquals(500, quoteJson.path("deliveryFeeCfa").asInt())
         assertEquals(4500, quoteJson.path("totalCfa").asInt())
+    }
+
+    @Test
+    fun customerEditsAndRestoresTwoPlainCartLinesAcrossHttpRequests() {
+        val user = users.save(User(email = "plain-cart-http@sequo.test", provider = AuthProvider.EMAIL, status = UserStatus.ACTIVE))
+        val userId = requireNotNull(user.id)
+        val customer = jwt.generateAccessToken(UserSession(userId, user.email, AuthProvider.EMAIL))
+        val first = products.save(ProductRecord(id = "plain-cart-rice", name = "Rice", basePriceCfa = 800))
+        val second = products.save(ProductRecord(id = "plain-cart-water", name = "Water", basePriceCfa = 300))
+        fun put(id: String, quantity: Int): JsonNode {
+            val response = request("PUT", "/api/cart/items", customer, """{"productId":"$id","quantity":$quantity}""")
+            assertEquals(200, response.statusCode(), response.body())
+            return json.readTree(response.body())
+        }
+        fun readCart(): JsonNode {
+            val response = request("GET", "/api/cart", customer)
+            assertEquals(200, response.statusCode(), response.body())
+            return json.readTree(response.body())
+        }
+
+        val riceLine = put(first.id, 1).path("items").single().path("id").asText()
+        put(second.id, 2)
+        put(first.id, 3)
+        val restored = readCart()
+        assertEquals(2, restored.path("items").size())
+        assertEquals(5, restored.path("totalItems").asInt())
+        assertEquals(3000, restored.path("subtotalCfa").asInt())
+        assertEquals(riceLine, restored.path("items").single {
+            it.path("product").path("id").asText() == first.id
+        }.path("id").asText())
+
+        products.save(first.apply { basePriceCfa = 900 })
+        assertEquals(3300, readCart().path("subtotalCfa").asInt())
+        products.save(second.apply { status = CatalogProductStatus.INACTIVE })
+        val unavailable = readCart().path("items").single { !it.path("available").asBoolean() }
+        assertEquals(second.id, unavailable.path("product").path("id").asText())
+        assertEquals(true, unavailable.path("lineTotalCfa").isNull)
+
+        val removal = request("DELETE", "/api/cart/items/${unavailable.path("id").asText()}", customer)
+        assertEquals(200, removal.statusCode(), removal.body())
+        val remaining = readCart()
+        assertEquals(riceLine, remaining.path("items").single().path("id").asText())
+        assertEquals(2700, remaining.path("subtotalCfa").asInt())
     }
 
     private fun upload(id: String, merchant: String, token: String, bytes: ByteArray, mime: String): HttpResponse<String> {
