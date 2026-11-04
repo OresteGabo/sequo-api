@@ -433,19 +433,24 @@ class AuthService(
                 )
             )
         }
-        val activeMerchantMemberships = merchantMembershipRepository.findAllByUserIdAndActiveTrue(userId)
-        val session = UserSession(
-            userId = userId,
-            email = user.email,
-            provider = provider,
-            roles = (user.roles + activeMerchantMemberships.map { it.role }).toSet().ifEmpty { setOf(RoleCode.CUSTOMER) },
-            merchantScopeIds = activeMerchantMemberships.map { it.merchantId }.toSet(),
-            sessionId = requireNotNull(persistedDevice.id),
-        )
+        val session = accountSession(user, provider, requireNotNull(persistedDevice.id))
         return AuthTokens(
             accessToken = jwtService.generateAccessToken(session),
             refreshToken = rawRefreshToken,
             expiresIn = jwtService.accessExpiresInSeconds(),
+        )
+    }
+
+    fun accountSession(user: User, provider: AuthProvider = user.provider, sessionId: String? = null): UserSession {
+        val userId = requireNotNull(user.id)
+        val memberships = merchantMembershipRepository.findAllByUserIdAndActiveTrue(userId)
+        return UserSession(
+            userId = userId,
+            email = user.email,
+            provider = provider,
+            roles = (user.roles + memberships.map { it.role }).toSet().ifEmpty { setOf(RoleCode.CUSTOMER) },
+            merchantScopeIds = memberships.map { it.merchantId }.toSet(),
+            sessionId = sessionId,
         )
     }
 

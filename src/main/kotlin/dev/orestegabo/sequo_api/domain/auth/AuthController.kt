@@ -94,6 +94,7 @@ class AuthController(
         val status: UserStatus,
         val active: Boolean,
         val roles: Set<RoleCode>,
+        val merchantScopeIds: Set<String> = emptySet(),
     )
 
     data class RateLimitErrorResponse(
@@ -367,6 +368,7 @@ class AuthController(
     fun currentUser(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> {
         userId ?: return ResponseEntity.status(401).build()
         val user = authService.currentUser(userId) ?: return ResponseEntity.notFound().build()
+        val account = authService.accountSession(user)
         return ResponseEntity.ok(
             CurrentUserResponse(
                 id = requireNotNull(user.id),
@@ -377,7 +379,8 @@ class AuthController(
                 provider = user.provider,
                 status = user.status,
                 active = user.active,
-                roles = user.roles,
+                roles = account.roles,
+                merchantScopeIds = account.merchantScopeIds,
             )
         )
     }

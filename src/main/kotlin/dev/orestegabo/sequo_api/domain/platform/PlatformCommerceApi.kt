@@ -400,11 +400,16 @@ class PlatformCommerceService(
     fun upsertProfile(userId: String, request: UpsertCustomerProfileRequest): CustomerProfileDto {
         val now = Instant.now()
         val receiptEmail = request.receiptEmail?.let { ApiInputPolicy.normalizedEmail(it, "receiptEmail") }
+        val defaultAddressId = ApiInputPolicy.optionalIdentifier(request.defaultAddressId, "defaultAddressId")?.also {
+            require(addresses.findByIdAndUserId(it, userId)?.active == true) {
+                "defaultAddressId does not reference a saved address."
+            }
+        }
         val profile = profiles.findByUserId(userId)?.also {
             it.displayName = ApiInputPolicy.requiredShortText(request.displayName, "displayName", 180)
             it.phoneNumber = ApiInputPolicy.optionalShortText(request.phoneNumber, "phoneNumber", 64)
             it.receiptEmail = receiptEmail
-            it.defaultAddressId = ApiInputPolicy.optionalIdentifier(request.defaultAddressId, "defaultAddressId")
+            it.defaultAddressId = defaultAddressId
             it.marketingOptIn = request.marketingOptIn
             it.updatedAt = now
         } ?: CustomerProfileRecord(
@@ -412,7 +417,7 @@ class PlatformCommerceService(
             displayName = ApiInputPolicy.requiredShortText(request.displayName, "displayName", 180),
             phoneNumber = ApiInputPolicy.optionalShortText(request.phoneNumber, "phoneNumber", 64),
             receiptEmail = receiptEmail,
-            defaultAddressId = ApiInputPolicy.optionalIdentifier(request.defaultAddressId, "defaultAddressId"),
+            defaultAddressId = defaultAddressId,
             marketingOptIn = request.marketingOptIn,
             createdAt = now,
             updatedAt = now,
@@ -429,9 +434,12 @@ class PlatformCommerceService(
         request.latitude?.let { require(it in -90.0..90.0) { "latitude must be between -90 and 90." } }
         request.longitude?.let { require(it in -180.0..180.0) { "longitude must be between -180 and 180." } }
         val now = Instant.now()
-        val record = addressId?.let { addresses.findByIdAndUserId(ApiInputPolicy.requiredIdentifier(it, "addressId"), userId) }?.also {
-            applyAddress(it, request, now)
-        } ?: CustomerAddressRecord(
+        val existing = addressId?.let {
+            requireNotNull(addresses.findByIdAndUserId(ApiInputPolicy.requiredIdentifier(it, "addressId"), userId)) {
+                "addressId does not reference a saved address."
+            }
+        }
+        val record = existing?.also { applyAddress(it, request, now) } ?: CustomerAddressRecord(
             id = UUID.randomUUID().toString(),
             userId = userId,
             kind = request.kind,
