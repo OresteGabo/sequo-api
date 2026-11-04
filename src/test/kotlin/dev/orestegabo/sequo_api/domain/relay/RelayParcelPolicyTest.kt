@@ -20,49 +20,25 @@ class RelayParcelPolicyTest {
     }
 
     @Test
-    fun keepsParcelActiveBeforeStorageFeeThreshold() {
-        val decision = policy.evaluateCustody(
-            RelayParcelCustodyInput(
-                category = RelayParcelCategory.GeneralGoods,
-                depositedAt = depositedAt,
-                evaluatedAt = depositedAt.plus(Duration.ofDays(13)),
-            )
-        )
-
-        assertEquals(RelayParcelCustodyAction.Active, decision.action)
-        assertFalse(decision.storageFeeEligible)
-        assertFalse(decision.returnToSellerReviewDue)
+    fun switchesFeeEligibilityStrictlyAfterDayEight() {
+        val threshold = depositedAt.plus(Duration.ofDays(8))
+        assertEquals(RelayParcelCustodyAction.Active, decisionAt(threshold.minusNanos(1)).action)
+        assertFalse(decisionAt(threshold).storageFeeEligible)
+        assertEquals(RelayParcelCustodyAction.StorageFeeEligible, decisionAt(threshold.plusNanos(1)).action)
+        assertTrue(decisionAt(threshold.plusNanos(1)).storageFeeEligible)
     }
 
     @Test
-    fun marksParcelStorageFeeEligibleAfterTwoWeeks() {
-        val decision = policy.evaluateCustody(
-            RelayParcelCustodyInput(
-                category = RelayParcelCategory.GeneralGoods,
-                depositedAt = depositedAt,
-                evaluatedAt = depositedAt.plus(Duration.ofDays(14)),
-            )
-        )
-
-        assertEquals(RelayParcelCustodyAction.StorageFeeEligible, decision.action)
-        assertTrue(decision.storageFeeEligible)
-        assertFalse(decision.returnToSellerReviewDue)
+    fun startsReviewAtDayThirty() {
+        val threshold = depositedAt.plus(Duration.ofDays(30))
+        assertFalse(decisionAt(threshold.minusNanos(1)).returnToSellerReviewDue)
+        assertEquals(RelayParcelCustodyAction.ReturnToSellerReviewDue, decisionAt(threshold).action)
+        assertTrue(decisionAt(threshold.plusNanos(1)).returnToSellerReviewDue)
     }
 
-    @Test
-    fun marksParcelForReturnToSellerReviewAfterFourWeeks() {
-        val decision = policy.evaluateCustody(
-            RelayParcelCustodyInput(
-                category = RelayParcelCategory.GeneralGoods,
-                depositedAt = depositedAt,
-                evaluatedAt = depositedAt.plus(Duration.ofDays(28)),
-            )
-        )
-
-        assertEquals(RelayParcelCustodyAction.ReturnToSellerReviewDue, decision.action)
-        assertTrue(decision.storageFeeEligible)
-        assertTrue(decision.returnToSellerReviewDue)
-    }
+    private fun decisionAt(evaluatedAt: Instant) = policy.evaluateCustody(
+        RelayParcelCustodyInput(RelayParcelCategory.GeneralGoods, depositedAt, evaluatedAt)
+    )
 
     @Test
     fun resolvedParcelDoesNotCreateDelayedActions() {

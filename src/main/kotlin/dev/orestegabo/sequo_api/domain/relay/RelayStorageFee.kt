@@ -10,6 +10,7 @@ data class RelayStorageFeeRequest(
     val collectedAt: Instant? = null,
     val dailyFeeCfa: Int,
     val policy: RelayParcelPolicyConfig = RelayParcelPolicyConfig(),
+    val feeStartsAt: Instant = depositedAt.plus(policy.storageFeeAfter),
 ) {
     init {
         require(!evaluatedAt.isBefore(depositedAt)) { "evaluatedAt cannot be before depositedAt." }
@@ -30,7 +31,7 @@ class RelayStorageFeeService {
     fun calculate(request: RelayStorageFeeRequest): RelayStorageFeeSnapshot {
         val resolvedAt = listOfNotNull(request.pickedUpAt, request.collectedAt).minOrNull()
         val measuredUntil = minOf(request.evaluatedAt, resolvedAt ?: request.evaluatedAt)
-        val feeStartsAt = request.depositedAt.plus(request.policy.storageFeeAfter)
+        val feeStartsAt = request.feeStartsAt
         if (!measuredUntil.isAfter(feeStartsAt)) {
             return snapshot(false, 0, request.dailyFeeCfa, feeStartsAt, measuredUntil)
         }

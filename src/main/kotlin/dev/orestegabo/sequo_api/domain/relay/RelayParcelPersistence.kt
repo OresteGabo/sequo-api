@@ -11,6 +11,7 @@ import dev.orestegabo.sequo_api.domain.party.RelayPointRecord
 import dev.orestegabo.sequo_api.domain.returns.ReturnRequestRecord
 import dev.orestegabo.sequo_api.domain.settlement.RelayStorageFeeLedgerCommand
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
+import dev.orestegabo.sequo_api.domain.settlement.SettlementResult
 import jakarta.persistence.Column
 import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Convert
@@ -22,11 +23,13 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.LockModeType
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -59,6 +62,7 @@ class RelayParcelRecord(
     @Enumerated(EnumType.STRING) @Column(nullable = false) val category: RelayParcelCategory,
     @Convert(converter = RelayParcelStatusConverter::class) @Column(nullable = false) var status: RelayParcelStatus,
     @Column(name = "deposited_at") var depositedAt: java.time.Instant? = null,
+    @Column(name = "fee_starts_at", updatable = false) val feeStartsAt: java.time.Instant? = null,
     @Column(name = "picked_up_at") var pickedUpAt: java.time.Instant? = null,
     @Column(name = "collected_at") var collectedAt: java.time.Instant? = null,
     @Column(name = "created_at", nullable = false) val createdAt: java.time.Instant,
@@ -126,6 +130,8 @@ class RelayStorageFeeAssessmentRecord(
 
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayParcelRecord>
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByRelayPointIdAndFeeStartsAtLessThanOrderById(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcelRecord>
     fun findByDepositCode(depositCode: String): RelayParcelRecord?
     fun findFirstByReturnIdAndRelayPointIdOrderByUpdatedAtDesc(returnId: String, relayPointId: String): RelayParcelRecord?
     fun findTopByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): RelayParcelRecord?
@@ -184,6 +190,9 @@ class RelayParcelPersistenceService(
             .map { it.toDomain() }
             .toList()
 
+    fun lockParcelsForFeeAssessment(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcel> =
+        parcels.findByRelayPointIdAndFeeStartsAtLessThanOrderById(relayPointId, evaluatedAt).map { it.toDomain() }
+
     fun relayPointIds(): List<String> = parcels.findDistinctRelayPointIds()
 
     fun listStorageFeeAssessments(relayPointId: String): List<RelayStorageFeeAssessment> =
@@ -233,6 +242,9 @@ class RelayParcelPersistenceService(
         events.save(event.toRecord())
     }
 
+    fun findStorageFeeAssessment(parcelId: String): RelayStorageFeeAssessment? =
+        storageFees.findByRelayParcelId(parcelId)?.toDomain()
+
     @Transactional
     fun saveStorageFeeAssessment(
         parcel: RelayParcel,
@@ -241,8 +253,10 @@ class RelayParcelPersistenceService(
     ): Pair<RelayStorageFeeAssessment, Int> {
         val id = "${parcel.id}:storage-fee"
         val existing = storageFees.findByRelayParcelId(parcel.id)
-        val previousTotal = existing?.totalFeeCfa ?: 0
-        val increment = fee.totalFeeCfa - previousTotal
+        val increment = fee.totalFeeCfa - (existing?.totalFeeCfa ?: 0)
+        if (existing != null && increment <= 0) {
+            return existing.toDomain().copy(lastIncrementCfa = 0) to 0
+        }
         val saved = if (existing == null) {
             RelayStorageFeeAssessmentRecord(
                 id = id,
@@ -251,7 +265,7 @@ class RelayParcelPersistenceService(
                 dailyFeeCfa = fee.dailyFeeCfa,
                 chargeableDays = fee.chargeableDays,
                 totalFeeCfa = fee.totalFeeCfa,
-                lastIncrementCfa = increment.coerceAtLeast(0),
+                lastIncrementCfa = increment,
                 feeStartsAt = fee.feeStartsAt,
                 measuredUntil = fee.measuredUntil,
                 createdAt = assessedAt,
@@ -260,14 +274,13 @@ class RelayParcelPersistenceService(
         } else {
             existing.apply {
                 chargeableDays = fee.chargeableDays
-                totalFeeCfa = maxOf(totalFeeCfa, fee.totalFeeCfa)
-                lastIncrementCfa = increment.coerceAtLeast(0)
-                feeStartsAt = fee.feeStartsAt
+                totalFeeCfa = fee.totalFeeCfa
+                lastIncrementCfa = increment
                 measuredUntil = fee.measuredUntil
                 updatedAt = assessedAt
             }
         }
-        return storageFees.save(saved).toDomain() to increment.coerceAtLeast(0)
+        return storageFees.save(saved).toDomain() to increment
     }
 }
 
@@ -383,7 +396,9 @@ class RelayParcelApplicationService(
         evaluatedAt: java.time.Instant = java.time.Instant.now(),
     ): List<RelayStorageFeeAssessment> {
         require(relayPointId.isNotBlank()) { "relayPointId is required." }
-        return persistence.listParcels(relayPointId)
+        require(dailyFeeCfa >= 0) { "dailyFeeCfa cannot be negative." }
+        if (dailyFeeCfa == 0) return emptyList()
+        return persistence.lockParcelsForFeeAssessment(relayPointId, evaluatedAt)
             .mapNotNull { parcel -> parcel.assessStorageFee(dailyFeeCfa, evaluatedAt) }
     }
 
@@ -438,9 +453,9 @@ class RelayParcelApplicationService(
         }?.let { existing ->
             return RelayParcelServiceResult.Accepted(RelayParcelAccepted(parcel, event = existing))
         }
-        if (parcel.status != RelayParcelStatus.ReturnToSellerReview) {
+        if (!domain.canReturnToSeller(parcel, returnedAt)) {
             return RelayParcelServiceResult.Rejected(
-                RelayParcelRejection("return_review_required", "Parcel must be in return-to-seller review before it can be returned."),
+                RelayParcelRejection("return_review_required", "Parcel must be due for return-to-seller review before it can be returned."),
             )
         }
         val event = RelayCustodyEvent(
@@ -469,20 +484,23 @@ class RelayParcelApplicationService(
         if (status == RelayParcelStatus.PickedUp || status == RelayParcelStatus.CollectedBySequo || status == RelayParcelStatus.ReturnedToSeller) {
             return null
         }
+        val feeStartsAt = feeStartsAt ?: return null
+        val existing = persistence.findStorageFeeAssessment(id)
         val fee = storageFeeService.calculate(
             RelayStorageFeeRequest(
                 depositedAt = depositedAt,
                 evaluatedAt = evaluatedAt,
                 pickedUpAt = pickedUpAt,
                 collectedAt = collectedAt,
-                dailyFeeCfa = dailyFeeCfa,
+                dailyFeeCfa = existing?.dailyFeeCfa ?: dailyFeeCfa,
+                feeStartsAt = feeStartsAt,
             )
         )
         if (!fee.eligible || fee.totalFeeCfa <= 0) return null
 
         val (assessment, increment) = persistence.saveStorageFeeAssessment(this, fee, evaluatedAt)
         if (increment > 0) {
-            settlements.postRelayStorageFee(
+            val result = settlements.postRelayStorageFee(
                 RelayStorageFeeLedgerCommand(
                     entryId = "${id}:storage-fee:${assessment.totalFeeCfa}",
                     relayParcelId = id,
@@ -492,6 +510,7 @@ class RelayParcelApplicationService(
                     createdAt = evaluatedAt,
                 )
             )
+            check(result is SettlementResult.Posted) { "Relay storage fee ledger posting failed." }
         }
         return assessment
     }
@@ -544,6 +563,7 @@ private fun RelayParcel.toRecord() = RelayParcelRecord(
     category = category,
     status = status,
     depositedAt = depositedAt,
+    feeStartsAt = feeStartsAt,
     pickedUpAt = pickedUpAt,
     collectedAt = collectedAt,
     createdAt = createdAt,
@@ -582,6 +602,7 @@ private fun RelayParcelRecord.toDomain(custodyEvents: List<RelayCustodyEvent> = 
     depositCode = depositCode ?: "",
     status = status,
     depositedAt = depositedAt,
+    feeStartsAt = feeStartsAt,
     pickedUpAt = pickedUpAt,
     collectedAt = collectedAt,
     custodyEvents = custodyEvents,

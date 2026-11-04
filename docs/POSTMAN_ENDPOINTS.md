@@ -239,6 +239,12 @@ Proof body:
 | `POST` | `/api/relay/parcels/storage-fees/assess` | Yes | Support/admin |
 | `GET` | `/api/relay/parcels/storage-fees?relayPointId={{relay_point_id}}` | Yes | Support/admin |
 
+The default fee deadline is 8 elapsed days from deposit. The fee can accrue strictly after the deadline. Set `sequo.relay.storage-fee-after` to an ISO-8601 duration to change the deadline for new deposits. Existing deposits without a recorded deadline are excluded from assessment.
+
+The assessment body accepts `relayPointId`, `dailyFeeCfa`, and optional `evaluatedAt` (defaults to the current time). Use an approved daily rate. A zero rate posts nothing. The first positive assessment records the parcel rate for later assessments. Replays post no ledger delta.
+
+Review becomes due at 30 elapsed days from deposit. Set `sequo.relay.review-after` to override the review duration. Set `RELAY_DELAYED_PARCEL_SCHEDULER_ENABLED=true` to run periodic review scans. The default interval is one hour. An authorized operator records a seller return separately.
+
 Release body:
 
 ```json

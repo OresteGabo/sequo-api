@@ -196,10 +196,21 @@ class RelayParcelServiceTest {
         val parcel = depositedParcel()
 
         val delayed = service.markDelayedIfNeeded(parcel, now.plusSeconds(15 * 24 * 60 * 60))
-        val returnReview = service.markDelayedIfNeeded(parcel, now.plusSeconds(29 * 24 * 60 * 60))
+        val returnReview = service.markDelayedIfNeeded(parcel, now.plusSeconds(30 * 24 * 60 * 60))
 
         assertEquals(RelayParcelStatus.Delayed, delayed.status)
         assertEquals(RelayParcelStatus.ReturnToSellerReview, returnReview.status)
+        assertEquals(returnReview, service.markDelayedIfNeeded(returnReview, now.plusSeconds(29 * 24 * 60 * 60)))
+        val returned = returnReview.copy(status = RelayParcelStatus.ReturnedToSeller)
+        assertEquals(returned, service.markDelayedIfNeeded(returned, now.plusSeconds(31 * 24 * 60 * 60)))
+    }
+
+    @Test
+    fun reviewStatusStillAllowsValidatedPickup() {
+        val parcel = depositedParcel().copy(status = RelayParcelStatus.ReturnToSellerReview)
+        val released = service.verifyPickup(verificationCommand(parcel, pickupCode(parcel), identityDocumentMatched = true))
+        assertTrue(released is RelayParcelServiceResult.Accepted)
+        assertEquals(RelayParcelStatus.PickedUp, released.value.parcel.status)
     }
 
     private fun depositedParcel(): RelayParcel =

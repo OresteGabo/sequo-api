@@ -48,7 +48,7 @@ class RelayDelayNotificationTest @Autowired constructor(
         assertTrue(requireNotNull(delayedEvent.payload).contains("relay-delay-notification"))
         assertEquals(1, outbox.findAll().count { it.aggregateId == "parcel-delay-notification-1" })
 
-        relayParcels.evaluateDelayed("relay-delay-notification", now.plusSeconds(14 * 24 * 60 * 60))
+        relayParcels.evaluateDelayed("relay-delay-notification", now.plusSeconds(30 * 24 * 60 * 60))
 
         val reviewEvent = outbox.findByEventId("parcel-delay-notification-1:relay-delay:ReturnToSellerReview")
         assertNotNull(reviewEvent)

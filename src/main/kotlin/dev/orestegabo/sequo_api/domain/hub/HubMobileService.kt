@@ -564,7 +564,7 @@ class HubMobileService(
             identityVerificationRequired = code.identityCheckRequired,
             feeDueCfa = storageFees.findByRelayParcelId(parcel.id)?.totalFeeCfa ?: 0,
             blockingReason = when {
-                parcel.status != RelayParcelStatus.Deposited -> "parcel_not_releasable"
+                !parcel.status.awaitingPickup -> "parcel_not_releasable"
                 code.usedAt != null -> "credential_already_used"
                 !now.isBefore(code.expiresAt) -> "credential_expired"
                 else -> null

@@ -17,8 +17,8 @@ enum class RelayParcelCustodyAction {
 }
 
 data class RelayParcelPolicyConfig(
-    val storageFeeAfter: Duration = Duration.ofDays(14),
-    val returnToSellerReviewAfter: Duration = Duration.ofDays(28),
+    val storageFeeAfter: Duration = Duration.ofDays(8),
+    val returnToSellerReviewAfter: Duration = Duration.ofDays(30),
 ) {
     init {
         require(!storageFeeAfter.isNegative && !storageFeeAfter.isZero) {
@@ -39,6 +39,7 @@ data class RelayParcelCustodyInput(
     val evaluatedAt: Instant,
     val pickedUpAt: Instant? = null,
     val collectedAt: Instant? = null,
+    val feeStartsAt: Instant? = null,
 ) {
     init {
         require(!evaluatedAt.isBefore(depositedAt)) {
@@ -58,6 +59,11 @@ data class RelayParcelCustodyDecision(
 class RelayParcelPolicy(
     private val config: RelayParcelPolicyConfig = RelayParcelPolicyConfig(),
 ) {
+    fun storageFeeStartsAt(depositedAt: Instant): Instant = depositedAt.plus(config.storageFeeAfter)
+
+    fun reviewDue(depositedAt: Instant, evaluatedAt: Instant): Boolean =
+        !evaluatedAt.isBefore(depositedAt.plus(config.returnToSellerReviewAfter))
+
     fun relayPickupAllowed(category: RelayParcelCategory): Boolean =
         category != RelayParcelCategory.Food && category != RelayParcelCategory.Perishable
 
@@ -73,23 +79,23 @@ class RelayParcelPolicy(
             )
         }
 
-        val age = Duration.between(input.depositedAt, input.evaluatedAt)
+        val feeEligible = input.evaluatedAt.isAfter(input.feeStartsAt ?: storageFeeStartsAt(input.depositedAt))
         return when {
-            age >= config.returnToSellerReviewAfter ->
+            reviewDue(input.depositedAt, input.evaluatedAt) ->
                 RelayParcelCustodyDecision(
                     relayPickupAllowed = pickupAllowed,
                     action = RelayParcelCustodyAction.ReturnToSellerReviewDue,
-                    storageFeeEligible = true,
+                    storageFeeEligible = feeEligible,
                     returnToSellerReviewDue = true,
                     reason = "Parcel reached the return-to-seller review threshold.",
                 )
-            age >= config.storageFeeAfter ->
+            feeEligible ->
                 RelayParcelCustodyDecision(
                     relayPickupAllowed = pickupAllowed,
                     action = RelayParcelCustodyAction.StorageFeeEligible,
                     storageFeeEligible = true,
                     returnToSellerReviewDue = false,
-                    reason = "Parcel reached the delayed storage-fee threshold.",
+                    reason = "Parcel exceeded the storage-fee threshold.",
                 )
             else ->
                 RelayParcelCustodyDecision(

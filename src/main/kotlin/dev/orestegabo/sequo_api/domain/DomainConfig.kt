@@ -6,6 +6,8 @@ import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentWorkflow
 import dev.orestegabo.sequo_api.domain.payment.*
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingSettingsRepository
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
+import java.time.Duration
+import dev.orestegabo.sequo_api.domain.relay.RelayParcelPolicyConfig
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelPolicy
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -28,7 +30,18 @@ class DomainConfig {
     fun deliveryMissionWorkflow() = DeliveryMissionWorkflow()
 
     @Bean
-    fun relayParcelPolicy() = RelayParcelPolicy()
+    fun relayParcelPolicy(
+        @Value("\${sequo.relay.storage-fee-after:}") storageFeeAfter: String,
+        @Value("\${sequo.relay.review-after:}") reviewAfter: String,
+    ): RelayParcelPolicy {
+        val defaults = RelayParcelPolicyConfig()
+        return RelayParcelPolicy(
+            RelayParcelPolicyConfig(
+                storageFeeAfter = storageFeeAfter.takeIf { it.isNotBlank() }?.let(Duration::parse) ?: defaults.storageFeeAfter,
+                returnToSellerReviewAfter = reviewAfter.takeIf { it.isNotBlank() }?.let(Duration::parse) ?: defaults.returnToSellerReviewAfter,
+            )
+        )
+    }
 
     @Bean
     fun paymentProcessor(

@@ -13,7 +13,10 @@ enum class RelayParcelStatus {
     Delayed,
     ReturnToSellerReview,
     ReturnedToSeller,
-    Problem,
+    Problem;
+
+    val awaitingPickup: Boolean
+        get() = this == Deposited || this == Delayed || this == ReturnToSellerReview
 }
 
 enum class RelayCustodyEventType {
@@ -53,6 +56,7 @@ data class RelayParcel(
     val custodyEvents: List<RelayCustodyEvent> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
+    val feeStartsAt: Instant? = null,
 ) {
     init {
         require(id.isNotBlank()) { "id is required." }
@@ -189,6 +193,7 @@ class RelayParcelService(
                     depositCode = command.depositCode,
                     status = RelayParcelStatus.Deposited,
                     depositedAt = command.createdAt,
+                    feeStartsAt = policy.storageFeeStartsAt(command.createdAt),
                     custodyEvents = listOf(event),
                     createdAt = command.createdAt,
                     updatedAt = command.createdAt,
@@ -209,7 +214,7 @@ class RelayParcelService(
         if (!command.expiresAt.isAfter(command.createdAt)) {
             return rejected("invalid_pickup_expiry", "Pickup credential expiry must be after creation.")
         }
-        if (command.parcel.status != RelayParcelStatus.Deposited) {
+        if (!command.parcel.status.awaitingPickup) {
             return rejected("parcel_not_deposited", "Pickup credentials require a deposited relay parcel.")
         }
 
@@ -247,7 +252,7 @@ class RelayParcelService(
         if (command.pickupCode.relayParcelId != command.parcel.id) {
             return rejectedWithAttempt("pickup_code_parcel_mismatch", "Pickup code belongs to another parcel.", command)
         }
-        if (command.parcel.status != RelayParcelStatus.Deposited) {
+        if (!command.parcel.status.awaitingPickup) {
             return rejected("parcel_not_releasable", "Only deposited parcels can be released to customer pickup.")
         }
         if (command.pickupCode.usedAt != null) {
@@ -291,8 +296,15 @@ class RelayParcelService(
         )
     }
 
+    fun canReturnToSeller(parcel: RelayParcel, evaluatedAt: Instant): Boolean {
+        val depositedAt = parcel.depositedAt ?: return false
+        return parcel.status.awaitingPickup && parcel.pickedUpAt == null && parcel.collectedAt == null &&
+            policy.reviewDue(depositedAt, evaluatedAt)
+    }
+
     fun markDelayedIfNeeded(parcel: RelayParcel, evaluatedAt: Instant): RelayParcel {
         val depositedAt = parcel.depositedAt ?: return parcel
+        if (!parcel.status.awaitingPickup || evaluatedAt.isBefore(depositedAt)) return parcel
         val decision = policy.evaluateCustody(
             RelayParcelCustodyInput(
                 category = parcel.category,
@@ -300,12 +312,15 @@ class RelayParcelService(
                 evaluatedAt = evaluatedAt,
                 pickedUpAt = parcel.pickedUpAt,
                 collectedAt = parcel.collectedAt,
+                feeStartsAt = parcel.feeStartsAt,
             )
         )
 
         return when (decision.action) {
             RelayParcelCustodyAction.StorageFeeEligible ->
-                parcel.copy(status = RelayParcelStatus.Delayed, updatedAt = evaluatedAt)
+                if (parcel.status == RelayParcelStatus.Deposited) {
+                    parcel.copy(status = RelayParcelStatus.Delayed, updatedAt = evaluatedAt)
+                } else parcel
             RelayParcelCustodyAction.ReturnToSellerReviewDue ->
                 parcel.copy(status = RelayParcelStatus.ReturnToSellerReview, updatedAt = evaluatedAt)
             RelayParcelCustodyAction.Active,

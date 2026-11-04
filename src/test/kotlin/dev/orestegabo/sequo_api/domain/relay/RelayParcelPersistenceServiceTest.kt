@@ -126,7 +126,7 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
             createCommand(
                 parcelId = "parcel-delayed-all-2",
                 depositCode = "deposit-delayed-all-2",
-                createdAt = now.minusSeconds(29 * 24 * 60 * 60),
+                createdAt = now.minusSeconds(30 * 24 * 60 * 60),
             ).copy(
                 relayPointId = "relay-persistence-2",
                 availableLockers = listOf(RelayLocker("locker-persistence-2", "relay-persistence-2", active = true, occupied = false)),
@@ -149,13 +149,22 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
             createCommand(
                 parcelId = "parcel-return-review-1",
                 depositCode = "deposit-return-review-1",
-                createdAt = now.minusSeconds(29 * 24 * 60 * 60),
+                createdAt = now.minusSeconds(30 * 24 * 60 * 60),
             )
         )
-        application.evaluateDelayed("relay-persistence-1", now)
         val actorId = requireNotNull(
             userRepository.save(User(email = "admin-returns@sequo.test", provider = AuthProvider.EMAIL)).id
         )
+
+        val early = application.returnToSeller(
+            parcelId = "parcel-return-review-1",
+            actorUserId = actorId,
+            eventId = "return-dropoff-1",
+            idempotencyKey = "return-review-1",
+            metadata = "Seller received the parcel.",
+            returnedAt = now.minusNanos(1),
+        )
+        assertTrue(early is RelayParcelServiceResult.Rejected)
 
         val first = application.returnToSeller(
             parcelId = "parcel-return-review-1",
@@ -163,7 +172,7 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
             eventId = "return-dropoff-1",
             idempotencyKey = "return-review-1",
             metadata = "Seller received the parcel.",
-            returnedAt = now.plusSeconds(60),
+            returnedAt = now,
         )
         val replay = application.returnToSeller(
             parcelId = "parcel-return-review-1",
@@ -187,13 +196,14 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
             createCommand(
                 parcelId = "parcel-storage-fee-1",
                 depositCode = "deposit-storage-fee-1",
-                createdAt = now.minusSeconds(16 * 24 * 60 * 60),
+                createdAt = now.minusSeconds(10 * 24 * 60 * 60),
             )
         )
 
         val first = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 250, evaluatedAt = now)
         val repeated = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 250, evaluatedAt = now)
-        val nextDay = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 250, evaluatedAt = now.plusSeconds(24 * 60 * 60))
+        val nextDay = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 999, evaluatedAt = now.plusSeconds(24 * 60 * 60))
+        val stale = application.assessStorageFees("relay-persistence-1", dailyFeeCfa = 999, evaluatedAt = now)
         val ledgerEntries = settlements.listLedgerEntries(SettlementSourceType.RelayParcel, "parcel-storage-fee-1")
 
         assertEquals(1, first.size)
@@ -205,7 +215,32 @@ class RelayParcelPersistenceServiceTest @Autowired constructor(
         assertEquals(3, nextDay.single().chargeableDays)
         assertEquals(750, nextDay.single().totalFeeCfa)
         assertEquals(250, nextDay.single().lastIncrementCfa)
+        assertEquals(250, nextDay.single().dailyFeeCfa)
+        assertEquals(nextDay.single().copy(lastIncrementCfa = 0), stale.single())
+        assertEquals(nextDay, application.listStorageFeeAssessments("relay-persistence-1"))
         assertEquals(listOf(500, 250), ledgerEntries.map { it.amountCfa })
+    }
+
+    @Test
+    fun skipsExistingDepositsWithoutAnApprovedFeeDeadline() {
+        val accepted = RelayParcelService().createParcel(
+            createCommand(createdAt = now.minusSeconds(35 * 24 * 60 * 60))
+        ) as RelayParcelServiceResult.Accepted
+        persistence.save(accepted.value.parcel.copy(feeStartsAt = null))
+
+        val historicalFee = RelayStorageFeeService().calculate(
+            RelayStorageFeeRequest(
+                depositedAt = requireNotNull(accepted.value.parcel.depositedAt),
+                evaluatedAt = now.minusSeconds(24 * 60 * 60),
+                dailyFeeCfa = 250,
+                policy = RelayParcelPolicyConfig(storageFeeAfter = java.time.Duration.ofDays(14)),
+            )
+        )
+        val (historicalAssessment) = persistence.saveStorageFeeAssessment(accepted.value.parcel, historicalFee, now)
+        assertTrue(application.assessStorageFees("relay-persistence-1", 250, now).isEmpty())
+        assertEquals(listOf(historicalAssessment), application.listStorageFeeAssessments("relay-persistence-1"))
+        assertTrue(settlements.listLedgerEntries(SettlementSourceType.RelayParcel, accepted.value.parcel.id).isEmpty())
+        assertEquals(RelayParcelStatus.ReturnToSellerReview, application.evaluateDelayed("relay-persistence-1", now).single().status)
     }
 
     private fun createCommand(

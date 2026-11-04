@@ -143,6 +143,7 @@ class RelayParcelController(
         @PathVariable parcelId: String,
         @RequestBody request: ReturnToSellerRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) { authenticated ->
+        require(!request.returnedAt.isAfter(Instant.now())) { "returnedAt cannot be in the future." }
         service.returnToSeller(
             parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             actorUserId = authenticated.name,
@@ -158,6 +159,7 @@ class RelayParcelController(
         authentication: Authentication?,
         @RequestBody request: StorageFeeAssessmentRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) {
+        require(!request.evaluatedAt.isAfter(Instant.now())) { "evaluatedAt cannot be in the future." }
         require(request.dailyFeeCfa in 0..100_000) { "dailyFeeCfa must be between 0 and 100000." }
         ResponseEntity.ok(service.assessStorageFees(ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"), request.dailyFeeCfa, request.evaluatedAt))
     }

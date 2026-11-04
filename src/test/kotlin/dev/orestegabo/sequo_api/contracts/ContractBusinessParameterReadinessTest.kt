@@ -174,7 +174,7 @@ class ContractBusinessParameterReadinessTest {
         val storage = RelayStorageFeeService().calculate(
             RelayStorageFeeRequest(
                 depositedAt = depositedAt,
-                evaluatedAt = depositedAt.plus(Duration.ofDays(17)),
+                evaluatedAt = depositedAt.plus(Duration.ofDays(11)),
                 dailyFeeCfa = 250,
             )
         )
@@ -182,7 +182,7 @@ class ContractBusinessParameterReadinessTest {
             RelayParcelCustodyInput(
                 category = RelayParcelCategory.GeneralGoods,
                 depositedAt = depositedAt,
-                evaluatedAt = depositedAt.plus(Duration.ofDays(14)),
+                evaluatedAt = depositedAt.plus(Duration.ofDays(8)).plusSeconds(1),
             )
         )
 
