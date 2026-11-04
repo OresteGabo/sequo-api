@@ -264,11 +264,32 @@ class MerchantCatalogHttpTest @Autowired constructor(
             kotlin.test.assertTrue(rejected.body().contains(message), rejected.body())
         }
 
+        val user = users.save(User(email = "options-cart@sequo.test", provider = AuthProvider.EMAIL, status = UserStatus.ACTIVE))
+        val customer = jwt.generateAccessToken(UserSession(requireNotNull(user.id), user.email, AuthProvider.EMAIL))
+        fun saveCart(selections: String) = request("PUT", "/api/cart/items", customer,
+            """{"productId":"$id","quantity":2,"selections":$selections,"unitPriceCfa":1}""")
+        fun side(optionId: String) = """[{"groupId":"$groupId","optionIds":["$optionId"]}]"""
+        for (selection in listOf("[]", side("unknown"), side(salad))) {
+            val rejected = saveCart(selection)
+            assertEquals(400, rejected.statusCode(), rejected.body())
+        }
+        val emptyCart = request("GET", "/api/cart", customer)
+        assertEquals(0, json.readTree(emptyCart.body()).path("totalItems").asInt())
+        val added = saveCart(side(plantain))
+        assertEquals(200, added.statusCode(), added.body())
+        val line = json.readTree(added.body()).path("items").single()
+        assertEquals(5000, line.path("lineTotalCfa").asInt())
+        assertEquals(json.readTree(side(plantain)), line.path("selections"))
+        assertEquals(line.path("id"), json.readTree(saveCart(side(plantain)).body()).path("items").single().path("id"))
+
         val edit = """{"groups":[{"id":"$groupId","name":"Side","minChoices":1,"maxChoices":1,"options":[{"id":"$plantain","name":"Plantain","priceDeltaCfa":650},{"id":"$salad","name":"Salad","priceDeltaCfa":200,"active":false}]}]}"""
         val saved = request("PUT", "$merchantPath?merchantId=$merchant", owner, edit)
         assertEquals(200, saved.statusCode(), saved.body())
         assertEquals(groupId, json.readTree(saved.body()).single().get("id").asText())
         assertEquals(2650, json.readTree(quote("""["$plantain"]""").body()).get("unitPriceCfa").asInt())
+        val restored = request("GET", "/api/cart", customer)
+        assertEquals(200, restored.statusCode(), restored.body())
+        assertEquals(5300, json.readTree(restored.body()).path("items").single().path("lineTotalCfa").asInt())
     }
 
     @Test
