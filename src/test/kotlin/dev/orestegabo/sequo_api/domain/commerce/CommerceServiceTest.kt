@@ -10,6 +10,14 @@ import dev.orestegabo.sequo_api.domain.catalog.ProductMediaModerationStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductMediaSource
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
+import dev.orestegabo.sequo_api.domain.platform.CustomerAddressKind
+import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRecord
+import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRepository
+import dev.orestegabo.sequo_api.domain.platform.PlatformCommerceService
+import dev.orestegabo.sequo_api.domain.platform.ProductCustomizationGroupRequest
+import dev.orestegabo.sequo_api.domain.platform.ProductCustomizationOptionRequest
+import dev.orestegabo.sequo_api.domain.platform.ReplaceProductCustomizationsRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.springframework.beans.factory.annotation.Autowired
@@ -24,6 +32,7 @@ import kotlin.test.assertFailsWith
         "spring.datasource.url=jdbc:h2:mem:commerce_service;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.flyway.enabled=false",
+        "sequo.cart.straight-line-dispatch-origin=0,0",
         "sequo.catalog.approved-generic-image-url=https://cdn.sequo.example/catalog/rice.webp",
     ]
 )
@@ -36,6 +45,9 @@ class CommerceServiceTest @Autowired constructor(
     private val storefronts: MerchantStorefrontRepository,
     private val promotions: CatalogPromotionRepository,
     private val users: UserRepository,
+    private val addresses: CustomerAddressRepository,
+    private val quotes: CartDeliveryQuoteService,
+    private val platformCommerce: PlatformCommerceService,
 ) {
     @Test
     fun homeReturnsGeneralCatalogDataFromDatabase() {
@@ -59,6 +71,59 @@ class CommerceServiceTest @Autowired constructor(
         assertEquals(3, cart.totalItems)
         assertEquals(6000, cart.subtotalCfa)
         assertEquals(0, service.clearCart(userId).totalItems)
+    }
+
+    @Test
+    fun cartRestoresVariantsRepricesAndQuotesOnlyAvailableLinesForOwnedAddresses() {
+        seedCatalog()
+        val customer = createCustomer()
+        val other = createCustomer("other-cart@sequo.test")
+        val group = platformCommerce.replaceCustomizations(
+            "test-product", ReplaceProductCustomizationsRequest(listOf(
+                ProductCustomizationGroupRequest("Side", 1, 1, options = listOf(
+                    ProductCustomizationOptionRequest("Plantain", 500),
+                    ProductCustomizationOptionRequest("Salad", 200),
+                )),
+            )), "merchant-test",
+        ).single()
+        fun variant(option: Int, quantity: Int) = UpsertCartItemRequest(
+            "test-product", quantity, listOf(FoodCustomizationSelection(group.id, setOf(group.options[option].id))),
+        )
+        service.putCartItem(customer, variant(0, 1))
+        service.putCartItem(customer, variant(1, 1))
+        service.putCartItem(customer, UpsertCartItemRequest("bargain-product", 1))
+        service.putCartItem(customer, variant(0, 2))
+        val restored = service.cart(customer)
+        assertEquals(3, restored.items.size)
+        assertEquals(4, restored.totalItems)
+        assertEquals(9700, restored.subtotalCfa)
+        assertEquals(0, service.cart(other).totalItems)
+
+        for ((meters, fee) in listOf(4999 to 400, 5000 to 400, 5001 to 500)) {
+            val id = "cart-address-$meters"
+            addresses.save(CustomerAddressRecord(
+                id, customer, CustomerAddressKind.HOME, "Home", "Fixture", "+22890000000",
+                "Lomé", latitude = 0.0, longitude = Math.toDegrees(meters / 6_371_000.0),
+            ))
+            val quote = quotes.quote(customer, id)
+            assertEquals(meters, quote.distanceMeters)
+            assertEquals(fee, quote.deliveryFeeCfa)
+            assertEquals(8500, quote.productTotalCfa)
+            assertEquals(1200, quote.optionTotalCfa)
+            assertEquals(9700 + fee, quote.totalCfa)
+        }
+
+        products.findById("test-product").orElseThrow().basePriceCfa = 2100
+        assertEquals(10000, service.cart(customer).subtotalCfa)
+        products.findById("bargain-product").orElseThrow().status = CatalogProductStatus.INACTIVE
+        val unavailable = service.cart(customer).items.single { it.product.id == "bargain-product" }
+        assertEquals(false, unavailable.available)
+        assertEquals(null, unavailable.lineTotalCfa)
+        service.removeCartItem(other, unavailable.id)
+        assertFailsWith<IllegalArgumentException> { quotes.quote(customer, "cart-address-5000") }
+        service.removeCartItem(customer, unavailable.id)
+        assertEquals(7900, quotes.quote(customer, "cart-address-5000").totalCfa)
+        assertFailsWith<IllegalArgumentException> { quotes.quote(other, "cart-address-5000") }
     }
 
     @Test

@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.api.ApiErrorResponse
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
@@ -11,9 +12,11 @@ import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductMediaModerationStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductMediaSource
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import dev.orestegabo.sequo_api.domain.platform.PlatformCommerceService
 import dev.orestegabo.sequo_api.domain.platform.ProductCustomizationGroupDto
+import dev.orestegabo.sequo_api.domain.platform.QuoteProductCustomizationsRequest
 import dev.orestegabo.sequo_api.domain.platform.ReplaceProductCustomizationsRequest
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import jakarta.persistence.Column
@@ -43,6 +46,7 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -57,6 +61,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 import java.net.URI
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 
@@ -122,6 +127,8 @@ class CustomerCartItemRecord(
     @JoinColumn(name = "product_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_cart_items_product"))
     val product: ProductRecord? = null,
     @Column(nullable = false) var quantity: Int,
+    @Column(name = "configuration_key", nullable = false, length = 64) val configurationKey: String = "",
+    @Column(name = "selections_json", nullable = false, columnDefinition = "text") val selectionsJson: String = "[]",
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.now(),
     @Column(nullable = false) var version: Long = 0,
@@ -228,7 +235,9 @@ interface CatalogPromotionRepository : JpaRepository<CatalogPromotionRecord, Str
 interface CustomerCartItemRepository : JpaRepository<CustomerCartItemRecord, String> {
     fun findByUserIdOrderByUpdatedAtDesc(userId: String): List<CustomerCartItemRecord>
     fun findByIdAndUserId(id: String, userId: String): CustomerCartItemRecord?
-    fun findByUserIdAndProductId(userId: String, productId: String): CustomerCartItemRecord?
+    fun findByUserIdAndProductIdAndConfigurationKey(
+        userId: String, productId: String, configurationKey: String,
+    ): CustomerCartItemRecord?
     fun deleteByUserId(userId: String): Long
 }
 
@@ -296,8 +305,21 @@ data class CatalogPromotionDto(
 )
 
 data class CommerceCartDto(val items: List<CommerceCartItemDto>, val totalItems: Int, val subtotalCfa: Int)
-data class CommerceCartItemDto(val id: String, val product: CatalogProductDto, val quantity: Int, val lineTotalCfa: Int)
-data class UpsertCartItemRequest(val productId: String, val quantity: Int)
+data class CommerceCartItemDto(
+    val id: String,
+    val product: CatalogProductDto,
+    val quantity: Int,
+    val lineTotalCfa: Int?,
+    val selections: List<FoodCustomizationSelection>,
+    val productTotalCfa: Int?,
+    val optionTotalCfa: Int?,
+    val available: Boolean,
+)
+data class UpsertCartItemRequest(
+    val productId: String,
+    val quantity: Int,
+    val selections: List<FoodCustomizationSelection>? = null,
+)
 
 data class ManageCatalogProductRequest(
     val merchantId: String? = null,
@@ -729,28 +751,54 @@ class CommerceService(
         return product
     }
 
-    @Transactional(readOnly = true)
+    private val cartSelectionsMapper = ObjectMapper()
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     fun cart(userId: String): CommerceCartDto {
-        val items = cartItems.findByUserIdOrderByUpdatedAtDesc(userId).mapNotNull { item ->
+        val records = cartItems.findByUserIdOrderByUpdatedAtDesc(userId)
+        val menus = platformCommerce.customizationsByProduct(records.map { it.productId }.distinct())
+        val items = records.mapNotNull { item ->
             val product = item.product ?: products.findById(item.productId).orElse(null) ?: return@mapNotNull null
+            val selections = cartSelectionsMapper.readTree(item.selectionsJson).map { selection ->
+                FoodCustomizationSelection(selection["groupId"].asText(), selection["optionIds"].map { it.asText() }.toSet())
+            }
+            val price = try {
+                platformCommerce.quoteCustomizations(product.id, QuoteProductCustomizationsRequest(selections))
+                    .takeIf { it.unitPriceCfa.toLong() * item.quantity <= Int.MAX_VALUE }
+            } catch (_: IllegalArgumentException) {
+                null
+            }
             CommerceCartItemDto(
                 id = item.id,
-                product = product.toDto(showConfiguredBargaining = false),
+                product = product.toDto(showConfiguredBargaining = false)
+                    .copy(customizations = menus[product.id].orEmpty().filter { it.active }),
                 quantity = item.quantity,
-                lineTotalCfa = (product.basePriceCfa ?: 0) * item.quantity,
+                lineTotalCfa = price?.unitPriceCfa?.times(item.quantity),
+                selections = selections,
+                productTotalCfa = price?.basePriceCfa?.times(item.quantity),
+                optionTotalCfa = price?.optionPriceCfa?.times(item.quantity),
+                available = price != null,
             )
         }
-        return CommerceCartDto(items, items.sumOf { it.quantity }, items.sumOf { it.lineTotalCfa })
+        val subtotal = items.sumOf { (it.lineTotalCfa ?: 0).toLong() }
+        require(subtotal <= Int.MAX_VALUE) { "Cart subtotal is too large." }
+        return CommerceCartDto(items, items.sumOf { it.quantity }, subtotal.toInt())
     }
 
     @Transactional
     fun putCartItem(userId: String, request: UpsertCartItemRequest): CommerceCartDto {
         val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
         require(request.quantity in 1..99) { "quantity must be between 1 and 99." }
-        products.findByIdAndStatus(productId, CatalogProductStatus.ACTIVE)
-            ?: throw IllegalArgumentException("productId does not reference an active product.")
+        requireNotNull(products.lockForCustomization(productId)) { "Product is unavailable." }
+        val selections = request.selections.orEmpty().sortedBy { it.groupId }
+            .map { it.copy(optionIds = it.optionIds.toSortedSet()) }
+        val price = platformCommerce.quoteCustomizations(productId, QuoteProductCustomizationsRequest(selections))
+        require(price.unitPriceCfa.toLong() * request.quantity <= Int.MAX_VALUE) { "Cart line total is too large." }
+        val json = cartSelectionsMapper.writeValueAsString(selections)
+        val configurationKey = if (selections.isEmpty()) "" else
+            MessageDigest.getInstance("SHA-256").digest(json.toByteArray()).toHexString()
 
-        cartItems.findByUserIdAndProductId(userId, productId)?.also {
+        cartItems.findByUserIdAndProductIdAndConfigurationKey(userId, productId, configurationKey)?.also {
             it.quantity = request.quantity
             it.updatedAt = Instant.now()
         } ?: cartItems.save(
@@ -759,6 +807,8 @@ class CommerceService(
                 userId = userId,
                 productId = productId,
                 quantity = request.quantity,
+                configurationKey = configurationKey,
+                selectionsJson = json,
             )
         )
         return cart(userId)
@@ -1077,7 +1127,7 @@ private fun merchantCatalogAccess(
 
 private fun ok(block: () -> Any): ResponseEntity<Any> = ResponseEntity.ok(block())
 
-private fun authenticated(userId: String?, block: (String) -> Any): ResponseEntity<Any> {
+internal fun authenticated(userId: String?, block: (String) -> Any): ResponseEntity<Any> {
     if (userId == null) return ResponseEntity.status(401).build()
     return ok { block(userId) }
 }

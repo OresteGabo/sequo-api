@@ -5,6 +5,12 @@ import dev.orestegabo.sequo_api.domain.auth.AuthProvider
 import dev.orestegabo.sequo_api.domain.auth.JwtService
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.UserSession
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.auth.UserRepository
+import dev.orestegabo.sequo_api.domain.auth.UserStatus
+import dev.orestegabo.sequo_api.domain.platform.CustomerAddressKind
+import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRecord
+import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRepository
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import java.net.URI
@@ -24,6 +30,7 @@ import org.springframework.boot.test.web.server.LocalServerPort
         "spring.datasource.url=jdbc:h2:mem:merchant_catalog_http;DB_CLOSE_DELAY=-1",
         "sequo.catalog.approved-generic-image-url=https://cdn.sequo.example/catalog/standard.jpg",
         "spring.servlet.multipart.max-file-size=8MB",
+        "sequo.cart.straight-line-dispatch-origin=0,0",
         "spring.servlet.multipart.max-request-size=9MB",
     ],
 )
@@ -32,6 +39,8 @@ class MerchantCatalogHttpTest @Autowired constructor(
     private val jwt: JwtService,
     private val storefronts: MerchantStorefrontRepository,
     private val products: CommerceProductRepository,
+    private val addresses: CustomerAddressRepository,
+    private val users: UserRepository,
 ) {
     @LocalServerPort
     private var port = 0
@@ -260,6 +269,31 @@ class MerchantCatalogHttpTest @Autowired constructor(
         assertEquals(200, saved.statusCode(), saved.body())
         assertEquals(groupId, json.readTree(saved.body()).single().get("id").asText())
         assertEquals(2650, json.readTree(quote("""["$plantain"]""").body()).get("unitPriceCfa").asInt())
+    }
+
+    @Test
+    fun cartQuoteUsesSavedDestinationAndCurrentPricesDespiteClientOverrides() {
+        val user = users.save(User(email = "cart-http@sequo.test", provider = AuthProvider.EMAIL, status = UserStatus.ACTIVE))
+        val userId = requireNotNull(user.id)
+        val customer = jwt.generateAccessToken(UserSession(userId, user.email, AuthProvider.EMAIL, setOf(RoleCode.CUSTOMER)))
+        val address = addresses.save(CustomerAddressRecord(
+            "cart-http-home", userId, CustomerAddressKind.HOME, "Home", "Fixture", "+22890000000",
+            "Lomé", latitude = 0.0, longitude = Math.toDegrees(5_001.0 / 6_371_000.0),
+        ))
+        products.save(ProductRecord(id = "cart-http-product", name = "Basket item", basePriceCfa = 2000))
+        val put = request("PUT", "/api/cart/items", customer,
+            """{"productId":"cart-http-product","quantity":2,"unitPriceCfa":1,"subtotalCfa":2}""")
+        assertEquals(200, put.statusCode(), put.body())
+        val path = "/api/cart/quote?addressId=${address.id}&distanceKm=0&totalCfa=1"
+        assertEquals(403, request("GET", path).statusCode())
+        assertEquals(400, request("GET", path, token("other-cart-http", RoleCode.CUSTOMER)).statusCode())
+        val quote = request("GET", path, customer)
+        assertEquals(200, quote.statusCode(), quote.body())
+        val quoteJson = json.readTree(quote.body())
+        assertEquals(5001, quoteJson.path("distanceMeters").asInt())
+        assertEquals(4000, quoteJson.path("productTotalCfa").asInt())
+        assertEquals(500, quoteJson.path("deliveryFeeCfa").asInt())
+        assertEquals(4500, quoteJson.path("totalCfa").asInt())
     }
 
     private fun upload(id: String, merchant: String, token: String, bytes: ByteArray, mime: String): HttpResponse<String> {

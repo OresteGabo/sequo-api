@@ -525,7 +525,7 @@ class PlatformCommerceService(
         return groups.groupBy({ it.productId }, { it.toDto(options[it.id].orEmpty()) })
     }
 
-    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, noRollbackFor = [IllegalArgumentException::class])
     fun quoteCustomizations(productId: String, request: QuoteProductCustomizationsRequest): ProductCustomizationQuote {
         val product = requireNotNull(products.findByIdAndStatus(
             ApiInputPolicy.requiredIdentifier(productId, "productId"), CatalogProductStatus.ACTIVE,
