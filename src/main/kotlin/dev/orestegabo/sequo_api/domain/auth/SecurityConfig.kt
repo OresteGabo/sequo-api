@@ -50,6 +50,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/email-codes").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/email-codes/verify").permitAll()
                     .requestMatchers("/api/admin-auth/mobile/**").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/catalog/products/*/customizations/quote").permitAll()
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/catalog/home",
@@ -57,6 +58,7 @@ class SecurityConfig(
                         "/api/catalog/merchants",
                         "/api/catalog/products",
                         "/api/catalog/products/*/related",
+                        "/api/catalog/products/*/image",
                         "/api/catalog/products/*/customizations",
                         "/api/subscriptions/plans",
                         "/api/payments/providers",

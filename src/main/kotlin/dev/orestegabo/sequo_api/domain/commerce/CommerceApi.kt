@@ -1,14 +1,20 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
+import dev.orestegabo.sequo_api.api.ApiErrorResponse
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
-import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
+import dev.orestegabo.sequo_api.domain.auth.merchantScopeIds
+import dev.orestegabo.sequo_api.domain.catalog.CatalogCameraMedia
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductMediaModerationStatus
 import dev.orestegabo.sequo_api.domain.catalog.ProductMediaSource
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
+import dev.orestegabo.sequo_api.domain.platform.PlatformCommerceService
+import dev.orestegabo.sequo_api.domain.platform.ProductCustomizationGroupDto
+import dev.orestegabo.sequo_api.domain.platform.ReplaceProductCustomizationsRequest
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -18,14 +24,20 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.LockModeType
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.CacheControl
+import org.springframework.http.MediaType
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.core.Authentication
@@ -33,6 +45,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -42,6 +55,8 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
+import java.net.URI
 import java.time.Instant
 import java.util.UUID
 
@@ -162,6 +177,14 @@ interface CommerceProductRepository : JpaRepository<ProductRecord, String> {
     fun findByStatusOrderBySortOrderAscCreatedAtDesc(status: CatalogProductStatus): List<ProductRecord>
     fun findByIdAndStatus(id: String, status: CatalogProductStatus): ProductRecord?
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from ProductRecord p where p.id = :id")
+    fun lockForCustomization(id: String): ProductRecord?
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select p from ProductRecord p where p.id = :id and p.status = dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus.ACTIVE")
+    fun findActiveForBargaining(id: String): ProductRecord?
+
     @Query(
         """
         select related
@@ -187,7 +210,11 @@ interface CommerceProductRepository : JpaRepository<ProductRecord, String> {
     fun findRelatedActiveProductsByCategory(targetId: String, pageable: Pageable): List<ProductRecord>
 }
 
-interface CommerceMerchantRepository : JpaRepository<MerchantRecord, String>
+interface CommerceMerchantRepository : JpaRepository<MerchantRecord, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from MerchantRecord m where m.id = :merchantId")
+    fun lockForCatalogCreate(merchantId: String): MerchantRecord?
+}
 
 interface MerchantStorefrontRepository : JpaRepository<MerchantStorefrontRecord, String> {
     fun findByActiveTrueOrderBySortOrderAsc(): List<MerchantStorefrontRecord>
@@ -255,6 +282,9 @@ data class CatalogProductDto(
     val bargainFloorCfa: Int?,
     val cameraVerified: Boolean,
     val capturedAtLabel: String?,
+    val photoRequired: Boolean = false,
+    val imageUrl: String? = null,
+    val customizations: List<ProductCustomizationGroupDto> = emptyList(),
 )
 
 data class CatalogPromotionDto(
@@ -272,19 +302,20 @@ data class UpsertCartItemRequest(val productId: String, val quantity: Int)
 data class ManageCatalogProductRequest(
     val merchantId: String? = null,
     val name: String,
-    val kind: CatalogProductKind = CatalogProductKind.SellerSpecific,
-    val status: CatalogProductStatus = CatalogProductStatus.ACTIVE,
+    val kind: CatalogProductKind? = null,
+    val status: CatalogProductStatus? = null,
     val category: String? = null,
     val subcategory: String? = null,
     val detail: String? = null,
     val basePriceCfa: Int? = null,
     val optionHint: String? = null,
     val originalPriceCfa: Int? = null,
-    val bargainingEnabled: Boolean = false,
+    val bargainingEnabled: Boolean? = null,
     val bargainFloorCfa: Int? = null,
-    val cameraVerified: Boolean = false,
+    val cameraVerified: Boolean? = null,
     val capturedAtLabel: String? = null,
-    val sortOrder: Int = 0,
+    val sortOrder: Int? = null,
+    val idempotencyKey: String? = null,
 )
 
 data class PatchCatalogProductRequest(
@@ -360,13 +391,17 @@ class CommerceService(
     private val cartItems: CustomerCartItemRepository,
     private val bargainingThreads: BargainingThreadRepository,
     private val bargainingOffers: BargainingOfferRepository,
+    private val cameraMedia: CatalogCameraMedia,
+    private val platformCommerce: PlatformCommerceService,
+    @Value("\${sequo.catalog.approved-generic-image-url:}") private val approvedGenericImageUrl: String,
 ) {
     @Transactional(readOnly = true)
     fun home(category: String? = null, subcategory: String? = null): CommerceHomeDto {
         val activeProducts = products.findByStatusOrderBySortOrderAscCreatedAtDesc(CatalogProductStatus.ACTIVE)
             .filter { category == null || it.category == category }
             .filter { subcategory == null || it.subcategory == subcategory }
-        val productsByMerchant = activeProducts.groupBy { it.merchantId }
+        val catalogProducts = catalogDtos(activeProducts, showConfiguredBargaining = false)
+        val productsByMerchant = catalogProducts.groupBy { it.merchantId }
         val merchantIds = activeProducts.mapNotNull { it.merchantId }.distinct()
         val storefrontDtos = if (merchantIds.isEmpty()) {
             emptyList()
@@ -381,7 +416,7 @@ class CommerceService(
         return CommerceHomeDto(
             categories = categories.findByActiveTrueOrderBySortOrderAsc().map { it.toDto() },
             merchants = storefrontDtos,
-            products = activeProducts.map { it.toDto() },
+            products = catalogProducts,
             promotions = promotions.findByActiveTrueOrderBySortOrderAsc()
                 .filter { promo -> activeProducts.any { it.id == promo.productId } }
                 .map { it.toDto() },
@@ -409,13 +444,13 @@ class CommerceService(
         } else {
             setOf(CatalogProductStatus.ACTIVE)
         }
-        return products.findAll()
+        val visible = products.findAll()
             .filter { it.status in allowedStatuses }
             .filter { category == null || it.category == category }
             .filter { subcategory == null || it.subcategory == subcategory }
             .filter { merchantId == null || it.merchantId == merchantId }
             .sortedWith(compareBy<ProductRecord> { it.sortOrder }.thenByDescending { it.createdAt })
-            .map { it.toDto() }
+        return catalogDtos(visible, showConfiguredBargaining = includeArchived)
     }
 
     @Transactional(readOnly = true)
@@ -424,13 +459,33 @@ class CommerceService(
         require(limit in 1..MAX_RELATED_PRODUCTS_LIMIT) {
             "limit must be between 1 and $MAX_RELATED_PRODUCTS_LIMIT."
         }
-        return products
-            .findRelatedActiveProductsByCategory(safeProductId, PageRequest.of(0, limit))
-            .map { it.toDto() }
+        return catalogDtos(products.findRelatedActiveProductsByCategory(safeProductId, PageRequest.of(0, limit)), false)
+    }
+
+    private fun catalogDtos(records: List<ProductRecord>, showConfiguredBargaining: Boolean): List<CatalogProductDto> {
+        val menus = platformCommerce.customizationsByProduct(records.map { it.id })
+        return records.map { record ->
+            val groups = menus[record.id].orEmpty()
+            record.toDto(showConfiguredBargaining).copy(
+                customizations = if (showConfiguredBargaining) groups else groups.filter { it.active }
+            )
+        }
     }
 
     @Transactional
-    fun createProduct(request: ManageCatalogProductRequest): CatalogProductDto {
+    fun createProduct(request: ManageCatalogProductRequest): CatalogProductDto =
+        saveNewProduct(
+            request,
+            UUID.randomUUID().toString(),
+            photoRequired = !request.merchantId.isNullOrBlank() &&
+                (request.kind ?: CatalogProductKind.SellerSpecific) == CatalogProductKind.SellerSpecific,
+        )
+
+    private fun saveNewProduct(
+        request: ManageCatalogProductRequest,
+        productId: String,
+        photoRequired: Boolean = false,
+    ): CatalogProductDto {
         val merchantId = ApiInputPolicy.optionalIdentifier(request.merchantId, "merchantId")
         merchantId?.let {
             require(merchants.existsById(it)) { "merchantId does not reference an existing merchant." }
@@ -441,28 +496,38 @@ class CommerceService(
         request.bargainFloorCfa?.let { require(it >= 0) { "bargainFloorCfa must be non-negative." } }
 
         val now = Instant.now()
-        return products.save(
-            ProductRecord(
-                id = UUID.randomUUID().toString(),
-                merchantId = merchantId,
-                name = ApiInputPolicy.requiredShortText(request.name, "name", 180),
-                kind = request.kind,
-                status = request.status,
-                category = ApiInputPolicy.optionalIdentifier(request.category, "category"),
-                subcategory = ApiInputPolicy.optionalShortText(request.subcategory, "subcategory", 128),
-                detail = ApiInputPolicy.optionalLongText(request.detail, "detail", 500),
-                basePriceCfa = price,
-                optionHint = ApiInputPolicy.optionalShortText(request.optionHint, "optionHint", 240),
-                originalPriceCfa = request.originalPriceCfa,
-                bargainingEnabled = request.bargainingEnabled,
-                bargainFloorCfa = request.bargainFloorCfa,
-                cameraVerified = request.cameraVerified,
-                capturedAtLabel = ApiInputPolicy.optionalShortText(request.capturedAtLabel, "capturedAtLabel", 120),
-                sortOrder = request.sortOrder,
-                createdAt = now,
-                updatedAt = now,
-            )
-        ).toDto()
+        val candidate = ProductRecord(
+            id = productId,
+            merchantId = merchantId,
+            name = ApiInputPolicy.requiredShortText(request.name, "name", 180),
+            kind = request.kind ?: CatalogProductKind.SellerSpecific,
+            status = when {
+                photoRequired && (request.status == null || request.status == CatalogProductStatus.ACTIVE) -> CatalogProductStatus.INACTIVE
+                else -> request.status ?: CatalogProductStatus.ACTIVE
+            },
+            photoRequired = photoRequired,
+            category = ApiInputPolicy.optionalIdentifier(request.category, "category"),
+            subcategory = ApiInputPolicy.optionalShortText(request.subcategory, "subcategory", 128),
+            detail = ApiInputPolicy.optionalLongText(request.detail, "detail", 500),
+            basePriceCfa = price,
+            optionHint = ApiInputPolicy.optionalShortText(request.optionHint, "optionHint", 240),
+            originalPriceCfa = request.originalPriceCfa,
+            bargainingEnabled = request.bargainingEnabled ?: false,
+            bargainFloorCfa = request.bargainFloorCfa,
+            cameraVerified = request.cameraVerified ?: false,
+            capturedAtLabel = ApiInputPolicy.optionalShortText(request.capturedAtLabel, "capturedAtLabel", 120),
+            sortOrder = request.sortOrder ?: 0,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val existing = products.findById(productId).orElse(null)
+        if (existing != null) {
+            if (existing.toDto() != candidate.toDto() || existing.sortOrder != candidate.sortOrder) {
+                throw MerchantCatalogCreateConflict()
+            }
+            return existing.toDto()
+        }
+        return products.save(candidate).toDto()
     }
 
     @Transactional
@@ -472,7 +537,12 @@ class CommerceService(
             IllegalArgumentException("productId does not reference an existing product.")
         }
         request.name?.let { product.name = ApiInputPolicy.requiredShortText(it, "name", 180) }
-        request.status?.let { product.status = it }
+        request.status?.let {
+            require(it != CatalogProductStatus.ACTIVE || !product.photoRequired || product.imageUrl != null) {
+                "Capture and upload a camera photo before publishing this product."
+            }
+            product.status = it
+        }
         request.category?.let { product.category = ApiInputPolicy.optionalIdentifier(it, "category") }
         request.subcategory?.let { product.subcategory = ApiInputPolicy.optionalShortText(it, "subcategory", 128) }
         request.detail?.let { product.detail = ApiInputPolicy.optionalLongText(it, "detail", 500) }
@@ -494,7 +564,7 @@ class CommerceService(
         request.capturedAtLabel?.let { product.capturedAtLabel = ApiInputPolicy.optionalShortText(it, "capturedAtLabel", 120) }
         request.sortOrder?.let { product.sortOrder = it }
         product.updatedAt = Instant.now()
-        return product.toDto()
+        return catalogDtos(listOf(product), true).single()
     }
 
     @Transactional
@@ -507,13 +577,19 @@ class CommerceService(
         require(request.merchantId == null || request.merchantId == safeMerchantId) {
             "merchantId must match the authenticated merchant scope."
         }
-        return createProduct(request.copy(merchantId = safeMerchantId))
+        val scopedRequest = request.copy(merchantId = safeMerchantId, cameraVerified = null, capturedAtLabel = null)
+        val photoRequired = (request.kind ?: CatalogProductKind.SellerSpecific) == CatalogProductKind.SellerSpecific
+        val key = request.idempotencyKey?.let { ApiInputPolicy.requiredIdempotencyKey(it) }
+            ?: return saveNewProduct(scopedRequest, UUID.randomUUID().toString(), photoRequired)
+        requireNotNull(merchants.lockForCatalogCreate(safeMerchantId)) { "merchantId does not reference an existing merchant." }
+        val productId = UUID.nameUUIDFromBytes("merchant-catalog:$safeMerchantId\u0000$key".toByteArray()).toString()
+        return saveNewProduct(scopedRequest, productId, photoRequired)
     }
 
     @Transactional
     fun updateMerchantProduct(merchantId: String, productId: String, request: PatchCatalogProductRequest): CatalogProductDto {
         requireMerchantProductOwnership(merchantId, productId)
-        return updateProduct(productId, request)
+        return updateProduct(productId, request.copy(cameraVerified = null, capturedAtLabel = null))
     }
 
     @Transactional
@@ -552,14 +628,11 @@ class CommerceService(
                 require(contentHash.startsWith("sha256:")) {
                     "contentHash must be a sha256 hash."
                 }
-                product.cameraVerified = false
-                product.capturedAtLabel = "Photo metadata received; binary upload storage pending."
-                product.updatedAt = now
                 MerchantProductPhotoStatusDto(
                     productId = product.id,
                     productKind = product.kind,
                     source = ProductMediaSource.LiveCamera,
-                    cameraVerified = product.cameraVerified,
+                    cameraVerified = false,
                     moderationStatus = ProductMediaModerationStatus.NeedsReview,
                     capturedAt = capturedAt,
                     catalogImageId = null,
@@ -575,13 +648,16 @@ class CommerceService(
                     "Generic catalog references are allowed only for generic sealed products."
                 }
                 val catalogImageId = ApiInputPolicy.requiredIdentifier(request.catalogImageId ?: "", "catalogImageId")
-                val sourceUrl = request.sourceUrl?.trim()
-                if (sourceUrl != null) {
-                    require(sourceUrl.startsWith("https://")) {
-                        "sourceUrl must use HTTPS."
-                    }
-                    ApiInputPolicy.optionalLongText(sourceUrl, "sourceUrl", 500)
+                val sourceUrl = approvedGenericImageUrl.trim()
+                val uri = runCatching { URI.create(sourceUrl) }.getOrNull()
+                require(catalogImageId == "standard" && sourceUrl.length <= 500 &&
+                    uri?.scheme == "https" && uri.host != null && uri.userInfo == null) {
+                    "No approved generic image matches this catalog reference."
                 }
+                require(request.sourceUrl == null || request.sourceUrl.trim() == sourceUrl) {
+                    "The generic image URL is managed by SEQUO."
+                }
+                product.imageUrl = sourceUrl
                 product.cameraVerified = false
                 product.capturedAtLabel = "Approved generic catalog image"
                 product.updatedAt = now
@@ -594,7 +670,7 @@ class CommerceService(
                     capturedAt = null,
                     catalogImageId = catalogImageId,
                     publicUrl = sourceUrl,
-                    storageReady = false,
+                    storageReady = true,
                     uploadRequired = false,
                     status = "GENERIC_REFERENCE_APPROVED",
                 )
@@ -603,6 +679,37 @@ class CommerceService(
             ProductMediaSource.GalleryUpload,
             ProductMediaSource.WebImage -> throw IllegalArgumentException("${request.source.name} is not accepted for merchant product photos.")
         }
+    }
+
+    @Transactional
+    fun uploadMerchantCameraPhoto(
+        merchantId: String,
+        productId: String,
+        file: MultipartFile,
+        capturedAt: Instant,
+        deviceId: String,
+    ): CatalogProductDto {
+        val product = merchantProduct(merchantId, productId)
+        require(product.kind == CatalogProductKind.SellerSpecific) { "This product uses generic catalog images." }
+        require(file.size in 1..(8L * 1024 * 1024)) { "Camera photos must be at most 8 MiB." }
+        require(!capturedAt.isBefore(Instant.now().minusSeconds(900))) { "Capture a new photo before uploading." }
+        val media = cameraMedia.upload(
+            product, file.originalFilename.orEmpty(), file.contentType.orEmpty(), file.bytes, capturedAt,
+            ApiInputPolicy.requiredIdentifier(deviceId, "deviceId"),
+        )
+        product.imageUrl = requireNotNull(media.publicUrl)
+        product.cameraVerified = true
+        product.capturedAtLabel = capturedAt.toString()
+        product.updatedAt = Instant.now()
+        return catalogDtos(listOf(product), true).single()
+    }
+
+    @Transactional(readOnly = true)
+    fun cameraPhoto(productId: String): ByteArray? {
+        val id = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        val product = products.findByIdAndStatus(id, CatalogProductStatus.ACTIVE) ?: return null
+        if (product.imageUrl != "/api/catalog/products/$id/image") return null
+        return cameraMedia.read(id)
     }
 
     @Transactional(readOnly = true)
@@ -628,7 +735,7 @@ class CommerceService(
             val product = item.product ?: products.findById(item.productId).orElse(null) ?: return@mapNotNull null
             CommerceCartItemDto(
                 id = item.id,
-                product = product.toDto(),
+                product = product.toDto(showConfiguredBargaining = false),
                 quantity = item.quantity,
                 lineTotalCfa = (product.basePriceCfa ?: 0) * item.quantity,
             )
@@ -674,10 +781,8 @@ class CommerceService(
     fun createBargainingThread(userId: String, request: CreateBargainingThreadRequest): BargainingThreadDto {
         val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
         require(request.amountCfa >= 0) { "amountCfa must be non-negative." }
-        val product = products.findByIdAndStatus(productId, CatalogProductStatus.ACTIVE)
-            ?: throw IllegalArgumentException("productId does not reference an active product.")
-        require(product.bargainingEnabled) { "This product does not accept bargaining." }
-        val merchantId = product.merchantId ?: throw IllegalArgumentException("Product has no merchant to bargain with.")
+        val product = requireBargainingProduct(productId)
+        val merchantId = requireNotNull(product.merchantId)
         product.bargainFloorCfa?.let { floor -> require(request.amountCfa >= floor) { "amountCfa is below the bargaining floor." } }
 
         val thread = bargainingThreads.save(
@@ -714,7 +819,10 @@ class CommerceService(
         val thread = bargainingThreads.findByIdAndCustomerId(safeThreadId, userId)
             ?: throw IllegalArgumentException("threadId does not reference one of this customer's bargaining threads.")
         require(thread.status == BargainingThreadStatus.OPEN) { "Bargaining thread is not open." }
-        request.amountCfa?.let { require(it >= 0) { "amountCfa must be non-negative." } }
+        request.amountCfa?.let {
+            require(it >= 0) { "amountCfa must be non-negative." }
+            requireBargainingProduct(thread.productId)
+        }
         require(request.amountCfa != null || !request.message.isNullOrBlank()) { "amountCfa or message is required." }
 
         val offerType = if (request.amountCfa == null) BargainingOfferType.MESSAGE else BargainingOfferType.OFFER
@@ -733,6 +841,12 @@ class CommerceService(
         return thread.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(thread.id))
     }
 
+    private fun requireBargainingProduct(productId: String): ProductRecord {
+        val product = products.findActiveForBargaining(productId)
+            ?: throw IllegalArgumentException("productId does not reference an active product.")
+        require(product.acceptsBargaining()) { "This product does not accept bargaining." }
+        return product
+    }
 }
 
 private const val MAX_RELATED_PRODUCTS_LIMIT = 6
@@ -774,12 +888,24 @@ class CatalogController(private val commerce: CommerceService) {
         @RequestParam(required = false) merchantId: String?,
         @RequestParam(defaultValue = "false") includeArchived: Boolean,
     ): ResponseEntity<Any> = ok {
+        val scope = ApiInputPolicy.optionalIdentifier(merchantId, "merchantId")
+        val canReadInactive = authentication != null && authentication.isLoggedIn() && (
+            authentication.hasAnyRole(RoleGroups.AdminOnly) ||
+                (scope != null && authentication.hasAnyRole(merchantCatalogRoles) && scope in authentication.merchantScopeIds())
+        )
         commerce.listProducts(
             ApiInputPolicy.optionalIdentifier(category, "category"),
             ApiInputPolicy.optionalShortText(subcategory, "subcategory"),
-            ApiInputPolicy.optionalIdentifier(merchantId, "merchantId"),
-            includeArchived && authentication.isLoggedIn(),
+            scope,
+            includeArchived && canReadInactive,
         )
+    }
+
+    @GetMapping("/products/{productId}/image", produces = [MediaType.IMAGE_JPEG_VALUE])
+    fun productImage(@PathVariable productId: String): ResponseEntity<ByteArray> {
+        val bytes = commerce.cameraPhoto(productId) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+            .header("X-Content-Type-Options", "nosniff").contentType(MediaType.IMAGE_JPEG).body(bytes)
     }
 
     @GetMapping("/products/{productId}/related")
@@ -789,21 +915,29 @@ class CatalogController(private val commerce: CommerceService) {
     ): ResponseEntity<Any> = ok { commerce.relatedProducts(productId, limit) }
 
     @PostMapping("/products")
-    fun createProduct(@RequestBody request: ManageCatalogProductRequest): ResponseEntity<Any> =
-        ok { commerce.createProduct(request) }
+    fun createProduct(authentication: Authentication?, @RequestBody request: ManageCatalogProductRequest): ResponseEntity<Any> =
+        adminCatalogAccess(authentication) { commerce.createProduct(request) }
 
     @PatchMapping("/products/{productId}")
-    fun updateProduct(@PathVariable productId: String, @RequestBody request: PatchCatalogProductRequest): ResponseEntity<Any> =
-        ok { commerce.updateProduct(productId, request) }
+    fun updateProduct(authentication: Authentication?, @PathVariable productId: String, @RequestBody request: PatchCatalogProductRequest): ResponseEntity<Any> =
+        adminCatalogAccess(authentication) { commerce.updateProduct(productId, request) }
 
     @PostMapping("/products/{productId}/archive")
-    fun archiveProduct(@PathVariable productId: String): ResponseEntity<Any> =
-        ok { commerce.archiveProduct(productId) }
+    fun archiveProduct(authentication: Authentication?, @PathVariable productId: String): ResponseEntity<Any> =
+        adminCatalogAccess(authentication) { commerce.archiveProduct(productId) }
 }
+
+private class MerchantCatalogCreateConflict : RuntimeException()
 
 @RestController
 @RequestMapping("/api/merchant/catalog")
-class MerchantCatalogController(private val commerce: CommerceService) {
+class MerchantCatalogController(private val commerce: CommerceService, private val platformCommerce: PlatformCommerceService) {
+    @ExceptionHandler(MerchantCatalogCreateConflict::class)
+    fun createConflict(): ResponseEntity<ApiErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ApiErrorResponse("catalog_create_conflict", "This catalog create was already used for a different product state.")
+        )
+
     @PostMapping("/products")
     fun createProduct(authentication: Authentication?, @RequestBody request: ManageCatalogProductRequest): ResponseEntity<Any> =
         merchantCatalogAccess(authentication, request.merchantId) { merchantId ->
@@ -815,22 +949,53 @@ class MerchantCatalogController(private val commerce: CommerceService) {
         authentication: Authentication?,
         @PathVariable productId: String,
         @RequestBody request: PatchCatalogProductRequest,
+        @RequestParam(required = false) merchantId: String?,
     ): ResponseEntity<Any> =
-        merchantCatalogAccess(authentication, null) { merchantId ->
+        merchantCatalogAccess(authentication, merchantId) { merchantId ->
             commerce.updateMerchantProduct(merchantId, productId, request)
         }
 
     @PostMapping("/products/{productId}/deactivate")
-    fun deactivateProduct(authentication: Authentication?, @PathVariable productId: String): ResponseEntity<Any> =
-        merchantCatalogAccess(authentication, null) { merchantId ->
+    fun deactivateProduct(
+        authentication: Authentication?,
+        @PathVariable productId: String,
+        @RequestParam(required = false) merchantId: String?,
+    ): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, merchantId) { merchantId ->
             commerce.deactivateMerchantProduct(merchantId, productId)
         }
 
     @PostMapping("/products/{productId}/activate")
-    fun activateProduct(authentication: Authentication?, @PathVariable productId: String): ResponseEntity<Any> =
-        merchantCatalogAccess(authentication, null) { merchantId ->
+    fun activateProduct(
+        authentication: Authentication?,
+        @PathVariable productId: String,
+        @RequestParam(required = false) merchantId: String?,
+    ): ResponseEntity<Any> =
+        merchantCatalogAccess(authentication, merchantId) { merchantId ->
             commerce.activateMerchantProduct(merchantId, productId)
         }
+
+    @PutMapping("/products/{productId}/customizations")
+    fun replaceCustomizations(
+        authentication: Authentication?,
+        @PathVariable productId: String,
+        @RequestParam merchantId: String,
+        @RequestBody request: ReplaceProductCustomizationsRequest,
+    ): ResponseEntity<Any> = merchantCatalogAccess(authentication, merchantId) {
+        platformCommerce.replaceCustomizations(productId, request, it)
+    }
+
+    @PostMapping("/products/{productId}/photos/camera", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadCameraPhoto(
+        authentication: Authentication?,
+        @PathVariable productId: String,
+        @RequestParam merchantId: String,
+        @RequestParam file: MultipartFile,
+        @RequestParam capturedAt: Instant,
+        @RequestParam deviceId: String,
+    ): ResponseEntity<Any> = merchantCatalogAccess(authentication, merchantId) {
+        commerce.uploadMerchantCameraPhoto(it, productId, file, capturedAt, deviceId)
+    }
 
     @PostMapping("/products/{productId}/photos")
     fun prepareProductPhoto(
@@ -883,6 +1048,13 @@ class BargainingController(private val commerce: CommerceService) {
         authenticated(userId) { commerce.addCustomerBargainingOffer(it, threadId, request) }
 }
 
+private val merchantCatalogRoles = setOf(RoleCode.MERCHANT_OWNER, RoleCode.MERCHANT_STAFF)
+
+private fun adminCatalogAccess(authentication: Authentication?, block: () -> Any): ResponseEntity<Any> =
+    if (!authentication.isLoggedIn()) ResponseEntity.status(401).build()
+    else if (authentication?.hasAnyRole(RoleGroups.AdminOnly) != true) ResponseEntity.status(403).build()
+    else ok(block)
+
 private fun merchantCatalogAccess(
     authentication: Authentication?,
     requestedMerchantId: String?,
@@ -891,19 +1063,13 @@ private fun merchantCatalogAccess(
     if (authentication == null || !authentication.isAuthenticated || authentication is AnonymousAuthenticationToken) {
         return ResponseEntity.status(401).build()
     }
-    if (!authentication.hasAnyRole(setOf(RoleCode.MERCHANT_OWNER, RoleCode.MERCHANT_STAFF))) {
+    if (!authentication.hasAnyRole(merchantCatalogRoles)) {
         return ResponseEntity.status(403).build()
     }
-    val merchantId = requestedMerchantId
-        ?.let { ApiInputPolicy.requiredIdentifier(it, "merchantId") }
-        ?: authentication.name.takeIf { authentication.hasMerchantScope(it) }
-        ?: authentication.details
-            ?.let { details ->
-                (details as? dev.orestegabo.sequo_api.domain.auth.JwtAuthenticationDetails)
-                    ?.merchantScopeIds
-                    ?.singleOrNull()
-            }
-    if (merchantId == null || !authentication.hasMerchantScope(merchantId)) {
+    val scopes = authentication.merchantScopeIds()
+    val merchantId = requestedMerchantId?.let { ApiInputPolicy.requiredIdentifier(it, "merchantId") }
+        ?: scopes.singleOrNull()
+    if (merchantId == null || merchantId !in scopes) {
         return ResponseEntity.status(403).build()
     }
     return ok { block(merchantId) }
@@ -922,7 +1088,7 @@ private fun Authentication?.isLoggedIn(): Boolean =
 private fun CatalogCategoryRecord.toDto(): CatalogCategoryDto =
     CatalogCategoryDto(key, title, supportLabel, accentHex)
 
-private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord?, storeProducts: List<ProductRecord>): MerchantStorefrontDto =
+private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord?, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
     MerchantStorefrontDto(
         id = merchantId,
         name = merchantRecord?.name ?: merchantId,
@@ -935,10 +1101,13 @@ private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord?, stor
         openStatus = openStatus,
         rating = rating,
         consolidation = consolidation,
-        products = storeProducts.map { it.toDto() },
+        products = storeProducts,
     )
 
-private fun ProductRecord.toDto(): CatalogProductDto =
+private fun ProductRecord.acceptsBargaining(): Boolean =
+    status == CatalogProductStatus.ACTIVE && bargainingEnabled && merchantId != null
+
+private fun ProductRecord.toDto(showConfiguredBargaining: Boolean = true): CatalogProductDto =
     CatalogProductDto(
         id = id,
         merchantId = merchantId,
@@ -952,10 +1121,12 @@ private fun ProductRecord.toDto(): CatalogProductDto =
         optionHint = optionHint,
         originalPriceCfa = originalPriceCfa,
         hasDiscount = originalPriceCfa?.let { original -> basePriceCfa?.let { original > it } } ?: false,
-        bargainingEnabled = bargainingEnabled,
+        bargainingEnabled = if (showConfiguredBargaining) bargainingEnabled else acceptsBargaining(),
         bargainFloorCfa = bargainFloorCfa,
         cameraVerified = cameraVerified,
         capturedAtLabel = capturedAtLabel,
+        photoRequired = photoRequired,
+        imageUrl = imageUrl,
     )
 
 private fun CatalogPromotionRecord.toDto(): CatalogPromotionDto =

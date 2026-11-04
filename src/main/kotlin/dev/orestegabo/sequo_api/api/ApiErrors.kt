@@ -14,6 +14,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 
 data class ApiErrorResponse(
     val code: String,
@@ -26,6 +27,10 @@ class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException::class)
     fun illegalArgument(error: IllegalArgumentException): ResponseEntity<ApiErrorResponse> =
         errorResponse(HttpStatus.BAD_REQUEST, "invalid_request", error.message ?: "Invalid request.")
+
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun uploadTooLarge(): ResponseEntity<ApiErrorResponse> =
+        errorResponse(HttpStatus.CONTENT_TOO_LARGE, "upload_too_large", "The upload exceeds the size limit.")
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun malformedBody(): ResponseEntity<ApiErrorResponse> =

@@ -69,6 +69,12 @@ class ProductRecord(
     @Column(name = "bargain_floor_cfa")
     var bargainFloorCfa: Int? = null,
 
+    @Column(name = "photo_required", nullable = false)
+    val photoRequired: Boolean = false,
+
+    @Column(name = "image_url", length = 500)
+    var imageUrl: String? = null,
+
     @Column(name = "camera_verified", nullable = false)
     var cameraVerified: Boolean = false,
 

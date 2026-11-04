@@ -18,6 +18,18 @@ import jakarta.persistence.Version
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.Authentication
+import dev.orestegabo.sequo_api.domain.auth.RoleGroups
+import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
+import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationGroup
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationGroupType
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationMenu
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationOption
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationResult
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationService
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
@@ -215,7 +227,7 @@ interface PaymentProviderConfigurationRepository : JpaRepository<PaymentProvider
 }
 
 interface ProductCustomizationGroupRepository : JpaRepository<ProductCustomizationGroupRecord, String> {
-    fun findByProductIdOrderBySortOrderAsc(productId: String): List<ProductCustomizationGroupRecord>
+    fun findByProductIdInOrderBySortOrderAsc(productIds: Collection<String>): List<ProductCustomizationGroupRecord>
     fun deleteByProductId(productId: String): Long
 }
 
@@ -255,16 +267,27 @@ data class UpsertCustomerAddressRequest(
 
 data class StartSubscriptionRequest(val planId: String)
 data class CreateReferralCreditRequest(val referredUserId: String, val sourceCode: String? = null)
-data class ProductCustomizationOptionRequest(val name: String, val priceDeltaCfa: Int = 0, val sortOrder: Int = 0, val active: Boolean = true)
+data class ProductCustomizationOptionRequest(
+    val name: String,
+    val priceDeltaCfa: Int? = null,
+    val sortOrder: Int? = null,
+    val active: Boolean? = null,
+    val id: String? = null,
+)
+
 data class ProductCustomizationGroupRequest(
     val name: String,
-    val minChoices: Int = 0,
-    val maxChoices: Int = 1,
-    val sortOrder: Int = 0,
-    val active: Boolean = true,
+    val minChoices: Int? = null,
+    val maxChoices: Int? = null,
+    val sortOrder: Int? = null,
+    val active: Boolean? = null,
     val options: List<ProductCustomizationOptionRequest> = emptyList(),
+    val id: String? = null,
 )
+
 data class ReplaceProductCustomizationsRequest(val groups: List<ProductCustomizationGroupRequest>)
+data class QuoteProductCustomizationsRequest(val selections: List<FoodCustomizationSelection> = emptyList())
+data class ProductCustomizationQuote(val productId: String, val basePriceCfa: Int, val optionPriceCfa: Int, val unitPriceCfa: Int)
 data class CreateCooperativeRequest(val code: String, val name: String, val city: String, val area: String? = null, val ownerMerchantId: String)
 data class AddCooperativeMemberRequest(val merchantId: String, val role: CooperativeMemberRole = CooperativeMemberRole.MEMBER)
 data class ReviewCooperativeRequest(val status: CooperativeApprovalStatus)
@@ -482,50 +505,115 @@ class PlatformCommerceService(
 
     @Transactional(readOnly = true)
     fun customizations(productId: String): List<ProductCustomizationGroupDto> {
-        val safeProductId = ApiInputPolicy.requiredIdentifier(productId, "productId")
-        val groups = customizationGroups.findByProductIdOrderBySortOrderAsc(safeProductId)
+        val id = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        return customizationsByProduct(listOf(id))[id].orEmpty()
+    }
+
+    @Transactional(readOnly = true)
+    fun publicCustomizations(productId: String): List<ProductCustomizationGroupDto> {
+        val id = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        if (products.findByIdAndStatus(id, CatalogProductStatus.ACTIVE) == null) return emptyList()
+        return customizations(id).filter { it.active }
+    }
+
+    @Transactional(readOnly = true)
+    fun customizationsByProduct(productIds: Collection<String>): Map<String, List<ProductCustomizationGroupDto>> {
+        if (productIds.isEmpty()) return emptyMap()
+        val groups = customizationGroups.findByProductIdInOrderBySortOrderAsc(productIds)
+        if (groups.isEmpty()) return emptyMap()
         val options = customizationOptions.findByGroupIdInOrderBySortOrderAsc(groups.map { it.id }).groupBy { it.groupId }
-        return groups.map { it.toDto(options[it.id].orEmpty()) }
+        return groups.groupBy({ it.productId }, { it.toDto(options[it.id].orEmpty()) })
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    fun quoteCustomizations(productId: String, request: QuoteProductCustomizationsRequest): ProductCustomizationQuote {
+        val product = requireNotNull(products.findByIdAndStatus(
+            ApiInputPolicy.requiredIdentifier(productId, "productId"), CatalogProductStatus.ACTIVE,
+        )) { "Product is unavailable." }
+        val base = requireNotNull(product.basePriceCfa) { "Product has no listed price." }
+        val groups = customizations(product.id).filter { it.active }.mapNotNull { group ->
+            require(group.minChoices <= group.options.size) { "Required options are unavailable." }
+            if (group.options.isEmpty()) return@mapNotNull null
+            FoodCustomizationGroup(
+                group.id, group.name, FoodCustomizationGroupType.OptionalMultiChoice,
+                group.options.map { FoodCustomizationOption(it.id, it.name, it.priceDeltaCfa, it.active) },
+                group.minChoices, minOf(group.maxChoices, group.options.size),
+            )
+        }
+        val result = FoodCustomizationService().validateAndSnapshot(FoodCustomizationMenu(product.id, groups), request.selections)
+        require(result is FoodCustomizationResult.Accepted) {
+            (result as FoodCustomizationResult.Rejected).errors.joinToString(" ") { it.message }
+        }
+        val options = result.snapshot.groups.sumOf { group -> group.selectedOptions.sumOf { it.priceDeltaCfa.toLong() } }
+        require(base + options <= Int.MAX_VALUE) { "Customized product price is too large." }
+        return ProductCustomizationQuote(product.id, base, options.toInt(), (base + options).toInt())
     }
 
     @Transactional
-    fun replaceCustomizations(productId: String, request: ReplaceProductCustomizationsRequest): List<ProductCustomizationGroupDto> {
-        val safeProductId = ApiInputPolicy.requiredIdentifier(productId, "productId")
-        require(products.existsById(safeProductId)) { "productId does not reference an existing product." }
-        val existingGroups = customizationGroups.findByProductIdOrderBySortOrderAsc(safeProductId)
-        if (existingGroups.isNotEmpty()) {
-            customizationOptions.deleteByGroupIdIn(existingGroups.map { it.id })
-            customizationGroups.deleteByProductId(safeProductId)
-        }
-        request.groups.forEach { group ->
-            require(group.minChoices >= 0) { "minChoices must be non-negative." }
-            require(group.maxChoices >= group.minChoices) { "maxChoices must be greater than or equal to minChoices." }
-            val groupId = UUID.randomUUID().toString()
-            customizationGroups.save(
-                ProductCustomizationGroupRecord(
-                    id = groupId,
-                    productId = safeProductId,
-                    name = ApiInputPolicy.requiredShortText(group.name, "group.name", 120),
-                    minChoices = group.minChoices,
-                    maxChoices = group.maxChoices,
-                    sortOrder = group.sortOrder,
-                    active = group.active,
-                )
-            )
-            group.options.forEach { option ->
-                customizationOptions.save(
-                    ProductCustomizationOptionRecord(
-                        id = UUID.randomUUID().toString(),
-                        groupId = groupId,
-                        name = ApiInputPolicy.requiredShortText(option.name, "option.name", 140),
-                        priceDeltaCfa = option.priceDeltaCfa,
-                        sortOrder = option.sortOrder,
-                        active = option.active,
-                    )
-                )
+    fun replaceCustomizations(
+        productId: String,
+        request: ReplaceProductCustomizationsRequest,
+        merchantId: String? = null,
+    ): List<ProductCustomizationGroupDto> {
+        val safeId = ApiInputPolicy.requiredIdentifier(productId, "productId")
+        val product = requireNotNull(products.lockForCustomization(safeId)) { "Product does not exist." }
+        require(merchantId == null || product.merchantId == merchantId) { "Product does not belong to the authenticated merchant." }
+        val existing = customizationGroups.findByProductIdInOrderBySortOrderAsc(listOf(safeId))
+        require(request.groups.isEmpty() || existing.isNotEmpty() ||
+            product.category?.lowercase() in setOf("food", "perishable")) { "Options are available for food products." }
+        require(request.groups.size <= 20) { "Too many option groups." }
+        val existingOptions = if (existing.isEmpty()) emptyMap() else customizationOptions
+            .findByGroupIdInOrderBySortOrderAsc(existing.map { it.id }).groupBy { it.groupId }
+        val retainedGroups = mutableSetOf<String>()
+        val newGroupNames = mutableSetOf<String>()
+        request.groups.forEach { input ->
+            val name = ApiInputPolicy.requiredShortText(input.name, "group.name", 120)
+            require(input.id != null || newGroupNames.add(name)) { "Duplicate new option group name." }
+            val min = input.minChoices ?: 0
+            val max = input.maxChoices ?: 1
+            require(input.options.size in 1..50 && min in 0..minOf(max, input.options.size) && max <= 50) {
+                "Invalid option group constraints."
             }
+            val group = (if (input.id != null) {
+                requireNotNull(existing.find { it.id == input.id }) { "Unknown option group." }
+            } else existing.singleOrNull { it.name == name })
+                ?: ProductCustomizationGroupRecord(UUID.randomUUID().toString(), safeId, name = name)
+            require(retainedGroups.add(group.id)) { "Duplicate option group." }
+            group.name = name
+            group.minChoices = min
+            group.maxChoices = max
+            group.sortOrder = input.sortOrder ?: 0
+            group.active = input.active ?: true
+            customizationGroups.save(group)
+
+            val oldOptions = existingOptions[group.id].orEmpty()
+            val retainedOptions = mutableSetOf<String>()
+            val newOptionNames = mutableSetOf<String>()
+            input.options.forEach { inputOption ->
+                val optionName = ApiInputPolicy.requiredShortText(inputOption.name, "option.name", 140)
+                require(inputOption.id != null || newOptionNames.add(optionName)) { "Duplicate new option name." }
+                val delta = inputOption.priceDeltaCfa ?: 0
+                require(delta >= 0) { "Option price must be non-negative." }
+                val option = (if (inputOption.id != null) {
+                    requireNotNull(oldOptions.find { it.id == inputOption.id }) { "Unknown option." }
+                } else oldOptions.singleOrNull { it.name == optionName })
+                    ?: ProductCustomizationOptionRecord(UUID.randomUUID().toString(), group.id, name = optionName)
+                require(retainedOptions.add(option.id)) { "Duplicate option." }
+                option.name = optionName
+                option.priceDeltaCfa = delta
+                option.sortOrder = inputOption.sortOrder ?: 0
+                option.active = inputOption.active ?: true
+                customizationOptions.save(option)
+            }
+            customizationOptions.deleteAll(oldOptions.filterNot { it.id in retainedOptions })
         }
-        return customizations(safeProductId)
+        val removed = existing.filterNot { it.id in retainedGroups }
+        if (removed.isNotEmpty()) {
+            customizationOptions.deleteByGroupIdIn(removed.map { it.id })
+            customizationOptions.flush()
+            customizationGroups.deleteAll(removed)
+        }
+        return customizations(safeId)
     }
 
     @Transactional(readOnly = true)
@@ -680,11 +768,17 @@ class PaymentProviderReadinessController(private val service: PlatformCommerceSe
 class ProductCustomizationController(private val service: PlatformCommerceService) {
     @GetMapping
     fun list(@PathVariable productId: String): ResponseEntity<Any> =
-        platformSafe { service.customizations(productId) }
+        platformSafe { service.publicCustomizations(productId) }
+
+    @PostMapping("/quote")
+    fun quote(@PathVariable productId: String, @RequestBody request: QuoteProductCustomizationsRequest): ResponseEntity<Any> =
+        platformSafe { service.quoteCustomizations(productId, request) }
 
     @PutMapping
-    fun replace(@PathVariable productId: String, @RequestBody request: ReplaceProductCustomizationsRequest): ResponseEntity<Any> =
-        platformSafe { service.replaceCustomizations(productId, request) }
+    fun replace(authentication: Authentication?, @PathVariable productId: String, @RequestBody request: ReplaceProductCustomizationsRequest): ResponseEntity<Any> =
+        if (authentication?.hasAnyRole(RoleGroups.AdminOnly) == true) {
+            platformSafe { service.replaceCustomizations(productId, request) }
+        } else ResponseEntity.status(403).build()
 }
 
 @RestController

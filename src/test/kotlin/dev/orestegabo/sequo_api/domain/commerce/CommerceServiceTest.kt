@@ -24,6 +24,7 @@ import kotlin.test.assertFailsWith
         "spring.datasource.url=jdbc:h2:mem:commerce_service;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.flyway.enabled=false",
+        "sequo.catalog.approved-generic-image-url=https://cdn.sequo.example/catalog/rice.webp",
     ]
 )
 @Transactional
@@ -156,13 +157,13 @@ class CommerceServiceTest @Autowired constructor(
             productId = "sealed-product",
             request = MerchantProductPhotoRequest(
                 source = ProductMediaSource.GenericCatalogReference,
-                catalogImageId = "catalog-rice-photo",
+                catalogImageId = "standard",
                 sourceUrl = "https://cdn.sequo.example/catalog/rice.webp",
             ),
         )
 
         assertEquals(ProductMediaModerationStatus.Approved, accepted.moderationStatus)
-        assertEquals("catalog-rice-photo", accepted.catalogImageId)
+        assertEquals("standard", accepted.catalogImageId)
         assertEquals(false, accepted.uploadRequired)
         assertFailsWith<IllegalArgumentException> {
             service.prepareMerchantProductPhoto(

@@ -115,7 +115,9 @@ data class StoredProductMedia(
         require(storageKey.isNotBlank()) { "storageKey is required." }
         require(publicUrl.isNotBlank()) { "publicUrl is required." }
         require(storageKey.isSafeStorageKey()) { "storageKey must be a relative safe object key." }
-        require(publicUrl.startsWith("https://")) { "publicUrl must use HTTPS." }
+        require(publicUrl.startsWith("https://") || publicUrl.matches(Regex("/api/catalog/products/[A-Za-z0-9._-]+/image"))) {
+            "publicUrl must be HTTPS or a catalog image path."
+        }
     }
 }
 
@@ -142,11 +144,11 @@ sealed class ProductMediaUploadResult {
     data class Rejected(val error: ProductMediaValidationError) : ProductMediaUploadResult()
 }
 
-interface ProductMediaStorage {
+fun interface ProductMediaStorage {
     fun storeLiveCameraCapture(submission: ProductMediaSubmission.LiveCameraCapture): StoredProductMedia
 }
 
-interface ProductMediaModerator {
+fun interface ProductMediaModerator {
     fun moderate(submission: ProductMediaSubmission.LiveCameraCapture): ProductMediaModerationResult
 }
 
