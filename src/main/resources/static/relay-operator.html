@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEQUO — Point relais</title>
+<style>
+body{font:18px system-ui,sans-serif;max-width:64rem;margin:2rem auto;padding:0 1rem;color:#183c32;background:#f6faf7}button,input,select,textarea{font:inherit;padding:.6rem;margin:.3rem 0;max-width:100%;box-sizing:border-box}button{cursor:pointer}label{display:block;margin:.7rem 0}section{background:white;padding:1rem;margin:1rem 0;border:1px solid #ccdcd3;border-radius:.5rem}li{margin:.6rem 0}#message{white-space:pre-wrap}button:disabled{cursor:wait;opacity:.6}input:not([type=checkbox]),textarea{display:block;width:100%}table{width:100%;text-align:left}td,th{padding:.5rem} [hidden]{display:none!important}
+</style>
+<h1>SEQUO — Point relais</h1>
+<p id="message" role="status" aria-live="polite"></p>
+<section id="login">
+<h2>Connexion opérateur</h2>
+<p>Utilisez le numéro de votre compte relais autorisé.</p>
+<form id="request-code"><label>Numéro WhatsApp (format international)<input id="phone" type="tel" autocomplete="tel" required></label><button>Recevoir un code</button></form>
+<form id="verify-code" hidden><label>Code de connexion<input id="otp" inputmode="numeric" autocomplete="one-time-code" required></label><button>Se connecter</button></form>
+</section>
+<main id="workspace" hidden>
+<button id="logout">Déconnexion</button>
+<label>Point relais<select id="site"></select></label><button id="reload">Actualiser</button>
+<p>Les produits alimentaires, périssables et sensibles sont exclus. Vérifiez la pièce d’identité avant le retrait.</p>
+<section><h2>Colis et historique</h2><p id="empty" hidden>Aucun colis.</p><ul id="parcels"></ul></section>
+<section id="detail" hidden>
+<h2 id="parcel-title"></h2><p id="parcel-state"></p><ul id="history"></ul>
+<form id="issue"><h3>Associer un code de retrait</h3><label>Code à six chiffres<input id="numeric" pattern="[0-9]{6}" inputmode="numeric" required></label><label>Valeur QR (facultative, 16 caractères minimum)<input id="qr-new" minlength="16"></label><button>Associer pour 24 heures</button></form>
+<form id="release"><h3>Valider le retrait</h3><label>Code numérique<input id="pickup" inputmode="numeric" pattern="[0-9]{6}"></label><label>Ou valeur du QR présenté<input id="qr-pickup"></label><label><input id="identity" type="checkbox" required> Pièce d’identité vérifiée et correspondante</label><button>Confirmer le retrait</button></form>
+<form id="problem"><h3>Signaler un problème</h3><label>Description<textarea id="reason" maxlength="2000" required></textarea></label><button>Enregistrer le problème</button></form>
+</section>
+</main>
+<script src="/relay-operator.js" defer></script>
+</html>

@@ -550,3 +550,9 @@ Device and deployed staging checks remain unverified. The local exercise validat
 
 
 Local Task 12 verification on 2026-11-07 passed 48 API tests, 5 Rider host tests, 2 admin delivery-rendering tests, Rider/customer Android and iOS simulator compilation, the admin type check, and the admin production build. The customer unit-test suite remains blocked by the existing split function name in `DeliveryPricingTest.kt`. Physical-device and deployed staging checks remain unverified. Rider fleet, service-zone and KYC fields display unavailable when no authoritative profile value is supplied.
+
+## Task 13 — Scoped relay operator module
+
+The API now serves `/relay-operator.html`. Operators authenticate through existing WhatsApp OTP and device-bound session refresh; `/api/relay/parcels/sites` resolves their explicit ACTIVE assignments from `relay_points.operator_user_id`. Parcel and Hub reads/actions use that assignment, including credential issuance, release and problem actions. Detail adds a sanitized `history` array of custody type/timestamp entries. Existing admin and assigned rider operations remain supported.
+
+See [Task 13 evidence and staging reproduction](TASK13_RELAY_ACCESS.md) for the contract clauses, changed files, two-operator matrix, exact test commands, approved legacy-assignment decision and unverified deployment checks. No assignment migration or dedicated Hub approval is inferred. Task 14 still owns trusted basket/destination eligibility and actual relay selection/deposit enforcement.
