@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service
 @Table(name = "catalog_camera_payloads")
 class CatalogCameraPayload(
     @Id @Column(name = "product_id") val productId: String,
-    @Column(nullable = false, length = 8 * 1024 * 1024) val jpeg: ByteArray,
+    @Column(nullable = false, columnDefinition = "bytea") val jpeg: ByteArray,
 )
 
 interface CatalogCameraPayloadRepository : JpaRepository<CatalogCameraPayload, String>
