@@ -27,11 +27,12 @@ class DeliveryMissionController(
     private val dispatchService: DeliveryReadinessDispatchService,
     private val orderLifecycle: OrderDeliveryLifecycleService,
     private val courierAvailability: CourierAvailabilityService,
+    private val relayFulfillment: dev.orestegabo.sequo_api.domain.relay.RelayFulfillmentService,
     private val relayAccess: dev.orestegabo.sequo_api.domain.relay.RelayOperatorAccess,
     private val relayParcels: dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository,
 ) {
     data class AssignCourierRequest(val courierId: String)
-    data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null, val idempotencyKey: String? = null)
+    data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null, val idempotencyKey: String? = null, val relayPointId: String? = null, val lockerCode: String? = null)
     data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null, val idempotencyKey: String? = null)
     data class ProblemRequest(val reason: String, val idempotencyKey: String? = null)
     data class CreateDeliveryPinRequest(val rawPin: String, val expiresAt: Instant)
@@ -311,13 +312,7 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
-        service.transitionIdempotent(
-            missionId = missionId,
-            actorId = it,
-            event = DeliveryMissionEvent.CourierDepositsAtRelay,
-            idempotencyKey = request.idempotencyKey,
-            proof = request.proofMetadata,
-        ).toResponse()
+        relayFulfillment.deposit(missionId, it, request.relayPointId, request.lockerCode, request.proofMetadata, request.idempotencyKey).toResponse()
     }
 
     @PostMapping("/{missionId}/relay-release")
@@ -425,6 +420,7 @@ class DeliveryMissionController(
 @RequestMapping("/api/rider/missions")
 class RiderMissionController(
     private val service: DeliveryMissionService,
+    private val relayFulfillment: dev.orestegabo.sequo_api.domain.relay.RelayFulfillmentService,
     private val pinService: DeliveryPinService,
     private val orderLifecycle: OrderDeliveryLifecycleService,
 ) {
@@ -433,6 +429,8 @@ class RiderMissionController(
         val deliveryPin: String? = null,
         val reason: String? = null,
         val idempotencyKey: String? = null,
+        val relayPointId: String? = null,
+        val lockerCode: String? = null,
     )
 
     @GetMapping
@@ -547,13 +545,7 @@ class RiderMissionController(
         @PathVariable missionId: String,
         @RequestBody request: RiderActionRequest,
     ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
-        service.transitionIdempotent(
-            missionId = missionId,
-            actorId = riderId,
-            event = DeliveryMissionEvent.CourierDepositsAtRelay,
-            idempotencyKey = request.idempotencyKey,
-            proof = request.proofMetadata,
-        ).toResponse()
+        relayFulfillment.deposit(missionId, riderId, request.relayPointId, request.lockerCode, request.proofMetadata, request.idempotencyKey).toResponse()
     }
 
     @PostMapping("/{missionId}/problem")

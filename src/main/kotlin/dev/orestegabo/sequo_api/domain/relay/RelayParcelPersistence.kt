@@ -58,7 +58,7 @@ class RelayParcelRecord(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "return_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_parcels_return"))
     val returnRequest: ReturnRequestRecord? = null,
-    @Column(name = "deposit_code", unique = true) val depositCode: String? = null,
+    @Column(name = "deposit_code", unique = true, length = 64) val depositCode: String? = null,
     @Enumerated(EnumType.STRING) @Column(nullable = false) val category: RelayParcelCategory,
     @Convert(converter = RelayParcelStatusConverter::class) @Column(nullable = false) var status: RelayParcelStatus,
     @Column(name = "deposited_at") var depositedAt: java.time.Instant? = null,
@@ -302,6 +302,8 @@ class RelayParcelApplicationService(
     private val persistence: RelayParcelPersistenceService,
     private val settlements: SettlementPersistenceService,
     private val publisher: ApplicationEventPublisher,
+    private val lockers: dev.orestegabo.sequo_api.domain.hub.RelayLockerRepository,
+    private val eligibility: RelayOrderEligibilityService,
 ) {
     private val storageFeeService = RelayStorageFeeService()
     private val objectMapper = ObjectMapper()
@@ -310,6 +312,9 @@ class RelayParcelApplicationService(
     fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
         if (persistence.findParcel(command.parcelId) != null)
             return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_already_exists", "Parcel already exists; reload its current state."))
+        val sourceCategories = command.orderId?.let(eligibility::categories).orEmpty()
+        if (sourceCategories.isNotEmpty() && !relayCategoriesAllowed(sourceCategories))
+            return RelayParcelServiceResult.Rejected(RelayParcelRejection("relay_not_allowed_for_category", "Food, perishable and sensitive orders cannot use relay pickup."))
         val result = domain.createParcel(command)
         if (result is RelayParcelServiceResult.Accepted) persistence.saveCreated(result)
         return result
@@ -380,6 +385,15 @@ class RelayParcelApplicationService(
         if (result is RelayParcelServiceResult.Accepted && parcel.status != RelayParcelStatus.PickedUp) {
             if (persistence.eventExists(eventId)) return RelayParcelServiceResult.Rejected(RelayParcelRejection("event_id_conflict", "Event identifier already exists."))
             persistence.saveVerification(result)
+            parcel.lockerId?.let { lockers.lockForDeposit(it) }?.takeIf {
+                it.relayPointId == parcel.relayPointId && it.status == dev.orestegabo.sequo_api.domain.hub.HubLockerStatus.OCCUPIED &&
+                    it.availabilityReason == dev.orestegabo.sequo_api.domain.hub.HubLockerAvailabilityReason.SYSTEM_OCCUPIED
+            }?.let {
+                it.status = dev.orestegabo.sequo_api.domain.hub.HubLockerStatus.AVAILABLE
+                it.availabilityReason = dev.orestegabo.sequo_api.domain.hub.HubLockerAvailabilityReason.OPERATOR_CONFIRMED_AVAILABLE
+                it.updatedByUserId = actorUserId; it.updatedAt = verifiedAt
+                lockers.save(it)
+            }
         }
         if (result is RelayParcelServiceResult.Rejected) result.rejection.pickupCode?.let(persistence::saveRejectedCode)
         return result

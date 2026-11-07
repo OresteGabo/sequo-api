@@ -33,6 +33,8 @@ data class CartDeliveryQuote(
     val deliveryFeeCfa: Int,
     val totalCfa: Int,
     val currency: String = "XOF",
+    val relayPointId: String? = null,
+    val fulfillmentMode: String = "HOME",
 )
 
 internal data class ReviewedCart(
@@ -40,6 +42,7 @@ internal data class ReviewedCart(
     val quote: CartDeliveryQuote,
     val destination: HomeDeliveryDestination,
     val pricing: OrderPricingSnapshot,
+    val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
 )
 
 @Service
@@ -47,6 +50,7 @@ class CartDeliveryQuoteService(
     private val commerce: CommerceService,
     private val addresses: CustomerAddressRepository,
     private val pricing: DeliveryPricingService,
+    private val relays: dev.orestegabo.sequo_api.domain.relay.RelayAvailabilityService,
     @Value("\${sequo.cart.straight-line-dispatch-origin:}") configuredOrigin: String,
 ) {
     private val origin = configuredOrigin.takeIf { it.isNotBlank() }?.let {
@@ -57,10 +61,10 @@ class CartDeliveryQuoteService(
     private val distanceProvider = StraightLineRoutingDistanceProvider()
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    fun quote(userId: String, addressId: String): CartDeliveryQuote = review(userId, addressId).quote
+    fun quote(userId: String, addressId: String, relayPointId: String? = null): CartDeliveryQuote = review(userId, addressId, relayPointId).quote
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    internal fun review(userId: String, addressId: String): ReviewedCart {
+    internal fun review(userId: String, addressId: String, relayPointId: String? = null): ReviewedCart {
         val address = requireNotNull(
             addresses.findByIdAndUserId(ApiInputPolicy.requiredIdentifier(addressId, "addressId"), userId)
                 ?.takeIf { it.active && it.kind != CustomerAddressKind.RELAY },
@@ -71,7 +75,13 @@ class CartDeliveryQuoteService(
         val cart = commerce.cart(userId)
         require(cart.items.isNotEmpty()) { "Cart is empty." }
         require(cart.items.all { it.available }) { "Remove or replace unavailable cart items." }
-        val meters = distanceProvider.estimate(RoutingDistanceRequest(dispatchOrigin, GeoPoint(latitude, longitude)))
+        val relay = relayPointId?.let {
+            require(dev.orestegabo.sequo_api.domain.relay.relayCategoriesAllowed(cart.items.map { item ->
+                dev.orestegabo.sequo_api.domain.relay.catalogRelayCategory(item.product.category)
+            })) { "This basket is not eligible for relay delivery." }
+            relays.requireAvailable(ApiInputPolicy.requiredIdentifier(it, "relayPointId"))
+        }
+        val meters = distanceProvider.estimate(RoutingDistanceRequest(dispatchOrigin, GeoPoint(relay?.latitude ?: latitude, relay?.longitude ?: longitude)))
         val delivery = pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0))
         val total = cart.subtotalCfa.toLong() + delivery.finalDeliveryFeeCfa
         require(total <= Int.MAX_VALUE) { "Cart quote is too large." }
@@ -81,7 +91,7 @@ class CartDeliveryQuoteService(
         )
         val orderPricing = OrderPricingSnapshot(cart.subtotalCfa, delivery, total.toInt())
         val snapshot = listOf(
-            destination, orderPricing, meters,
+            destination, relay, orderPricing, meters,
             cart.items.sortedBy { it.id }.map {
                 listOf(it.id, it.product, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections)
             },
@@ -98,8 +108,10 @@ class CartDeliveryQuoteService(
             serviceFeeCfa = 0,
             deliveryFeeCfa = delivery.finalDeliveryFeeCfa,
             totalCfa = total.toInt(),
+            relayPointId = relay?.id,
+            fulfillmentMode = if (relay == null) "HOME" else "RELAY",
         )
-        return ReviewedCart(cart, quote, destination, orderPricing)
+        return ReviewedCart(cart, quote, destination, orderPricing, relay)
     }
 
     private val mapper = ObjectMapper()
@@ -108,6 +120,6 @@ class CartDeliveryQuoteService(
 @RestController
 class CartDeliveryQuoteController(private val quotes: CartDeliveryQuoteService) {
     @GetMapping("/api/cart/quote")
-    fun quote(@AuthenticationPrincipal userId: String?, @RequestParam addressId: String) =
-        authenticated(userId) { quotes.quote(it, addressId) }
+    fun quote(@AuthenticationPrincipal userId: String?, @RequestParam addressId: String, @RequestParam(required = false) relayPointId: String?) =
+        authenticated(userId) { quotes.quote(it, addressId, relayPointId) }
 }

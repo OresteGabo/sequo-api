@@ -5,6 +5,7 @@ import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import dev.orestegabo.sequo_api.domain.order.OrderRoute
 import dev.orestegabo.sequo_api.domain.order.OrderServiceLevel
+import dev.orestegabo.sequo_api.domain.order.readPendingRequest
 import java.security.MessageDigest
 import java.time.Instant
 import org.springframework.stereotype.Service
@@ -32,6 +33,7 @@ class DeliveryReadinessDispatchService(
     private val dispatchRuns: DeliveryDispatchRunRepository,
     private val deliveryMissionService: DeliveryMissionService,
     private val orders: CustomerOrderRecordRepository,
+    private val pending: dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository,
 ) {
     @Transactional
     fun dispatchReadySubOrders(limit: Int = 50, at: Instant = Instant.now()): DeliveryDispatchRunResult {
@@ -71,6 +73,9 @@ class DeliveryReadinessDispatchService(
                     merchantSubOrderId = subOrderId,
                     deliveryMode = plan.modeFor(order.serviceLevel),
                     destinationType = plan.destination,
+                    relayDestination = pending.findById(order.checkoutId).orElse(null)?.requestPayload?.let {
+                        com.fasterxml.jackson.databind.ObjectMapper().readPendingRequest(it).relayDestination
+                    },
                     customerDeliveryFeeCfa = order.deliveryFeeCfa,
                     courierFeeCfa = order.deliveryFeeCfa,
                     shortfallCfa = 0,

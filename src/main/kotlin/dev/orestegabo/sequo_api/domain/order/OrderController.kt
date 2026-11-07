@@ -31,6 +31,7 @@ class OrderController(
         require(!request.checkoutId.removePrefix("SQ-").matches(Regex("${CART_CHECKOUT_PREFIX}[a-f0-9]{64}"))) {
             "Use the basket checkout endpoint for this checkout ID."
         }
+        require(request.route != OrderRoute.PointDeRelai && request.relayDestination == null) { "Use the basket checkout endpoint for relay delivery." }
         val secureRequest = request.copy(customerId = userId)
         
         val processor = factory.processorFor(secureRequest.serviceLevel)

@@ -201,6 +201,7 @@ data class PendingOrderProcessingRequestPayload(
     val paymentReference: String,
     val countryCode: String,
     val homeDestination: HomeDeliveryDestination? = null,
+    val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
 )
 
 data class PendingOrderLineRequestPayload(
@@ -216,6 +217,7 @@ data class PendingOrderLineRequestPayload(
     val capturedAtEpochMillis: Long?,
     val selections: List<FoodCustomizationSelection> = emptyList(),
     val optionLabel: String? = null,
+    val relayCategory: dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory? = null,
 )
 
 private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRequestPayload(
@@ -230,6 +232,7 @@ private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRe
     paymentReference = paymentReference,
     countryCode = countryCode,
     homeDestination = homeDestination,
+    relayDestination = relayDestination,
 )
 
 private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload(
@@ -250,6 +253,7 @@ private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload
     capturedAtEpochMillis = (photoEvidence as? ProductPhotoEvidence.LiveCameraCapture)?.capturedAtEpochMillis,
     selections = selections,
     optionLabel = optionLabel,
+    relayCategory = relayCategory,
 )
 
 private fun PendingOrderProcessingRequestPayload.toRequest() = OrderProcessingRequest(
@@ -264,6 +268,7 @@ private fun PendingOrderProcessingRequestPayload.toRequest() = OrderProcessingRe
     paymentReference = paymentReference,
     countryCode = countryCode,
     homeDestination = homeDestination,
+    relayDestination = relayDestination,
 )
 
 private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
@@ -277,6 +282,7 @@ private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
     negotiatedUnitPriceCfa = negotiatedUnitPriceCfa,
     selections = selections,
     optionLabel = optionLabel,
+    relayCategory = relayCategory,
     photoEvidence = when (photoEvidenceType) {
         "LIVE_CAMERA_CAPTURE" -> ProductPhotoEvidence.LiveCameraCapture(capturedAtEpochMillis ?: 0)
         "GENERIC_CATALOG_IMAGE" -> ProductPhotoEvidence.GenericCatalogImage
@@ -305,6 +311,7 @@ internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRe
                 negotiatedUnitPriceCfa = line.optionalInt("negotiatedUnitPriceCfa"),
                 photoEvidenceType = line.requiredText("photoEvidenceType"),
                 capturedAtEpochMillis = line.optionalLong("capturedAtEpochMillis"),
+                relayCategory = line.path("relayCategory").takeIf { it.isTextual }?.asText()?.let { dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory.valueOf(it) },
                 optionLabel = line.path("optionLabel").takeIf { it.isTextual }?.asText(),
                 selections = line.path("selections").map { selection ->
                     FoodCustomizationSelection(selection.requiredText("groupId"), selection.path("optionIds").map { it.asText() }.toSet())
@@ -316,6 +323,7 @@ internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRe
         paymentProvider = PaymentProviderId(root.requiredText("paymentProvider")),
         paymentReference = root.requiredText("paymentReference"),
         countryCode = root.requiredText("countryCode"),
+        relayDestination = root.get("relayDestination")?.takeUnless { it.isNull }?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it.toString()) },
         homeDestination = root.get("homeDestination")?.takeUnless { it.isNull }?.let {
             HomeDeliveryDestination(
                 it.requiredText("addressId"), it.requiredText("label"), it.requiredText("recipientName"),

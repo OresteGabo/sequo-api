@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.domain.relay.relayCategory
 import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
 import dev.orestegabo.sequo_api.domain.payment.PaymentFeature
 import dev.orestegabo.sequo_api.domain.payment.PaymentProcessor
@@ -30,6 +31,7 @@ enum class OrderRoute {
 enum class OrderProductCategory {
     Food,
     Perishable,
+    Sensitive,
     GeneralGoods,
     GenericSealedItem,
 }
@@ -72,6 +74,7 @@ data class OrderLineRequest(
     val photoEvidence: ProductPhotoEvidence,
     val selections: List<FoodCustomizationSelection> = emptyList(),
     val optionLabel: String? = null,
+    val relayCategory: dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory? = null,
 ) {
     val effectiveUnitPriceCfa: Int
         get() = negotiatedUnitPriceCfa ?: unitPriceCfa
@@ -89,6 +92,7 @@ data class OrderProcessingRequest(
     val paymentReference: String,
     val countryCode: String = "TG",
     val homeDestination: HomeDeliveryDestination? = null,
+    val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
 )
 
 data class HomeDeliveryDestination(
@@ -280,11 +284,12 @@ abstract class SequoOrderProcessor(
         }
         if (
             request.route == OrderRoute.PointDeRelai &&
-            request.lines.any { it.category == OrderProductCategory.Food || it.category == OrderProductCategory.Perishable }
+            (!dev.orestegabo.sequo_api.domain.relay.relayEligible(request.lines.map { it.category }) ||
+                !dev.orestegabo.sequo_api.domain.relay.relayCategoriesAllowed(request.lines.map { it.relayCategory ?: it.category.relayCategory() }))
         ) {
             return OrderRejectionReason(
                 code = "relay_not_allowed_for_perishable",
-                message = "Point de Relai pickup is not allowed for food or perishable products.",
+                message = "Point de Relai pickup is not allowed for food, perishable or sensitive products.",
             )
         }
 

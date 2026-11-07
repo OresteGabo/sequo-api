@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 
 internal const val CART_CHECKOUT_PREFIX = "cart-"
 
-data class SubmitCartCheckoutRequest(val addressId: String, val quoteRevision: String, val paymentProvider: String)
+data class SubmitCartCheckoutRequest(val addressId: String, val quoteRevision: String, val paymentProvider: String, val relayPointId: String? = null)
 
 data class CustomerCheckoutSummary(
     val checkoutId: String,
@@ -75,14 +75,14 @@ class CustomerCartCheckoutService(
         val checkoutId = "$CART_CHECKOUT_PREFIX$digest"
         checkouts.findByCheckoutIdAndCustomerId(checkoutId, customerId)?.let {
             val existing = mapper.readPendingRequest(it.requestPayload)
-            require(existing.homeDestination?.addressId == addressId && it.paymentProvider == provider.value) {
+            require(existing.homeDestination?.addressId == addressId && existing.relayDestination?.id == request.relayPointId && it.paymentProvider == provider.value) {
                 "Checkout retry must use the original address and payment provider."
             }
             return it.summary(existing)
         }
 
         val reviewed = try {
-            quotes.review(customerId, addressId)
+            quotes.review(customerId, addressId, request.relayPointId)
         } catch (_: IllegalArgumentException) {
             throw CheckoutQuoteChanged()
         }
@@ -93,12 +93,7 @@ class CustomerCartCheckoutService(
             val seller = requireNotNull(sellers[product.merchantId]?.takeIf { it.status == "ACTIVE" }) {
                 "A basket item has no active seller."
             }
-            val category = when {
-                product.category.equals("food", ignoreCase = true) -> OrderProductCategory.Food
-                product.category.equals("perishable", ignoreCase = true) -> OrderProductCategory.Perishable
-                product.kind == CatalogProductKind.GenericSealedItem -> OrderProductCategory.GenericSealedItem
-                else -> OrderProductCategory.GeneralGoods
-            }
+            val category = dev.orestegabo.sequo_api.domain.relay.orderCategory(product.category, product.kind)
             val capturedAt = product.capturedAtLabel?.let { runCatching { Instant.parse(it) }.getOrNull() }
             val photo = when {
                 product.cameraVerified && capturedAt != null -> ProductPhotoEvidence.LiveCameraCapture(capturedAt.toEpochMilli())
@@ -109,6 +104,7 @@ class CustomerCartCheckoutService(
             OrderLineRequest(
                 product.id, seller.id, seller.name, product.name, category, item.quantity,
                 requireNotNull(item.lineTotalCfa) / item.quantity, photoEvidence = photo, selections = item.selections,
+                relayCategory = dev.orestegabo.sequo_api.domain.relay.catalogRelayCategory(product.category),
                 optionLabel = item.selections.flatMap { selection ->
                     product.customizations.firstOrNull { it.id == selection.groupId }?.options.orEmpty()
                         .filter { it.id in selection.optionIds }.map { it.name }
@@ -116,9 +112,9 @@ class CustomerCartCheckoutService(
             )
         }
         val order = OrderProcessingRequest(
-            checkoutId, customerId, OrderServiceLevel.Regular, OrderRoute.FastDelivery,
+            checkoutId, customerId, OrderServiceLevel.Regular, if (reviewed.relayDestination == null) OrderRoute.FastDelivery else OrderRoute.PointDeRelai,
             lines, reviewed.quote.distanceMeters / 1000.0,
-            paymentProvider = provider, paymentReference = checkoutId, homeDestination = reviewed.destination,
+            paymentProvider = provider, paymentReference = checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
         )
         val result = processor.process(order, reviewed.pricing)
         val status = when (result) {
@@ -146,7 +142,7 @@ class CustomerCartCheckoutService(
     private fun PendingPaymentCheckoutRecord.summary(request: OrderProcessingRequest) = CustomerCheckoutSummary(
         checkoutId,
         if (status == PendingPaymentCheckoutStatus.COMPLETED) checkoutId.toOrderId() else null,
-        status, amountCfa, paymentProvider, request.homeDestination?.label, createdAt,
+        status, amountCfa, paymentProvider, request.relayDestination?.name ?: request.homeDestination?.label, createdAt,
         request.lines.map { CheckoutLineSummary(it.productName, it.quantity) },
     )
 }

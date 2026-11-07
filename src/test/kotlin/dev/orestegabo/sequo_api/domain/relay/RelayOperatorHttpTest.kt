@@ -76,10 +76,10 @@ class RelayOperatorHttpTest @Autowired constructor(
         val courierDeposit = mapOf("parcelId" to courierParcelId, "relayPointId" to siteA, "deliveryMissionId" to mission.id,
             "category" to "GeneralGoods", "depositCode" to UUID.randomUUID().toString(), "createdAt" to Instant.now().toString(),
             "availableLockers" to listOf(mapOf("id" to "logical-slot", "relayPointId" to siteA, "active" to true, "occupied" to false)))
-        assertEquals(200, call("POST", "/api/relay/parcels", courier, courierDeposit).statusCode())
-        assertEquals(403, call("POST", "/api/relay/parcels", token(RoleCode.COURIER).second,
+        assertEquals(400, call("POST", "/api/relay/parcels", courier, courierDeposit).statusCode())
+        assertEquals(400, call("POST", "/api/relay/parcels", token(RoleCode.COURIER).second,
             courierDeposit + ("parcelId" to UUID.randomUUID().toString())).statusCode())
-        assertEquals(200, call("GET", "/api/relay/parcels/$courierParcelId", a.second).statusCode())
+        assertEquals(404, call("GET", "/api/relay/parcels/$courierParcelId", a.second).statusCode())
         // A generic delivery route cannot bypass actual pickup verification, even for the site's operator.
         assertEquals(403, call("POST", "/api/delivery/missions/${mission.id}/relay-release", a.second,
             mapOf("pickupCodeValidated" to true, "identityValidated" to true, "proofMetadata" to "forged proof")).statusCode())

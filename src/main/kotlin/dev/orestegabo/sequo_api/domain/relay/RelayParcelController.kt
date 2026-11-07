@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController
 class RelayParcelController(
     private val service: RelayParcelApplicationService,
     private val access: RelayOperatorAccess,
-    private val missions: dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService,
 ) {
     data class PickupCodeRequest(
         val codeId: String,
@@ -64,12 +63,9 @@ class RelayParcelController(
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody command: RelayParcelCreateCommand): ResponseEntity<Any> =
         roleRequired(authentication, RoleGroups.RelayParcelCreators) { actor ->
-            if (!access.permits(actor, command.relayPointId)) {
-                val mission = command.deliveryMissionId?.let(missions::get)
-                if (!actor.hasRole(RoleCode.COURIER) || mission == null || mission.courierId != missions.courierIdForActor(actor.name) ||
-                    mission.destinationType != dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination.RELAY_POINT)
-                    return@roleRequired ResponseEntity.status(403).build()
-            }
+            // Linked delivery custody must be created atomically by the mission deposit action.
+            require(command.deliveryMissionId == null) { "Use the mission relay-deposit action with its persisted destination and storage slot." }
+            if (!access.permits(actor, command.relayPointId)) return@roleRequired ResponseEntity.status(403).build()
             service.createParcel(command).toResponse()
         }
 

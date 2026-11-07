@@ -58,9 +58,15 @@ class DeliveryMission(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "courier_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_delivery_missions_courier"))
     val courier: CourierRecord? = null,
-    @Enumerated(EnumType.STRING) @Column(name = "delivery_mode", nullable = false, length = 64) val deliveryMode: DeliveryMissionRecordMode,
-    @Enumerated(EnumType.STRING) @Column(name = "destination_type", nullable = false, length = 64) val destinationType: DeliveryMissionRecordDestination,
+    @Enumerated(EnumType.STRING) @Column(name = "delivery_mode", nullable = false, length = 64) var deliveryMode: DeliveryMissionRecordMode,
+    @Enumerated(EnumType.STRING) @Column(name = "destination_type", nullable = false, length = 64) var destinationType: DeliveryMissionRecordDestination,
     @Enumerated(EnumType.STRING) @Column(name = "status", nullable = false, length = 64) var status: DeliveryMissionRecordStatus = DeliveryMissionRecordStatus.CREATED,
+    @Column(name = "relay_point_id") var relayPointId: String? = null,
+    @Column(name = "relay_destination_payload", columnDefinition = "text") var relayDestinationPayload: String? = null,
+    @Column(name = "relay_reroute_key", length = 128) var relayRerouteKey: String? = null,
+    @Column(name = "relay_reroute_actor_id") var relayRerouteActorId: String? = null,
+    @Column(name = "relay_reroute_reason", columnDefinition = "text") var relayRerouteReason: String? = null,
+    @Column(name = "relay_rerouted_at") var relayReroutedAt: Instant? = null,
     @Column(name = "customer_delivery_fee_cfa", nullable = false) val customerDeliveryFeeCfa: Int = 0,
     @Column(name = "courier_fee_cfa", nullable = false) val courierFeeCfa: Int = 0,
     @Column(name = "shortfall_cfa", nullable = false) val shortfallCfa: Int = 0,
@@ -192,6 +198,7 @@ data class CreateDeliveryMissionCommand(
     val customerDeliveryFeeCfa: Int = 0,
     val courierFeeCfa: Int = 0,
     val shortfallCfa: Int = 0,
+    val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
 ) {
     init {
         require(deliveryCode.isNotBlank() && orderId.isNotBlank()) { "Mission references cannot be blank." }
@@ -227,6 +234,7 @@ data class DeliveryMissionSnapshot(
     val pickupName: String? = null,
     val dropoffArea: String? = null,
     val homeDestination: HomeDeliveryDestination? = null,
+    val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
 )
 
 data class DeliveryTrackingSnapshot(
@@ -244,6 +252,7 @@ data class DeliveryTrackingSnapshot(
     val relayDepositedAt: Instant?,
     val deliveredAt: Instant?,
     val updatedAt: Instant,
+    val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
 )
 
 data class DeliveryProblemResolutionSnapshot(
@@ -345,7 +354,7 @@ class DeliveryMissionService(
             packageCount = subOrder?.packageCount ?: 0,
             pickupName = seller,
             dropoffArea = destination?.let { listOfNotNull(it.area, it.city).joinToString(", ") },
-            homeDestination = destination.takeIf { assigned && active },
+            homeDestination = destination.takeIf { assigned && active && mission.destinationType != DeliveryMissionRecordDestination.RELAY_POINT },
         )
     }
 
@@ -371,6 +380,8 @@ class DeliveryMissionService(
                 merchantSubOrderId = command.merchantSubOrderId,
                 deliveryMode = command.deliveryMode,
                 destinationType = command.destinationType,
+                relayPointId = command.relayDestination?.id,
+                relayDestinationPayload = command.relayDestination?.let { objectMapper.writeValueAsString(it) },
                 customerDeliveryFeeCfa = command.customerDeliveryFeeCfa,
                 courierFeeCfa = command.courierFeeCfa,
                 shortfallCfa = command.shortfallCfa,
@@ -842,6 +853,7 @@ fun DeliveryMission.toSnapshot() =
         problemMetadata = problemMetadata,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        relayDestination = relayDestinationPayload?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it) },
     )
 
 fun DeliveryProblemResolutionRecord.toSnapshot() =
@@ -871,6 +883,7 @@ internal fun DeliveryMission.toTrackingSnapshot() =
         relayDepositedAt = relayDepositedAt,
         deliveredAt = deliveredAt,
         updatedAt = updatedAt,
+        relayDestination = relayDestinationPayload?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it) },
     )
 
 private val trackingTerminalStatuses = setOf(

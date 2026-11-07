@@ -112,6 +112,12 @@ class RelayPointRecord(
     @Column(name = "status", nullable = false, length = 64)
     var status: String = "ACTIVE",
 
+    @Column(name = "latitude")
+    var latitude: Double? = null,
+
+    @Column(name = "longitude")
+    var longitude: Double? = null,
+
     @Column(name = "city")
     var city: String? = null,
 

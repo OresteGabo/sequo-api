@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -62,7 +63,24 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     private val deliveryMissions: DeliveryMissionRepository,
     private val deliveryPins: DeliveryPinRepository,
     private val memberships: MerchantMembershipRepository,
+    private val relayPoints: dev.orestegabo.sequo_api.domain.relay.RelayPointRepository,
+    private val relayLockers: dev.orestegabo.sequo_api.domain.hub.RelayLockerRepository,
+    private val jdbc: org.springframework.jdbc.core.JdbcTemplate,
 ) {
+    companion object {
+        @JvmStatic @org.springframework.test.context.DynamicPropertySource
+        fun isolatedPostgres(registry: org.springframework.test.context.DynamicPropertyRegistry) {
+            val url = System.getenv("SEQUO_RELAY_JOURNEY_TEST_URL") ?: return
+            require(url.matches(Regex("jdbc:postgresql://127\\.0\\.0\\.1:[0-9]+/sequo_task14_[a-z0-9_]+"))) { "Use a disposable local Task 14 fixture database." }
+            registry.add("spring.datasource.url") { url }
+            registry.add("spring.datasource.username") { "sequo_fixture" }
+            registry.add("spring.datasource.password") { "" }
+            registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
+            registry.add("spring.jpa.database-platform") { "org.hibernate.dialect.PostgreSQLDialect" }
+            registry.add("spring.jpa.hibernate.ddl-auto") { "validate" }
+            registry.add("spring.flyway.enabled") { "true" }
+        }
+    }
     @LocalServerPort private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = ObjectMapper()
@@ -391,6 +409,168 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(400, call("POST", "/api/rider/missions/$missionId/pickup/complete", winning,
             """{"proofMetadata":"Stale pickup attempt","idempotencyKey":"stale-$missionId"}""").statusCode())
         assertEquals(404, call("GET", "/api/orders/$orderId", fixture().token).statusCode())
+    }
+
+    @Test
+    fun relaySelectionPersistsThroughPaidDispatchAndAtomicDeposit() {
+        val site = relayFixture()
+        val other = relayFixture()
+        val cart = fixture()
+        assertTrue(read("GET", "/api/cart/relay-points", cart.token).any { it["id"].asText() == site.id })
+        relayPoints.findById(site.id).orElseThrow().also { it.latitude = null; relayPoints.save(it) }
+        assertFalse(read("GET", "/api/cart/relay-points", cart.token).any { it["id"].asText() == site.id })
+        relayPoints.findById(site.id).orElseThrow().also { it.latitude = 0.0; relayPoints.save(it) }
+        relayLockers.findById(site.slotId).orElseThrow().also { it.status = dev.orestegabo.sequo_api.domain.hub.HubLockerStatus.MAINTENANCE; relayLockers.save(it) }
+        assertFalse(read("GET", "/api/cart/relay-points", cart.token).any { it["id"].asText() == site.id })
+        relayLockers.findById(site.slotId).orElseThrow().also { it.status = dev.orestegabo.sequo_api.domain.hub.HubLockerStatus.AVAILABLE; relayLockers.save(it) }
+        for (category in listOf("food", "perishable", "sensitive", "grocery", "pharmacy")) {
+            products.findById(cart.productId).orElseThrow().also { it.category = category; products.save(it) }
+            assertTrue(read("GET", "/api/cart/relay-points", cart.token).isEmpty)
+            assertEquals(400, call("GET", "/api/cart/quote?addressId=${cart.addressId}&relayPointId=${site.id}", cart.token).statusCode())
+        }
+        products.findById(cart.productId).orElseThrow().also { it.category = null; products.save(it) }
+        val reviewed = read("GET", "/api/cart/quote?addressId=${cart.addressId}&relayPointId=${site.id}", cart.token)
+        assertEquals("RELAY", reviewed["fulfillmentMode"].asText())
+        assertEquals(site.id, reviewed["relayPointId"].asText())
+        assertEquals(2224, reviewed["distanceMeters"].asInt())
+        val unavailableBody = """{"addressId":"${cart.addressId}","relayPointId":"${site.id}","quoteRevision":"${reviewed["revision"].asText()}","paymentProvider":"yas_togo"}"""
+        relayPoints.findById(site.id).orElseThrow().also { it.status = "INACTIVE"; relayPoints.save(it) }
+        assertFalse(read("GET", "/api/cart/relay-points", cart.token).any { it["id"].asText() == site.id })
+        assertEquals(409, call("POST", "/api/orders/checkouts", cart.token, unavailableBody).statusCode())
+        assertTrue(pending.findByCustomerIdOrderByCreatedAtDesc(cart.userId).isEmpty())
+        relayPoints.findById(site.id).orElseThrow().also { it.status = "ACTIVE"; relayPoints.save(it) }
+        val journey = paidPickedUp(site.id)
+        val riderRead = read("GET", "/api/rider/missions/${journey.missionId}", journey.rider)
+        assertEquals(site.id, riderRead["relayDestination"]["id"].asText())
+        assertTrue(riderRead["homeDestination"].isNull)
+        assertEquals("PointDeRelai", read("GET", "/api/orders/${journey.orderId}", journey.customer.token)["order"]["route"].asText())
+        val key = "deposit-${journey.missionId}"
+        fun deposit(relay: String, slot: String = "SLOT-1") = """{"relayPointId":"$relay","lockerCode":"$slot","proofMetadata":"Operator accepted staged parcel","idempotencyKey":"$key"}"""
+        val path = "/api/rider/missions/${journey.missionId}/relay-deposit"
+        assertEquals(400, call("POST", path, journey.rider, deposit(other.id)).statusCode())
+        assertEquals(400, call("POST", path, journey.rider, deposit(site.id, "guessed-slot")).statusCode())
+        assertEquals(400, call("POST", "/api/delivery/missions/${journey.missionId}/relay-deposit", journey.rider,
+            """{"proofMetadata":"Legacy unscoped deposit","idempotencyKey":"old-key"}""").statusCode())
+        val calls = (1..2).map { CompletableFuture.supplyAsync { call("POST", path, journey.rider, deposit(site.id)) } }.map { it.join() }
+        calls.forEach { assertEquals(200, it.statusCode(), it.body()) }
+        assertEquals(400, call("POST", path, journey.rider, deposit(site.id, "changed-slot-on-retry")).statusCode())
+        assertEquals(dev.orestegabo.sequo_api.domain.hub.HubLockerStatus.OCCUPIED, relayLockers.findById(site.slotId).orElseThrow().status)
+        val parcels = read("GET", "/api/relay/parcels?relayPointId=${site.id}", site.operator)
+        val parcel = parcels.single { it["deliveryMissionId"].asText() == journey.missionId }
+        assertEquals(journey.orderId, parcel["orderId"].asText())
+        assertEquals(site.slotId, parcel["lockerId"].asText())
+        assertEquals("Deposited", parcel["status"].asText())
+        assertEquals(403, call("GET", "/api/relay/parcels/${parcel["id"].asText()}", other.operator).statusCode())
+        val tracking = read("GET", "/api/orders/${journey.orderId}", journey.customer.token)["deliveries"].single()
+        assertEquals(site.id, tracking["relayDestination"]["id"].asText())
+        assertEquals("DEPOSITED_AT_RELAY", tracking["status"].asText())
+        assertFalse(tracking["relayDepositedAt"].isNull)
+        val ops = read("GET", "/api/delivery/missions/${journey.missionId}", journey.admin)
+        assertEquals(tracking["relayDestination"], ops["relayDestination"])
+        assertFalse(read("GET", "/api/cart/relay-points", cart.token).any { it["id"].asText() == site.id })
+        val parcelId = parcel["id"].asText()
+        assertEquals(200, call("POST", "/api/relay/parcels/$parcelId/pickup-code", site.operator,
+            """{"codeId":"code-$parcelId","rawNumericCode":"123456","identityCheckRequired":true,"expiresAt":"${Instant.now().plusSeconds(3600)}"}""").statusCode())
+        assertEquals(200, call("POST", "/api/relay/parcels/$parcelId/release", site.operator,
+            """{"relayPointId":"${site.id}","rawNumericCode":"123456","identityDocumentMatched":true,"eventId":"release-$parcelId","idempotencyKey":"release-$parcelId"}""").statusCode())
+        assertEquals(dev.orestegabo.sequo_api.domain.hub.HubLockerStatus.AVAILABLE, relayLockers.findById(site.slotId).orElseThrow().status)
+        assertTrue(read("GET", "/api/cart/relay-points", cart.token).any { it["id"].asText() == site.id })
+    }
+
+    @Test
+    fun failedHomeHandoffRequiresStaffCustomerApprovalAndSharedExclusionsForReroute() {
+        val site = relayFixture()
+        val home = paidPickedUp()
+        val path = "/api/delivery/missions/${home.missionId}/relay-reroute"
+        val request = """{"relayPointId":"${site.id}","customerApproved":true,"reason":"Customer unavailable at home; agreed relay","idempotencyKey":"reroute-${home.missionId}"}"""
+        assertEquals(400, call("POST", path, home.admin, request).statusCode())
+        assertEquals(200, call("POST", "/api/rider/missions/${home.missionId}/problem", home.rider,
+            """{"reason":"Customer unavailable at home","idempotencyKey":"problem-${home.missionId}"}""").statusCode())
+        assertEquals(403, call("POST", path, home.rider, request).statusCode())
+        assertEquals(403, call("POST", path, home.customer.token, request).statusCode())
+        assertEquals(400, call("POST", path, home.admin, request.replace("true", "false")).statusCode())
+        relayPoints.findById(site.id).orElseThrow().also { it.status = "INACTIVE"; relayPoints.save(it) }
+        assertEquals(400, call("POST", path, home.admin, request).statusCode())
+        relayPoints.findById(site.id).orElseThrow().also { it.status = "ACTIVE"; relayPoints.save(it) }
+        val approved = call("POST", path, home.admin, request)
+        assertEquals(200, approved.statusCode(), approved.body())
+        assertEquals(200, call("POST", path, home.admin, request).statusCode())
+        val mission = read("GET", "/api/rider/missions/${home.missionId}", home.rider)
+        assertEquals(site.id, mission["relayDestination"]["id"].asText())
+        assertEquals("RELAY_POINT", mission["destinationType"].asText())
+        assertTrue(mission["homeDestination"].isNull)
+        assertEquals(200, call("POST", "/api/rider/missions/${home.missionId}/relay-deposit", home.rider,
+            """{"relayPointId":"${site.id}","lockerCode":"SLOT-1","proofMetadata":"Relay operator accepted custody","idempotencyKey":"rerouted-deposit-${home.missionId}"}""").statusCode())
+        val tracking = read("GET", "/api/orders/${home.orderId}", home.customer.token)["deliveries"].single()
+        assertEquals("DEPOSITED_AT_RELAY", tracking["status"].asText())
+        assertEquals(site.id, tracking["relayDestination"]["id"].asText())
+        assertNotNull(deliveryMissions.findById(home.missionId).orElseThrow().relayReroutedAt)
+        val freeSite = relayFixture()
+        for (category in listOf("food", "perishable", "sensitive", "grocery", "pharmacy")) {
+            val excluded = paidPickedUp(category = category)
+            assertEquals(200, call("POST", "/api/rider/missions/${excluded.missionId}/problem", excluded.rider,
+                """{"reason":"Home handoff failed","idempotencyKey":"problem-${excluded.missionId}"}""").statusCode())
+            assertEquals(400, call("POST", "/api/delivery/missions/${excluded.missionId}/relay-reroute", excluded.admin,
+                """{"relayPointId":"${freeSite.id}","customerApproved":true,"reason":"Attempt excluded category","idempotencyKey":"reroute-${excluded.missionId}"}""").statusCode())
+        }
+    }
+
+    private data class RelayFixture(val id: String, val slotId: String, val operator: String)
+    private fun relayFixture(): RelayFixture {
+        val user = users.save(User(email = "operator-${UUID.randomUUID()}@fixture.invalid", provider = AuthProvider.EMAIL, roles = mutableSetOf(RoleCode.RELAY_PARTNER)))
+        val id = "relay-${UUID.randomUUID()}"
+        relayPoints.save(dev.orestegabo.sequo_api.domain.party.RelayPointRecord(id = id, operatorUserId = user.id, name = "Fixture relay", city = "Lomé", neighborhood = "Fixture area", latitude = 0.0, longitude = 0.02))
+        val time = java.sql.Timestamp.from(Instant.now())
+        jdbc.update("insert into relay_locker_grids (id,relay_point_id,grid_code,label,created_at,updated_at,version) values (?,?,?,?,?,?,0)", id, id, id, "Staging logical grid", time, time)
+        val slotId = "slot-$id"
+        relayLockers.save(dev.orestegabo.sequo_api.domain.hub.RelayLockerRecord(id = slotId, relayPointId = id, relayLockerGridId = id, lockerCode = "SLOT-1"))
+        return RelayFixture(id, slotId, jwt.generateAccessToken(UserSession(requireNotNull(user.id), user.email, AuthProvider.EMAIL, setOf(RoleCode.RELAY_PARTNER))))
+    }
+
+    private data class RelayJourney(val customer: Fixture, val orderId: String, val missionId: String, val rider: String, val admin: String)
+    private fun paidPickedUp(relayId: String? = null, category: String? = null): RelayJourney {
+        val fixture = fixture()
+        if (category != null) products.findById(fixture.productId).orElseThrow().also {
+            it.category = category
+            if (category in listOf("food", "perishable")) { it.cameraVerified = true; it.capturedAtLabel = Instant.now().toString() }
+            products.save(it)
+        }
+        fun account(role: RoleCode): Pair<String, String> {
+            val user = users.save(User(email = "${UUID.randomUUID()}@fixture.invalid", provider = AuthProvider.EMAIL, roles = mutableSetOf(role)))
+            return requireNotNull(user.id) to jwt.generateAccessToken(UserSession(requireNotNull(user.id), user.email, AuthProvider.EMAIL, setOf(role)))
+        }
+        val merchantId = requireNotNull(products.findById(fixture.productId).orElseThrow().merchantId)
+        val owner = account(RoleCode.MERCHANT_OWNER)
+        memberships.save(MerchantMembership(userId = owner.first, merchantId = merchantId, role = RoleCode.MERCHANT_OWNER))
+        val merchant = jwt.generateAccessToken(UserSession(owner.first, null, AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_OWNER), setOf(merchantId)))
+        val admin = account(RoleCode.ADMIN).second
+        val rider = account(RoleCode.COURIER)
+        couriers.save(CourierRecord(id = "courier-${rider.first}", userId = rider.first, workforceType = "FREELANCER"))
+        val relayQuery = relayId?.let { "&relayPointId=$it" }.orEmpty()
+        val quote = read("GET", "/api/cart/quote?addressId=${fixture.addressId}$relayQuery", fixture.token)
+        val relayField = relayId?.let { ",\"relayPointId\":\"$it\"" }.orEmpty()
+        val submit = call("POST", "/api/orders/checkouts", fixture.token,
+            """{"addressId":"${fixture.addressId}","quoteRevision":"${quote["revision"].asText()}","paymentProvider":"yas_togo"$relayField}""")
+        assertEquals(202, submit.statusCode(), submit.body())
+        val checkout = json.readTree(submit.body()); val id = checkout["checkoutId"].asText()
+        assertEquals(202, webhook("""{"eventId":"relay-journey-$id","checkoutId":"$id","paymentReference":"$id","amountCfa":${checkout["totalCfa"].asInt()},"currency":"XOF","status":"VALIDATED","occurredAt":"${Instant.now()}"}""").statusCode())
+        val sub = read("GET", "/api/merchant/sub-orders?merchantId=$merchantId", merchant).single()
+        val subId = sub["id"].asText(); val orderId = sub["orderId"].asText()
+        for (action in listOf("accept", "start-preparation", "mark-packed")) {
+            val packed = if (action == "mark-packed") ",\"packageCount\":2" else ""
+            val result = call("POST", "/api/merchant/sub-orders/$subId/$action", merchant, """{"merchantId":"$merchantId"$packed}""")
+            assertEquals(200, result.statusCode(), result.body())
+        }
+        val dispatched = readPost("/api/delivery/missions/dispatch-ready", admin)
+        val missionId = dispatched["createdMissions"].single { it["orderId"].asText() == orderId }["id"].asText()
+        assertEquals(200, call("POST", "/api/delivery/missions/$missionId/offer", admin).statusCode())
+        assertEquals(200, call("POST", "/api/rider/missions/$missionId/accept", rider.second).statusCode())
+        assertEquals(200, call("POST", "/api/rider/missions/$missionId/pickup/complete", rider.second,
+            """{"proofMetadata":"Merchant custody proof","idempotencyKey":"pickup-$missionId"}""").statusCode())
+        return RelayJourney(fixture, orderId, missionId, rider.second, admin)
+    }
+    private fun readPost(path: String, token: String): JsonNode {
+        val result = call("POST", path, token); assertEquals(200, result.statusCode(), result.body()); return json.readTree(result.body())
     }
 
     private fun webhook(payload: String, signatureOverride: String? = null): HttpResponse<String> {
