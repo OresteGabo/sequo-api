@@ -121,6 +121,11 @@ class PendingPaymentCheckoutService(
         val pending = pendingCheckouts.lockForReconciliation(event.checkoutId)
             ?: return PaymentReconciliationResult.Ignored("pending_checkout_not_found")
 
+        if (event.currency != "XOF") return PaymentReconciliationResult.Ignored("currency_mismatch")
+        if (event.provider.value != pending.paymentProvider) return PaymentReconciliationResult.Ignored("provider_mismatch")
+        if (event.paymentReference != pending.paymentReference) return PaymentReconciliationResult.Ignored("payment_reference_mismatch")
+        if (event.amountCfa != pending.amountCfa) return PaymentReconciliationResult.Ignored("amount_mismatch")
+
         if (pending.status == PendingPaymentCheckoutStatus.COMPLETED) {
             val order = fulfillmentPersistence.getForCustomer(pending.checkoutId.toOrderId(), pending.customerId)
             return if (order != null) {
@@ -139,10 +144,6 @@ class PendingPaymentCheckoutService(
         if (pending.status != PendingPaymentCheckoutStatus.AWAITING_WEBHOOK) {
             return PaymentReconciliationResult.Ignored("checkout_not_awaiting_webhook")
         }
-
-        if (event.provider.value != pending.paymentProvider) return PaymentReconciliationResult.Ignored("provider_mismatch")
-        if (event.paymentReference != pending.paymentReference) return PaymentReconciliationResult.Ignored("payment_reference_mismatch")
-        if (event.amountCfa != pending.amountCfa) return PaymentReconciliationResult.Ignored("amount_mismatch")
 
         when (event.status) {
             PaymentWebhookProviderStatus.PENDING -> return PaymentReconciliationResult.Ignored("webhook_still_pending")

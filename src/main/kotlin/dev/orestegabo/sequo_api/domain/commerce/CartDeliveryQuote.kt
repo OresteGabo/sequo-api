@@ -83,7 +83,7 @@ class CartDeliveryQuoteService(
         val snapshot = listOf(
             destination, orderPricing, meters,
             cart.items.sortedBy { it.id }.map {
-                listOf(it.id, it.product.id, it.product.merchantId, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections)
+                listOf(it.id, it.product, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections)
             },
         )
         val revision = MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(snapshot)).toHexString()

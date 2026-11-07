@@ -28,7 +28,7 @@ class OrderController(
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
 
-        require(!request.checkoutId.removePrefix("SQ-").startsWith(CART_CHECKOUT_PREFIX)) {
+        require(!request.checkoutId.removePrefix("SQ-").matches(Regex("${CART_CHECKOUT_PREFIX}[a-f0-9]{64}"))) {
             "Use the basket checkout endpoint for this checkout ID."
         }
         val secureRequest = request.copy(customerId = userId)

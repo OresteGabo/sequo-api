@@ -31,6 +31,7 @@ import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
 import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationService
 import org.springframework.transaction.annotation.Isolation
 import org.springframework.stereotype.Service
+import dev.orestegabo.sequo_api.domain.payment.PaymentConfigurationStatus
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -349,6 +350,8 @@ data class PaymentProviderConfigurationDto(
     val refundEnabled: Boolean,
     val courierPayoutEnabled: Boolean,
     val notes: String?,
+    val apiConfigured: Boolean = false,
+    val checkoutConnected: Boolean = false,
 )
 data class ProductCustomizationGroupDto(
     val id: String,
@@ -386,6 +389,7 @@ class PlatformCommerceService(
     private val subscriptions: CustomerSubscriptionRepository,
     private val referralCredits: ReferralDeliveryCreditRepository,
     private val paymentProviders: PaymentProviderConfigurationRepository,
+    private val paymentConfiguration: PaymentConfigurationStatus,
     private val products: CommerceProductRepository,
     private val customizationGroups: ProductCustomizationGroupRepository,
     private val customizationOptions: ProductCustomizationOptionRepository,
@@ -509,7 +513,9 @@ class PlatformCommerceService(
 
     @Transactional(readOnly = true)
     fun paymentProviders(): List<PaymentProviderConfigurationDto> =
-        paymentProviders.findAllByOrderByDisplayNameAsc().map { it.toDto() }
+        paymentProviders.findAllByOrderByDisplayNameAsc().map {
+            it.toDto().copy(apiConfigured = paymentConfiguration.apiConfigured(it.providerId))
+        }
 
     @Transactional(readOnly = true)
     fun customizations(productId: String): List<ProductCustomizationGroupDto> {

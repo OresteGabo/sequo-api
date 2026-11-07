@@ -78,6 +78,16 @@ class PaymentWebhookServiceTest {
         }
     }
 
+    @Test
+    fun rejectsTrackedDevelopmentWebhookCredentialsAndWrongCurrency() {
+        val developmentService = PaymentWebhookService(
+            repository, publisher, "yas_togo_dev_webhook_secret_2026_change_before_prod", "",
+        )
+        assertFailsWith<IllegalArgumentException> { developmentService.accept(command()) }
+        assertFailsWith<IllegalArgumentException> { service.accept(command().copy(currency = "USD")) }
+        Mockito.verifyNoInteractions(repository, publisher)
+    }
+
     private fun command(
         signatureTimestamp: Instant = receivedAt,
         signature: String? = null,

@@ -11,12 +11,17 @@ import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressKind
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRecord
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRepository
+import dev.orestegabo.sequo_api.domain.platform.PaymentProviderConfigurationRepository
+import dev.orestegabo.sequo_api.domain.platform.PaymentProviderConfigurationRecord
+import dev.orestegabo.sequo_api.domain.platform.PaymentProviderReadiness
 import dev.orestegabo.sequo_api.domain.payment.*
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Instant
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import org.springframework.beans.factory.annotation.Autowired
@@ -33,6 +38,10 @@ import kotlin.test.assertTrue
     properties = [
         "spring.datasource.url=jdbc:h2:mem:cart_checkout_http;DB_CLOSE_DELAY=-1",
         "sequo.cart.straight-line-dispatch-origin=0,0",
+        "sequo.wallets.yas-togo.webhook-secret=isolated-fixture-webhook-secret",
+        "sequo.wallets.yas-togo.api-base-url=https://fixture.invalid",
+        "sequo.wallets.yas-togo.api-key=isolated-fixture-key",
+        "sequo.wallets.yas-togo.merchant-account-id=isolated-fixture-account",
     ],
 )
 class CustomerCartCheckoutHttpTest @Autowired constructor(
@@ -44,6 +53,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     private val pending: PendingPaymentCheckoutRepository,
     private val reconciliation: PendingPaymentCheckoutService,
     private val orders: CustomerOrderRecordRepository,
+    private val providerConfigurations: PaymentProviderConfigurationRepository,
 ) {
     @LocalServerPort private var port = 0
     private val client = HttpClient.newHttpClient()
@@ -121,6 +131,93 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val id = json.readTree(rejected.body())["checkoutId"].asText()
         assertEquals("FAILED", read("GET", "/api/orders/checkouts/$id", fixture.token)["status"].asText())
         assertNull(orders.findByCheckoutId(id))
+
+        products.findById(fixture.productId).orElseThrow().also {
+            it.imageUrl = "https://fixture.invalid/corrected.jpg"
+            products.save(it)
+        }
+        val corrected = call("POST", "/api/orders/checkouts", fixture.token, submitBody(fixture, quote(fixture)))
+        assertEquals(202, corrected.statusCode(), corrected.body())
+        assertEquals(false, id == json.readTree(corrected.body())["checkoutId"].asText())
+    }
+
+    @Test
+    fun signedPaymentFixturesExercisePendingRejectionMismatchAndDuplicateSuccess() {
+        val fixture = fixture()
+        val submitted = call("POST", "/api/orders/checkouts", fixture.token, submitBody(fixture, quote(fixture)))
+        assertEquals(202, submitted.statusCode(), submitted.body())
+        val checkout = json.readTree(submitted.body())
+        val id = checkout["checkoutId"].asText()
+        val total = checkout["totalCfa"].asInt()
+        fun state() = read("GET", "/api/orders/checkouts/$id", fixture.token)["status"].asText()
+        fun event(eventId: String, status: String, amount: Int = total, reference: String = id, currency: String = "XOF"): String =
+            """{"eventId":"$eventId","checkoutId":"$id","paymentReference":"$reference","amountCfa":$amount,"currency":"$currency","status":"$status","occurredAt":"2026-11-07T00:00:00Z"}"""
+
+        for (payload in listOf(
+            event("pending-$id", "PENDING"),
+            event("wrong-amount-$id", "VALIDATED", amount = total + 1),
+            event("wrong-reference-$id", "VALIDATED", reference = "wrong-reference"),
+        )) {
+            val response = webhook(payload)
+            assertEquals(202, response.statusCode(), response.body())
+            assertEquals("AWAITING_WEBHOOK", state())
+            assertNull(orders.findByCheckoutId(id))
+        }
+        val currency = webhook(event("wrong-currency-$id", "VALIDATED", currency = "USD"))
+        assertEquals(400, currency.statusCode(), currency.body())
+        assertEquals("AWAITING_WEBHOOK", state())
+        val forged = webhook(event("forged-$id", "VALIDATED"), signatureOverride = "00".repeat(32))
+        assertEquals(400, forged.statusCode())
+        assertNull(orders.findByCheckoutId(id))
+
+        val success = event("success-$id", "VALIDATED")
+        assertEquals(202, webhook(success).statusCode())
+        assertEquals("COMPLETED", state())
+        val duplicate = webhook(success)
+        assertEquals(202, duplicate.statusCode(), duplicate.body())
+        assertEquals(true, json.readTree(duplicate.body())["duplicate"].asBoolean())
+        assertEquals(1, orders.findByCustomerIdOrderByCreatedAtDesc(fixture.userId).size)
+        val details = read("GET", "/api/orders/${orders.findByCheckoutId(id)!!.id}", fixture.token)
+        assertEquals(1, details["merchantSubOrders"].size())
+        assertEquals(2, details["lines"].single()["quantity"].asInt())
+
+        val rejectedFixture = fixture()
+        val rejected = call("POST", "/api/orders/checkouts", rejectedFixture.token, submitBody(rejectedFixture, quote(rejectedFixture)))
+        val failed = json.readTree(rejected.body())
+        val failedId = failed["checkoutId"].asText()
+        val failure = """{"eventId":"failed-$failedId","checkoutId":"$failedId","paymentReference":"$failedId","amountCfa":${failed["totalCfa"].asInt()},"currency":"XOF","status":"FAILED","occurredAt":"2026-11-07T00:00:00Z"}"""
+        assertEquals(202, webhook(failure).statusCode())
+        assertEquals("FAILED", read("GET", "/api/orders/checkouts/$failedId", rejectedFixture.token)["status"].asText())
+        assertEquals(202, webhook(failure.replace("failed-$failedId", "late-$failedId").replace("FAILED", "VALIDATED")).statusCode())
+        assertNull(orders.findByCheckoutId(failedId))
+    }
+
+    @Test
+    fun providerReadinessExposesConfigurationWithoutCredentialsOrClaimingConnection() {
+        providerConfigurations.save(PaymentProviderConfigurationRecord(
+            "yas_togo", "Mixx by Yas", "TG", PaymentProviderReadiness.LIVE_READY,
+            customerCheckoutEnabled = true,
+        ))
+        val response = call("GET", "/api/payments/providers")
+        assertEquals(200, response.statusCode(), response.body())
+        val provider = json.readTree(response.body()).single { it["providerId"].asText() == "yas_togo" }
+        assertEquals(true, provider["apiConfigured"].asBoolean())
+        assertEquals(false, provider["checkoutConnected"].asBoolean())
+        assertEquals(false, response.body().contains("isolated-fixture"))
+        assertEquals(false, response.body().contains("fixture.invalid"))
+    }
+
+    private fun webhook(payload: String, signatureOverride: String? = null): HttpResponse<String> {
+        val timestamp = Instant.now().epochSecond
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec("isolated-fixture-webhook-secret".toByteArray(), "HmacSHA256"))
+        val signature = signatureOverride ?: mac.doFinal("$timestamp.$payload".toByteArray()).toHexString()
+        val request = HttpRequest.newBuilder(URI.create("http://localhost:$port/api/payments/webhooks/yas_togo"))
+            .header("Content-Type", "application/json")
+            .header("X-Sequo-Webhook-Timestamp", timestamp.toString())
+            .header("X-Sequo-Webhook-Signature", signature)
+            .POST(HttpRequest.BodyPublishers.ofString(payload)).build()
+        return client.send(request, HttpResponse.BodyHandlers.ofString())
     }
 
     private data class Fixture(val userId: String, val token: String, val productId: String, val addressId: String)

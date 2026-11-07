@@ -38,6 +38,7 @@ data class PaymentWebhookCommand(
     val signatureTimestamp: Instant,
     val signature: String,
     val rawPayload: String,
+    val currency: String = "XOF",
 ) {
     init {
         require(eventId.isNotBlank()) { "eventId cannot be blank." }
@@ -65,6 +66,7 @@ data class PaymentWebhookAcceptedEvent(
     val status: PaymentWebhookProviderStatus,
     val occurredAt: Instant,
     val receivedAt: Instant,
+    val currency: String = "XOF",
 )
 
 @Entity
@@ -101,6 +103,7 @@ class PaymentWebhookService(
 
     @Transactional
     fun accept(command: PaymentWebhookCommand): PaymentWebhookResult {
+        require(command.currency == "XOF") { "Payment currency must be XOF." }
         val secret = secretFor(command.provider)
             ?: throw IllegalArgumentException("Payment webhook provider is not configured.")
         val age = Duration.between(command.signatureTimestamp, command.receivedAt).abs()
@@ -135,8 +138,8 @@ class PaymentWebhookService(
     }
 
     private fun secretFor(provider: PaymentProviderId): String? = when (provider) {
-        SequoPaymentProviders.YasTogo -> yasTogoSecret.takeUnless { it.isBlank() }
-        SequoPaymentProviders.MoovAfrica -> moovAfricaSecret.takeUnless { it.isBlank() }
+        SequoPaymentProviders.YasTogo -> yasTogoSecret.takeIf { it.isProductionValue() }
+        SequoPaymentProviders.MoovAfrica -> moovAfricaSecret.takeIf { it.isProductionValue() }
         else -> null
     }
 

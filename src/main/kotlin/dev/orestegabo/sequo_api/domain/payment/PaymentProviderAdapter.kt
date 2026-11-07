@@ -180,7 +180,7 @@ fun PaymentProviderAdapter.asPaymentMethod(): SequoPaymentMethod {
     }
 }
 
-private fun String.isProductionValue(): Boolean {
+internal fun String.isProductionValue(): Boolean {
     val normalized = trim()
     return normalized.isNotEmpty() &&
         !normalized.contains("change_before_prod", ignoreCase = true) &&

@@ -464,3 +464,35 @@ Webhook body:
 - `403` means the token is valid but does not have the required role or merchant scope.
 - Google login needs a Google ID token from the client app, not a Firebase paid backend.
 - Seed rows in `src/main/resources/db/seed/dev_seed_data.sql` are for database/workflow testing. For real login testing, use `/api/auth/signup` or a real Google ID token.
+
+
+## Isolated payment verification
+
+The deterministic payment exercise lives in the test source set. Run it with Java 21 and local Gradle dependencies.
+
+```sh
+./gradlew --offline test --tests '*CustomerCartCheckoutHttpTest' --tests '*PaymentSimulationGuardTest' --tests '*PaymentWebhookServiceTest' --tests '*PendingPaymentCheckoutServiceTest'
+```
+
+The HTTP fixture submits an owned basket, signs events with a test-only secret, and sends them to `POST /api/payments/webhooks/yas_togo`. It checks pending, wrong amount, wrong reference, wrong currency, forged signature, success, duplicate success, failure, and late success. Each accepted fixture goes through the existing webhook service and reconciliation listener. A pending or failed checkout has no merchant fulfillment.
+
+The webhook route authenticates the raw body using `X-Sequo-Webhook-Timestamp` (epoch seconds) and `X-Sequo-Webhook-Signature` (HMAC-SHA256 of `timestamp.rawBody`). Set a dedicated staging webhook secret through the existing wallet environment configuration. Tracked development placeholder secrets are rejected. Events with an explicit currency must use `XOF`. Legacy events that omit currency retain the existing XOF interpretation.
+
+Runtime payment simulation is disabled. Setting `sequo.payments.simulator.enabled=true` fails application initialization in every profile, including production with the development-security override enabled. Test classes and fixture credentials are excluded from the production application artifact.
+
+The public provider read exposes `apiConfigured` and `checkoutConnected` booleans. Configured credentials can be reported while provider execution is still being prepared. The current wallet adapters report `checkoutConnected=false`. The customer UI shows this configuration state before submission and reloads pending, failed, or paid states from authenticated checkout/order reads.
+
+For the device check, connect the customer debug app and API to the same isolated staging database, sign in as a staging customer, and add a published product with valid media. Select an owned home address with coordinates and review the quote. Submit and open Orders to see pending confirmation. Restart the app and refresh Orders. Send a signed staging event using the displayed checkout ID as both `checkoutId` and `paymentReference`, the stored checkout amount as `amountCfa`, `currency=XOF`, a unique `eventId`, and `status=VALIDATED`. Refresh Orders and verify one paid order. Repeat the same signed body with a fresh signature timestamp and verify the same order. Use a separate checkout with `status=FAILED` to verify the failed state. Device and deployed staging checks require authorized environment access.
+
+
+### Checkout and payment verification results
+
+The local verification on 2026-11-07 passed 44 API tests, the production JAR build, and both customer app compilation targets.
+
+```sh
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew --offline test --tests '*CustomerCartCheckoutHttpTest' --tests '*CustomerCheckoutRestartTest' --tests '*PaymentSimulationGuardTest' --tests '*PaymentWebhookServiceTest' --tests '*PendingPaymentCheckoutServiceTest' --tests '*OrderFulfillmentPersistenceServiceTest' --tests '*OrderProcessingTest' --tests '*CommerceServiceTest' --tests '*PlatformCommerceServiceTest' --tests '*AuthControllerSecurityTest' bootJar
+```
+
+From the Sequo repository, the compiled targets were checked with `./gradlew --offline :shared:compileAndroidMain :shared:compileKotlinIosSimulatorArm64`. The existing edit in `DeliveryPricingTest.kt` contains a split function name, so the customer unit-test suite remains blocked by that source syntax error. Device and deployed staging checks remain unverified.
+
+The restart test starts the API twice against a temporary file-backed H2 database and confirms that pending checkout data, destination snapshot, and retry identity survive. The production artifact check confirms that checkout fixture classes and their webhook credential are absent. The simulator guard test rejects enablement under the production profile even with `sequo.security.allow-dev-defaults=true`.

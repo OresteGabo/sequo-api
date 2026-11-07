@@ -44,6 +44,7 @@ class PaymentWebhookController(
                 signatureTimestamp = Instant.ofEpochSecond(timestamp),
                 signature = ApiInputPolicy.requiredShortToken(signature, "signature"),
                 rawPayload = rawPayload,
+                currency = if (root.has("currency")) root.requiredText("currency") else "XOF",
             )
         )
         return ResponseEntity.accepted().body(result)
