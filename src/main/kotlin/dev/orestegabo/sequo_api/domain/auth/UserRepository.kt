@@ -1,9 +1,16 @@
 package dev.orestegabo.sequo_api.domain.auth
 
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Query
 import java.util.*
 
 interface UserRepository : JpaRepository<User, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.id = :id")
+    fun lockCheckoutOwner(id: String): User?
+
     fun findByEmail(email: String): User?
     fun findByPhoneNumber(phoneNumber: String): User?
 }

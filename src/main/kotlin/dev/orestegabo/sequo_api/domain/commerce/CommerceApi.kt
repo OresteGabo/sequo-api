@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.commerce
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.api.ApiErrorResponse
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
+import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
@@ -411,6 +412,7 @@ class CommerceService(
     private val storefronts: MerchantStorefrontRepository,
     private val promotions: CatalogPromotionRepository,
     private val cartItems: CustomerCartItemRepository,
+    private val users: UserRepository,
     private val bargainingThreads: BargainingThreadRepository,
     private val bargainingOffers: BargainingOfferRepository,
     private val cameraMedia: CatalogCameraMedia,
@@ -787,6 +789,7 @@ class CommerceService(
 
     @Transactional
     fun putCartItem(userId: String, request: UpsertCartItemRequest): CommerceCartDto {
+        require(users.lockCheckoutOwner(userId)?.active == true) { "Customer account is unavailable." }
         val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
         require(request.quantity in 1..99) { "quantity must be between 1 and 99." }
         requireNotNull(products.lockForCustomization(productId)) { "Product is unavailable." }
@@ -816,6 +819,7 @@ class CommerceService(
 
     @Transactional
     fun removeCartItem(userId: String, itemId: String): CommerceCartDto {
+        require(users.lockCheckoutOwner(userId)?.active == true) { "Customer account is unavailable." }
         val safeItemId = ApiInputPolicy.requiredIdentifier(itemId, "itemId")
         cartItems.findByIdAndUserId(safeItemId, userId)?.let(cartItems::delete)
         return cart(userId)
@@ -823,6 +827,7 @@ class CommerceService(
 
     @Transactional
     fun clearCart(userId: String): CommerceCartDto {
+        require(users.lockCheckoutOwner(userId)?.active == true) { "Customer account is unavailable." }
         cartItems.deleteByUserId(userId)
         return cart(userId)
     }

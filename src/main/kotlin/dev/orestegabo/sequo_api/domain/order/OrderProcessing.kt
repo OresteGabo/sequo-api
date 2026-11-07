@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
 import dev.orestegabo.sequo_api.domain.payment.PaymentFeature
 import dev.orestegabo.sequo_api.domain.payment.PaymentProcessor
 import dev.orestegabo.sequo_api.domain.payment.PaymentProviderId
@@ -69,6 +70,7 @@ data class OrderLineRequest(
     val unitPriceCfa: Int,
     val negotiatedUnitPriceCfa: Int? = null,
     val photoEvidence: ProductPhotoEvidence,
+    val selections: List<FoodCustomizationSelection> = emptyList(),
 ) {
     val effectiveUnitPriceCfa: Int
         get() = negotiatedUnitPriceCfa ?: unitPriceCfa
@@ -85,6 +87,19 @@ data class OrderProcessingRequest(
     val paymentProvider: PaymentProviderId,
     val paymentReference: String,
     val countryCode: String = "TG",
+    val homeDestination: HomeDeliveryDestination? = null,
+)
+
+data class HomeDeliveryDestination(
+    val addressId: String,
+    val label: String,
+    val recipientName: String,
+    val phoneNumber: String,
+    val city: String,
+    val area: String?,
+    val streetHint: String?,
+    val latitude: Double,
+    val longitude: Double,
 )
 
 data class OrderPricingSnapshot(
@@ -191,7 +206,9 @@ abstract class SequoOrderProcessor(
     // Template Method: subclasses customize service-level differences while this class owns the invariant order flow.
     protected abstract val processorName: String
 
-    fun process(request: OrderProcessingRequest): OrderProcessingResult {
+    fun process(request: OrderProcessingRequest): OrderProcessingResult = process(request, null)
+
+    internal fun process(request: OrderProcessingRequest, serverPricing: OrderPricingSnapshot?): OrderProcessingResult {
         val events = mutableListOf<OrderFlowEvent>()
 
         validateOrder(request)?.let { rejection ->
@@ -200,7 +217,7 @@ abstract class SequoOrderProcessor(
         }
         events.passed(OrderFlowStage.ValidateOrder, "Order checkout is valid for ${request.serviceLevel.name}.")
 
-        val pricing = calculateTotal(request)
+        val pricing = serverPricing ?: calculateTotal(request)
         events.passed(OrderFlowStage.CalculateTotal, "Total calculated from item subtotal and delivery snapshot.")
 
         val payment = processPayment(request, pricing)
@@ -448,7 +465,7 @@ private fun checkedMoneySum(leftCfa: Int, rightCfa: Int): Int {
     return total.toInt()
 }
 
-private fun String.toOrderId(): String =
+internal fun String.toOrderId(): String =
     if (startsWith("SQ-")) this else "SQ-$this"
 
 private fun MutableList<OrderFlowEvent>.passed(stage: OrderFlowStage, message: String) {

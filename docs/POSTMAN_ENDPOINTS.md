@@ -119,7 +119,7 @@ Reads use current catalog prices and option availability. Unavailable lines stay
 
 Quotes return product, option, service, and delivery amounts in XOF, plus the address ID, estimated distance in metres, distance source, and billable kilometres. The current customer service fee is zero. The existing delivery engine rounds up to whole kilometres. With default pricing, 4,999 m and 5,000 m cost 400 FCFA, and 5,001 m costs 500 FCFA. Merchant commissions use the existing settlement calculation.
 
-For a local fixture, set the Spring property `sequo.cart.straight-line-dispatch-origin=0,0` and use an owned address at latitude 0 and longitude `0.0449750735` (approximately 5,001 m). Without a configured origin, the quote returns an error. Confirm the production origin, distance source, and fractional-kilometre rule with SEQUO before enabling production estimates. Task 09 must recompute or validate the quote when submitting checkout.
+For a local fixture, set the Spring property `sequo.cart.straight-line-dispatch-origin=0,0` and use an owned address at latitude 0 and longitude `0.0449750735` (approximately 5,001 m). Without a configured origin, the quote returns an error. Confirm the production origin, distance source, and fractional-kilometre rule with SEQUO before enabling production estimates. Checkout validates the reviewed quote revision before submitting.
 
 ## Orders
 
@@ -139,6 +139,18 @@ Pickup confirmation body:
   "proofMetadata": "{\"source\":\"postman\"}"
 }
 ```
+
+### Customer basket checkout
+
+1. Read `GET /api/cart/quote?addressId={owned_address_id}` and show the amounts to the customer.
+2. Submit `POST /api/orders/checkouts` with `addressId`, the reviewed `quoteRevision`, and `paymentProvider` (`yas_togo` or `moov_africa`).
+3. Read `GET /api/orders/checkouts` or `GET /api/orders/checkouts/{checkoutId}` after a refresh or restart. Read `GET /api/orders` for subsequent paid order states.
+
+The authenticated customer and reviewed quote revision form the stable retry identity. Retry the same body after a timeout. An existing checkout is returned even after catalog changes. Changing its provider or destination requires a new reviewed basket. A changed basket, address, or price before first submission returns HTTP 409 with `quote_changed`; show the fresh quote and ask the customer to submit again.
+
+HTTP 202 means payment is pending, HTTP 422 means the checkout failed, and HTTP 200 means payment has been verified. Pending and accepted submissions clear the submitted basket transactionally. Failed submissions preserve it for correction. Re-adding products creates new basket line IDs and allows a new order. Client totals, payment success flags, and customer IDs have no authority on this endpoint.
+
+The server persists a home destination snapshot, real product quantities, prices, and option IDs in the existing pending-checkout payload. Legacy payloads without these optional fields remain readable. Pending payments create no merchant fulfillment. The existing signed webhook reconciliation creates the paid order. Customer checkout reads return a destination label and product quantities; full contact details remain in the server snapshot.
 
 ## Merchant Fulfillment
 

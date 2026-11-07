@@ -1,6 +1,10 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
+import dev.orestegabo.sequo_api.domain.order.HomeDeliveryDestination
+import dev.orestegabo.sequo_api.domain.order.OrderPricingSnapshot
+import java.security.MessageDigest
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressKind
 import dev.orestegabo.sequo_api.domain.platform.CustomerAddressRepository
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingInput
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController
 
 data class CartDeliveryQuote(
     val addressId: String,
+    val revision: String,
     val distanceMeters: Int,
     val distanceSource: String,
     val billableKm: Int,
@@ -28,6 +33,13 @@ data class CartDeliveryQuote(
     val deliveryFeeCfa: Int,
     val totalCfa: Int,
     val currency: String = "XOF",
+)
+
+internal data class ReviewedCart(
+    val cart: CommerceCartDto,
+    val quote: CartDeliveryQuote,
+    val destination: HomeDeliveryDestination,
+    val pricing: OrderPricingSnapshot,
 )
 
 @Service
@@ -45,7 +57,10 @@ class CartDeliveryQuoteService(
     private val distanceProvider = StraightLineRoutingDistanceProvider()
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    fun quote(userId: String, addressId: String): CartDeliveryQuote {
+    fun quote(userId: String, addressId: String): CartDeliveryQuote = review(userId, addressId).quote
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    internal fun review(userId: String, addressId: String): ReviewedCart {
         val address = requireNotNull(
             addresses.findByIdAndUserId(ApiInputPolicy.requiredIdentifier(addressId, "addressId"), userId)
                 ?.takeIf { it.active && it.kind != CustomerAddressKind.RELAY },
@@ -60,8 +75,21 @@ class CartDeliveryQuoteService(
         val delivery = pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0))
         val total = cart.subtotalCfa.toLong() + delivery.finalDeliveryFeeCfa
         require(total <= Int.MAX_VALUE) { "Cart quote is too large." }
-        return CartDeliveryQuote(
+        val destination = HomeDeliveryDestination(
+            address.id, address.label, address.recipientName, address.phoneNumber,
+            address.city, address.area, address.streetHint, latitude, longitude,
+        )
+        val orderPricing = OrderPricingSnapshot(cart.subtotalCfa, delivery, total.toInt())
+        val snapshot = listOf(
+            destination, orderPricing, meters,
+            cart.items.sortedBy { it.id }.map {
+                listOf(it.id, it.product.id, it.product.merchantId, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections)
+            },
+        )
+        val revision = MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(snapshot)).toHexString()
+        val quote = CartDeliveryQuote(
             addressId = address.id,
+            revision = revision,
             distanceMeters = meters,
             distanceSource = distanceProvider.name,
             billableKm = delivery.billableKm,
@@ -71,7 +99,10 @@ class CartDeliveryQuoteService(
             deliveryFeeCfa = delivery.finalDeliveryFeeCfa,
             totalCfa = total.toInt(),
         )
+        return ReviewedCart(cart, quote, destination, orderPricing)
     }
+
+    private val mapper = ObjectMapper()
 }
 
 @RestController

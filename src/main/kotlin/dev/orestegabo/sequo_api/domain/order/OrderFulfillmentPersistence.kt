@@ -31,6 +31,8 @@ import jakarta.persistence.Version
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import java.time.Instant
+import java.security.MessageDigest
+import java.util.Base64
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
@@ -319,6 +321,7 @@ class OrderFulfillmentPersistenceService(
         createdAt: Instant = Instant.now(),
     ): PersistedOrderFulfillment {
         val existingOrder = orders.findByCheckoutId(request.checkoutId)
+        require(existingOrder == null || existingOrder.customerId == request.customerId) { "Checkout is unavailable." }
         val orderRecord = existingOrder ?: orders.save(accepted.toOrderRecord(request, createdAt))
         if (existingOrder == null) {
             request.lines.mapIndexed { index, line -> line.toLineRecord(accepted.order.orderId, index, createdAt) }
@@ -337,7 +340,11 @@ class OrderFulfillmentPersistenceService(
                 )
             )
         }
-        val merchantSubOrders = createMissingMerchantSubOrders(accepted.order.orderId, request.lines)
+        val merchantSubOrders = if (existingOrder == null) {
+            createMissingMerchantSubOrders(orderRecord.id, request.lines)
+        } else {
+            merchantFulfillment.listForOrder(orderRecord.id)
+        }
 
         return PersistedOrderFulfillment(
             order = orderRecord.toSnapshot(),
@@ -364,7 +371,11 @@ class OrderFulfillmentPersistenceService(
     ): List<MerchantSubOrderSnapshot> =
         orderLines.groupBy { it.sellerId }
             .map { (merchantId, sellerLines) ->
-                val subOrderCode = "$orderId:$merchantId"
+                val legacyCode = "$orderId:$merchantId"
+            val subOrderCode = if (legacyCode.length <= 64) legacyCode else {
+                val digest = MessageDigest.getInstance("SHA-256").digest(legacyCode.toByteArray(Charsets.UTF_8))
+                "SQ-" + Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+            }
                 merchantFulfillment.findBySubOrderCode(subOrderCode)
                     ?: merchantFulfillment.create(
                         sellerLines.toSubOrderCommand(

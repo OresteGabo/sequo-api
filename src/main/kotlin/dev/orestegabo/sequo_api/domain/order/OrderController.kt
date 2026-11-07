@@ -28,6 +28,9 @@ class OrderController(
     ): ResponseEntity<Any> {
         if (userId == null) return ResponseEntity.status(401).build()
 
+        require(!request.checkoutId.removePrefix("SQ-").startsWith(CART_CHECKOUT_PREFIX)) {
+            "Use the basket checkout endpoint for this checkout ID."
+        }
         val secureRequest = request.copy(customerId = userId)
         
         val processor = factory.processorFor(secureRequest.serviceLevel)

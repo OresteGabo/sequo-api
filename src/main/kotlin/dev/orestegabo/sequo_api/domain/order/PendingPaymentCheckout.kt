@@ -14,7 +14,11 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.LockModeType
 import jakarta.persistence.ManyToOne
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Query
+import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationSelection
 import jakarta.persistence.Table
 import dev.orestegabo.sequo_api.domain.auth.User
 import java.time.Instant
@@ -53,7 +57,14 @@ class PendingPaymentCheckoutRecord(
     @Column(name = "provider_reference") var providerReference: String? = null,
 )
 
-interface PendingPaymentCheckoutRepository : JpaRepository<PendingPaymentCheckoutRecord, String>
+interface PendingPaymentCheckoutRepository : JpaRepository<PendingPaymentCheckoutRecord, String> {
+    fun findByCheckoutIdAndCustomerId(checkoutId: String, customerId: String): PendingPaymentCheckoutRecord?
+    fun findByCustomerIdOrderByCreatedAtDesc(customerId: String): List<PendingPaymentCheckoutRecord>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from PendingPaymentCheckoutRecord p where p.checkoutId = :checkoutId")
+    fun lockForReconciliation(checkoutId: String): PendingPaymentCheckoutRecord?
+}
 
 sealed class PaymentReconciliationResult {
     data class Fulfilled(val fulfillment: PersistedOrderFulfillment) : PaymentReconciliationResult()
@@ -82,25 +93,32 @@ class PendingPaymentCheckoutService(
             return
         }
 
-        pendingCheckouts.save(
-            PendingPaymentCheckoutRecord(
-                checkoutId = request.checkoutId,
-                customerId = request.customerId,
-                paymentProvider = request.paymentProvider.value,
-                paymentReference = request.paymentReference,
-                amountCfa = result.pricing.totalCfa,
-                requestPayload = objectMapper.writeValueAsString(request.toPendingPayload()),
-                pricingPayload = objectMapper.writeValueAsString(result.pricing),
-                status = PendingPaymentCheckoutStatus.AWAITING_WEBHOOK,
-                createdAt = createdAt,
-                updatedAt = createdAt,
-            )
-        )
+        recordCartCheckout(request, result.pricing, PendingPaymentCheckoutStatus.AWAITING_WEBHOOK, createdAt)
     }
+
+    internal fun recordCartCheckout(
+        request: OrderProcessingRequest,
+        pricing: OrderPricingSnapshot,
+        status: PendingPaymentCheckoutStatus,
+        now: Instant = Instant.now(),
+    ): PendingPaymentCheckoutRecord =
+        pendingCheckouts.save(PendingPaymentCheckoutRecord(
+            checkoutId = request.checkoutId,
+            customerId = request.customerId,
+            paymentProvider = request.paymentProvider.value,
+            paymentReference = request.paymentReference,
+            amountCfa = pricing.totalCfa,
+            requestPayload = objectMapper.writeValueAsString(request.toPendingPayload()),
+            pricingPayload = objectMapper.writeValueAsString(pricing),
+            status = status,
+            createdAt = now,
+            updatedAt = now,
+            completedAt = now.takeUnless { status == PendingPaymentCheckoutStatus.AWAITING_WEBHOOK },
+        ))
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun reconcile(event: PaymentWebhookAcceptedEvent): PaymentReconciliationResult {
-        val pending = pendingCheckouts.findById(event.checkoutId).orElse(null)
+        val pending = pendingCheckouts.lockForReconciliation(event.checkoutId)
             ?: return PaymentReconciliationResult.Ignored("pending_checkout_not_found")
 
         if (pending.status == PendingPaymentCheckoutStatus.COMPLETED) {
@@ -181,6 +199,7 @@ data class PendingOrderProcessingRequestPayload(
     val paymentProvider: String,
     val paymentReference: String,
     val countryCode: String,
+    val homeDestination: HomeDeliveryDestination? = null,
 )
 
 data class PendingOrderLineRequestPayload(
@@ -194,6 +213,7 @@ data class PendingOrderLineRequestPayload(
     val negotiatedUnitPriceCfa: Int?,
     val photoEvidenceType: String,
     val capturedAtEpochMillis: Long?,
+    val selections: List<FoodCustomizationSelection> = emptyList(),
 )
 
 private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRequestPayload(
@@ -207,6 +227,7 @@ private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRe
     paymentProvider = paymentProvider.value,
     paymentReference = paymentReference,
     countryCode = countryCode,
+    homeDestination = homeDestination,
 )
 
 private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload(
@@ -225,6 +246,7 @@ private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload
         ProductPhotoEvidence.GalleryUpload -> "GALLERY_UPLOAD"
     },
     capturedAtEpochMillis = (photoEvidence as? ProductPhotoEvidence.LiveCameraCapture)?.capturedAtEpochMillis,
+    selections = selections,
 )
 
 private fun PendingOrderProcessingRequestPayload.toRequest() = OrderProcessingRequest(
@@ -238,6 +260,7 @@ private fun PendingOrderProcessingRequestPayload.toRequest() = OrderProcessingRe
     paymentProvider = PaymentProviderId(paymentProvider),
     paymentReference = paymentReference,
     countryCode = countryCode,
+    homeDestination = homeDestination,
 )
 
 private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
@@ -249,6 +272,7 @@ private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
     quantity = quantity,
     unitPriceCfa = unitPriceCfa,
     negotiatedUnitPriceCfa = negotiatedUnitPriceCfa,
+    selections = selections,
     photoEvidence = when (photoEvidenceType) {
         "LIVE_CAMERA_CAPTURE" -> ProductPhotoEvidence.LiveCameraCapture(capturedAtEpochMillis ?: 0)
         "GENERIC_CATALOG_IMAGE" -> ProductPhotoEvidence.GenericCatalogImage
@@ -258,7 +282,7 @@ private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
     },
 )
 
-private fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRequest {
+internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRequest {
     val root = readTree(payload)
     return OrderProcessingRequest(
         checkoutId = root.requiredText("checkoutId"),
@@ -277,6 +301,9 @@ private fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingReq
                 negotiatedUnitPriceCfa = line.optionalInt("negotiatedUnitPriceCfa"),
                 photoEvidenceType = line.requiredText("photoEvidenceType"),
                 capturedAtEpochMillis = line.optionalLong("capturedAtEpochMillis"),
+                selections = line.path("selections").map { selection ->
+                    FoodCustomizationSelection(selection.requiredText("groupId"), selection.path("optionIds").map { it.asText() }.toSet())
+                },
             ).toRequest()
         },
         deliveryDistanceKm = root.requiredDouble("deliveryDistanceKm"),
@@ -284,6 +311,13 @@ private fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingReq
         paymentProvider = PaymentProviderId(root.requiredText("paymentProvider")),
         paymentReference = root.requiredText("paymentReference"),
         countryCode = root.requiredText("countryCode"),
+        homeDestination = root.get("homeDestination")?.takeUnless { it.isNull }?.let {
+            HomeDeliveryDestination(
+                it.requiredText("addressId"), it.requiredText("label"), it.requiredText("recipientName"),
+                it.requiredText("phoneNumber"), it.requiredText("city"), it.path("area").takeIf { node -> node.isTextual }?.asText(),
+                it.path("streetHint").takeIf { node -> node.isTextual }?.asText(), it.requiredDouble("latitude"), it.requiredDouble("longitude"),
+            )
+        },
     )
 }
 
@@ -380,6 +414,3 @@ private fun OrderProcessingRequest.planFulfillment(): FulfillmentPlan {
         customerFacingStatus = status,
     )
 }
-
-private fun String.toOrderId(): String =
-    if (startsWith("SQ-")) this else "SQ-$this"
