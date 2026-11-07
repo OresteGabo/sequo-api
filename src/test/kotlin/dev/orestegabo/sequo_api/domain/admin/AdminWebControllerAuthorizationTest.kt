@@ -61,6 +61,7 @@ class AdminWebControllerAuthorizationTest {
         override fun deliveryPricing(): AdminDeliveryPricingDto =
             AdminDeliveryPricingDto(AdminDeliveryPricingSettingsDto("default", 400, 100, 5, null))
 
+        override fun returns(limit: Int): List<AdminReturnDto> = emptyList()
         override fun relay(limit: Int): AdminRelayDto = AdminRelayDto(emptyList(), 0)
         override fun businessParameters(): AdminBusinessParametersDto =
             AdminBusinessParametersDto(

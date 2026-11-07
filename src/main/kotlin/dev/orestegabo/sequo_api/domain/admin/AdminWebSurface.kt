@@ -34,10 +34,13 @@ import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecord
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus
 import dev.orestegabo.sequo_api.domain.relay.RelayStorageFeeAssessmentRecordRepository
+import dev.orestegabo.sequo_api.domain.returns.ReturnRequestRecordRepository
+import dev.orestegabo.sequo_api.domain.returns.ReturnStatus
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualRecord
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualRecordRepository
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutStatus
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
@@ -57,6 +60,7 @@ interface AdminWebReadPort {
     fun payments(limit: Int): AdminPaymentsDto
     fun commissions(limit: Int): AdminCommissionsDto
     fun deliveryPricing(): AdminDeliveryPricingDto
+    fun returns(limit: Int): List<AdminReturnDto>
     fun relay(limit: Int): AdminRelayDto
     fun businessParameters(): AdminBusinessParametersDto
 }
@@ -202,6 +206,15 @@ data class AdminDeliveryPricingSettingsDto(
     val effectiveFrom: Instant?,
 )
 
+data class AdminReturnDto(
+    val id: String,
+    val orderId: String,
+    val status: ReturnStatus,
+    val requestedRefundCfa: Int,
+    val relayPointId: String?,
+    val updatedAt: Instant,
+)
+
 data class AdminRelayDto(
     val parcels: List<AdminRelayParcelDto>,
     val storageFeeAssessmentCount: Long,
@@ -246,6 +259,7 @@ class AdminWebReadService(
     private val relayParcels: RelayParcelRecordRepository,
     private val relayStorageFees: RelayStorageFeeAssessmentRecordRepository,
     private val paymentWebhooks: PaymentWebhookEventRepository,
+    private val returns: ReturnRequestRecordRepository,
 ) : AdminWebReadPort {
     private val defaultCommissionRateBps = 1500
 
@@ -273,6 +287,7 @@ class AdminWebReadService(
                 "payments" to "/api/admin/web/payments",
                 "commissions" to "/api/admin/web/commissions",
                 "deliveryPricing" to "/api/admin/web/delivery-pricing",
+                "returns" to "/api/admin/web/returns",
                 "relay" to "/api/admin/web/relay",
                 "businessParameters" to "/api/admin/web/business-parameters",
             ),
@@ -319,6 +334,12 @@ class AdminWebReadService(
             active = pricingSettings.findFirstByActiveTrueOrderByEffectiveFromDescCreatedAtDesc()?.toAdminDto()
                 ?: DeliveryPricingService.DefaultSettings.toAdminDto(),
         )
+
+    @Transactional(readOnly = true)
+    override fun returns(limit: Int): List<AdminReturnDto> =
+        returns.findAll(page(limit).withSort(Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.asc("id")))).content.map {
+            AdminReturnDto(it.id, it.orderId, it.status, it.requestedRefundCfa, it.relayPointId, it.updatedAt)
+        }
 
     @Transactional(readOnly = true)
     override fun relay(limit: Int): AdminRelayDto =
@@ -382,6 +403,10 @@ class AdminWebController(
     @GetMapping("/delivery-pricing")
     fun deliveryPricing(authentication: Authentication?): ResponseEntity<Any> =
         adminRequired(authentication) { ResponseEntity.ok(service.deliveryPricing()) }
+
+    @GetMapping("/returns")
+    fun returns(authentication: Authentication?, @RequestParam(defaultValue = "50") limit: Int): ResponseEntity<Any> =
+        adminRequired(authentication) { ResponseEntity.ok(service.returns(limit)) }
 
     @GetMapping("/relay")
     fun relay(authentication: Authentication?, @RequestParam(defaultValue = "50") limit: Int): ResponseEntity<Any> =
