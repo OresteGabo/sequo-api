@@ -15,6 +15,10 @@ import dev.orestegabo.sequo_api.domain.platform.PaymentProviderConfigurationRepo
 import dev.orestegabo.sequo_api.domain.platform.PaymentProviderConfigurationRecord
 import dev.orestegabo.sequo_api.domain.platform.PaymentProviderReadiness
 import dev.orestegabo.sequo_api.domain.payment.*
+import dev.orestegabo.sequo_api.domain.party.CourierRecord
+import dev.orestegabo.sequo_api.domain.settlement.SettlementCourierRecordRepository
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRepository
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryPinRepository
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -54,6 +58,10 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     private val reconciliation: PendingPaymentCheckoutService,
     private val orders: CustomerOrderRecordRepository,
     private val providerConfigurations: PaymentProviderConfigurationRepository,
+    private val couriers: SettlementCourierRecordRepository,
+    private val deliveryMissions: DeliveryMissionRepository,
+    private val deliveryPins: DeliveryPinRepository,
+    private val memberships: MerchantMembershipRepository,
 ) {
     @LocalServerPort private var port = 0
     private val client = HttpClient.newHttpClient()
@@ -277,6 +285,112 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(200, dispatched.statusCode(), dispatched.body())
         val mission = json.readTree(dispatched.body())["createdMissions"].single { it["merchantSubOrderId"].asText() == subOrderId }
         assertEquals(ready["orderId"].asText(), mission["orderId"].asText())
+    }
+
+    @Test
+    fun homeJourneyUsesRealRoleAccountsExclusiveAcceptanceProofAndPersistedTracking() {
+        val fixture = fixture()
+        val merchantId = requireNotNull(products.findById(fixture.productId).orElseThrow().merchantId)
+        val merchantUser = users.save(User(email = "merchant-${fixture.userId}@sequo.test", provider = AuthProvider.EMAIL,
+            roles = mutableSetOf(RoleCode.MERCHANT_OWNER)))
+        memberships.save(MerchantMembership(userId = requireNotNull(merchantUser.id), merchantId = merchantId, role = RoleCode.MERCHANT_OWNER))
+        val merchant = jwt.generateAccessToken(UserSession(requireNotNull(merchantUser.id), merchantUser.email,
+            AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_OWNER), setOf(merchantId)))
+        fun account(role: RoleCode): Pair<String, String> {
+            val user = users.save(User(email = "${UUID.randomUUID()}@sequo.test", provider = AuthProvider.EMAIL, roles = mutableSetOf(role)))
+            val id = requireNotNull(user.id)
+            return id to jwt.generateAccessToken(UserSession(id, user.email, AuthProvider.EMAIL, setOf(role)))
+        }
+        val (adminId, admin) = account(RoleCode.ADMIN)
+        val (riderOneId, riderOne) = account(RoleCode.COURIER)
+        val (riderTwoId, riderTwo) = account(RoleCode.COURIER)
+        val courierOne = couriers.save(CourierRecord(id = "courier-$riderOneId", userId = riderOneId, workforceType = "FREELANCER"))
+        val courierTwo = couriers.save(CourierRecord(id = "courier-$riderTwoId", userId = riderTwoId, workforceType = "FREELANCER"))
+        for (token in listOf(fixture.token, merchant, admin, riderOne, riderTwo)) {
+            assertEquals(200, call("GET", "/api/auth/me", token).statusCode())
+        }
+        assertNotNull(users.findById(adminId).orElse(null))
+        val submitted = call("POST", "/api/orders/checkouts", fixture.token, submitBody(fixture, quote(fixture)))
+        assertEquals(202, submitted.statusCode(), submitted.body())
+        val checkout = json.readTree(submitted.body())
+        val checkoutId = checkout["checkoutId"].asText()
+        assertEquals(202, webhook("""{"eventId":"journey-$checkoutId","checkoutId":"$checkoutId","paymentReference":"$checkoutId","amountCfa":${checkout["totalCfa"].asInt()},"currency":"XOF","status":"VALIDATED","occurredAt":"2026-11-07T00:00:00Z"}""").statusCode())
+        val subOrder = read("GET", "/api/merchant/sub-orders?merchantId=$merchantId", merchant).single()
+        val subId = subOrder["id"].asText()
+        val orderId = subOrder["orderId"].asText()
+        assertEquals(200, call("POST", "/api/merchant/sub-orders/$subId/accept", merchant, """{"merchantId":"$merchantId"}""").statusCode())
+        assertEquals(200, call("POST", "/api/merchant/sub-orders/$subId/start-preparation", merchant, """{"merchantId":"$merchantId"}""").statusCode())
+        assertEquals(200, call("POST", "/api/merchant/sub-orders/$subId/mark-packed", merchant, """{"merchantId":"$merchantId","packageCount":2}""").statusCode())
+        val dispatched = call("POST", "/api/delivery/missions/dispatch-ready", admin)
+        assertEquals(200, dispatched.statusCode(), dispatched.body())
+        val mission = json.readTree(dispatched.body())["createdMissions"].single { it["orderId"].asText() == orderId }
+        val missionId = mission["id"].asText()
+        val deliveryCode = mission["deliveryCode"].asText()
+        assertEquals(200, call("POST", "/api/delivery/missions/$missionId/offer", admin).statusCode())
+        val offered = read("GET", "/api/rider/missions/$missionId", riderOne)
+        assertTrue(offered["homeDestination"].isNull)
+        val race = listOf(riderOne, riderTwo).map { token ->
+            CompletableFuture.supplyAsync { token to call("POST", "/api/rider/missions/$missionId/accept", token) }
+        }.map { it.join() }
+        assertEquals(1, race.count { it.second.statusCode() == 200 })
+        assertEquals(1, race.count { it.second.statusCode() == 400 })
+        val winning = race.single { it.second.statusCode() == 200 }.first
+        val losing = race.single { it.second.statusCode() != 200 }.first
+        val winningId = if (winning == riderOne) riderOneId else riderTwoId
+        val courierId = if (winning == riderOne) courierOne.id else courierTwo.id
+        assertEquals(courierId, read("GET", "/api/rider/missions/$missionId", winning)["courierId"].asText())
+        assertEquals(200, call("POST", "/api/rider/missions/$missionId/accept", winning).statusCode())
+        assertEquals(403, call("GET", "/api/rider/missions/$missionId", losing).statusCode())
+        assertEquals(403, call("GET", "/api/admin/web/deliveries", winning).statusCode())
+
+        fun consistentState(expected: String) {
+            val customer = read("GET", "/api/orders/$orderId", fixture.token)
+            assertEquals(expected, customer["deliveries"].single { it["deliveryCode"].asText() == deliveryCode }["status"].asText())
+            assertTrue(!customer["deliveries"].toString().contains("proofMetadata"))
+            assertTrue(!customer["deliveries"].toString().contains("phoneNumber"))
+            val operations = read("GET", "/api/admin/web/deliveries", admin)["missions"].single { it["id"].asText() == missionId }
+            assertEquals(expected, operations["status"].asText())
+        }
+        consistentState("ACCEPTED_BY_COURIER")
+        val assigned = read("GET", "/api/rider/missions/$missionId", winning)
+        assertEquals(fixture.addressId, assigned["homeDestination"]["addressId"].asText())
+        assertEquals(2, assigned["packageCount"].asInt())
+        assertEquals(400, call("POST", "/api/rider/missions/$missionId/pickup/complete", winning,
+            """{"proofMetadata":"","idempotencyKey":"pickup-$missionId"}""").statusCode())
+        assertEquals(400, call("POST", "/api/rider/missions/$missionId/pickup/complete", losing,
+            """{"proofMetadata":"Wrong rider receipt","idempotencyKey":"wrong-pickup-$missionId"}""").statusCode())
+        val pickupBody = """{"proofMetadata":"Merchant handed over two packages","idempotencyKey":"pickup-$missionId"}"""
+        assertEquals(200, call("POST", "/api/rider/missions/$missionId/pickup/complete", winning, pickupBody).statusCode())
+        assertEquals(200, call("POST", "/api/rider/missions/$missionId/pickup/complete", winning, pickupBody).statusCode())
+        consistentState("PICKED_UP_FROM_SELLER")
+        assertEquals(200, call("POST", "/api/delivery/missions/$missionId/delivery-pin", admin,
+            """{"rawPin":"123456","expiresAt":"${Instant.now().plusSeconds(3600)}"}""").statusCode())
+        val wrong = call("POST", "/api/rider/missions/$missionId/delivery/complete", winning,
+            """{"deliveryPin":"111111","idempotencyKey":"delivery-$missionId"}""")
+        assertEquals(400, wrong.statusCode(), wrong.body())
+        val pin = deliveryPins.findFirstByDeliveryMissionIdAndUsedAtIsNullOrderByCreatedAtDesc(missionId)
+        assertNotNull(pin)
+        assertEquals(1, pin.attemptCount)
+        assertEquals(400, call("POST", "/api/rider/missions/$missionId/delivery/complete", losing,
+            """{"deliveryPin":"123456","idempotencyKey":"other-delivery-$missionId"}""").statusCode())
+        assertEquals(1, deliveryPins.findById(requireNotNull(pin.id)).orElseThrow().attemptCount)
+        consistentState("PICKED_UP_FROM_SELLER")
+        val deliveryBody = """{"deliveryPin":"123456","idempotencyKey":"delivery-$missionId"}"""
+        val completions = (1..2).map {
+            CompletableFuture.supplyAsync { call("POST", "/api/rider/missions/$missionId/delivery/complete", winning, deliveryBody) }
+        }.map { it.join() }
+        completions.forEach { assertEquals(200, it.statusCode(), it.body()) }
+        consistentState("DELIVERED_TO_CUSTOMER")
+        assertEquals(2, deliveryPins.findById(requireNotNull(pin.id)).orElseThrow().attemptCount)
+        assertEquals(winningId, deliveryMissions.findById(missionId).orElseThrow().dropoffProofActorId)
+        val history = read("GET", "/api/rider/missions", winning).single { it["id"].asText() == missionId }
+        assertEquals("DELIVERED_TO_CUSTOMER", history["status"].asText())
+        assertTrue(history["homeDestination"].isNull)
+        assertTrue(read("GET", "/api/rider/missions", losing).none { it["id"].asText() == missionId })
+        assertEquals("DELIVERED", read("GET", "/api/orders/$orderId", fixture.token)["order"]["orderStatus"].asText())
+        assertEquals(400, call("POST", "/api/rider/missions/$missionId/pickup/complete", winning,
+            """{"proofMetadata":"Stale pickup attempt","idempotencyKey":"stale-$missionId"}""").statusCode())
+        assertEquals(404, call("GET", "/api/orders/$orderId", fixture().token).statusCode())
     }
 
     private fun webhook(payload: String, signatureOverride: String? = null): HttpResponse<String> {

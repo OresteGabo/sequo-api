@@ -30,6 +30,9 @@ import jakarta.persistence.Table
 import jakarta.persistence.Version
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRepository
+import dev.orestegabo.sequo_api.domain.delivery.DeliveryTrackingSnapshot
+import dev.orestegabo.sequo_api.domain.delivery.toTrackingSnapshot
 import java.time.Instant
 import java.security.MessageDigest
 import java.util.Base64
@@ -284,6 +287,7 @@ data class CustomerOrderDetails(
     val pricingSnapshot: OrderPricingAuditSnapshot?,
     val merchantSubOrders: List<MerchantSubOrderSnapshot>,
     val timeline: List<CustomerOrderTimelineItem>,
+    val deliveries: List<DeliveryTrackingSnapshot> = emptyList(),
 )
 
 data class OrderFulfillmentResponse(
@@ -299,6 +303,7 @@ class OrderFulfillmentPersistenceService(
     private val pricingSnapshots: OrderPricingSnapshotRecordRepository,
     private val merchantFulfillment: MerchantFulfillmentService,
     private val commissions: MerchantCommissionConfigurationService,
+    private val deliveryMissions: DeliveryMissionRepository,
 ) {
     @Transactional(readOnly = true)
     fun listForCustomer(customerId: String): List<CustomerOrderDetails> {
@@ -361,6 +366,7 @@ class OrderFulfillmentPersistenceService(
             lines = lines.findByOrderIdOrderByLineIndexAsc(order.id).map { it.toSnapshot() },
             pricingSnapshot = pricingSnapshots.findById(order.id).orElse(null)?.toSnapshot(),
             merchantSubOrders = merchantFulfillment.listForOrder(order.id),
+            deliveries = deliveryMissions.findByOrderIdOrderByCreatedAtAsc(order.id).map { it.toTrackingSnapshot() },
             timeline = events.findByOrderIdOrderByCreatedAtAsc(order.id).map {
                 CustomerOrderTimelineItem(it.eventType, it.createdAt)
             },

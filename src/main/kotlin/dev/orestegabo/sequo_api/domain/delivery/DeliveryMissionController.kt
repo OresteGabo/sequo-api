@@ -8,6 +8,7 @@ import dev.orestegabo.sequo_api.domain.order.OrderDeliveryLifecycleService
 import java.time.Duration
 import java.time.Instant
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -260,6 +261,7 @@ class DeliveryMissionController(
         ).toResponse()
     }
 
+    @Transactional
     @PostMapping("/{missionId}/deliver")
     fun deliver(
         authentication: Authentication?,
@@ -267,6 +269,10 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProofRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, setOf(RoleCode.COURIER)) {
+        when (val locked = service.lockDelivery(missionId, it)) {
+            is DeliveryMissionServiceResult.Rejected -> return@roleActorRequired locked.toResponse()
+            is DeliveryMissionServiceResult.Success -> Unit
+        }
         service.replayIdempotentOperation(
             missionId = missionId,
             actorId = it,
@@ -372,11 +378,12 @@ class DeliveryMissionController(
         if (!authentication.hasAnyRole(RoleGroups.DeliveryMissionReaders)) return ResponseEntity.status(403).build()
         val actorId = userId ?: authentication.name
         return if (authentication.hasRole(RoleCode.COURIER) && !authentication.hasAnyRole(RoleGroups.AdminOperations)) {
-            val visibleCourierId = requestedCourierId ?: actorId
-            if (visibleCourierId != actorId) {
+            val courierId = service.courierIdForActor(actorId) ?: return ResponseEntity.status(403).build()
+            val visibleCourierId = requestedCourierId ?: courierId
+            if (visibleCourierId != courierId && visibleCourierId != actorId) {
                 ResponseEntity.status(403).build()
             } else {
-                operation(visibleCourierId)
+                operation(courierId)
             }
         } else {
             operation(requestedCourierId)
@@ -389,7 +396,7 @@ class DeliveryMissionController(
         mission: DeliveryMissionSnapshot,
     ): Boolean =
         authentication.hasAnyRole(RoleGroups.AdminOperations) ||
-            (authentication.hasRole(RoleCode.COURIER) && mission.courierId == actorId)
+            (authentication.hasRole(RoleCode.COURIER) && actorId != null && mission.courierId != null && mission.courierId == service.courierIdForActor(actorId))
 
     private fun DeliveryMissionServiceResult.markOrderDelivered(actorUserId: String): DeliveryMissionServiceResult {
         if (this is DeliveryMissionServiceResult.Success) {
@@ -428,10 +435,11 @@ class RiderMissionController(
         @PathVariable missionId: String,
     ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
         val mission = service.get(missionId) ?: return@riderOnly ResponseEntity.notFound().build()
-        if (!mission.visibleToRider(riderId)) {
+        val courierId = service.courierIdForActor(riderId) ?: return@riderOnly ResponseEntity.status(403).build()
+        if (!mission.visibleToRider(courierId)) {
             return@riderOnly ResponseEntity.status(403).build()
         }
-        ResponseEntity.ok(mission)
+        ResponseEntity.ok(service.riderRoute(mission, riderId))
     }
 
     @PostMapping("/{missionId}/accept")
@@ -477,6 +485,7 @@ class RiderMissionController(
         requireRiderMissionState(missionId, riderId, setOf(DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER))
     }
 
+    @Transactional
     @PostMapping("/{missionId}/delivery/complete")
     fun completeDelivery(
         authentication: Authentication?,
@@ -484,6 +493,10 @@ class RiderMissionController(
         @PathVariable missionId: String,
         @RequestBody request: RiderActionRequest,
     ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderId ->
+        when (val locked = service.lockDelivery(missionId, riderId)) {
+            is DeliveryMissionServiceResult.Rejected -> return@riderOnly locked.toResponse()
+            is DeliveryMissionServiceResult.Success -> Unit
+        }
         service.replayIdempotentOperation(
             missionId = missionId,
             actorId = riderId,
@@ -559,7 +572,7 @@ class RiderMissionController(
         allowedStatuses: Set<DeliveryMissionRecordStatus>,
     ): ResponseEntity<Any> {
         val mission = service.get(missionId) ?: return ResponseEntity.notFound().build()
-        if (mission.courierId != riderId) return ResponseEntity.status(403).build()
+        if (mission.courierId == null || mission.courierId != service.courierIdForActor(riderId)) return ResponseEntity.status(403).build()
         if (mission.status !in allowedStatuses) {
             return DeliveryMissionServiceResult.Rejected(
                 code = "invalid_mission_state",

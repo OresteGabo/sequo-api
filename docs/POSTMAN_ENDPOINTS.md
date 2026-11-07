@@ -520,3 +520,33 @@ Authenticated Vendor sessions display their latest server snapshot and an error 
 
 
 Local verification on 2026-11-07 passed 57 API tests and 14 Vendor host tests, plus Vendor Android and iOS simulator compilation. The API suite includes migration-backed schema validation. That validation exposed a JPEG payload mapping mismatch; the entity now explicitly uses the existing PostgreSQL `bytea` column definition. The preparation flow uses the existing server targets of 24 hours for seller response and 48 hours for packing.
+
+
+## Rider home-delivery and tracking exercise
+
+Contract clauses 13, 36, 105, 114, and 121–124 cover rider missions, pickup, delivery validation, history, and customer/operations tracking. The local HTTP journey uses persisted customer, merchant, administrator, and two courier accounts. The courier account IDs intentionally differ from their login user IDs.
+
+The mission acceptance route locks its row before claiming an offered mission. Repeating acceptance by the winning rider returns the recorded state. Pickup and delivery use the existing idempotency keys. Delivery completion holds the mission lock across PIN verification, completion, and order lifecycle changes. Wrong PIN attempts are recorded, and a repeated successful completion consumes the PIN once.
+
+Rider reads resolve courier membership from the authenticated login. They include completed missions for history, actual package count, seller name, and the saved destination area. Full home destination contact details are exposed to the assigned rider during an active mission. Completed history omits those details. Legacy records remain readable with optional route fields.
+
+Customer order list/detail responses include sanitized `deliveries` from persisted mission data. Each has the delivery code, state, timestamps, and progress fields. Customer tracking excludes courier proof metadata and recipient contact data. Existing authenticated admin delivery reads use the same persisted mission state and list recently updated missions first.
+
+The local fixture verifies exactly one winner from concurrent rider acceptance, unauthorized pickup denial, missing pickup proof, a wrong PIN, repeated pickup/completion, a stale step after completion, final rider history, customer ownership denial, and matching customer/admin states at acceptance, pickup, and completion.
+
+```sh
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew --offline test --tests '*CustomerCartCheckoutHttpTest' --tests '*CustomerCheckoutRestartTest' --tests '*DeliveryMission*Test' --tests '*DeliveryPinServiceTest' --tests '*DeliveryFulfillmentWorkflowTest' --tests '*DeliveryReadinessDispatchServiceTest' --tests '*OrderDeliveryLifecycleNotificationTest' --tests '*AdminWebControllerAuthorizationTest' --tests '*AdminWebReadHttpTest'
+```
+
+From SequoRider, run `./gradlew --offline :shared:testAndroidHostTest :shared:compileKotlinIosSimulatorArm64`. The loopback HTTP tests verify authenticated mission reads, actual route/package data, completed history, JSON proof requests, stable retry keys, and propagation of rejected/offline requests. From Sequo, run `./gradlew --offline :shared:compileAndroidMain :shared:compileKotlinIosSimulatorArm64`. Its existing pricing test edit still prevents the customer unit-test suite from compiling.
+
+From sequo-admin, run `node --experimental-strip-types --test tests/deliveryReads.test.mjs`, `npm run type-check`, and `npm run build-only`. These check that refreshed API states render for the same order and that failed authentication reaches the existing error handling.
+
+For device/staging verification, configure debug builds of Sequo and SequoRider to use the same isolated API through each app's existing `core/network/NetworkConfig.kt` base URL. Set sequo-admin's existing `VITE_SEQUO_API_BASE_URL` environment value to that isolated API. Use staging accounts for customer, merchant, administrator, and two riders whose courier records point to their login IDs through `couriers.user_id`. Complete the paid merchant-preparation exercise, then offer its dispatched mission. Refresh both Rider accounts and attempt acceptance together. Verify one winner and one rejection. On the winning device, check the package count and destination, submit pickup with an empty proof note to verify rejection, then submit the actual custody note.
+
+As administrator, issue a six-digit delivery PIN through `POST /api/delivery/missions/{missionId}/delivery-pin` using an expiry in the future. Give the fixture PIN to the staging customer. Try a wrong PIN on the winning Rider device, then use the correct PIN and repeat completion. Refresh customer Orders and admin Deliveries after each transition. Verify completed Rider history after app restart, and verify that the other rider cannot open the claimed mission. Disconnect the winning device while refreshing and confirm the offline state, disabled actions, and absence of demo rows; reconnect and refresh to restore actions.
+
+Device and deployed staging checks remain unverified. The local exercise validates persisted state and role boundaries without provider execution.
+
+
+Local Task 12 verification on 2026-11-07 passed 48 API tests, 5 Rider host tests, 2 admin delivery-rendering tests, Rider/customer Android and iOS simulator compilation, the admin type check, and the admin production build. The customer unit-test suite remains blocked by the existing split function name in `DeliveryPricingTest.kt`. Physical-device and deployed staging checks remain unverified. Rider fleet, service-zone and KYC fields display unavailable when no authoritative profile value is supplied.

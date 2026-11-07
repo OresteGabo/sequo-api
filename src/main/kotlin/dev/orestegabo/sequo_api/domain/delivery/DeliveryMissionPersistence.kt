@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.LockModeType
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.Version
@@ -19,9 +20,17 @@ import dev.orestegabo.sequo_api.domain.notification.NotificationSeverity
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecord
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderLineRecordRepository
+import dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository
+import dev.orestegabo.sequo_api.domain.order.HomeDeliveryDestination
+import dev.orestegabo.sequo_api.domain.order.readPendingRequest
 import dev.orestegabo.sequo_api.domain.party.CourierRecord
+import dev.orestegabo.sequo_api.domain.settlement.SettlementCourierRecordRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
@@ -139,6 +148,10 @@ class DeliveryProblemResolutionRecord(
 }
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from DeliveryMission m where m.id = :id")
+    fun lockForAction(id: String): DeliveryMission?
+    fun findByOrderIdOrderByCreatedAtAsc(orderId: String): List<DeliveryMission>
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
     fun findByMerchantSubOrderId(merchantSubOrderId: String): DeliveryMission?
     fun findByDeliveryCodeAndOrderId(deliveryCode: String, orderId: String): DeliveryMission?
@@ -210,6 +223,10 @@ data class DeliveryMissionSnapshot(
     val problemMetadata: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val packageCount: Int = 0,
+    val pickupName: String? = null,
+    val dropoffArea: String? = null,
+    val homeDestination: HomeDeliveryDestination? = null,
 )
 
 data class DeliveryTrackingSnapshot(
@@ -252,8 +269,21 @@ class DeliveryMissionService(
     private val courierAvailability: CourierAvailabilityService,
     private val workflow: DeliveryMissionWorkflow,
     private val publisher: ApplicationEventPublisher,
+    private val couriers: SettlementCourierRecordRepository,
+    private val orders: CustomerOrderRecordRepository,
+    private val lines: CustomerOrderLineRecordRepository,
+    private val pendingCheckouts: PendingPaymentCheckoutRepository,
+    private val merchantSubOrders: MerchantSubOrderRepository,
 ) {
     private val objectMapper = ObjectMapper()
+
+    @Transactional(readOnly = true)
+    fun courierIdForActor(userId: String): String? {
+        couriers.findByUserId(userId)?.let { return it.id }
+        val legacy = couriers.findById(userId).orElse(null)
+        return userId.takeIf { legacy?.userId == null || legacy.userId == userId }
+    }
+
 
     @Transactional(readOnly = true)
     fun get(missionId: String): DeliveryMissionSnapshot? {
@@ -285,7 +315,8 @@ class DeliveryMissionService(
     @Transactional(readOnly = true)
     fun listForRider(courierId: String): List<DeliveryMissionSnapshot> {
         require(courierId.isNotBlank()) { "courierId cannot be blank." }
-        val assigned = listForCourier(courierId)
+        val resolvedCourierId = courierIdForActor(courierId) ?: return emptyList()
+        val assigned = listForCourier(resolvedCourierId, emptySet())
         val availableOffers = repository
             .findByStatusInOrderByUpdatedAtDesc(setOf(DeliveryMissionRecordStatus.OFFERED_TO_COURIER))
             .filter { it.courierId == null }
@@ -293,6 +324,29 @@ class DeliveryMissionService(
         return (assigned + availableOffers)
             .distinctBy { it.id }
             .sortedByDescending { it.updatedAt }
+            .map { riderRoute(it, courierId) }
+    }
+
+    @Transactional(readOnly = true)
+    fun riderRoute(mission: DeliveryMissionSnapshot, actorId: String): DeliveryMissionSnapshot {
+        val courierId = courierIdForActor(actorId)
+        val assigned = mission.courierId != null && mission.courierId == courierId
+        if (!assigned && !(mission.courierId == null && mission.status == DeliveryMissionRecordStatus.OFFERED_TO_COURIER)) {
+            return mission
+        }
+        val order = orders.findById(mission.orderId).orElse(null) ?: return mission
+        val payload = pendingCheckouts.findById(order.checkoutId).orElse(null)?.requestPayload
+        val destination = payload?.let { objectMapper.readPendingRequest(it).homeDestination }
+        val subOrder = mission.merchantSubOrderId?.let { merchantSubOrders.findById(it).orElse(null) }
+        val seller = subOrder?.let { lines.findByOrderIdAndSellerIdOrderByLineIndexAsc(order.id, it.merchantId).firstOrNull()?.sellerName }
+        val active = mission.status in setOf(DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER,
+            DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER, DeliveryMissionRecordStatus.PROBLEM_REPORTED)
+        return mission.copy(
+            packageCount = subOrder?.packageCount ?: 0,
+            pickupName = seller,
+            dropoffArea = destination?.let { listOfNotNull(it.area, it.city).joinToString(", ") },
+            homeDestination = destination.takeIf { assigned && active },
+        )
     }
 
     @Transactional(readOnly = true)
@@ -331,7 +385,7 @@ class DeliveryMissionService(
         if (courierAvailability.isPaused(courierId, at)) {
             return rejected("courier_paused", "Courier is paused and cannot receive delivery missions.")
         }
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (mission.status != DeliveryMissionRecordStatus.CREATED) return rejected("invalid_mission_state", "Only a new mission can be assigned.")
         mission.courierId = courierId
         mission.assignedAt = at
@@ -349,7 +403,7 @@ class DeliveryMissionService(
         if (courierAvailability.isPaused(courierId, at)) {
             return rejected("courier_paused", "Courier is paused and cannot receive delivery missions.")
         }
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (mission.status !in reassignableStatuses) {
             return rejected("mission_not_reassignable", "Only missions that have not been picked up can be reassigned.")
         }
@@ -365,18 +419,23 @@ class DeliveryMissionService(
     @Transactional
     fun acceptForCourier(missionId: String, courierId: String, at: Instant = Instant.now()): DeliveryMissionServiceResult {
         if (courierId.isBlank()) return rejected("missing_courier", "Courier id is required.")
-        if (courierAvailability.isPaused(courierId, at)) {
+        val resolvedCourierId = courierIdForActor(courierId)
+            ?: return rejected("courier_scope_mismatch", "Courier account is unavailable.")
+        if (courierAvailability.isPaused(resolvedCourierId, at)) {
             return rejected("courier_paused", "Courier is paused and cannot accept delivery missions.")
         }
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.courierId == resolvedCourierId && mission.acceptedAt != null) {
+            return success(mission, "Courier acceptance was already recorded.")
+        }
         if (mission.status != DeliveryMissionRecordStatus.OFFERED_TO_COURIER) {
             return rejected("invalid_mission_transition", "Only offered missions can be accepted by a rider.")
         }
-        if (mission.courierId != null && mission.courierId != courierId) {
+        if (mission.courierId != null && mission.courierId != resolvedCourierId) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can accept this mission.")
         }
 
-        mission.courierId = courierId
+        mission.courierId = resolvedCourierId
         mission.assignedAt = mission.assignedAt ?: at
         val result = workflow.transition(
             DeliveryMissionTransitionRequest(
@@ -456,7 +515,7 @@ class DeliveryMissionService(
         if (reason.isBlank() || reason.length > 1000) return rejected("invalid_resolution_reason", "Resolution reason must be 1-1000 characters.")
         if (replacementCourierId != null && replacementCourierId.isBlank()) return rejected("invalid_replacement_courier", "Replacement courier id cannot be blank.")
 
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (mission.status != DeliveryMissionRecordStatus.PROBLEM_REPORTED) {
             return rejected("mission_not_in_problem", "Only missions in problem state can be resolved.")
         }
@@ -491,13 +550,20 @@ class DeliveryMissionService(
         return success(repository.save(mission), "Delivery problem resolved.")
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
+    fun lockDelivery(missionId: String, courierId: String): DeliveryMissionServiceResult {
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.courierId == null || mission.courierId != courierIdForActor(courierId)) return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
+        return success(mission, "Delivery mission locked.")
+    }
+
+    @Transactional
     fun validateDirectDeliveryAttempt(
         missionId: String,
         actorId: String,
     ): DeliveryMissionServiceResult {
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
-        if (mission.courierId != actorId) {
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (mission.courierId == null || mission.courierId != courierIdForActor(actorId)) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
         }
         if (mission.status != DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER) {
@@ -522,6 +588,7 @@ class DeliveryMissionService(
         problemReason: String? = null,
         at: Instant = Instant.now(),
     ): DeliveryMissionServiceResult {
+        repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (idempotencyKey.isNullOrBlank()) {
             return transition(missionId, actorId, event, proof, deliveryPinValidated, relayPickupValidated, identityValidated, problemReason, at)
         }
@@ -559,13 +626,16 @@ class DeliveryMissionService(
         }
         val mission = find(existing.missionId)
             ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (event in courierScopedEvents && (mission.courierId == null || mission.courierId != courierIdForActor(actorId))) {
+            return rejected("courier_scope_mismatch", "Only the assigned courier can replay this mission.")
+        }
         return success(mission, "Idempotent delivery operation replayed.")
     }
 
     @Transactional
     fun transition(missionId: String, actorId: String, event: DeliveryMissionEvent, proof: String? = null, deliveryPinValidated: Boolean = false, relayPickupValidated: Boolean = false, identityValidated: Boolean = false, problemReason: String? = null, at: Instant = Instant.now()): DeliveryMissionServiceResult {
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
-        if (event in courierScopedEvents && mission.courierId != actorId) {
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (event in courierScopedEvents && (mission.courierId == null || mission.courierId != courierIdForActor(actorId))) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
         }
         if (proof != null && proof.isNotBlank() && event in proofEvents && proofAlreadySubmitted(mission, event)) {
@@ -623,7 +693,7 @@ class DeliveryMissionService(
     ): DeliveryMissionServiceResult {
         if (actorId.isBlank()) return rejected("missing_actor", "Actor id is required.")
         if (reason.isBlank()) return rejected("missing_reason", "A reason is required.")
-        val mission = find(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         val result = workflow.transition(
             DeliveryMissionTransitionRequest(
                 currentStatus = mission.status.toWorkflowStatus(),

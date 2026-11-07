@@ -308,7 +308,7 @@ class AdminWebReadService(
     @Transactional(readOnly = true)
     override fun deliveries(limit: Int): AdminDeliveryDto =
         AdminDeliveryDto(
-            missions = deliveryMissions.findAll(page(limit)).content.map(DeliveryMission::toAdminDto),
+            missions = deliveryMissions.findAll(page(limit).withSort(Sort.by(Sort.Direction.DESC, "updatedAt"))).content.map(DeliveryMission::toAdminDto),
             merchantSubOrderCounts = MerchantSubOrderStatus.entries.associateWith { status ->
                 merchantSubOrders.countByStatusIn(setOf(status))
             },
