@@ -5,6 +5,10 @@ import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationSeverity
 import dev.orestegabo.sequo_api.domain.notification.NotificationWorkflowEvent
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderLineRecordRepository
+import dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -50,6 +54,17 @@ data class MerchantSubOrderSnapshot(
     val sellerResponseDueAt: Instant?,
     val packingDueAt: Instant?,
     val updatedAt: Instant,
+    val lines: List<MerchantOrderLineSnapshot> = emptyList(),
+)
+
+data class MerchantOrderLineSnapshot(
+    val id: String,
+    val productId: String,
+    val productName: String,
+    val quantity: Int,
+    val unitPriceCfa: Int,
+    val lineTotalCfa: Int,
+    val optionLabel: String?,
 )
 
 data class MerchantFulfillmentSlaSnapshot(
@@ -84,6 +99,8 @@ class MerchantFulfillmentService(
     private val repository: MerchantSubOrderRepository,
     private val escalations: MerchantFulfillmentEscalationRepository,
     private val orders: CustomerOrderRecordRepository,
+    private val orderLines: CustomerOrderLineRecordRepository,
+    private val pendingCheckouts: PendingPaymentCheckoutRepository,
     private val workflow: MerchantFulfillmentWorkflow,
     private val publisher: ApplicationEventPublisher,
     private val sellerResponseSla: Duration = Duration.ofHours(24),
@@ -116,18 +133,18 @@ class MerchantFulfillmentService(
             updatedAt = now,
         )
 
-        return repository.save(subOrder).toSnapshot()
+        return snapshot(repository.save(subOrder))
     }
 
     @Transactional(readOnly = true)
     fun findBySubOrderCode(subOrderCode: String): MerchantSubOrderSnapshot? {
         require(subOrderCode.isNotBlank()) { "subOrderCode cannot be blank." }
-        return repository.findBySubOrderCode(subOrderCode)?.toSnapshot()
+        return repository.findBySubOrderCode(subOrderCode)?.let(::snapshot)
     }
 
     @Transactional(readOnly = true)
     fun get(subOrderId: String): MerchantSubOrderSnapshot? =
-        repository.findById(subOrderId).orElse(null)?.toSnapshot()
+        repository.findById(subOrderId).orElse(null)?.let(::snapshot)
 
     @Transactional(readOnly = true)
     fun listForMerchant(
@@ -136,14 +153,17 @@ class MerchantFulfillmentService(
     ): List<MerchantSubOrderSnapshot> {
         require(merchantId.isNotBlank()) { "merchantId cannot be blank." }
         require(statuses.isNotEmpty()) { "At least one merchant sub-order status is required." }
-        return repository.findByMerchantIdAndStatusInOrderByUpdatedAtDesc(merchantId, statuses)
-            .map { it.toSnapshot() }
+        val subOrders = repository.findByMerchantIdAndStatusInOrderByUpdatedAtDesc(merchantId, statuses)
+        val paidOrderIds = orders.findAllById(subOrders.map { it.orderId }.distinct())
+            .filter { it.paymentStatus == PaymentValidationStatus.Validated }
+            .map { it.id }.toSet()
+        return subOrders.filter { it.orderId in paidOrderIds }.map(::snapshot)
     }
 
     @Transactional(readOnly = true)
     fun listForOrder(orderId: String): List<MerchantSubOrderSnapshot> {
         require(orderId.isNotBlank()) { "orderId cannot be blank." }
-        return repository.findByOrderId(orderId).map { it.toSnapshot() }
+        return repository.findByOrderId(orderId).map(::snapshot)
     }
 
     @Transactional(readOnly = true)
@@ -196,7 +216,7 @@ class MerchantFulfillmentService(
                         note = reason.escalationNote(),
                         createdAt = evaluatedAt,
                     )
-                    MerchantFulfillmentSlaWarning(subOrder.toSnapshot(), reason, evaluatedAt)
+                    MerchantFulfillmentSlaWarning(snapshot(subOrder), reason, evaluatedAt)
                 } else {
                     null
                 }
@@ -288,7 +308,7 @@ class MerchantFulfillmentService(
         occurredAt: Instant,
         rejectionReason: String? = null,
     ): MerchantFulfillmentServiceResult {
-        val subOrder = repository.findById(subOrderId).orElse(null)
+        val subOrder = repository.lockForAction(subOrderId)
             ?: return MerchantFulfillmentServiceResult.Rejected(
                 code = "merchant_sub_order_not_found",
                 message = "Merchant sub-order was not found.",
@@ -298,6 +318,35 @@ class MerchantFulfillmentService(
                 code = "merchant_scope_mismatch",
                 message = "This merchant cannot update another merchant's sub-order.",
             )
+        }
+
+        val order = orders.findById(subOrder.orderId).orElse(null)
+        if (order?.paymentStatus != PaymentValidationStatus.Validated ||
+            order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT
+        ) {
+            return MerchantFulfillmentServiceResult.Rejected(
+                code = "order_not_paid_or_active",
+                message = "A verified paid and active order is required for merchant preparation.",
+            )
+        }
+        val alreadyApplied = when (event) {
+            MerchantFulfillmentEvent.SellerAccepts -> subOrder.acceptedAt != null &&
+                subOrder.status in setOf(MerchantSubOrderStatus.ACCEPTED, MerchantSubOrderStatus.PREPARING,
+                    MerchantSubOrderStatus.PACKED_READY, MerchantSubOrderStatus.HANDED_TO_COURIER)
+            MerchantFulfillmentEvent.SellerStartsPreparing -> subOrder.preparingAt != null &&
+                subOrder.status in setOf(MerchantSubOrderStatus.PREPARING, MerchantSubOrderStatus.PACKED_READY,
+                    MerchantSubOrderStatus.HANDED_TO_COURIER)
+            MerchantFulfillmentEvent.SellerMarksPacked -> subOrder.packedReadyAt != null &&
+                subOrder.packageCount == packageCount &&
+                subOrder.status in setOf(MerchantSubOrderStatus.PACKED_READY, MerchantSubOrderStatus.HANDED_TO_COURIER)
+            MerchantFulfillmentEvent.CourierCollectsPackage -> subOrder.handedToCourierAt != null &&
+                subOrder.status == MerchantSubOrderStatus.HANDED_TO_COURIER
+            MerchantFulfillmentEvent.SellerRejects -> subOrder.status == MerchantSubOrderStatus.REJECTED &&
+                subOrder.rejectionReason == rejectionReason
+            MerchantFulfillmentEvent.CustomerCancels -> subOrder.status == MerchantSubOrderStatus.CANCELLED
+        }
+        if (alreadyApplied) {
+            return MerchantFulfillmentServiceResult.Success(snapshot(subOrder), "Merchant action was already recorded.")
         }
 
         val transition = workflow.transition(
@@ -326,9 +375,24 @@ class MerchantFulfillmentService(
         publishFulfillmentEvent(saved, event)
 
         return MerchantFulfillmentServiceResult.Success(
-            subOrder = saved.toSnapshot(),
+            subOrder = snapshot(saved),
             message = transition.reason,
         )
+    }
+
+    private fun snapshot(subOrder: MerchantSubOrder): MerchantSubOrderSnapshot {
+        val records = orderLines.findByOrderIdAndSellerIdOrderByLineIndexAsc(subOrder.orderId, subOrder.merchantId)
+        val checkoutId = orders.findById(subOrder.orderId).orElse(null)?.checkoutId
+        val payload = checkoutId?.let { pendingCheckouts.findById(it).orElse(null)?.requestPayload }
+        val pendingLines = payload?.let { objectMapper.readTree(it).path("lines") }
+        val lines = records.map { line ->
+            val unitPrice = line.negotiatedUnitPriceCfa ?: line.unitPriceCfa
+            MerchantOrderLineSnapshot(
+                line.id, line.productId, line.productName, line.quantity, unitPrice, unitPrice * line.quantity,
+                pendingLines?.get(line.lineIndex)?.path("optionLabel")?.takeIf { it.isTextual }?.asText(),
+            )
+        }
+        return subOrder.toSnapshot().copy(lines = lines)
     }
 
     private fun publishFulfillmentEvent(

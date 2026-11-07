@@ -215,6 +215,7 @@ data class PendingOrderLineRequestPayload(
     val photoEvidenceType: String,
     val capturedAtEpochMillis: Long?,
     val selections: List<FoodCustomizationSelection> = emptyList(),
+    val optionLabel: String? = null,
 )
 
 private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRequestPayload(
@@ -248,6 +249,7 @@ private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload
     },
     capturedAtEpochMillis = (photoEvidence as? ProductPhotoEvidence.LiveCameraCapture)?.capturedAtEpochMillis,
     selections = selections,
+    optionLabel = optionLabel,
 )
 
 private fun PendingOrderProcessingRequestPayload.toRequest() = OrderProcessingRequest(
@@ -274,6 +276,7 @@ private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
     unitPriceCfa = unitPriceCfa,
     negotiatedUnitPriceCfa = negotiatedUnitPriceCfa,
     selections = selections,
+    optionLabel = optionLabel,
     photoEvidence = when (photoEvidenceType) {
         "LIVE_CAMERA_CAPTURE" -> ProductPhotoEvidence.LiveCameraCapture(capturedAtEpochMillis ?: 0)
         "GENERIC_CATALOG_IMAGE" -> ProductPhotoEvidence.GenericCatalogImage
@@ -302,6 +305,7 @@ internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRe
                 negotiatedUnitPriceCfa = line.optionalInt("negotiatedUnitPriceCfa"),
                 photoEvidenceType = line.requiredText("photoEvidenceType"),
                 capturedAtEpochMillis = line.optionalLong("capturedAtEpochMillis"),
+                optionLabel = line.path("optionLabel").takeIf { it.isTextual }?.asText(),
                 selections = line.path("selections").map { selection ->
                     FoodCustomizationSelection(selection.requiredText("groupId"), selection.path("optionIds").map { it.asText() }.toSet())
                 },

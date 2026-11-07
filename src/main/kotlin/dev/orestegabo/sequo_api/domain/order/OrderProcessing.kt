@@ -71,6 +71,7 @@ data class OrderLineRequest(
     val negotiatedUnitPriceCfa: Int? = null,
     val photoEvidence: ProductPhotoEvidence,
     val selections: List<FoodCustomizationSelection> = emptyList(),
+    val optionLabel: String? = null,
 ) {
     val effectiveUnitPriceCfa: Int
         get() = negotiatedUnitPriceCfa ?: unitPriceCfa

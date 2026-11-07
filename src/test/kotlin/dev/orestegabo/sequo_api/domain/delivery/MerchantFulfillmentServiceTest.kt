@@ -3,6 +3,8 @@ package dev.orestegabo.sequo_api.domain.delivery
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.Instant
+import dev.orestegabo.sequo_api.domain.order.*
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,10 +21,12 @@ import kotlin.test.assertTrue
 class MerchantFulfillmentServiceTest @Autowired constructor(
     private val service: MerchantFulfillmentService,
     private val repository: MerchantSubOrderRepository,
+    private val orders: CustomerOrderRecordRepository,
 ) {
     @BeforeTest
     fun cleanDatabase() {
         repository.deleteAll()
+        if (!orders.existsById("merchant-service-order")) orders.save(paidMerchantOrderFixture("merchant-service-order"))
     }
 
     @Test
@@ -103,10 +107,21 @@ class MerchantFulfillmentServiceTest @Autowired constructor(
         assertEquals(MerchantSubOrderStatus.HANDED_TO_COURIER, repository.findById(subOrder.id).orElseThrow().status)
     }
 
+    @Test
+    fun rejectsLegacyUnpaidSubOrderActionsAndKeepsItOutOfMerchantQueue() {
+        orders.save(paidMerchantOrderFixture("merchant-unpaid-order", PaymentValidationStatus.Pending))
+        val subOrder = service.create(sampleCommand("SC-UNPAID").copy(orderId = "merchant-unpaid-order"))
+        val result = service.accept(subOrder.id, "merchant-1")
+        assertTrue(result is MerchantFulfillmentServiceResult.Rejected)
+        assertEquals("order_not_paid_or_active", result.code)
+        assertTrue(service.listForMerchant("merchant-1").none { it.id == subOrder.id })
+        assertEquals(MerchantSubOrderStatus.MERCHANT_PENDING, service.get(subOrder.id)?.status)
+    }
+
     private fun sampleCommand(code: String): CreateMerchantSubOrderCommand =
         CreateMerchantSubOrderCommand(
             subOrderCode = code,
-            orderId = "order-1",
+            orderId = "merchant-service-order",
             merchantId = "merchant-1",
             itemSubtotalCfa = 10_000,
             commissionRateBps = 1500,
@@ -114,3 +129,14 @@ class MerchantFulfillmentServiceTest @Autowired constructor(
             merchantNetCfa = 8_500,
         )
 }
+
+
+internal fun paidMerchantOrderFixture(id: String, paymentStatus: PaymentValidationStatus = PaymentValidationStatus.Validated) = CustomerOrderRecord(
+    id = id, checkoutId = "checkout-$id", customerId = "customer-$id",
+    serviceLevel = OrderServiceLevel.Regular, route = OrderRoute.FastDelivery,
+    fulfillmentPriority = FulfillmentPriority.Standard, requiresConsolidation = false,
+    customerFacingStatus = "Paid", itemSubtotalCfa = 10000, deliveryFeeCfa = 400, totalCfa = 10400,
+    paymentProvider = "yas_togo", paymentReference = "payment-$id", providerReference = "provider-$id",
+    paymentStatus = paymentStatus, orderStatus = CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT,
+    createdAt = Instant.parse("2026-11-07T00:00:00Z"), updatedAt = Instant.parse("2026-11-07T00:00:00Z"),
+)

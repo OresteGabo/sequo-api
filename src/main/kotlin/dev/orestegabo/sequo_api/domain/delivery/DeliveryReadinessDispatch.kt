@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import dev.orestegabo.sequo_api.domain.order.OrderRoute
 import dev.orestegabo.sequo_api.domain.order.OrderServiceLevel
 import java.security.MessageDigest
@@ -49,6 +51,12 @@ class DeliveryReadinessDispatchService(
             val order = orders.findById(subOrder.orderId).orElse(null)
             if (order == null) {
                 skipped += subOrder.skipped("order_not_found")
+                return@forEach
+            }
+            if (order.paymentStatus != PaymentValidationStatus.Validated ||
+                order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT
+            ) {
+                skipped += subOrder.skipped("order_not_paid_or_active")
                 return@forEach
             }
             val plan = order.route.dispatchPlan()

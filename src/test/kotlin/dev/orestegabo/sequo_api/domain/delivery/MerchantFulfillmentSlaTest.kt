@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
 import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class MerchantFulfillmentSlaTest @Autowired constructor(
     private val service: MerchantFulfillmentService,
+    private val orders: CustomerOrderRecordRepository,
 ) {
     @Test
     fun pendingSellerOrderBecomesOverdueAfterResponseDeadline() {
@@ -31,6 +33,7 @@ class MerchantFulfillmentSlaTest @Autowired constructor(
 
     @Test
     fun acceptedOrderUsesPackingDeadlineAndCompletedOrderIsNotOverdue() {
+        orders.save(paidMerchantOrderFixture("order-sla"))
         val order = service.create(command("SLA-PACKING"))
         val packingDueAt = requireNotNull(order.packingDueAt)
         service.accept(order.id, "merchant-1")

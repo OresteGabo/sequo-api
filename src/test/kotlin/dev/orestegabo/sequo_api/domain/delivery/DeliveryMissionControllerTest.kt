@@ -186,7 +186,7 @@ class DeliveryMissionControllerTest @Autowired constructor(
     }
 
     @Test
-    fun adminCanDispatchPackedMerchantSubOrders() {
+    fun adminDispatchCannotPromoteSubOrderWithoutPaidParent() {
         val admin = auth("admin-dispatch-ready", RoleCode.ADMIN)
         val subOrder = merchantFulfillment.create(
             CreateMerchantSubOrderCommand(
@@ -198,15 +198,16 @@ class DeliveryMissionControllerTest @Autowired constructor(
                 merchantNetCfa = 1_700,
             )
         )
-        merchantFulfillment.accept(subOrder.id, subOrder.merchantId)
-        merchantFulfillment.startPreparation(subOrder.id, subOrder.merchantId)
-        merchantFulfillment.markPacked(subOrder.id, subOrder.merchantId, packageCount = 1)
+        val accepted = merchantFulfillment.accept(subOrder.id, subOrder.merchantId)
+        assertTrue(accepted is MerchantFulfillmentServiceResult.Rejected)
+        assertEquals("order_not_paid_or_active", accepted.code)
+        assertEquals(MerchantSubOrderStatus.MERCHANT_PENDING, merchantFulfillment.get(subOrder.id)?.status)
 
         val dispatched = controller.dispatchReady(admin, limit = 10)
 
         assertEquals(HttpStatus.OK, dispatched.statusCode)
         dispatched.bodyAs<DeliveryDispatchRunResult>().also {
-            assertTrue(it.skippedSubOrders.any { skipped -> skipped.subOrderId == subOrder.id })
+            assertTrue(it.createdMissions.none { mission -> mission.merchantSubOrderId == subOrder.id })
         }
         assertEquals(0, dispatchService.dispatchReadySubOrders().createdMissions.size)
     }

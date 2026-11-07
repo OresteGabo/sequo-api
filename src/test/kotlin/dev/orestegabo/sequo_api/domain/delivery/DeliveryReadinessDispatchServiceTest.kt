@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import dev.orestegabo.sequo_api.domain.order.OrderFlowStage
 import dev.orestegabo.sequo_api.domain.order.OrderFlowStepStatus
 import dev.orestegabo.sequo_api.domain.order.OrderFulfillmentPersistenceService
@@ -33,7 +35,24 @@ class DeliveryReadinessDispatchServiceTest @Autowired constructor(
     private val dispatch: DeliveryReadinessDispatchService,
     private val missions: DeliveryMissionRepository,
     private val dispatchRuns: DeliveryDispatchRunRepository,
+    private val subOrders: MerchantSubOrderRepository,
+    private val orders: CustomerOrderRecordRepository,
 ) {
+    @Test
+    fun unpaidLegacyReadySubOrderCannotCreateDispatchMission() {
+        val order = orders.save(paidMerchantOrderFixture("legacy-unpaid-dispatch", PaymentValidationStatus.Pending))
+        val subOrder = subOrders.save(MerchantSubOrder(
+            subOrderCode = "LEGACY-UNPAID-READY",
+            orderId = order.id,
+            merchantId = "merchant-legacy",
+            status = MerchantSubOrderStatus.PACKED_READY,
+            packageCount = 1,
+        ))
+        val result = dispatch.dispatchReadySubOrders()
+        assertEquals("order_not_paid_or_active", result.skippedSubOrders.single { it.subOrderId == subOrder.id }.reason)
+        assertEquals(null, missions.findByMerchantSubOrderId(requireNotNull(subOrder.id)))
+    }
+
     @Test
     fun `packed merchant sub-order creates one idempotent delivery mission`() {
         val request = orderRequest(route = OrderRoute.FastDelivery)

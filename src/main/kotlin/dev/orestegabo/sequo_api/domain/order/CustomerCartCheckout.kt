@@ -109,6 +109,10 @@ class CustomerCartCheckoutService(
             OrderLineRequest(
                 product.id, seller.id, seller.name, product.name, category, item.quantity,
                 requireNotNull(item.lineTotalCfa) / item.quantity, photoEvidence = photo, selections = item.selections,
+                optionLabel = item.selections.flatMap { selection ->
+                    product.customizations.firstOrNull { it.id == selection.groupId }?.options.orEmpty()
+                        .filter { it.id in selection.optionIds }.map { it.name }
+                }.takeIf { it.isNotEmpty() }?.joinToString(", "),
             )
         }
         val order = OrderProcessingRequest(

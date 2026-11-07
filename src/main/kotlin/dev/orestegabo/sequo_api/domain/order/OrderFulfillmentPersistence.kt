@@ -177,6 +177,7 @@ interface CustomerOrderRecordRepository : JpaRepository<CustomerOrderRecord, Str
 }
 
 interface CustomerOrderLineRecordRepository : JpaRepository<CustomerOrderLineRecord, String> {
+    fun findByOrderIdAndSellerIdOrderByLineIndexAsc(orderId: String, sellerId: String): List<CustomerOrderLineRecord>
     fun findByOrderIdOrderByLineIndexAsc(orderId: String): List<CustomerOrderLineRecord>
 }
 

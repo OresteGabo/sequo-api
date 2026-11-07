@@ -207,6 +207,78 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(false, response.body().contains("fixture.invalid"))
     }
 
+    @Test
+    fun paidBasketReachesScopedMerchantPreparationAndDispatchWithQuantitiesAndReplaySafeActions() {
+        val fixture = fixture()
+        val merchantId = requireNotNull(products.findById(fixture.productId).orElseThrow().merchantId)
+        val merchant = jwt.generateAccessToken(UserSession(
+            "preparer-${fixture.userId}", null, AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_OWNER), setOf(merchantId),
+        ))
+        val otherFixture = fixture()
+        val otherMerchantId = requireNotNull(products.findById(otherFixture.productId).orElseThrow().merchantId)
+        val otherMerchant = jwt.generateAccessToken(UserSession(
+            "other-preparer", null, AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_STAFF), setOf(otherMerchantId),
+        ))
+        val foodId = "food-${fixture.userId}"
+        products.save(ProductRecord(
+            id = foodId, merchantId = merchantId, name = "Rice plate", category = "food", basePriceCfa = 1500,
+            photoRequired = true, cameraVerified = true, capturedAtLabel = Instant.now().toString(),
+        ))
+        val options = call("PUT", "/api/merchant/catalog/products/$foodId/customizations?merchantId=$merchantId", merchant,
+            """{"groups":[{"name":"Side","minChoices":1,"maxChoices":1,"options":[{"name":"Plantain","priceDeltaCfa":500}]}]}""")
+        assertEquals(200, options.statusCode(), options.body())
+        val group = json.readTree(options.body()).single()
+        val selection = """[{"groupId":"${group["id"].asText()}","optionIds":["${group["options"].single()["id"].asText()}"]}]"""
+        assertEquals(200, call("PUT", "/api/cart/items", fixture.token,
+            """{"productId":"$foodId","quantity":3,"selections":$selection}""").statusCode())
+        val submitted = call("POST", "/api/orders/checkouts", fixture.token, submitBody(fixture, quote(fixture)))
+        assertEquals(202, submitted.statusCode(), submitted.body())
+        val checkout = json.readTree(submitted.body())
+        val checkoutId = checkout["checkoutId"].asText()
+        val queue = "/api/merchant/sub-orders?merchantId=$merchantId"
+        assertEquals(0, read("GET", queue, merchant).size())
+        assertEquals(403, call("GET", queue, otherMerchant).statusCode())
+        val unpaid = call("POST", "/api/merchant/sub-orders/$checkoutId/accept", merchant, """{"merchantId":"$merchantId"}""")
+        assertEquals(400, unpaid.statusCode())
+        assertNull(orders.findByCheckoutId(checkoutId))
+
+        val event = """{"eventId":"merchant-paid-$checkoutId","checkoutId":"$checkoutId","paymentReference":"$checkoutId","amountCfa":${checkout["totalCfa"].asInt()},"currency":"XOF","status":"VALIDATED","occurredAt":"2026-11-07T00:00:00Z"}"""
+        assertEquals(202, webhook(event).statusCode())
+        val queued = read("GET", queue, merchant).single()
+        assertEquals("MERCHANT_PENDING", queued["status"].asText())
+        assertEquals(setOf(2, 3), queued["lines"].map { it["quantity"].asInt() }.toSet())
+        assertEquals("Plantain", queued["lines"].single { it["productId"].asText() == foodId }["optionLabel"].asText())
+        assertTrue(Instant.parse(queued["packingDueAt"].asText()).isAfter(Instant.now()))
+        val subOrderId = queued["id"].asText()
+        val actionPath = "/api/merchant/sub-orders/$subOrderId"
+        assertEquals(403, call("GET", "$actionPath?merchantId=$merchantId", otherMerchant).statusCode())
+        assertEquals(403, call("POST", "$actionPath/accept", fixture.token, """{"merchantId":"$merchantId"}""").statusCode())
+        assertEquals(403, call("POST", "$actionPath/accept", otherMerchant, """{"merchantId":"$merchantId"}""").statusCode())
+        assertEquals(400, call("POST", "$actionPath/accept", otherMerchant, """{"merchantId":"$otherMerchantId"}""").statusCode())
+
+        fun replayAction(action: String, body: String): JsonNode {
+            val results = (1..2).map { CompletableFuture.supplyAsync { call("POST", "$actionPath/$action", merchant, body) } }.map { it.join() }
+            results.forEach { assertEquals(200, it.statusCode(), it.body()) }
+            assertEquals(json.readTree(results.first().body()), json.readTree(results.last().body()))
+            return json.readTree(results.first().body())
+        }
+        assertEquals("ACCEPTED", replayAction("accept", """{"merchantId":"$merchantId"}""")["status"].asText())
+        assertEquals("PREPARING", replayAction("start-preparation", """{"merchantId":"$merchantId"}""")["status"].asText())
+        val ready = replayAction("mark-packed", """{"merchantId":"$merchantId","packageCount":2}""")
+        assertEquals("PACKED_READY", ready["status"].asText())
+        assertEquals(2, ready["packageCount"].asInt())
+        assertEquals(400, call("POST", "$actionPath/mark-packed", merchant, """{"merchantId":"$merchantId","packageCount":3}""").statusCode())
+        val sla = read("GET", "$actionPath/sla?merchantId=$merchantId", merchant)
+        assertEquals(queued["packingDueAt"], sla["packingDueAt"])
+        val admin = jwt.generateAccessToken(UserSession("fixture-operations", null, AuthProvider.EMAIL, setOf(RoleCode.ADMIN)))
+        assertEquals(ready, read("GET", actionPath, admin))
+        assertEquals(403, call("POST", "/api/delivery/missions/dispatch-ready", merchant).statusCode())
+        val dispatched = call("POST", "/api/delivery/missions/dispatch-ready", admin)
+        assertEquals(200, dispatched.statusCode(), dispatched.body())
+        val mission = json.readTree(dispatched.body())["createdMissions"].single { it["merchantSubOrderId"].asText() == subOrderId }
+        assertEquals(ready["orderId"].asText(), mission["orderId"].asText())
+    }
+
     private fun webhook(payload: String, signatureOverride: String? = null): HttpResponse<String> {
         val timestamp = Instant.now().epochSecond
         val mac = Mac.getInstance("HmacSHA256")

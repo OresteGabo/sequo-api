@@ -496,3 +496,27 @@ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew --offline test --tests '*Cus
 From the Sequo repository, the compiled targets were checked with `./gradlew --offline :shared:compileAndroidMain :shared:compileKotlinIosSimulatorArm64`. The existing edit in `DeliveryPricingTest.kt` contains a split function name, so the customer unit-test suite remains blocked by that source syntax error. Device and deployed staging checks remain unverified.
 
 The restart test starts the API twice against a temporary file-backed H2 database and confirms that pending checkout data, destination snapshot, and retry identity survive. The production artifact check confirms that checkout fixture classes and their webhook credential are absent. The simulator guard test rejects enablement under the production profile even with `sequo.security.allow-dev-defaults=true`.
+
+
+## Merchant preparation exercise
+
+Contract clauses 30, 118, and 119 cover receiving the merchant's order, preparing it, and reporting readiness. The Vendor queue uses the authenticated merchant membership and the existing fulfillment routes.
+
+`GET /api/merchant/sub-orders?merchantId={merchantId}` returns paid order lines for that merchant, including product name, quantity, unit/line amounts, and any saved food option label. Detail and action responses use the same fields. Vendor displays these quantities and the server's response/packing deadlines. New checkout payloads preserve selected option names for preparation. Older payloads and responses remain readable with optional line/option fields.
+
+The server requires a verified paid, active parent order before merchant actions. It serializes actions on the sub-order row. Repeating accept, start preparation, or ready returns the recorded state and preserves timestamps. Repeating ready with a different package count is rejected. Merchant preparation and dispatch reject unpaid parent orders, including legacy ready records.
+
+The local regression submits a two-product basket (quantities 2 and 3, including Plantain), confirms payment through the signed fixture webhook, and follows the same order through merchant acceptance, preparation, ready, operations readback, and dispatch. It also exercises concurrent repeated actions, forged merchant IDs, customer-role denial, and unpaid action denial.
+
+```sh
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew --offline test --tests '*MerchantFulfillment*Test' --tests '*DeliveryReadinessDispatchServiceTest' --tests '*DeliveryMissionControllerTest' --tests '*CustomerCartCheckoutHttpTest' --tests '*CustomerCheckoutRestartTest' --tests '*PendingPaymentCheckoutServiceTest' --tests '*OrderFulfillmentPersistenceServiceTest' --tests '*MerchantCatalogHttpTest'
+```
+
+From SequoVendor, run `./gradlew --offline :shared:testAndroidHostTest :shared:compileKotlinIosSimulatorArm64`. The Vendor wire tests verify authenticated merchant requests, line quantities, food option labels, the preparation target, ready package count, and server-error propagation.
+
+For the unverified device/staging check, use the isolated setup from the payment exercise. Sign into Vendor as the merchant for that paid order. Refresh Orders, open the order, and compare product quantities and options with the customer's submitted basket. Check the displayed packing target. Tap Accept, Start preparation, enter the actual logical package count, and tap Mark ready. Refresh detail and confirm `PACKED_READY`. An authorized administrator can read `GET /api/merchant/sub-orders/{id}` and invoke `POST /api/delivery/missions/dispatch-ready`; the resulting mission must carry the same `orderId` and `merchantSubOrderId`. Repeat each action and check stable timestamps. Sign into the other merchant account and verify queue, detail, and action denial. Repeat with a pending checkout and verify that it produces no actionable merchant sub-order.
+
+Authenticated Vendor sessions display their latest server snapshot and an error state on refresh failure. Demo orders are confined to local mode, and actions are disabled while the queue or detail is offline. A successful detail refresh restores actions.
+
+
+Local verification on 2026-11-07 passed 57 API tests and 14 Vendor host tests, plus Vendor Android and iOS simulator compilation. The API suite includes migration-backed schema validation. That validation exposed a JPEG payload mapping mismatch; the entity now explicitly uses the existing PostgreSQL `bytea` column definition. The preparation flow uses the existing server targets of 24 hours for seller response and 48 hours for packing.

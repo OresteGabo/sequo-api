@@ -153,8 +153,9 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
         assertEquals(HttpStatus.OK, scopedAccept.statusCode)
     }
 
-    private fun command(code: String): CreateMerchantSubOrderCommand =
-        CreateMerchantSubOrderCommand(
+    private fun command(code: String): CreateMerchantSubOrderCommand {
+        if (!orders.existsById("order-$code")) orders.save(order("order-$code"))
+        return CreateMerchantSubOrderCommand(
             subOrderCode = code,
             orderId = "order-$code",
             merchantId = "merchant-controller-1",
@@ -163,6 +164,7 @@ class MerchantFulfillmentControllerTest @Autowired constructor(
             commissionCfa = 3_000,
             merchantNetCfa = 17_000,
         )
+    }
 
     private fun auth(
         userId: String,
