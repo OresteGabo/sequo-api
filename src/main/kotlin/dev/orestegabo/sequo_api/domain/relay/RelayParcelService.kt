@@ -164,7 +164,7 @@ class RelayParcelService(
     fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
         validateCreate(command)?.let { return RelayParcelServiceResult.Rejected(it) }
         if (!policy.relayPickupAllowed(command.category)) {
-            return rejected("relay_not_allowed_for_category", "Food and perishable parcels cannot use relay pickup.")
+            return rejected("relay_not_allowed_for_category", "Food, perishable and sensitive parcels cannot use relay pickup.")
         }
 
         val locker = command.availableLockers
@@ -239,7 +239,8 @@ class RelayParcelService(
         if (command.eventId.isBlank()) return rejected("missing_event_id", "Custody event id is required.")
         if (command.actorUserId.isBlank()) return rejected("missing_actor", "Relay actor id is required.")
         val existingEvent = command.parcel.custodyEvents.firstOrNull {
-            it.idempotencyKey == command.idempotencyKey && it.type == RelayCustodyEventType.RelayRelease
+            it.idempotencyKey == command.idempotencyKey && it.type == RelayCustodyEventType.RelayRelease &&
+                it.actorUserId == command.actorUserId && command.parcel.relayPointId == command.relayPointId
         }
         if (existingEvent != null && command.parcel.status == RelayParcelStatus.PickedUp) {
             return RelayParcelServiceResult.Accepted(

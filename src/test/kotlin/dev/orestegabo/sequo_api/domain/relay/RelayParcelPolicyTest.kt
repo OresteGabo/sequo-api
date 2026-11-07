@@ -14,6 +14,7 @@ class RelayParcelPolicyTest {
 
     @Test
     fun rejectsRelayPickupForFoodAndPerishableProducts() {
+        assertFalse(policy.relayPickupAllowed(RelayParcelCategory.Sensitive))
         assertFalse(policy.relayPickupAllowed(RelayParcelCategory.Food))
         assertFalse(policy.relayPickupAllowed(RelayParcelCategory.Perishable))
         assertTrue(policy.relayPickupAllowed(RelayParcelCategory.GeneralGoods))

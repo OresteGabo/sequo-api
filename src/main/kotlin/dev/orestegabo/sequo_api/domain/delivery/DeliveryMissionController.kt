@@ -27,6 +27,8 @@ class DeliveryMissionController(
     private val dispatchService: DeliveryReadinessDispatchService,
     private val orderLifecycle: OrderDeliveryLifecycleService,
     private val courierAvailability: CourierAvailabilityService,
+    private val relayAccess: dev.orestegabo.sequo_api.domain.relay.RelayOperatorAccess,
+    private val relayParcels: dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository,
 ) {
     data class AssignCourierRequest(val courierId: String)
     data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null, val idempotencyKey: String? = null)
@@ -325,6 +327,8 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: RelayReleaseRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.RelayOperators) {
+        if (!relayMissionAllowed(requireNotNull(authentication), missionId, released = true))
+            return@roleActorRequired ResponseEntity.status(403).build()
         val result = service.transitionIdempotent(
             missionId = missionId,
             actorId = it,
@@ -344,6 +348,8 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ProblemRequest,
     ): ResponseEntity<Any> = roleActorRequired(authentication, userId, RoleGroups.DeliveryProblemReporters) {
+        if (requireNotNull(authentication).hasRole(RoleCode.RELAY_PARTNER) && !authentication.hasAnyRole(RoleGroups.AdminOperations) &&
+            !relayMissionAllowed(authentication, missionId)) return@roleActorRequired ResponseEntity.status(403).build()
         service.transitionIdempotent(
             missionId = missionId,
             actorId = it,
@@ -351,6 +357,15 @@ class DeliveryMissionController(
             idempotencyKey = request.idempotencyKey,
             problemReason = request.reason,
         ).toResponse()
+    }
+
+    private fun relayMissionAllowed(actor: Authentication, missionId: String, released: Boolean = false): Boolean {
+        if (actor.hasAnyRole(RoleGroups.AdminOnly)) return true
+        val parcels = relayParcels.findByDeliveryMissionId(missionId)
+        return parcels.isNotEmpty() && parcels.all {
+            relayAccess.permits(actor, it.relayPointId) &&
+                (!released || it.status == dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus.PickedUp)
+        }
     }
 
     private fun adminOnly(authentication: Authentication?, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =

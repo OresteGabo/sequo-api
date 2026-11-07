@@ -6,6 +6,7 @@ import java.time.Instant
 enum class RelayParcelCategory {
     Food,
     Perishable,
+    Sensitive,
     GeneralGoods,
 }
 
@@ -65,7 +66,7 @@ class RelayParcelPolicy(
         !evaluatedAt.isBefore(depositedAt.plus(config.returnToSellerReviewAfter))
 
     fun relayPickupAllowed(category: RelayParcelCategory): Boolean =
-        category != RelayParcelCategory.Food && category != RelayParcelCategory.Perishable
+        category == RelayParcelCategory.GeneralGoods
 
     fun evaluateCustody(input: RelayParcelCustodyInput): RelayParcelCustodyDecision {
         val pickupAllowed = relayPickupAllowed(input.category)

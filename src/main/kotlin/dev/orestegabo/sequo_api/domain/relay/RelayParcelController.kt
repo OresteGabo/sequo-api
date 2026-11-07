@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/relay/parcels")
 class RelayParcelController(
     private val service: RelayParcelApplicationService,
+    private val access: RelayOperatorAccess,
+    private val missions: dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService,
 ) {
     data class PickupCodeRequest(
         val codeId: String,
@@ -53,13 +55,21 @@ class RelayParcelController(
         val collectedAt: Instant?,
         val createdAt: Instant,
         val updatedAt: Instant,
+        val history: List<CustodyHistoryEntry> = emptyList(),
     )
+    data class CustodyHistoryEntry(val type: RelayCustodyEventType, val createdAt: Instant)
     data class PickupCredentialResponse(val id: String, val parcelId: String, val identityCheckRequired: Boolean, val expiresAt: Instant, val usedAt: Instant?, val attemptCount: Int)
     data class OperationResponse(val parcel: ParcelResponse, val pickupCode: PickupCredentialResponse?, val eventId: String?)
 
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody command: RelayParcelCreateCommand): ResponseEntity<Any> =
-        roleRequired(authentication, RoleGroups.RelayParcelCreators) {
+        roleRequired(authentication, RoleGroups.RelayParcelCreators) { actor ->
+            if (!access.permits(actor, command.relayPointId)) {
+                val mission = command.deliveryMissionId?.let(missions::get)
+                if (!actor.hasRole(RoleCode.COURIER) || mission == null || mission.courierId != missions.courierIdForActor(actor.name) ||
+                    mission.destinationType != dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination.RELAY_POINT)
+                    return@roleRequired ResponseEntity.status(403).build()
+            }
             service.createParcel(command).toResponse()
         }
 
@@ -68,7 +78,8 @@ class RelayParcelController(
         authentication: Authentication?,
         @RequestParam relayPointId: String,
         @RequestParam(required = false) status: RelayParcelStatus?,
-    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) {
+    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
+        if (!access.permits(actor, relayPointId)) return@roleRequired ResponseEntity.status(403).build()
         ResponseEntity.ok(
             service.listParcels(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId"), status)
                 .map { toResponse(it) }
@@ -82,7 +93,7 @@ class RelayParcelController(
             val safeRelayPointId = ApiInputPolicy.optionalIdentifier(relayPointId, "relayPointId")
             val parcel = service.getParcel(safeParcelId)
                 ?: return@roleRequired ResponseEntity.notFound().build()
-            if (authenticated.hasRole(RoleCode.RELAY_PARTNER) && parcel.relayPointId != safeRelayPointId) {
+            if (!access.permits(authenticated, parcel.relayPointId) || (safeRelayPointId != null && parcel.relayPointId != safeRelayPointId)) {
                 return@roleRequired ResponseEntity.status(403).build()
             }
             ResponseEntity.ok(toResponse(parcel))
@@ -93,7 +104,8 @@ class RelayParcelController(
         authentication: Authentication?,
         @PathVariable parcelId: String,
         @RequestBody request: PickupCodeRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) {
+    ): ResponseEntity<Any> = parcelRequired(authentication, parcelId) {
+        require(request.identityCheckRequired) { "Identity validation is required for relay pickup." }
         service.createPickupCode(
             parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             codeId = ApiInputPolicy.requiredIdentifier(request.codeId, "codeId"),
@@ -109,7 +121,8 @@ class RelayParcelController(
         authentication: Authentication?,
         @PathVariable parcelId: String,
         @RequestBody request: ReleaseRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
+    ): ResponseEntity<Any> = parcelRequired(authentication, parcelId) { authenticated ->
+        if (!access.permits(authenticated, request.relayPointId) || service.getParcel(parcelId)?.relayPointId != request.relayPointId) return@parcelRequired ResponseEntity.status(403).build()
         service.verifyPickup(
             parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
@@ -127,7 +140,7 @@ class RelayParcelController(
         authentication: Authentication?,
         @PathVariable parcelId: String,
         @RequestBody request: ProblemRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { authenticated ->
+    ): ResponseEntity<Any> = parcelRequired(authentication, parcelId) { authenticated ->
         service.reportProblem(
             ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             authenticated.name,
@@ -172,6 +185,22 @@ class RelayParcelController(
         ResponseEntity.ok(service.listStorageFeeAssessments(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")))
     }
 
+    data class AssignedRelay(val id: String, val name: String)
+
+    @GetMapping("/sites")
+    fun sites(authentication: Authentication?): ResponseEntity<Any> =
+        roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
+            ResponseEntity.ok(access.assignedPoints(actor).map { AssignedRelay(it.id, it.name) })
+        }
+
+    private fun parcelRequired(authentication: Authentication?, parcelId: String, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
+        roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
+            val parcel = service.getParcel(ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"))
+                ?: return@roleRequired ResponseEntity.notFound().build()
+            if (!access.permits(actor, parcel.relayPointId)) ResponseEntity.status(403).build()
+            else operation(actor)
+        }
+
     private fun roleRequired(authentication: Authentication?, roles: Set<RoleCode>, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
         else if (!authentication.hasAnyRole(roles)) ResponseEntity.status(403).build()
@@ -205,4 +234,5 @@ private fun toResponse(parcel: RelayParcel) = RelayParcelController.ParcelRespon
     collectedAt = parcel.collectedAt,
     createdAt = parcel.createdAt,
     updatedAt = parcel.updatedAt,
+    history = parcel.custodyEvents.map { RelayParcelController.CustodyHistoryEntry(it.type, it.createdAt) },
 )

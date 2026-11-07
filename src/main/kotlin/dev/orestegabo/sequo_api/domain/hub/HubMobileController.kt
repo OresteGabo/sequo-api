@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/hub")
 class HubMobileController(
     private val service: HubMobileService,
+    private val relayAccess: dev.orestegabo.sequo_api.domain.relay.RelayOperatorAccess,
 ) {
     data class ScanResolveRequest(
         val hubId: String,
@@ -235,7 +236,7 @@ class HubMobileController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(RoleGroups.RelayOperators) && !authentication.hasAnyRole(RoleGroups.AdminOperations)) {
             ResponseEntity.status(403).build()
-        } else if (authentication.hasRole(RoleCode.RELAY_PARTNER) && !authentication.hasAnyRole(RoleGroups.AdminOperations) && authentication.name != hubId) {
+        } else if (!authentication.hasAnyRole(RoleGroups.AdminOperations) && !relayAccess.permits(authentication, hubId)) {
             ResponseEntity.status(403).build()
         } else operation(authentication)
 
@@ -248,7 +249,7 @@ class HubMobileController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(RoleGroups.RelayOperators)) {
             ResponseEntity.status(403).build()
-        } else if (authentication.hasRole(RoleCode.RELAY_PARTNER) && !authentication.hasAnyRole(RoleGroups.AdminOperations) && authentication.name != hubId) {
+        } else if (!authentication.hasAnyRole(RoleGroups.AdminOperations) && !relayAccess.permits(authentication, hubId)) {
             ResponseEntity.status(403).build()
         } else operation(authentication)
 

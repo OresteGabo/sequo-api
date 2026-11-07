@@ -129,6 +129,11 @@ class RelayStorageFeeAssessmentRecord(
 )
 
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
+    fun findByDeliveryMissionId(deliveryMissionId: String): List<RelayParcelRecord>
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select p from RelayParcelRecord p where p.id = :id")
+    fun lockForPickup(id: String): RelayParcelRecord?
+
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<RelayParcelRecord>
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findByRelayPointIdAndFeeStartsAtLessThanOrderById(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcelRecord>
@@ -176,10 +181,16 @@ class RelayParcelPersistenceService(
     private val pickupCodes: RelayPickupCodeRecordRepository,
     private val events: RelayCustodyEventRecordRepository,
     private val storageFees: RelayStorageFeeAssessmentRecordRepository,
+    private val entityManager: jakarta.persistence.EntityManager,
 ) {
     fun findParcel(id: String): RelayParcel? = parcels.findById(id).orElse(null)?.toDomain(
         events.findByRelayParcelIdOrderByCreatedAtAsc(id).map { it.toDomain() }
     )
+
+    fun lockParcel(id: String): RelayParcel? = parcels.lockForPickup(id)?.let { findParcel(id) }
+    fun codeExists(id: String): Boolean = pickupCodes.existsById(id)
+    fun eventExists(id: String): Boolean = events.existsById(id)
+    fun saveRejectedCode(code: RelayPickupCode) { pickupCodes.save(code.toRecord()) }
 
     fun findPickupCode(parcelId: String): RelayPickupCode? = pickupCodes.findFirstByRelayParcelIdOrderByCreatedAtDesc(parcelId)?.toDomain()
 
@@ -213,33 +224,34 @@ class RelayParcelPersistenceService(
 
     @Transactional
     fun saveCreated(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
-        parcels.save(parcel.toRecord())
-        result.value.event?.let { events.save(it.toRecord()) }
+        entityManager.persist(parcel.toRecord())
+        result.value.event?.let { entityManager.persist(it.toRecord()) }
     }
 
     @Transactional
     fun savePickupCode(result: RelayParcelServiceResult.Accepted): RelayPickupCode =
         requireNotNull(result.value.pickupCode) { "Accepted relay pickup result must contain a pickup code." }.also { code ->
-            pickupCodes.save(code.toRecord())
+            // Creation must insert: a concurrent caller must never merge over another site's ID.
+            entityManager.persist(code.toRecord())
         }
 
     @Transactional
     fun saveVerification(result: RelayParcelServiceResult.Accepted): RelayParcel = result.value.parcel.also { parcel ->
         save(parcel)
         result.value.pickupCode?.let { pickupCodes.save(it.toRecord()) }
-        result.value.event?.let { events.save(it.toRecord()) }
+        result.value.event?.let { entityManager.persist(it.toRecord()) }
     }
 
     @Transactional
     fun saveProblem(parcel: RelayParcel, event: RelayCustodyEvent): RelayParcel = parcel.also {
         save(it)
-        events.save(event.toRecord())
+        entityManager.persist(event.toRecord())
     }
 
     @Transactional
     fun saveReturnToSeller(parcel: RelayParcel, event: RelayCustodyEvent): RelayParcel = parcel.also {
         save(it)
-        events.save(event.toRecord())
+        entityManager.persist(event.toRecord())
     }
 
     fun findStorageFeeAssessment(parcelId: String): RelayStorageFeeAssessment? =
@@ -296,6 +308,8 @@ class RelayParcelApplicationService(
 
     @Transactional
     fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
+        if (persistence.findParcel(command.parcelId) != null)
+            return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_already_exists", "Parcel already exists; reload its current state."))
         val result = domain.createParcel(command)
         if (result is RelayParcelServiceResult.Accepted) persistence.saveCreated(result)
         return result
@@ -303,14 +317,18 @@ class RelayParcelApplicationService(
 
     @Transactional
     fun createPickupCode(command: RelayPickupCodeCreateCommand): RelayParcelServiceResult {
-        val result = domain.createPickupCode(command)
+        val parcel = persistence.lockParcel(command.parcel.id)
+            ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
+        if (persistence.codeExists(command.codeId))
+            return RelayParcelServiceResult.Rejected(RelayParcelRejection("pickup_code_already_exists", "Credential already exists; reload the parcel before issuing a new credential."))
+        val result = domain.createPickupCode(command.copy(parcel = parcel))
         if (result is RelayParcelServiceResult.Accepted) persistence.savePickupCode(result)
         return result
     }
 
     @Transactional
     fun createPickupCode(parcelId: String, command: RelayPickupCodeCreateCommand): RelayParcelServiceResult {
-        val parcel = persistence.findParcel(parcelId)
+        val parcel = persistence.lockParcel(parcelId)
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
         return createPickupCode(command.copy(parcel = parcel))
     }
@@ -325,7 +343,7 @@ class RelayParcelApplicationService(
         expiresAt: java.time.Instant,
         createdAt: java.time.Instant = java.time.Instant.now(),
     ): RelayParcelServiceResult {
-        val parcel = persistence.findParcel(parcelId)
+        val parcel = persistence.lockParcel(parcelId)
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
         return createPickupCode(
             RelayPickupCodeCreateCommand(
@@ -352,14 +370,18 @@ class RelayParcelApplicationService(
         idempotencyKey: String,
         verifiedAt: java.time.Instant = java.time.Instant.now(),
     ): RelayParcelServiceResult {
-        val parcel = persistence.findParcel(parcelId)
+        val parcel = persistence.lockParcel(parcelId)
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
         val code = persistence.findPickupCode(parcelId)
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("pickup_code_not_found", "Pickup code was not found."))
         val result = domain.verifyPickup(
             RelayPickupVerificationCommand(parcel, code, relayPointId, actorUserId, rawNumericCode, rawQrNonce, identityDocumentMatched, eventId, idempotencyKey, verifiedAt)
         )
-        if (result is RelayParcelServiceResult.Accepted) persistence.saveVerification(result)
+        if (result is RelayParcelServiceResult.Accepted && parcel.status != RelayParcelStatus.PickedUp) {
+            if (persistence.eventExists(eventId)) return RelayParcelServiceResult.Rejected(RelayParcelRejection("event_id_conflict", "Event identifier already exists."))
+            persistence.saveVerification(result)
+        }
+        if (result is RelayParcelServiceResult.Rejected) result.rejection.pickupCode?.let(persistence::saveRejectedCode)
         return result
     }
 
@@ -419,7 +441,7 @@ class RelayParcelApplicationService(
     ): RelayParcelServiceResult {
         require(actorUserId.isNotBlank() && eventId.isNotBlank() && idempotencyKey.isNotBlank()) { "Actor, event id, and idempotency key are required." }
         require(metadata.isNotBlank()) { "Problem metadata is required." }
-        val parcel = persistence.findParcel(parcelId)
+        val parcel = persistence.lockParcel(parcelId)
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
         parcel.custodyEvents.firstOrNull { it.type == RelayCustodyEventType.Problem && it.idempotencyKey == idempotencyKey }?.let {
             return RelayParcelServiceResult.Accepted(RelayParcelAccepted(parcel, event = it))
@@ -427,6 +449,7 @@ class RelayParcelApplicationService(
         if (parcel.status == RelayParcelStatus.PickedUp || parcel.status == RelayParcelStatus.CollectedBySequo || parcel.status == RelayParcelStatus.ReturnedToSeller) {
             return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_reportable", "Resolved parcel cannot be reported as a problem."))
         }
+        if (persistence.eventExists(eventId)) return RelayParcelServiceResult.Rejected(RelayParcelRejection("event_id_conflict", "Event identifier already exists."))
         val event = RelayCustodyEvent(eventId, parcelId, actorUserId, RelayCustodyEventType.Problem, metadata, idempotencyKey, reportedAt)
         val updated = parcel.copy(status = RelayParcelStatus.Problem, updatedAt = reportedAt, custodyEvents = parcel.custodyEvents + event)
         persistence.saveProblem(updated, event)
@@ -446,7 +469,7 @@ class RelayParcelApplicationService(
             "Actor, event id, and idempotency key are required."
         }
         require(metadata.isNotBlank()) { "Return metadata is required." }
-        val parcel = persistence.findParcel(parcelId)
+        val parcel = persistence.lockParcel(parcelId)
             ?: return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_not_found", "Relay parcel was not found."))
         parcel.custodyEvents.firstOrNull {
             it.type == RelayCustodyEventType.ReturnDropoff && it.idempotencyKey == idempotencyKey
@@ -458,6 +481,7 @@ class RelayParcelApplicationService(
                 RelayParcelRejection("return_review_required", "Parcel must be due for return-to-seller review before it can be returned."),
             )
         }
+        if (persistence.eventExists(eventId)) return RelayParcelServiceResult.Rejected(RelayParcelRejection("event_id_conflict", "Event identifier already exists."))
         val event = RelayCustodyEvent(
             id = eventId,
             relayParcelId = parcelId,

@@ -23,6 +23,7 @@ class HubMobileControllerTest @Autowired constructor(
     private val accountController: AccountController,
     private val preferenceController: UserPreferenceController,
     private val userRepository: UserRepository,
+    private val relayPoints: dev.orestegabo.sequo_api.domain.relay.RelayPointRepository,
 ) {
     @Test
     fun hubSummaryRequiresAuthenticationAndRelayScope() {
@@ -170,8 +171,14 @@ class HubMobileControllerTest @Autowired constructor(
         assertEquals(true, body.quickScanOnOpen)
     }
 
-    private fun auth(userId: String, role: RoleCode): Authentication =
-        UsernamePasswordAuthenticationToken(userId, null, listOf(role.toGrantedAuthority()))
+    private fun auth(userId: String, role: RoleCode): Authentication {
+        val actor = if (role == RoleCode.RELAY_PARTNER) {
+            relayPoints.findById(userId).orElse(null)?.operatorUserId ?: createUser("$userId@test.invalid").also {
+                relayPoints.save(dev.orestegabo.sequo_api.domain.party.RelayPointRecord(id = userId, operatorUserId = it, name = userId))
+            }
+        } else userId
+        return UsernamePasswordAuthenticationToken(actor, null, listOf(role.toGrantedAuthority()))
+    }
 
     private fun createUser(email: String): String =
         requireNotNull(
