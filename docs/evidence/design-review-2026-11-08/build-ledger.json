@@ -1,0 +1,322 @@
+{
+  "checkedAtUtc": "2026-11-08T23:23:46.825870+00:00",
+  "releaseId": "sequo-design-review-20261108",
+  "environment": "LOCAL_FIXTURE",
+  "canonicalDesignSha256": "8eb7bbd8c2a8e5189f01c8e6ef434853d7013fa02d988916cd107513710056e9",
+  "hostTestTotal": 155,
+  "frozenTask28ManifestSha256Unchanged": "61398bffd7cfc1cbd0a380b7c835920ba659ac273d33fd998af9825defa7efda",
+  "repositories": [
+    {
+      "repository": "Sequo",
+      "sourceHead": "fecf2b9e9658cc32ffbb13399805426262e92ca2",
+      "baseHead": "dc53ca6",
+      "hostChecks": {
+        "tests": 49,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "changedFiles": [
+        "shared/src/commonMain/composeResources/values-fr/strings.xml",
+        "shared/src/commonMain/composeResources/values/strings.xml",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/core/designsystem/component/Shapes.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoDesignSystem.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/feature/auth/AuthScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/feature/settings/AppText.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/theme/SequoTheme.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/app/SequoShell.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/basket/BasketContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/chrome/AppBars.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/chrome/BottomBar.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/components/CoreComponents.kt"
+      ],
+      "commits": [
+        "e531d75 feat(design): unify customer chrome and shared SEQUO mobile components",
+        "0bf3d77 style(customer): keep localized navigation labels compact and avoid duplicate title",
+        "fecf2b9 fix(i18n): register compact order navigation labels in both languages"
+      ],
+      "artifacts": {
+        "android": {
+          "app": "Sequo",
+          "platform": "android",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://10.0.2.2:55840",
+          "applicationId": "dev.orestegabo.sequo.fixture",
+          "sourceHead": "fecf2b9e9658cc32ffbb13399805426262e92ca2",
+          "artifact": "/private/tmp/sequo-design-review/customer-android/Sequo-sequo-design-review-20261108-LOCAL_FIXTURE.apk",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [
+            "iosApp/iosApp.xcodeproj/project.pbxproj"
+          ],
+          "preservedLocalEditSha256": {},
+          "signing": "debug key",
+          "sha256": "24e3225c76ad39599bad84a44f9da4b9fb8c6d85ec77e050ba7216a2779b7089"
+        },
+        "ios": {
+          "app": "Sequo",
+          "platform": "ios",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://127.0.0.1:55840",
+          "applicationId": "dev.orestegabo.sequo.Sequo.fixture",
+          "sourceHead": "fecf2b9e9658cc32ffbb13399805426262e92ca2",
+          "artifact": "/private/tmp/sequo-design-review/customer-ios/Sequo-sequo-design-review-20261108-LOCAL_FIXTURE.app",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [
+            "iosApp/iosApp.xcodeproj/project.pbxproj"
+          ],
+          "preservedLocalEditSha256": {},
+          "signing": "validated local Apple Development simulator",
+          "executableSha256": "931cf1ea42ce19747d90a8149827703e3ec9e435b497dc94f582b2021fd87617",
+          "payloadSha256": "904716630435d9e5f2edcc4e545e98d983d9c97f0fe961c7c86125e81a98fce5",
+          "payloadFileCount": 348,
+          "debugDylibSha256": {
+            "Sequo.debug.dylib": "852b55da09a73cf8c4e253d5f70f82d6a92d4e6f9d7f40fcb7eed045c3550136"
+          }
+        }
+      }
+    },
+    {
+      "repository": "SequoVendor",
+      "sourceHead": "ce28a4cf4ae4b2bfcb9ff867fe52ca9cce21fb9a",
+      "baseHead": "54db35b",
+      "hostChecks": {
+        "tests": 58,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "changedFiles": [
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoDesignSystem.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/designsystem/component/Shapes.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/feature/auth/AuthScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/theme/SequoVendorTheme.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/account/AccountContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/app/SequoVendorShell.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/catalog/CatalogContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/catalog/FoodOptionsEditor.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/chrome/VendorBottomBar.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/chrome/VendorChrome.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/components/ErrorStates.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/components/VendorComponents.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/dashboard/DashboardContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/dashboard/MerchantActivityPanel.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/notifications/NotificationsContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/orders/OrdersContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/store/StoreContent.kt"
+      ],
+      "commits": [
+        "0ae56e5 ui(vendor): adopt the shared SEQUO mobile design",
+        "ce28a4c ui(vendor): keep the catalog editor focused"
+      ],
+      "artifacts": {
+        "android": {
+          "app": "SequoVendor",
+          "platform": "android",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://10.0.2.2:55840",
+          "applicationId": "dev.orestegabo.sequovendor.fixture",
+          "sourceHead": "ce28a4cf4ae4b2bfcb9ff867fe52ca9cce21fb9a",
+          "artifact": "/private/tmp/sequo-design-review/vendor-android/SequoVendor-sequo-design-review-20261108-LOCAL_FIXTURE.apk",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [
+            "iosApp/iosApp.xcodeproj/project.pbxproj"
+          ],
+          "preservedLocalEditSha256": {
+            "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+          },
+          "signing": "debug key",
+          "sha256": "2a423b3d75a59d0fdec01cd2a6c244eebc3b8c49411af508e28b19dd18d0b8c6"
+        },
+        "ios": {
+          "app": "SequoVendor",
+          "platform": "ios",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://127.0.0.1:55840",
+          "applicationId": "dev.orestegabo.sequovendor.SequoVendor.fixture",
+          "sourceHead": "ce28a4cf4ae4b2bfcb9ff867fe52ca9cce21fb9a",
+          "artifact": "/private/tmp/sequo-design-review/vendor-ios/SequoVendor-sequo-design-review-20261108-LOCAL_FIXTURE.app",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [
+            "iosApp/iosApp.xcodeproj/project.pbxproj"
+          ],
+          "preservedLocalEditSha256": {
+            "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+          },
+          "signing": "validated local Apple Development simulator",
+          "executableSha256": "13b33c53a09d43aee7a183c3e2b7585b5b4316f3e0a4dce159f05a7231019a1f",
+          "payloadSha256": "3858d970bd1e0b118399e615e6c38e19a65d12c7434ac81c709e1441a835d70f",
+          "payloadFileCount": 326,
+          "debugDylibSha256": {
+            "SequoVendor.debug.dylib": "4f47dcddef5395606d5df9226ae2c81d92ab9963c42db098cd28d6d8d28630f7"
+          }
+        }
+      }
+    },
+    {
+      "repository": "SequoHub",
+      "sourceHead": "e800c643e861596dade68f6a52ef7e9b0fc0f1a6",
+      "baseHead": "422545e",
+      "hostChecks": {
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "changedFiles": [
+        "iosApp/iosApp/ContentView.swift",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoDesignSystem.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/App.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/designsystem/component/AppScaffold.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/designsystem/component/Cards.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/designsystem/component/Inputs.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/designsystem/component/Shapes.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/designsystem/component/TopHeader.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/designsystem/theme/Theme.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/auth/AuthScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/live/HubHistoryPresentation.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/live/LiveHubWorkspace.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/navigation/SequoBottomNavigation.kt"
+      ],
+      "commits": [
+        "9dc8772 Unify Hub chrome and controls with the shared SEQUO design",
+        "e800c64 Let Compose own Hub safe-area insets once on iOS"
+      ],
+      "artifacts": {
+        "android": {
+          "app": "SequoHub",
+          "platform": "android",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://10.0.2.2:55840",
+          "applicationId": "dev.orestegabo.sequohub.fixture",
+          "sourceHead": "e800c643e861596dade68f6a52ef7e9b0fc0f1a6",
+          "artifact": "/private/tmp/sequo-design-review/hub-android/SequoHub-sequo-design-review-20261108-LOCAL_FIXTURE.apk",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [
+            "README.md",
+            "STORAGE_PENALTIES.md",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt"
+          ],
+          "preservedLocalEditSha256": {
+            "README.md": "9d8cd42e32bbecaaa120e1d88021589953f5ee78cc3bc63ddedf4aad2df9e272",
+            "STORAGE_PENALTIES.md": "e220b6ca8da8f6edaf9da0f9fc88c142e328a809b2c4a169eadec6e62be797b8",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt": "f703ea78a096626b759f8aa23404fb1764c1cdc8d97532b7c2b2a17f5e681625",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt": "35acc135c83c000b3bf67cb96a8599924b480e3f3ef5579bd00de259150575d6",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt": "1294c349c586342ce2a45b6b6f60b3faf85c979a6835cce9e61ad4598483cf4d",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt": "bac97c070c6f5cef96f97e1f880c8c0d19d33ff04bda143e95ac9a94ee158af3"
+          },
+          "signing": "debug key",
+          "sha256": "fd56137cfef8f58ec60b625f72c567a2919e513e95d3bf879e757e00e3fd3848"
+        },
+        "ios": {
+          "app": "SequoHub",
+          "platform": "ios",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://127.0.0.1:55840",
+          "applicationId": "dev.orestegabo.sequohub.SequoHub.fixture",
+          "sourceHead": "e800c643e861596dade68f6a52ef7e9b0fc0f1a6",
+          "artifact": "/private/tmp/sequo-design-review/hub-ios/SequoHub-sequo-design-review-20261108-LOCAL_FIXTURE.app",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [
+            "README.md",
+            "STORAGE_PENALTIES.md",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt"
+          ],
+          "preservedLocalEditSha256": {
+            "README.md": "9d8cd42e32bbecaaa120e1d88021589953f5ee78cc3bc63ddedf4aad2df9e272",
+            "STORAGE_PENALTIES.md": "e220b6ca8da8f6edaf9da0f9fc88c142e328a809b2c4a169eadec6e62be797b8",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt": "f703ea78a096626b759f8aa23404fb1764c1cdc8d97532b7c2b2a17f5e681625",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt": "35acc135c83c000b3bf67cb96a8599924b480e3f3ef5579bd00de259150575d6",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt": "1294c349c586342ce2a45b6b6f60b3faf85c979a6835cce9e61ad4598483cf4d",
+            "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt": "bac97c070c6f5cef96f97e1f880c8c0d19d33ff04bda143e95ac9a94ee158af3"
+          },
+          "signing": "validated local Apple Development simulator",
+          "executableSha256": "ea652ab757cac839c1bfbe1056079c88a5183300408d7369ebb7f93a06995938",
+          "payloadSha256": "d96416329c323c01432a301cc9c39c788decd5004f32afbe71ea376a0c7fd13f",
+          "payloadFileCount": 137,
+          "debugDylibSha256": {
+            "SequoHub.debug.dylib": "ddfe5ced2c6b64713e6d0379be9d89ed0bca3d10640d317907979699a02bd0e8"
+          }
+        }
+      }
+    },
+    {
+      "repository": "SequoRider",
+      "sourceHead": "1c91c004b1a35106fb390153bdba3267fce78439",
+      "baseHead": "a078aa6",
+      "hostChecks": {
+        "tests": 31,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "changedFiles": [
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequorider/RiderPresentationTest.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoDesignSystem.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/auth/AdminLoginRequestsScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/auth/RiderAuthScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/settings/AccountSettingsScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/settings/AppText.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/theme/Theme.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/app/SequoRiderShell.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/chrome/RiderBottomBar.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/components/RiderComponents.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/history/HistoryScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/missions/MissionsScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/payout/PayoutScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/route/ActiveRouteScreen.kt"
+      ],
+      "commits": [
+        "073ff42 Unify rider screens with the shared SEQUO mobile design",
+        "80fd0a0 Keep rider header sign-out secondary and remove repeated title",
+        "1c91c00 Paint rider sign-in backdrop with the shared theme background"
+      ],
+      "artifacts": {
+        "android": {
+          "app": "SequoRider",
+          "platform": "android",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://10.0.2.2:55840",
+          "applicationId": "dev.orestegabo.sequorider.fixture",
+          "sourceHead": "1c91c004b1a35106fb390153bdba3267fce78439",
+          "artifact": "/private/tmp/sequo-design-review/rider-android/SequoRider-sequo-design-review-20261108-LOCAL_FIXTURE.apk",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [],
+          "signing": "debug key",
+          "sha256": "b06097efeacb1057ade4516d626015b2b25eb8f9ed21447f6b034c8fef8b1b08"
+        },
+        "ios": {
+          "app": "SequoRider",
+          "platform": "ios",
+          "environment": "LOCAL_FIXTURE",
+          "releaseId": "sequo-design-review-20261108",
+          "apiBaseUrl": "http://127.0.0.1:55840",
+          "applicationId": "dev.orestegabo.sequorider.SequoRider.fixture",
+          "sourceHead": "1c91c004b1a35106fb390153bdba3267fce78439",
+          "artifact": "/private/tmp/sequo-design-review/rider-ios/SequoRider-sequo-design-review-20261108-LOCAL_FIXTURE.app",
+          "installedOrLaunched": false,
+          "trackedDirtyPaths": [],
+          "signing": "validated local Apple Development simulator",
+          "executableSha256": "97f70961dd1bf70a6abead5a23b1f0430d6374b05601889f47895f0a94e77a8c",
+          "payloadSha256": "3064ac5bc81eeb85959a76118093d938d00598bcb46ea3fbd384005a0d940b6e",
+          "payloadFileCount": 131,
+          "debugDylibSha256": {
+            "SequoRider.debug.dylib": "eb214c9491520ac5f5cc05e1458c609b6b2f30d6dfe84b5df8a05c682e14fd3b"
+          }
+        }
+      }
+    }
+  ]
+}
