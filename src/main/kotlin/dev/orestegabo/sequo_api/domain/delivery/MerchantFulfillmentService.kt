@@ -55,6 +55,10 @@ data class MerchantSubOrderSnapshot(
     val packingDueAt: Instant?,
     val updatedAt: Instant,
     val lines: List<MerchantOrderLineSnapshot> = emptyList(),
+    val orderStatus: CustomerOrderStatus? = null,
+    val orderPaymentStatus: PaymentValidationStatus? = null,
+    val orderCreatedAt: Instant? = null,
+    val deliveredAt: Instant? = null,
 )
 
 data class MerchantOrderLineSnapshot(
@@ -149,15 +153,18 @@ class MerchantFulfillmentService(
     @Transactional(readOnly = true)
     fun listForMerchant(
         merchantId: String,
-        statuses: Set<MerchantSubOrderStatus> = activeMerchantStatuses,
+        statuses: Set<MerchantSubOrderStatus>? = null,
+        history: Boolean = false,
     ): List<MerchantSubOrderSnapshot> {
         require(merchantId.isNotBlank()) { "merchantId cannot be blank." }
-        require(statuses.isNotEmpty()) { "At least one merchant sub-order status is required." }
-        val subOrders = repository.findByMerchantIdAndStatusInOrderByUpdatedAtDesc(merchantId, statuses)
-        val paidOrderIds = orders.findAllById(subOrders.map { it.orderId }.distinct())
-            .filter { it.paymentStatus == PaymentValidationStatus.Validated }
-            .map { it.id }.toSet()
-        return subOrders.filter { it.orderId in paidOrderIds }.map(::snapshot)
+        val requestedStatuses = statuses ?: if (history) MerchantSubOrderStatus.entries.toSet() else activeMerchantStatuses
+        require(requestedStatuses.isNotEmpty()) { "At least one merchant sub-order status is required." }
+        val subOrders = repository.findByMerchantIdAndStatusInOrderByUpdatedAtDesc(merchantId, requestedStatuses)
+        val parentOrders = orders.findAllById(subOrders.map { it.orderId }.distinct()).associateBy { it.id }
+        return subOrders.filter { subOrder ->
+            val parent = parentOrders[subOrder.orderId]
+            parent?.paymentStatus == PaymentValidationStatus.Validated || (history && parent == null)
+        }.map(::snapshot)
     }
 
     @Transactional(readOnly = true)
@@ -382,8 +389,8 @@ class MerchantFulfillmentService(
 
     private fun snapshot(subOrder: MerchantSubOrder): MerchantSubOrderSnapshot {
         val records = orderLines.findByOrderIdAndSellerIdOrderByLineIndexAsc(subOrder.orderId, subOrder.merchantId)
-        val checkoutId = orders.findById(subOrder.orderId).orElse(null)?.checkoutId
-        val payload = checkoutId?.let { pendingCheckouts.findById(it).orElse(null)?.requestPayload }
+        val order = orders.findById(subOrder.orderId).orElse(null)
+        val payload = order?.checkoutId?.let { pendingCheckouts.findById(it).orElse(null)?.requestPayload }
         val pendingLines = payload?.let { objectMapper.readTree(it).path("lines") }
         val lines = records.map { line ->
             val unitPrice = line.negotiatedUnitPriceCfa ?: line.unitPriceCfa
@@ -392,7 +399,13 @@ class MerchantFulfillmentService(
                 pendingLines?.get(line.lineIndex)?.path("optionLabel")?.takeIf { it.isTextual }?.asText(),
             )
         }
-        return subOrder.toSnapshot().copy(lines = lines)
+        return subOrder.toSnapshot().copy(
+            lines = lines,
+            orderStatus = order?.orderStatus,
+            orderPaymentStatus = order?.paymentStatus,
+            orderCreatedAt = order?.createdAt,
+            deliveredAt = order?.deliveredAt,
+        )
     }
 
     private fun publishFulfillmentEvent(

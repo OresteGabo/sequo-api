@@ -27,7 +27,12 @@ class SettlementController(
     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.MerchantOperators) { auth ->
         val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
         if (!auth.canReadMerchantPayouts(safeMerchantId)) return@authenticated ResponseEntity.status(403).build()
-        ResponseEntity.ok(service.listMerchantPayouts(safeMerchantId, status).map { it.toResponse() })
+        ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
+            service.listMerchantPayouts(safeMerchantId, status).map { payout ->
+                val view = payout.toResponse()
+                if (auth.hasAnyRole(RoleGroups.AdminOnly)) view else view.copy(
+                    ledgerEntries = view.ledgerEntries.map { it.copy(courierId = null, relayPointId = null) })
+            })
     }
 
     @GetMapping("/ledger")

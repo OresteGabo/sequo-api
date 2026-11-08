@@ -6,6 +6,7 @@ import dev.orestegabo.sequo_api.domain.auth.RoleGroups
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.auth.hasMerchantScope
 import java.time.Instant
+import org.springframework.http.CacheControl
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
@@ -41,13 +42,15 @@ class MerchantFulfillmentController(
         authentication: Authentication?,
         @RequestParam merchantId: String,
         @RequestParam(required = false) status: MerchantSubOrderStatus?,
+        @RequestParam(defaultValue = "false") history: Boolean = false,
     ): ResponseEntity<Any> = merchantRequired(authentication) { authenticated ->
         val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
         if (!merchantScopeAllowed(authenticated, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        val statuses = status?.let { setOf(it) } ?: MerchantFulfillmentService.activeMerchantStatuses
-        ResponseEntity.ok(service.listForMerchant(safeMerchantId, statuses))
+        ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+            service.listForMerchant(safeMerchantId, status?.let { setOf(it) }, history),
+        )
     }
 
     @PostMapping("/sla/publish-overdue")
@@ -95,7 +98,7 @@ class MerchantFulfillmentController(
         if (!authenticated.hasAnyRole(RoleGroups.AdminOnly) && !merchantCanSee(authenticated, subOrder.merchantId, safeMerchantId)) {
             return@merchantRequired ResponseEntity.status(403).build()
         }
-        ResponseEntity.ok(subOrder)
+        ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(subOrder)
     }
 
     @GetMapping("/{subOrderId}/sla")

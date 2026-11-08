@@ -528,7 +528,7 @@ class ReturnPersistenceService(
         val order = orders.findById(record.orderId).orElseThrow()
         MerchantReturnSnapshot(record.id, record.orderId, record.status, record.createdAt, record.droppedAt,
             record.collectedBySequoAt, record.receivedBySequoAt, record.inspectionDecision,
-            if (record.refundInstructionId != null) "REQUESTED" else if (record.status == ReturnStatus.RefundPending) "LEGACY_REVIEW_REQUIRED" else "NOT_INSTRUCTED",
+            if (record.refundInstructionId != null) "REQUESTED" else if (record.status == ReturnStatus.RefundPending || record.refundIdempotencyKey != null) "LEGACY_REVIEW_REQUIRED" else "NOT_INSTRUCTED",
             if (record.refundInstructionId != null) "NOT_SUBMITTED" else "UNCONFIRMED", order.paymentStatus.name,
             orderLines.findByOrderIdAndSellerIdOrderByLineIndexAsc(record.orderId, merchantId).map {
                 MerchantReturnLine(it.productId, it.productName, it.quantity)

@@ -176,7 +176,9 @@ class SettlementPersistenceService(
             payouts.findByMerchantIdAndStatusOrderByCreatedAtDesc(merchantId, it)
         } ?: payouts.findByMerchantIdOrderByCreatedAtDesc(merchantId)
         return records.map { record ->
-            record.toDomain(ledger.findBySourceTypeAndSourceIdOrderByCreatedAtAsc(SettlementSourceType.OrderItem, record.sourceOrderItemId))
+            // Imported legacy source links must not disclose another store's ledger rows.
+            record.toDomain(ledger.findBySourceTypeAndSourceIdOrderByCreatedAtAsc(SettlementSourceType.OrderItem, record.sourceOrderItemId)
+                .filter { it.merchantId == record.merchantId })
         }
     }
 
