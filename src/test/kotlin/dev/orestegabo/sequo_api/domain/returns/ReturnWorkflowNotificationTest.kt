@@ -62,8 +62,12 @@ class ReturnWorkflowNotificationTest @Autowired constructor(
                 relayPointId = "relay-lome-1",
                 rawReturnPin = "123456",
                 droppedAt = Instant.parse("2026-09-10T12:00:00Z"),
+                operatorId = "relay-return-notification",
+                idempotencyKey = "dropoff-return-notification-1",
             )
         )
+        returns.recordCollection(PersistedReturnCollectionCommand("return-notification-1", "collector-return-notification",
+            "collection-return-notification-1"))
         returns.recordPhysicalReceipt(
             PersistedPhysicalReceiptCommand(
                 returnId = "return-notification-1",
@@ -74,11 +78,15 @@ class ReturnWorkflowNotificationTest @Autowired constructor(
                 idempotencyKey = "receipt-return-notification-1",
             )
         )
+        returns.recordInspection(PersistedReturnInspectionCommand("return-notification-1", "inspector-return-notification",
+            ReturnInspectionDecision.ACCEPTED, "Returned product inspected and eligible for refund.", RefundResponsibility.Merchant,
+            "inspection-return-notification-1"))
         returns.triggerRefund(
             PersistedRefundTriggerCommand(
                 returnId = "return-notification-1",
                 amountCfa = 3_000,
                 idempotencyKey = "refund-return-notification-1",
+                operatorId = "admin-return-notification",
             )
         )
 

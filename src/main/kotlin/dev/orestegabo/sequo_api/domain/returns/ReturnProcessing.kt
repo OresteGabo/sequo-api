@@ -14,10 +14,13 @@ enum class ReturnStatus {
     Requested,
     AwaitingRelayDropoff,
     DroppedAtRelay,
+    CollectedBySequo,
     ReceivedBySequo,
     RefundPending,
     Rejected,
 }
+
+enum class ReturnInspectionDecision { ACCEPTED, REJECTED }
 
 enum class RefundResponsibility {
     Merchant,
@@ -57,6 +60,13 @@ data class RelayDropoffCommand(
     val droppedAt: Instant,
 )
 
+data class ReturnCollectionCommand(
+    val returnRequest: ReturnRequest,
+    val operatorId: String,
+    val collectedAt: Instant,
+    val idempotencyKey: String,
+)
+
 data class PhysicalReceiptCommand(
     val returnRequest: ReturnRequest,
     val operatorId: String,
@@ -88,6 +98,9 @@ data class ReturnRequest(
     val responsibility: RefundResponsibility? = null,
     val receiptIdempotencyKey: String? = null,
     val refundIdempotencyKey: String? = null,
+    val collectedBySequoAt: Instant? = null,
+    val inspectionDecision: ReturnInspectionDecision? = null,
+    val refundAmountCfa: Int? = null,
 )
 
 data class ReturnRejection(
@@ -140,15 +153,31 @@ class ReturnProcessingService(
         )
     }
 
+    fun recordCollection(command: ReturnCollectionCommand): ReturnProcessingResult {
+        val request = command.returnRequest
+        if (request.status != ReturnStatus.DroppedAtRelay || request.droppedAt == null)
+            return rejected("relay_dropoff_required", "SEQUO collection requires a recorded relay drop-off.")
+        if (command.operatorId.isBlank() || command.idempotencyKey.isBlank())
+            return rejected("collection_proof_required", "Collector and idempotency key are required.")
+        if (command.collectedAt.isBefore(request.droppedAt))
+            return rejected("invalid_custody_time", "Collection cannot precede drop-off.")
+        return ReturnProcessingResult.Accepted(request.copy(status = ReturnStatus.CollectedBySequo,
+            collectedBySequoAt = command.collectedAt))
+    }
+
     fun recordPhysicalReceipt(command: PhysicalReceiptCommand): ReturnProcessingResult {
         val request = command.returnRequest
         if (command.idempotencyKey.isBlank()) return rejected("missing_idempotency_key", "Idempotency key is required.")
         if (request.receiptIdempotencyKey == command.idempotencyKey && request.status == ReturnStatus.ReceivedBySequo) {
-            return ReturnProcessingResult.Accepted(request)
+            return if (request.conditionAssessment == command.conditionAssessment && request.responsibility == command.responsibility)
+                ReturnProcessingResult.Accepted(request)
+            else rejected("return_retry_conflict", "A receipt retry must preserve its original assessment.")
         }
-        if (request.status != ReturnStatus.DroppedAtRelay) {
-            return rejected("invalid_return_state", "Sequo physical receipt requires a relay drop-off first.")
+        if (request.status != ReturnStatus.CollectedBySequo || request.collectedBySequoAt == null) {
+            return rejected("collection_required", "SEQUO physical receipt requires recorded collection first.")
         }
+        if (command.receivedAt.isBefore(request.collectedBySequoAt))
+            return rejected("invalid_custody_time", "Receipt cannot precede collection.")
         if (command.operatorId.isBlank()) return rejected("missing_operator", "Receiving operator id is required.")
         if (command.conditionAssessment.isBlank()) {
             return rejected("missing_condition_assessment", "Condition assessment is required.")
@@ -170,11 +199,14 @@ class ReturnProcessingService(
         val request = command.returnRequest
         if (command.idempotencyKey.isBlank()) return rejected("missing_idempotency_key", "Idempotency key is required.")
         if (request.refundIdempotencyKey == command.idempotencyKey && request.status == ReturnStatus.RefundPending) {
-            return ReturnProcessingResult.Accepted(request)
+            return if (request.refundAmountCfa == command.amountCfa) ReturnProcessingResult.Accepted(request)
+            else rejected("return_retry_conflict", "A retry must preserve the original refund amount.")
         }
         if (request.status != ReturnStatus.ReceivedBySequo || request.receivedBySequoAt == null) {
             return rejected("physical_receipt_required", "Refund can start only after Sequo physically receives the returned item.")
         }
+        if (request.inspectionDecision != ReturnInspectionDecision.ACCEPTED || request.conditionAssessment.isNullOrBlank() || request.responsibility == null)
+            return rejected("inspection_required", "Refund instruction requires an approved condition inspection.")
         if (command.amountCfa <= 0) return rejected("invalid_refund_amount", "Refund amount must be positive.")
         if (command.amountCfa > request.requestedRefundCfa) {
             return rejected("refund_amount_too_high", "Refund amount cannot exceed the requested refund amount.")
@@ -184,6 +216,7 @@ class ReturnProcessingService(
             request.copy(
                 status = ReturnStatus.RefundPending,
                 refundIdempotencyKey = command.idempotencyKey,
+                refundAmountCfa = command.amountCfa,
             )
         )
     }

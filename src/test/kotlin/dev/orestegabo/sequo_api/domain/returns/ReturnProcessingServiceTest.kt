@@ -83,10 +83,10 @@ class ReturnProcessingServiceTest {
         val duplicate = service.recordPhysicalReceipt(
             PhysicalReceiptCommand(
                 returnRequest = received,
-                operatorId = "operator-2",
+                operatorId = "operator-1",
                 receivedAt = Instant.parse("2026-09-02T13:00:00Z"),
-                conditionAssessment = "Different duplicate payload ignored.",
-                responsibility = RefundResponsibility.Sequo,
+                conditionAssessment = "Sealed product received in good condition.",
+                responsibility = RefundResponsibility.Merchant,
                 idempotencyKey = "receipt-return-1",
             )
         )
@@ -96,8 +96,8 @@ class ReturnProcessingServiceTest {
     }
 
     @Test
-    fun refundStartsAfterPhysicalReceiptAndIsIdempotent() {
-        val received = receivedBySequo()
+    fun refundStartsAfterAcceptedInspectionAndIsIdempotent() {
+        val received = receivedBySequo().copy(inspectionDecision = ReturnInspectionDecision.ACCEPTED)
 
         val first = service.triggerRefund(
             RefundTriggerCommand(
@@ -119,6 +119,13 @@ class ReturnProcessingServiceTest {
 
         assertTrue(duplicate is ReturnProcessingResult.Accepted)
         assertEquals(first.returnRequest, duplicate.returnRequest)
+    }
+
+    @Test
+    fun physicalReceiptAloneDoesNotAuthorizeRefund() {
+        val result = service.triggerRefund(RefundTriggerCommand(receivedBySequo(), 2500, "refund-before-inspection"))
+        assertTrue(result is ReturnProcessingResult.Rejected)
+        assertEquals("inspection_required", result.rejection.code)
     }
 
     @Test
@@ -147,10 +154,11 @@ class ReturnProcessingServiceTest {
     }
 
     private fun receivedBySequo(): ReturnRequest {
-        val dropped = droppedAtRelay()
+        val collected = service.recordCollection(ReturnCollectionCommand(droppedAtRelay(), "collector-1",
+            Instant.parse("2026-09-02T11:30:00Z"), "collection-return-1")) as ReturnProcessingResult.Accepted
         val result = service.recordPhysicalReceipt(
             PhysicalReceiptCommand(
-                returnRequest = dropped,
+                returnRequest = collected.returnRequest,
                 operatorId = "operator-1",
                 receivedAt = Instant.parse("2026-09-02T12:00:00Z"),
                 conditionAssessment = "Sealed product received in good condition.",

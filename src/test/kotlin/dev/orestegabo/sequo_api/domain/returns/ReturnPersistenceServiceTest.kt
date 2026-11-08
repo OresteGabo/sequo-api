@@ -62,6 +62,8 @@ class ReturnPersistenceServiceTest @Autowired constructor(
                 relayPointId = "relay-lome-1",
                 rawReturnPin = "000000",
                 droppedAt = Instant.parse("2026-09-10T12:00:00Z"),
+                operatorId = "relay-operator-1",
+                idempotencyKey = "wrong-pin-return-persisted-1",
             )
         )
         assertTrue(wrongPin is PersistedReturnResult.Rejected)
@@ -73,6 +75,8 @@ class ReturnPersistenceServiceTest @Autowired constructor(
                 relayPointId = "relay-lome-1",
                 rawReturnPin = "123456",
                 droppedAt = Instant.parse("2026-09-10T12:00:00Z"),
+                operatorId = "relay-operator-1",
+                idempotencyKey = "dropoff-return-persisted-1",
             )
         ) as PersistedReturnResult.Accepted
         assertEquals(ReturnStatus.DroppedAtRelay, dropped.returnRequest.status)
@@ -83,10 +87,15 @@ class ReturnPersistenceServiceTest @Autowired constructor(
                 returnId = "return-persisted-1",
                 amountCfa = 3_000,
                 idempotencyKey = "refund-before-receipt",
+                operatorId = "admin-1",
             )
         )
         assertTrue(blockedRefund is PersistedReturnResult.Rejected)
         assertEquals("physical_receipt_required", blockedRefund.rejection.code)
+
+        val collected = service.recordCollection(PersistedReturnCollectionCommand("return-persisted-1", "collector-1", "collection-return-persisted-1"))
+            as PersistedReturnResult.Accepted
+        assertEquals(ReturnStatus.CollectedBySequo, collected.returnRequest.status)
 
         val received = service.recordPhysicalReceipt(
             PersistedPhysicalReceiptCommand(
@@ -100,11 +109,17 @@ class ReturnPersistenceServiceTest @Autowired constructor(
         ) as PersistedReturnResult.Accepted
         assertEquals(ReturnStatus.ReceivedBySequo, received.returnRequest.status)
 
+        val inspected = service.recordInspection(PersistedReturnInspectionCommand("return-persisted-1", "inspector-1",
+            ReturnInspectionDecision.ACCEPTED, "Sealed product inspected and approved for refund review.",
+            RefundResponsibility.Merchant, "inspection-return-persisted-1")) as PersistedReturnResult.Accepted
+        assertEquals(ReturnInspectionDecision.ACCEPTED, inspected.returnRequest.inspectionDecision)
+
         val refunded = service.triggerRefund(
             PersistedRefundTriggerCommand(
                 returnId = "return-persisted-1",
                 amountCfa = 3_000,
                 idempotencyKey = "refund-return-persisted-1",
+                operatorId = "admin-1",
             )
         ) as PersistedReturnResult.Accepted
         val duplicateRefund = service.triggerRefund(
@@ -112,6 +127,7 @@ class ReturnPersistenceServiceTest @Autowired constructor(
                 returnId = "return-persisted-1",
                 amountCfa = 3_000,
                 idempotencyKey = "refund-return-persisted-1",
+                operatorId = "admin-1",
             )
         ) as PersistedReturnResult.Accepted
 

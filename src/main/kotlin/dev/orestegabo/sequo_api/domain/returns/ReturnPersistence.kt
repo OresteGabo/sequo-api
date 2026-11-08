@@ -61,6 +61,17 @@ class ReturnRequestRecord(
     @Column(name = "refund_amount_cfa") var refundAmountCfa: Int? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
+    @Column(name = "collected_by_sequo_at") var collectedBySequoAt: Instant? = null,
+    @Column(name = "collecting_operator_id") var collectingOperatorId: String? = null,
+    @Enumerated(EnumType.STRING) @Column(name = "inspection_decision") var inspectionDecision: ReturnInspectionDecision? = null,
+    @Column(name = "inspected_at") var inspectedAt: Instant? = null,
+    @Column(name = "inspecting_operator_id") var inspectingOperatorId: String? = null,
+    @Column(name = "refund_instruction_id", unique = true) var refundInstructionId: String? = null,
+    @Column(name = "refund_instructed_at") var refundInstructedAt: Instant? = null,
+    @Column(name = "refund_instructing_operator_id") var refundInstructingOperatorId: String? = null,
+    @Column(name = "receipt_condition_assessment") var receiptConditionAssessment: String? = null,
+    @Enumerated(EnumType.STRING) @Column(name = "receipt_responsibility") var receiptResponsibility: RefundResponsibility? = null,
+    @Column(name = "custody_history_json", nullable = false, columnDefinition = "text") var custodyHistoryJson: String = "[]",
     @Version @Column(nullable = false) var version: Long = 0,
 )
 
@@ -73,6 +84,10 @@ interface ReturnRequestRecordRepository : JpaRepository<ReturnRequestRecord, Str
     fun findByCustomerIdOrderByCreatedAtDesc(customerId: String): List<ReturnRequestRecord>
     fun findByStatusOrderByUpdatedAtAsc(status: ReturnStatus): List<ReturnRequestRecord>
     fun findByOrderIdOrderByCreatedAtDesc(orderId: String): List<ReturnRequestRecord>
+    fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<ReturnRequestRecord>
+    fun findAllByOrderByUpdatedAtAsc(): List<ReturnRequestRecord>
+    @org.springframework.data.jpa.repository.Query("select distinct r from ReturnRequestRecord r, CustomerOrderLineRecord l where r.orderId = l.orderId and l.sellerId = :merchantId order by r.updatedAt asc")
+    fun findForMerchant(merchantId: String): List<ReturnRequestRecord>
 }
 
 data class PersistedReturnRequestCommand(
@@ -95,6 +110,25 @@ data class PersistedRelayDropoffCommand(
     val relayPointId: String,
     val rawReturnPin: String,
     val droppedAt: Instant = Instant.now(),
+    val operatorId: String,
+    val idempotencyKey: String,
+    val metadata: String? = null,
+)
+
+data class PersistedReturnCollectionCommand(
+    val returnId: String,
+    val operatorId: String,
+    val idempotencyKey: String,
+    val metadata: String? = null,
+)
+
+data class PersistedReturnInspectionCommand(
+    val returnId: String,
+    val operatorId: String,
+    val decision: ReturnInspectionDecision,
+    val conditionAssessment: String,
+    val responsibility: RefundResponsibility,
+    val idempotencyKey: String,
 )
 
 data class PersistedPhysicalReceiptCommand(
@@ -110,6 +144,7 @@ data class PersistedRefundTriggerCommand(
     val returnId: String,
     val amountCfa: Int,
     val idempotencyKey: String,
+    val operatorId: String,
 )
 
 data class ReturnRequestSnapshot(
@@ -133,6 +168,18 @@ data class ReturnRequestSnapshot(
     val instructions: String? = null,
     val relayPoints: List<dev.orestegabo.sequo_api.domain.relay.RelayDestination> = emptyList(),
     val returnPin: String? = null,
+    val collectedBySequoAt: Instant? = null,
+    val collectingOperatorId: String? = null,
+    val inspectionDecision: ReturnInspectionDecision? = null,
+    val inspectedAt: Instant? = null,
+    val inspectingOperatorId: String? = null,
+    val history: List<ReturnCustodyEvent> = emptyList(),
+    val refundInstruction: ReturnRefundInstruction? = null,
+    val refundDeadlineState: String = "UNCONFIGURED",
+    val refundDueAt: Instant? = null,
+    val refundInstructionState: String = "NOT_INSTRUCTED",
+    val receiptConditionAssessment: String? = null,
+    val receiptResponsibility: RefundResponsibility? = null,
 )
 
 sealed class PersistedReturnResult {
@@ -212,6 +259,7 @@ class ReturnPersistenceService(
         if (record.status !in setOf(ReturnStatus.Requested, ReturnStatus.AwaitingRelayDropoff)) {
             routing = ReturnDropoffPlan("ALREADY_DEPOSITED", when (record.status) {
                 ReturnStatus.DroppedAtRelay -> "The relay recorded your drop-off. Wait for SEQUO collection and inspection."
+                ReturnStatus.CollectedBySequo -> "SEQUO collected the item. Physical receipt and inspection are pending."
                 ReturnStatus.ReceivedBySequo -> "SEQUO received the item. Its condition and refund eligibility are being reviewed."
                 ReturnStatus.RefundPending -> "Refund processing is pending. This status does not confirm a completed payment."
                 ReturnStatus.Rejected -> "This return was rejected. Contact SEQUO for further instructions."
@@ -223,7 +271,11 @@ class ReturnPersistenceService(
         if (record.status == ReturnStatus.AwaitingRelayDropoff && routing.method == "RELAY" && raw == null)
             routing = ReturnDropoffPlan("SEQUO_INSTRUCTIONS_PENDING", "Your return is recorded. Contact SEQUO to confirm the existing return credential before going to a relay.")
         return snapshot.copy(receivingOperatorId = null, conditionAssessment = null, responsibility = null,
-            dropoffMethod = routing.method, instructions = routing.instructions, relayPoints = routing.points, returnPin = raw)
+            receiptConditionAssessment = null, receiptResponsibility = null,
+            dropoffMethod = routing.method, instructions = routing.instructions, relayPoints = routing.points, returnPin = raw,
+            collectingOperatorId = null, inspectingOperatorId = null,
+            history = snapshot.history.map { it.copy(actorUserId = null, metadata = null) },
+            refundInstruction = snapshot.refundInstruction?.copy(requestedByUserId = null))
     }
 
     private fun ownedOrder(customerId: String, orderId: String): CustomerOrderRecord =
@@ -342,6 +394,9 @@ class ReturnPersistenceService(
     @Transactional
     fun recordRelayDropoff(command: PersistedRelayDropoffCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
+            val intent = custodyIntent(command.relayPointId, Sha256ReturnPinHasher().hash(command.rawReturnPin), command.metadata)
+            replay(record, "RELAY_DROPOFF", intent)?.let { return@withExisting it }
+            // Preserve supported legacy deposits without fabricating their missing actor/history.
             if (record.droppedAt != null && record.relayPointId == command.relayPointId && Sha256ReturnPinHasher().matches(command.rawReturnPin, record.returnPinHash))
                 return@withExisting accepted(record)
             if (!dev.orestegabo.sequo_api.domain.relay.relayCategoriesAllowed(relayEligibility.categories(record.orderId)))
@@ -351,52 +406,145 @@ class ReturnPersistenceService(
                 if (plan(order).method != "RELAY" || relayAvailability.available(forReturns = true).none { it.id == command.relayPointId })
                     return@withExisting rejected("relay_return_unavailable", "This return is not authorized for that relay drop-off.")
             }
-            domain.recordRelayDropoff(
-                RelayDropoffCommand(
-                    returnRequest = record.toDomain(),
-                    relayPointId = command.relayPointId,
-                    rawReturnPin = command.rawReturnPin,
-                    droppedAt = command.droppedAt,
-                )
-            ).persist(record, command.droppedAt)
+            val now = clock.instant()
+            if (now.isBefore(record.createdAt)) return@withExisting rejected("invalid_custody_time", "Drop-off cannot precede the return request.")
+            domain.recordRelayDropoff(RelayDropoffCommand(record.toDomain(), command.relayPointId, command.rawReturnPin, now))
+                .persist(record, now) { audit(it, "RELAY_DROPOFF", command.operatorId, now, command.idempotencyKey, intent, command.metadata) }
+        }
+
+    @Transactional
+    fun recordCollection(command: PersistedReturnCollectionCommand): PersistedReturnResult =
+        withExisting(command.returnId) { record ->
+            val intent = custodyIntent(command.metadata)
+            replay(record, "SEQUO_COLLECTION", intent)?.let { return@withExisting it }
+            val now = clock.instant()
+            domain.recordCollection(ReturnCollectionCommand(record.toDomain(), command.operatorId, now, command.idempotencyKey))
+                .persist(record, now) {
+                    it.collectingOperatorId = command.operatorId
+                    audit(it, "SEQUO_COLLECTION", command.operatorId, now, command.idempotencyKey, intent, command.metadata)
+                }
         }
 
     @Transactional
     fun recordPhysicalReceipt(command: PersistedPhysicalReceiptCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
-            if (record.receiptIdempotencyKey == command.idempotencyKey && record.status == ReturnStatus.ReceivedBySequo) {
-                return@withExisting accepted(record)
+            val intent = custodyIntent(command.conditionAssessment, command.responsibility)
+            replay(record, "PHYSICAL_RECEIPT", intent)?.let { return@withExisting it }
+            if (record.receiptIdempotencyKey == command.idempotencyKey && record.receivedBySequoAt != null) {
+                return@withExisting if ((record.receiptConditionAssessment ?: record.conditionAssessment) == command.conditionAssessment && (record.receiptResponsibility ?: record.responsibility) == command.responsibility) accepted(record)
+                else rejected("return_retry_conflict", "Receipt retry must preserve the original assessment.")
             }
-            domain.recordPhysicalReceipt(
-                PhysicalReceiptCommand(
-                    returnRequest = record.toDomain(),
-                    operatorId = command.operatorId,
-                    receivedAt = command.receivedAt,
-                    conditionAssessment = command.conditionAssessment,
-                    responsibility = command.responsibility,
-                    idempotencyKey = command.idempotencyKey,
-                )
-            ).persist(record, command.receivedAt) { saved ->
-                publishReturnReceivedBySequo(saved)
-            }
+            val now = clock.instant()
+            domain.recordPhysicalReceipt(PhysicalReceiptCommand(record.toDomain(), command.operatorId, now,
+                command.conditionAssessment, command.responsibility, command.idempotencyKey))
+                .persist(record, now) {
+                    it.receiptConditionAssessment = command.conditionAssessment
+                    it.receiptResponsibility = command.responsibility
+                    audit(it, "PHYSICAL_RECEIPT", command.operatorId, now, command.idempotencyKey, intent, command.conditionAssessment)
+                    publishReturnReceivedBySequo(it)
+                }
+        }
+
+    @Transactional
+    fun recordInspection(command: PersistedReturnInspectionCommand): PersistedReturnResult =
+        withExisting(command.returnId) { record ->
+            val intent = custodyIntent(command.decision, command.conditionAssessment, command.responsibility)
+            replay(record, "CONDITION_INSPECTION", intent)?.let { return@withExisting it }
+            if (record.status != ReturnStatus.ReceivedBySequo || record.receivedBySequoAt == null)
+                return@withExisting rejected("physical_receipt_required", "Inspection requires actual recorded SEQUO receipt.")
+            if (command.conditionAssessment.isBlank() || command.operatorId.isBlank() || command.idempotencyKey.isBlank())
+                return@withExisting rejected("inspection_proof_required", "Inspection requires an operator, condition assessment and idempotency key.")
+            val now = clock.instant()
+            if (now.isBefore(record.receivedBySequoAt)) return@withExisting rejected("invalid_custody_time", "Inspection cannot precede receipt.")
+            // Older receipt notes are evidence, not an implicit inspection approval.
+            if (record.receiptConditionAssessment == null) record.receiptConditionAssessment = record.conditionAssessment
+            if (record.receiptResponsibility == null) record.receiptResponsibility = record.responsibility
+            record.inspectionDecision = command.decision
+            record.inspectedAt = now
+            record.inspectingOperatorId = command.operatorId
+            record.conditionAssessment = command.conditionAssessment
+            record.responsibility = command.responsibility
+            if (command.decision == ReturnInspectionDecision.REJECTED) record.status = ReturnStatus.Rejected
+            record.updatedAt = now
+            audit(record, "CONDITION_INSPECTION", command.operatorId, now, command.idempotencyKey, intent, command.conditionAssessment)
+            accepted(returns.save(record))
         }
 
     @Transactional
     fun triggerRefund(command: PersistedRefundTriggerCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
-            if (record.refundIdempotencyKey == command.idempotencyKey && record.status == ReturnStatus.RefundPending) {
-                return@withExisting accepted(record)
-            }
-            domain.triggerRefund(
-                RefundTriggerCommand(
-                    returnRequest = record.toDomain(),
-                    amountCfa = command.amountCfa,
-                    idempotencyKey = command.idempotencyKey,
-                )
-            ).persist(record, Instant.now(), refundAmountCfa = command.amountCfa) { saved ->
-                publishRefundTriggered(saved)
-            }
+            // The locked return row holds exactly one durable instruction. A fresh retry key cannot create another.
+            if (record.refundInstructionId != null) return@withExisting if (record.refundAmountCfa == command.amountCfa) accepted(record)
+                else rejected("return_retry_conflict", "A refund instruction already exists with another amount.")
+            if (record.status == ReturnStatus.RefundPending || record.refundIdempotencyKey != null)
+                return@withExisting rejected("legacy_refund_review_required", "An existing legacy refund must be reconciled before any further instruction.")
+            val order = orders.findById(record.orderId).orElseThrow()
+            // New requests are canonical per whole order. Legacy duplicate return rows remain readable,
+            // but must not authorize a second instruction against the same paid purchase.
+            if (returns.findByOrderIdOrderByCreatedAtDesc(record.orderId).any { other -> other.id != record.id &&
+                    (other.refundInstructionId != null || other.refundIdempotencyKey != null || other.status == ReturnStatus.RefundPending) })
+                return@withExisting rejected("order_refund_review_required", "Another return for this order already has a refund in progress. Reconcile it before further instruction.")
+            if (order.paymentStatus != dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus.Validated)
+                return@withExisting rejected("paid_order_required", "Refund instruction requires a verified paid order.")
+            if (command.operatorId.isBlank()) return@withExisting rejected("missing_operator", "Refund authorizing operator is required.")
+            if (record.inspectionDecision == ReturnInspectionDecision.ACCEPTED && (record.inspectedAt == null || record.inspectingOperatorId.isNullOrBlank()))
+                return@withExisting rejected("inspection_required", "Recorded inspection evidence requires operator review.")
+            if (command.amountCfa > order.itemSubtotalCfa)
+                return@withExisting rejected("refund_amount_too_high", "Refund instruction cannot exceed the paid item subtotal.")
+            val now = clock.instant()
+            if (record.inspectedAt?.let { now.isBefore(it) } == true)
+                return@withExisting rejected("invalid_custody_time", "Instruction cannot precede inspection.")
+            domain.triggerRefund(RefundTriggerCommand(record.toDomain(), command.amountCfa, command.idempotencyKey))
+                .persist(record, now, refundAmountCfa = command.amountCfa) {
+                    it.refundInstructionId = java.util.UUID.randomUUID().toString()
+                    it.refundInstructedAt = now
+                    it.refundInstructingOperatorId = command.operatorId
+                    audit(it, "REFUND_INSTRUCTION", command.operatorId, now, command.idempotencyKey, custodyIntent(command.amountCfa), null)
+                    publishRefundTriggered(it)
+                }
         }
+
+    private fun replay(record: ReturnRequestRecord, action: String, intent: String): PersistedReturnResult? =
+        storedCustodyHistory(record.custodyHistoryJson).firstOrNull { it.action == action }?.let {
+            if (it.intentHash == intent) accepted(record)
+            else rejected("return_retry_conflict", "This custody action is already recorded with different details. Refresh the return.")
+        }
+
+    private fun audit(record: ReturnRequestRecord, action: String, actorId: String, at: Instant, key: String, intent: String, metadata: String?) {
+        require(actorId.isNotBlank() && key.isNotBlank()) { "Custody actor and retry key are required." }
+        val history = storedCustodyHistory(record.custodyHistoryJson) + StoredReturnCustodyEvent(action, at, actorId, metadata, key, intent)
+        record.custodyHistoryJson = objectMapper.writeValueAsString(history.map { mapOf(
+            "action" to it.action, "createdAt" to it.createdAt.toString(), "actorUserId" to it.actorUserId,
+            "metadata" to it.metadata, "idempotencyKey" to it.idempotencyKey, "intentHash" to it.intentHash) })
+    }
+
+    private fun custodyIntent(vararg values: Any?): String = Sha256ReturnPinHasher().hash(objectMapper.writeValueAsString(values.toList()))
+
+    @Transactional(readOnly = true)
+    fun listAll(): List<ReturnRequestSnapshot> = returns.findAllByOrderByUpdatedAtAsc().map { it.toSnapshot() }
+
+    @Transactional(readOnly = true)
+    fun listForMerchant(merchantId: String): List<MerchantReturnSnapshot> = returns.findForMerchant(merchantId).map { record ->
+        val order = orders.findById(record.orderId).orElseThrow()
+        MerchantReturnSnapshot(record.id, record.orderId, record.status, record.createdAt, record.droppedAt,
+            record.collectedBySequoAt, record.receivedBySequoAt, record.inspectionDecision,
+            if (record.refundInstructionId != null) "REQUESTED" else if (record.status == ReturnStatus.RefundPending) "LEGACY_REVIEW_REQUIRED" else "NOT_INSTRUCTED",
+            if (record.refundInstructionId != null) "NOT_SUBMITTED" else "UNCONFIRMED", order.paymentStatus.name,
+            orderLines.findByOrderIdAndSellerIdOrderByLineIndexAsc(record.orderId, merchantId).map {
+                MerchantReturnLine(it.productId, it.productName, it.quantity)
+            })
+    }
+
+    @Transactional(readOnly = true)
+    fun listForRelay(relayPointId: String): List<ReturnRequestSnapshot> =
+        returns.findByRelayPointIdOrderByUpdatedAtDesc(relayPointId).map { relayView(it.toSnapshot()) }
+
+    fun relayView(snapshot: ReturnRequestSnapshot): ReturnRequestSnapshot = snapshot.copy(
+        customerId = "", reason = "", requestedRefundCfa = 0, refundAmountCfa = null,
+        receivingOperatorId = null, conditionAssessment = null, responsibility = null,
+        receiptConditionAssessment = null, receiptResponsibility = null,
+        collectingOperatorId = null, inspectingOperatorId = null, refundInstruction = null,
+        history = snapshot.history.filter { it.action in setOf("RELAY_DROPOFF", "SEQUO_COLLECTION") }.map { it.copy(metadata = null) })
 
     @Transactional(readOnly = true)
     fun get(returnId: String): ReturnRequestSnapshot? =
@@ -499,8 +647,8 @@ class ReturnPersistenceService(
             record.toNotificationEvent(
                 eventId = "${record.id}:refund-triggered",
                 eventType = NotificationEventType.REFUND_TRIGGERED,
-                title = "Refund started",
-                body = "Refund processing has started for return ${record.id}.",
+                title = "Refund instruction recorded",
+                body = "A refund instruction was recorded for return ${record.id}. Payment has not been confirmed.",
                 merchantUserIds = record.orderMerchantUserIds(),
             )
         )
@@ -576,6 +724,7 @@ private fun ReturnRequestRecord.apply(
     receiptIdempotencyKey = request.receiptIdempotencyKey
     refundIdempotencyKey = request.refundIdempotencyKey
     if (refundAmountCfa != null) this.refundAmountCfa = refundAmountCfa
+    collectedBySequoAt = request.collectedBySequoAt
     this.updatedAt = updatedAt
 }
 
@@ -595,6 +744,9 @@ private fun ReturnRequestRecord.toDomain() = ReturnRequest(
     responsibility = responsibility,
     receiptIdempotencyKey = receiptIdempotencyKey,
     refundIdempotencyKey = refundIdempotencyKey,
+    collectedBySequoAt = collectedBySequoAt,
+    inspectionDecision = inspectionDecision,
+    refundAmountCfa = refundAmountCfa,
 )
 
 private fun ReturnRequestRecord.toSnapshot() = ReturnRequestSnapshot(
@@ -614,4 +766,46 @@ private fun ReturnRequestRecord.toSnapshot() = ReturnRequestSnapshot(
     refundAmountCfa = refundAmountCfa,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    collectedBySequoAt = collectedBySequoAt,
+    collectingOperatorId = collectingOperatorId,
+    inspectionDecision = inspectionDecision,
+    inspectedAt = inspectedAt,
+    inspectingOperatorId = inspectingOperatorId,
+    history = storedCustodyHistory(custodyHistoryJson).map { ReturnCustodyEvent(it.action, it.createdAt, it.actorUserId, it.metadata) },
+    refundInstruction = refundInstructionId?.let { ReturnRefundInstruction(it, requireNotNull(refundAmountCfa),
+        requireNotNull(refundInstructedAt), refundInstructingOperatorId) },
+    refundInstructionState = if (refundInstructionId != null) "REQUESTED" else if (status == ReturnStatus.RefundPending || refundIdempotencyKey != null) "LEGACY_REVIEW_REQUIRED" else "NOT_INSTRUCTED",
+    receiptConditionAssessment = receiptConditionAssessment,
+    receiptResponsibility = receiptResponsibility,
+)
+
+
+data class ReturnCustodyEvent(val action: String, val createdAt: Instant, val actorUserId: String?, val metadata: String?)
+data class ReturnRefundInstruction(
+    val id: String,
+    val amountCfa: Int,
+    val requestedAt: Instant,
+    val requestedByUserId: String?,
+    val currency: String = "XOF",
+    val status: String = "REQUESTED",
+    val paymentStatus: String = "NOT_SUBMITTED",
+)
+
+private data class StoredReturnCustodyEvent(
+    val action: String, val createdAt: Instant, val actorUserId: String,
+    val metadata: String?, val idempotencyKey: String, val intentHash: String,
+)
+private val custodyMapper = ObjectMapper()
+private fun storedCustodyHistory(json: String): List<StoredReturnCustodyEvent> = custodyMapper.readTree(json).map { node ->
+    StoredReturnCustodyEvent(node["action"].asText(), Instant.parse(node["createdAt"].asText()), node["actorUserId"].asText(),
+        node["metadata"]?.takeUnless { it.isNull }?.asText(), node["idempotencyKey"].asText(), node["intentHash"].asText())
+}
+
+
+data class MerchantReturnLine(val productId: String, val productName: String, val quantity: Int)
+data class MerchantReturnSnapshot(
+    val id: String, val orderId: String, val status: ReturnStatus, val requestedAt: Instant,
+    val droppedAt: Instant?, val collectedBySequoAt: Instant?, val receivedBySequoAt: Instant?,
+    val inspectionDecision: ReturnInspectionDecision?, val refundInstructionState: String,
+    val refundPaymentStatus: String, val orderPaymentStatus: String, val lines: List<MerchantReturnLine>,
 )
