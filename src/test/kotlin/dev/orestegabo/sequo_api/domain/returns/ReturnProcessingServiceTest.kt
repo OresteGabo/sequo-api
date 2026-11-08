@@ -124,18 +124,26 @@ class ReturnProcessingServiceTest {
     @Test
     fun nonReturnableFoodRequiresAdminOverride() {
         val rejected = service.requestReturn(
-            requestCommand(category = ReturnItemCategory.Food)
+            requestCommand(category = ReturnItemCategory.Food).let { it.copy(eligibility = it.eligibility.copy(productReturnable = false)) }
         )
         val acceptedByOverride = service.requestReturn(
             requestCommand(
                 category = ReturnItemCategory.Food,
                 adminOverride = true,
-            )
+            ).let { it.copy(eligibility = it.eligibility.copy(productReturnable = false)) }
         )
 
         assertTrue(rejected is ReturnProcessingResult.Rejected)
-        assertEquals("item_not_returnable", rejected.rejection.code)
+        assertEquals("return_policy_blocks_item", rejected.rejection.code)
         assertTrue(acceptedByOverride is ReturnProcessingResult.Accepted)
+        assertEquals(ReturnStatus.Requested, acceptedByOverride.returnRequest.status)
+    }
+
+    @Test
+    fun foodRequestWithoutAnApprovedReturnExclusionRequiresManualDropoffInstructions() {
+        val requested = service.requestReturn(requestCommand(category = ReturnItemCategory.Food))
+        assertTrue(requested is ReturnProcessingResult.Accepted)
+        assertEquals(ReturnStatus.Requested, requested.returnRequest.status)
     }
 
     private fun receivedBySequo(): ReturnRequest {

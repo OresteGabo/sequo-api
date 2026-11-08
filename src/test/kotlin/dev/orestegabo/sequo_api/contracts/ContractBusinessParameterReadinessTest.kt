@@ -154,17 +154,19 @@ class ContractBusinessParameterReadinessTest {
     }
 
     @Test
-    fun returnDelayAndExcludedReturnCategoriesAreEnforced() {
+    fun returnDelayAndConfiguredReturnExclusionsAreEnforced() {
         val service = ReturnProcessingService()
         val acceptedAtDeadline = service.requestReturn(returnCommand(requestedAt = now.plus(Duration.ofHours(72))))
         val rejectedAfterDeadline = service.requestReturn(returnCommand(requestedAt = now.plus(Duration.ofHours(72)).plusSeconds(1)))
-        val rejectedFood = service.requestReturn(returnCommand(category = ReturnItemCategory.Food))
+        // Clause 140 prepares explicit policy exclusions; the PDF does not itself ban all food returns.
+        val excluded = returnCommand(category = ReturnItemCategory.Food)
+        val rejectedFood = service.requestReturn(excluded.copy(eligibility = excluded.eligibility.copy(productReturnable = false)))
 
         assertTrue(acceptedAtDeadline is ReturnProcessingResult.Accepted)
         assertTrue(rejectedAfterDeadline is ReturnProcessingResult.Rejected)
         assertEquals("return_window_expired", rejectedAfterDeadline.rejection.code)
         assertTrue(rejectedFood is ReturnProcessingResult.Rejected)
-        assertEquals("item_not_returnable", rejectedFood.rejection.code)
+        assertEquals("return_policy_blocks_item", rejectedFood.rejection.code)
     }
 
     @Test

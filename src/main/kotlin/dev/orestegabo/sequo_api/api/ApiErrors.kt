@@ -24,6 +24,10 @@ data class ApiErrorResponse(
 
 @RestControllerAdvice
 class ApiExceptionHandler {
+    @ExceptionHandler(dev.orestegabo.sequo_api.domain.returns.ReturnWriteConflict::class)
+    fun returnConflict(error: dev.orestegabo.sequo_api.domain.returns.ReturnWriteConflict): ResponseEntity<ApiErrorResponse> =
+        errorResponse(HttpStatus.CONFLICT, "return_conflict", requireNotNull(error.message))
+
     @ExceptionHandler(dev.orestegabo.sequo_api.domain.commerce.BargainingRetryConflict::class)
     fun bargainingConflict(error: dev.orestegabo.sequo_api.domain.commerce.BargainingRetryConflict): ResponseEntity<ApiErrorResponse> =
         errorResponse(HttpStatus.CONFLICT, "bargaining_conflict", requireNotNull(error.message))

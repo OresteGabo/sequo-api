@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
 
-@SpringBootTest
+@SpringBootTest(properties = ["sequo.returns.excluded-categories=Food"])
 @Transactional
 class ReturnPersistenceServiceTest @Autowired constructor(
     private val service: ReturnPersistenceService,
@@ -153,7 +153,7 @@ class ReturnPersistenceServiceTest @Autowired constructor(
         assertTrue(rejected is PersistedReturnResult.Rejected)
         assertEquals("item_not_returnable", rejected.rejection.code)
         assertTrue(accepted is PersistedReturnResult.Accepted)
-        assertEquals(ReturnStatus.AwaitingRelayDropoff, accepted.returnRequest.status)
+        assertEquals(ReturnStatus.Requested, accepted.returnRequest.status)
     }
 
     private fun createDeliveredOrder(

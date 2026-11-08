@@ -7,6 +7,7 @@ import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.auth.hasRole
 import java.time.Instant
 import org.springframework.http.ResponseEntity
+import org.springframework.http.CacheControl
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -21,23 +22,24 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/returns")
 class ReturnController(
     private val service: ReturnPersistenceService,
+    private val relayAccess: dev.orestegabo.sequo_api.domain.relay.RelayOperatorAccess,
 ) {
     data class CreateReturnRequest(
         val returnId: String,
         val orderId: String,
-        val customerId: String,
+        val customerId: String? = null,
         val reason: String,
-        val requestedRefundCfa: Int,
-        val rawReturnPin: String,
-        val requestedAt: Instant = Instant.now(),
-        val productReturnable: Boolean = true,
-        val merchantAllowsReturn: Boolean = true,
-        val adminOverride: Boolean = false,
+        val requestedRefundCfa: Int? = null,
+        val rawReturnPin: String? = null,
+        val requestedAt: Instant? = null,
+        val productReturnable: Boolean? = null,
+        val merchantAllowsReturn: Boolean? = null,
+        val adminOverride: Boolean? = null,
     )
     data class RelayDropoffRequest(
         val relayPointId: String,
         val rawReturnPin: String,
-        val droppedAt: Instant = Instant.now(),
+        val droppedAt: Instant? = null,
     )
     data class PhysicalReceiptRequest(
         val receivedAt: Instant = Instant.now(),
@@ -55,24 +57,20 @@ class ReturnController(
         @RequestBody request: CreateReturnRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.CUSTOMER) + RoleGroups.AdminOperations) { authenticated ->
         val actorId = userId ?: authenticated.name
-        val safeCustomerId = ApiInputPolicy.requiredIdentifier(request.customerId, "customerId")
-        if (authenticated.hasRole(RoleCode.CUSTOMER) && safeCustomerId != actorId) {
-            return@roleRequired ResponseEntity.status(403).build()
+        val returnId = ApiInputPolicy.requiredIdentifier(request.returnId, "returnId")
+        val orderId = ApiInputPolicy.requiredIdentifier(request.orderId, "orderId")
+        val reason = ApiInputPolicy.requiredLongText(request.reason, "reason", 1000)
+        val staff = authenticated.hasAnyRole(RoleGroups.AdminOperations)
+        if (!staff && request.customerId != null && request.customerId != actorId) return@roleRequired ResponseEntity.status(403).build()
+        val result = if (staff) service.requestForStaff(
+            ApiInputPolicy.requiredIdentifier(request.customerId ?: actorId, "customerId"), returnId, orderId, reason,
+            request.requestedRefundCfa, request.rawReturnPin, request.adminOverride == true,
+        ) else service.requestForCustomer(actorId, returnId, orderId, reason)
+        when (result) {
+            is PersistedReturnResult.Accepted -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+                if (staff) result.returnRequest else service.customerView(actorId, result.returnRequest))
+            is PersistedReturnResult.Rejected -> result.toResponse()
         }
-        service.requestReturn(
-            PersistedReturnRequestCommand(
-                returnId = ApiInputPolicy.requiredIdentifier(request.returnId, "returnId"),
-                orderId = ApiInputPolicy.requiredIdentifier(request.orderId, "orderId"),
-                customerId = safeCustomerId,
-                reason = ApiInputPolicy.requiredShortText(request.reason, "reason"),
-                requestedRefundCfa = request.requestedRefundCfa,
-                rawReturnPin = ApiInputPolicy.requiredShortText(request.rawReturnPin, "rawReturnPin", 64),
-                requestedAt = request.requestedAt,
-                productReturnable = request.productReturnable,
-                merchantAllowsReturn = request.merchantAllowsReturn,
-                adminOverride = request.adminOverride && authenticated.hasAnyRole(RoleGroups.AdminOperations),
-            )
-        ).toResponse()
     }
 
     @GetMapping
@@ -88,7 +86,8 @@ class ReturnController(
             !customerId.isNullOrBlank() -> service.listForCustomer(ApiInputPolicy.requiredIdentifier(customerId, "customerId"))
             else -> service.listByStatus(ReturnStatus.ReceivedBySequo)
         }
-        ResponseEntity.ok(returns)
+        ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+            if (authenticated.hasRole(RoleCode.CUSTOMER)) returns.map { service.customerView(userId ?: authenticated.name, it) } else returns)
     }
 
     @GetMapping("/{returnId}")
@@ -99,16 +98,26 @@ class ReturnController(
     ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.CUSTOMER) + RoleGroups.AdminOperations + RoleGroups.RelayOperators) { authenticated ->
         val item = service.get(ApiInputPolicy.requiredIdentifier(returnId, "returnId")) ?: return@roleRequired ResponseEntity.notFound().build()
         val actorId = userId ?: authenticated.name
-        if (authenticated.hasRole(RoleCode.CUSTOMER) && item.customerId != actorId) {
-            return@roleRequired ResponseEntity.status(403).build()
-        }
-        ResponseEntity.ok(item)
+        val staff = authenticated.hasAnyRole(RoleGroups.AdminOperations)
+        val customerOwner = authenticated.hasRole(RoleCode.CUSTOMER) && item.customerId == actorId
+        val assignedOperator = item.relayPointId?.let { relayAccess.permits(authenticated, it) } == true
+        if (!staff && !customerOwner && !assignedOperator) return@roleRequired ResponseEntity.status(403).build()
+        ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+            if (customerOwner && !staff) service.customerView(actorId, item) else item)
     }
+
+    @GetMapping("/orders/{orderId}/eligibility")
+    fun eligibility(authentication: Authentication?, @PathVariable orderId: String): ResponseEntity<Any> =
+        roleRequired(authentication, setOf(RoleCode.CUSTOMER)) { actor ->
+            ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.customerEligibility(actor.name, ApiInputPolicy.requiredIdentifier(orderId, "orderId")))
+        }
 
     @GetMapping("/orders/{orderId}")
     fun listForOrder(authentication: Authentication?, @PathVariable orderId: String): ResponseEntity<Any> =
-        roleRequired(authentication, RoleGroups.AdminOperations) {
-            ResponseEntity.ok(service.listForOrder(ApiInputPolicy.requiredIdentifier(orderId, "orderId")))
+        roleRequired(authentication, setOf(RoleCode.CUSTOMER) + RoleGroups.AdminOperations) { actor ->
+            val id = ApiInputPolicy.requiredIdentifier(orderId, "orderId")
+            ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+                if (actor.hasAnyRole(RoleGroups.AdminOperations)) service.listForOrder(id) else service.customerReturnsForOrder(actor.name, id))
         }
 
     @PostMapping("/{returnId}/relay-dropoff")
@@ -116,13 +125,14 @@ class ReturnController(
         authentication: Authentication?,
         @PathVariable returnId: String,
         @RequestBody request: RelayDropoffRequest,
-    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) {
+    ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
+        if (!relayAccess.permits(actor, request.relayPointId)) return@roleRequired ResponseEntity.status(403).build()
         service.recordRelayDropoff(
             PersistedRelayDropoffCommand(
                 returnId = ApiInputPolicy.requiredIdentifier(returnId, "returnId"),
                 relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
                 rawReturnPin = ApiInputPolicy.requiredShortText(request.rawReturnPin, "rawReturnPin", 64),
-                droppedAt = request.droppedAt,
+                droppedAt = service.currentTime(),
             )
         ).toResponse()
     }
@@ -171,6 +181,6 @@ class ReturnController(
 }
 
 private fun PersistedReturnResult.toResponse(): ResponseEntity<Any> = when (this) {
-    is PersistedReturnResult.Accepted -> ResponseEntity.ok(returnRequest)
+    is PersistedReturnResult.Accepted -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(returnRequest)
     is PersistedReturnResult.Rejected -> ResponseEntity.badRequest().body(ReturnController.ErrorResponse(rejection.code, rejection.message))
 }

@@ -55,13 +55,14 @@ fun readRelayDestination(payload: String): RelayDestination {
 class RelayAvailabilityService(private val points: RelayPointRepository, private val lockers: RelayLockerRepository,
     private val hubs: HubMobileService) {
     @Transactional(readOnly = true)
-    fun available(reroute: Boolean = false): List<RelayDestination> = points.findAll().mapNotNull { point ->
+    fun available(reroute: Boolean = false, forReturns: Boolean = false): List<RelayDestination> = points.findAll().mapNotNull { point ->
         if (point.status != "ACTIVE" || point.operatorUserId == null || point.latitude == null || point.longitude == null) return@mapNotNull null
         val latitude = requireNotNull(point.latitude); val longitude = requireNotNull(point.longitude)
         if (!latitude.isFinite() || !longitude.isFinite() || latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return@mapNotNull null
         val control = hubs.getControlState(point.id)
-        val required = setOf(HubControlTarget.LOCKER_INTAKE, HubControlTarget.CUSTOMER_PICKUP) +
-            if (reroute) setOf(HubControlTarget.PLAN_B_DROP_OFF) else emptySet()
+        val required = if (forReturns) setOf(HubControlTarget.LOCKER_INTAKE, HubControlTarget.CUSTOMER_RETURNS)
+            else setOf(HubControlTarget.LOCKER_INTAKE, HubControlTarget.CUSTOMER_PICKUP) +
+                if (reroute) setOf(HubControlTarget.PLAN_B_DROP_OFF) else emptySet()
         if (control.hub.status != HubControlStatus.ACTIVE || control.services.any { it.target in required && it.status != HubControlStatus.ACTIVE }) return@mapNotNull null
         if (lockers.countByRelayPointIdAndStatus(point.id, HubLockerStatus.AVAILABLE) == 0L || !open(point.id)) return@mapNotNull null
         RelayDestination(point.id, point.name, point.city, point.neighborhood, point.landmark, latitude, longitude)

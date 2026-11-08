@@ -37,6 +37,7 @@ data class ReturnEligibilityInput(
     val adminOverride: Boolean = false,
     val alreadyRefunded: Boolean = false,
     val fraudLocked: Boolean = false,
+    val relayDropoffAllowed: Boolean = itemCategory == ReturnItemCategory.ReturnableGoods,
 )
 
 data class ReturnRequestCommand(
@@ -112,7 +113,7 @@ class ReturnProcessingService(
                 returnId = command.returnId,
                 orderId = command.orderId,
                 customerId = command.customerId,
-                status = ReturnStatus.AwaitingRelayDropoff,
+                status = if (command.eligibility.relayDropoffAllowed) ReturnStatus.AwaitingRelayDropoff else ReturnStatus.Requested,
                 requestedAt = command.eligibility.requestedAt,
                 requestedRefundCfa = command.requestedRefundCfa,
                 returnPinHash = pinHasher.hash(command.rawReturnPin),
@@ -196,10 +197,7 @@ class ReturnProcessingService(
             return ReturnRejection("invalid_return_time", "Return request cannot be before delivery.")
         }
         if (Duration.between(input.deliveredAt, input.requestedAt) > returnWindow && !input.adminOverride) {
-            return ReturnRejection("return_window_expired", "Return request is outside the 72-hour return window.")
-        }
-        if (input.itemCategory != ReturnItemCategory.ReturnableGoods && !input.adminOverride) {
-            return ReturnRejection("item_not_returnable", "Food and perishable items are not returnable by default.")
+            return ReturnRejection("return_window_expired", "Return request is outside the allowed return window.")
         }
         if ((!input.productReturnable || !input.merchantAllowsReturn) && !input.adminOverride) {
             return ReturnRejection("return_policy_blocks_item", "Product or merchant policy blocks this return.")
