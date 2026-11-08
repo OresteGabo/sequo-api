@@ -34,6 +34,7 @@ class DeliveryReadinessDispatchService(
     private val deliveryMissionService: DeliveryMissionService,
     private val orders: CustomerOrderRecordRepository,
     private val pending: dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository,
+    private val manifests: ConsolidationManifestRepository,
 ) {
     @Transactional
     fun dispatchReadySubOrders(limit: Int = 50, at: Instant = Instant.now()): DeliveryDispatchRunResult {
@@ -50,7 +51,7 @@ class DeliveryReadinessDispatchService(
                 existing += it.toSnapshot()
                 return@forEach
             }
-            val order = orders.findById(subOrder.orderId).orElse(null)
+            val order = orders.lockForCompletion(subOrder.orderId)
             if (order == null) {
                 skipped += subOrder.skipped("order_not_found")
                 return@forEach
@@ -60,6 +61,21 @@ class DeliveryReadinessDispatchService(
             ) {
                 skipped += subOrder.skipped("order_not_paid_or_active")
                 return@forEach
+            }
+            missions.findByMerchantSubOrderId(subOrderId)?.let {
+                existing += it.toSnapshot()
+                return@forEach
+            }
+            if (order.route == OrderRoute.GroupedSequo || (order.requiresConsolidation && order.route == OrderRoute.FastDelivery)) {
+                val manifest = manifests.findByOrderId(order.id)
+                // Keep already-dispatched legacy home legs on their original route.
+                val legacyDirectDelivery = order.route == OrderRoute.FastDelivery &&
+                    missions.findByOrderIdOrderByCreatedAtAsc(order.id).any { it.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS }
+                if (!legacyDirectDelivery && (manifest == null || order.route != OrderRoute.GroupedSequo ||
+                    manifest.status != ConsolidationStatus.ReadyForSequoPickup)) {
+                    skipped += subOrder.skipped("awaiting_consolidation_approval")
+                    return@forEach
+                }
             }
             val plan = order.route.dispatchPlan()
             if (plan == null) {

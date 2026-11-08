@@ -420,6 +420,197 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     }
 
     @Test
+    fun approvedTwoMerchantGroupingRequiresSequoReceiptsAndCreatesOneFinalDispatch() {
+        val customer = fixture()
+        val second = fixture()
+        val merchantIds = listOf(customer, second).map { requireNotNull(products.findById(it.productId).orElseThrow().merchantId) }
+        fun account(role: RoleCode, merchantId: String? = null): Pair<String, String> {
+            val user = users.save(User(email = "grouped-${UUID.randomUUID()}@fixture.invalid", provider = AuthProvider.EMAIL, roles = mutableSetOf(role)))
+            val id = requireNotNull(user.id)
+            if (merchantId != null) memberships.save(MerchantMembership(userId = id, merchantId = merchantId, role = role))
+            return id to jwt.generateAccessToken(UserSession(id, user.email, AuthProvider.EMAIL, setOf(role), setOfNotNull(merchantId)))
+        }
+        val merchantAccounts = merchantIds.map { account(RoleCode.MERCHANT_OWNER, it) }
+        val (operatorId, operator) = account(RoleCode.ADMIN)
+        val riderAccounts = (1..2).map { account(RoleCode.COURIER) }
+        val courierRecords = riderAccounts.map { (id, _) -> couriers.save(CourierRecord("courier-$id", userId = id, workforceType = "FREELANCER", vehicleType = "MOTO")) }
+        for (token in merchantAccounts.map { it.second } + riderAccounts.map { it.second } + operator) {
+            assertEquals(200, call("GET", "/api/auth/me", token).statusCode())
+        }
+        assertEquals(200, call("PUT", "/api/cart/items", customer.token, """{"productId":"${second.productId}","quantity":3}""").statusCode())
+        val submitted = call("POST", "/api/orders/checkouts", customer.token, submitBody(customer, quote(customer)))
+        assertEquals(202, submitted.statusCode(), submitted.body())
+        val checkout = json.readTree(submitted.body()); val checkoutId = checkout["checkoutId"].asText()
+        assertEquals(202, webhook("""{"eventId":"grouped-$checkoutId","checkoutId":"$checkoutId","paymentReference":"$checkoutId","amountCfa":${checkout["totalCfa"].asInt()},"currency":"XOF","status":"VALIDATED","occurredAt":"${Instant.now()}"}""").statusCode())
+        val orderId = requireNotNull(orders.findByCheckoutId(checkoutId)?.id)
+        val parts = merchantIds.mapIndexed { index, merchantId ->
+            read("GET", "/api/merchant/sub-orders?merchantId=$merchantId", merchantAccounts[index].second).single { it["orderId"].asText() == orderId }
+        }
+        assertEquals(listOf(2, 3), parts.map { it["lines"].single()["quantity"].asInt() })
+        val cooperativeCreate = call("POST", "/api/admin/cooperatives", operator,
+            """{"code":"COOP-${UUID.randomUUID()}","name":"Two fixture merchants","city":"Lomé","ownerMerchantId":"${merchantIds.first()}"}""")
+        assertEquals(200, cooperativeCreate.statusCode(), cooperativeCreate.body())
+        val cooperativeId = json.readTree(cooperativeCreate.body())["id"].asText()
+        val memberAdded = call("POST", "/api/admin/cooperatives/$cooperativeId/members", operator,
+            """{"merchantId":"${merchantIds.last()}"}""")
+        assertEquals(200, memberAdded.statusCode(), memberAdded.body())
+        val reviewPath = "/api/admin/cooperatives/$cooperativeId/review"
+        val review = """{"status":"APPROVED","reason":"SEQUO validated both fixture merchants"}"""
+        for (token in listOf(customer.token, merchantAccounts.first().second, riderAccounts.first().second)) {
+            assertEquals(403, call("POST", reviewPath, token, review).statusCode())
+        }
+        val manifestId = "grouped-$orderId"
+        val path = "/api/consolidations/$manifestId"
+        val groupBody = """{"manifestId":"$manifestId","orderId":"$orderId","cooperativeId":"$cooperativeId","customerId":"${second.userId}","sellerPackages":[{"subOrderId":"forged-sub-order","merchantId":"forged-merchant","packageCount":99,"ready":true,"collected":true}]}"""
+        assertEquals(400, call("POST", "/api/consolidations", operator, groupBody).statusCode())
+        for (token in listOf(customer.token, merchantAccounts.first().second, riderAccounts.first().second)) {
+            assertEquals(403, call("POST", "/api/consolidations", token, groupBody).statusCode())
+        }
+        val secondPartId = parts.last()["id"].asText()
+        assertEquals(403, call("GET", "/api/merchant/sub-orders/$secondPartId", merchantAccounts.first().second).statusCode())
+        assertEquals(403, call("POST", "/api/merchant/sub-orders/$secondPartId/accept", merchantAccounts.first().second,
+            """{"merchantId":"${merchantIds.last()}"}""").statusCode())
+        assertEquals(400, call("POST", "/api/merchant/sub-orders/$secondPartId/accept", merchantAccounts.first().second,
+            """{"merchantId":"${merchantIds.first()}"}""").statusCode())
+        for ((index, part) in parts.withIndex()) {
+            val subId = part["id"].asText(); val merchantId = merchantIds[index]; val token = merchantAccounts[index].second
+            for (action in listOf("accept", "start-preparation", "mark-packed")) {
+                val count = if (action == "mark-packed") ",\"packageCount\":${index + 1}" else ""
+                val response = call("POST", "/api/merchant/sub-orders/$subId/$action", token, """{"merchantId":"$merchantId"$count}""")
+                assertEquals(200, response.statusCode(), response.body())
+            }
+        }
+        assertEquals(400, call("POST", "/api/consolidations", operator, groupBody).statusCode())
+        val awaitingApproval = readPost("/api/delivery/missions/dispatch-ready?limit=200", operator)
+        assertTrue(awaitingApproval["createdMissions"].none { it["orderId"].asText() == orderId })
+        assertEquals(2, awaitingApproval["skippedSubOrders"].count {
+            it["orderId"].asText() == orderId && it["reason"].asText() == "awaiting_consolidation_approval"
+        })
+        val rejected = call("POST", reviewPath, operator, """{"status":"REJECTED","reason":"Second merchant needs verification"}""")
+        assertEquals(200, rejected.statusCode(), rejected.body())
+        assertEquals("REJECTED", json.readTree(rejected.body())["status"].asText())
+        assertEquals(400, call("POST", "/api/consolidations", operator, groupBody).statusCode())
+        val approved = call("POST", reviewPath, operator, review)
+        assertEquals(200, approved.statusCode(), approved.body())
+        assertEquals(operatorId, json.readTree(approved.body())["reviewedByUserId"].asText())
+        assertEquals(listOf("REJECTED", "APPROVED"), json.readTree(approved.body())["history"].map { it["action"].asText() })
+        assertTrue(json.readTree(approved.body())["history"].all { it["actorUserId"].asText() == operatorId })
+        val repeatedReview = call("POST", reviewPath, operator, review)
+        assertEquals(200, repeatedReview.statusCode(), repeatedReview.body())
+        assertEquals(json.readTree(approved.body()), json.readTree(repeatedReview.body()))
+        val grouped = call("POST", "/api/consolidations", operator, groupBody)
+        assertEquals(200, grouped.statusCode(), grouped.body())
+        val manifest = json.readTree(grouped.body())
+        val uiRetry = call("POST", "/api/consolidations", operator,
+            """{"manifestId":"retry-$manifestId","orderId":"$orderId","cooperativeId":"$cooperativeId"}""")
+        assertEquals(200, uiRetry.statusCode(), uiRetry.body())
+        assertEquals(manifestId, json.readTree(uiRetry.body())["manifestId"].asText())
+        assertEquals(manifest, json.readTree(uiRetry.body()))
+        assertEquals(customer.userId, manifest["customerId"].asText())
+        assertEquals(operatorId, manifest["approvedByUserId"].asText())
+        assertEquals(parts.map { it["id"].asText() }.toSet(), manifest["sellerPackages"].map { it["subOrderId"].asText() }.toSet())
+        assertEquals(setOf(1, 2), manifest["sellerPackages"].map { it["packageCount"].asInt() }.toSet())
+        assertTrue(manifest["sellerPackages"].all { !it["collected"].asBoolean() })
+        val ownReadyPath = "$path/seller-packages/${parts.first()["id"].asText()}/ready"
+        val ownReady = call("POST", ownReadyPath, merchantAccounts.first().second, """{"merchantId":"${merchantIds.first()}"}""")
+        assertEquals(200, ownReady.statusCode(), ownReady.body())
+        val ownAcknowledgement = json.readTree(ownReady.body())
+        assertEquals(merchantIds.first(), ownAcknowledgement["sellerPackages"].single()["merchantId"].asText())
+        assertFalse(ownAcknowledgement.has("customerId"))
+        assertFalse(ownAcknowledgement.has("history"))
+        assertEquals(400, call("POST", "$path/seller-packages/$secondPartId/ready", merchantAccounts.first().second,
+            """{"merchantId":"${merchantIds.first()}"}""").statusCode())
+        assertEquals(403, call("POST", "$path/seller-packages/$secondPartId/ready", merchantAccounts.first().second,
+            """{"merchantId":"${merchantIds.last()}"}""").statusCode())
+        assertEquals(403, call("GET", path, second.token).statusCode())
+        assertEquals("GroupedSequo", read("GET", "/api/orders/$orderId", customer.token)["order"]["route"].asText())
+        val finalPath = "$path/dispatch-final-package"
+        val finalBody = """{"customerDeliveryFeeCfa":1,"courierFeeCfa":400}"""
+        assertEquals(400, call("POST", finalPath, operator, finalBody).statusCode())
+        assertEquals(400, call("POST", "$path/transitions", operator, """{"event":"SequoCollectsAllPackages"}""").statusCode())
+        assertEquals(400, call("POST", "$path/transitions", operator, """{"event":"SequoCreatesFinalPackage","finalPackageId":"sealed-$orderId"}""").statusCode())
+        val dispatch = readPost("/api/delivery/missions/dispatch-ready?limit=200", operator)
+        val collections = dispatch["createdMissions"].filter { it["orderId"].asText() == orderId }.associateBy { it["merchantSubOrderId"].asText() }
+        assertEquals(2, collections.size)
+        for ((index, part) in parts.withIndex()) {
+            val subId = part["id"].asText(); val mission = requireNotNull(collections[subId]); val missionId = mission["id"].asText()
+            val rider = riderAccounts[index].second; val receiptPath = "$path/seller-packages/$subId/collected"
+            val receipt = """{"metadata":"SEQUO operator received merchant ${index + 1} packages"}"""
+            assertEquals("SEQUO_CONSOLIDATION", mission["destinationType"].asText())
+            assertEquals(400, call("POST", receiptPath, operator, receipt).statusCode())
+            assertEquals(200, call("POST", "/api/delivery/missions/$missionId/assign", operator, """{"courierId":"${courierRecords[index].id}"}""").statusCode())
+            assertEquals(200, call("POST", "/api/delivery/missions/$missionId/offer", operator).statusCode())
+            assertEquals(200, call("POST", "/api/rider/missions/$missionId/accept", rider).statusCode())
+            val pickup = """{"proofMetadata":"Merchant ${index + 1} released its package","idempotencyKey":"collection-$missionId"}"""
+            repeat(2) { assertEquals(200, call("POST", "/api/rider/missions/$missionId/pickup/complete", rider, pickup).statusCode()) }
+            val inTransit = read("GET", path, operator)
+            assertFalse(inTransit["sellerPackages"].single { it["subOrderId"].asText() == subId }["collected"].asBoolean())
+            assertEquals("ReadyForSequoPickup", inTransit["status"].asText())
+            assertEquals(riderAccounts[index].first, inTransit["history"].single { it["action"].asText() == "COURIER_PICKUP:$subId" }["actorUserId"].asText())
+            val riderRead = read("GET", "/api/rider/missions/$missionId", rider)
+            assertEquals("MERCHANT", riderRead["pickupSource"].asText())
+            assertEquals("SEQUO consolidation", riderRead["dropoffName"].asText())
+            assertTrue(riderRead["homeDestination"].isNull)
+            assertEquals(400, call("POST", "/api/rider/missions/$missionId/delivery/complete", rider,
+                """{"proofMetadata":"Cannot act as customer handoff","idempotencyKey":"wrong-final-$missionId"}""").statusCode())
+            for (token in listOf(rider, merchantAccounts[index].second, customer.token)) assertEquals(403, call("POST", receiptPath, token, receipt).statusCode())
+            repeat(2) { assertEquals(200, call("POST", receiptPath, operator, receipt).statusCode()) }
+            val collected = read("GET", "/api/rider/missions/$missionId", rider)
+            assertEquals("HANDED_TO_SEQUO", collected["status"].asText())
+            assertEquals(operatorId, deliveryMissions.findById(missionId).orElseThrow().dropoffProofActorId)
+            assertEquals("ACCEPTED_FOR_FULFILLMENT", read("GET", "/api/orders/$orderId", customer.token)["order"]["orderStatus"].asText())
+            assertEquals(400, call("POST", finalPath, operator, finalBody).statusCode())
+        }
+        val custody = read("GET", path, operator)
+        assertEquals("InSequoCustody", custody["status"].asText())
+        assertTrue(custody["sellerPackages"].all { it["collected"].asBoolean() })
+        assertEquals(2, custody["history"].count { it["action"].asText().startsWith("SEQUO_RECEIPT:") && it["actorUserId"].asText() == operatorId })
+        assertEquals(200, call("POST", "$path/transitions", operator, """{"event":"SequoCreatesFinalPackage","finalPackageId":"sealed-$orderId"}""").statusCode())
+        val finalDispatches = (1..2).map { CompletableFuture.supplyAsync { call("POST", finalPath, operator, finalBody) } }.map { it.join() }
+        finalDispatches.forEach { assertEquals(200, it.statusCode(), it.body()) }
+        val finalResults = finalDispatches.map { json.readTree(it.body()) }
+        val finalMissionId = finalResults.first()["mission"]["id"].asText()
+        assertEquals(setOf(finalMissionId), finalResults.map { it["mission"]["id"].asText() }.toSet())
+        assertEquals(setOf(false, true), finalResults.map { it["alreadyDispatched"].asBoolean() }.toSet())
+        assertEquals(3, deliveryMissions.findByOrderIdOrderByCreatedAtAsc(orderId).size)
+        val emptyDispatchRetry = call("POST", finalPath, operator, "{}")
+        assertEquals(200, emptyDispatchRetry.statusCode(), emptyDispatchRetry.body())
+        assertEquals(finalMissionId, json.readTree(emptyDispatchRetry.body())["mission"]["id"].asText())
+        assertTrue(json.readTree(emptyDispatchRetry.body())["alreadyDispatched"].asBoolean())
+        val reloaded = read("GET", path, operator)
+        assertEquals("Dispatched", reloaded["status"].asText())
+        assertEquals(1, reloaded["history"].count { it["action"].asText() == "FINAL_DISPATCH" && it["actorUserId"].asText() == operatorId })
+        assertEquals(operatorId, reloaded["history"].single { it["action"].asText() == "SequoCreatesFinalPackage" }["actorUserId"].asText())
+        val rider = riderAccounts.first().second
+        assertEquals(200, call("POST", "/api/delivery/missions/$finalMissionId/assign", operator, """{"courierId":"${courierRecords.first().id}"}""").statusCode())
+        assertEquals(200, call("POST", "/api/delivery/missions/$finalMissionId/offer", operator).statusCode())
+        assertEquals(200, call("POST", "/api/rider/missions/$finalMissionId/accept", rider).statusCode())
+        val finalRead = read("GET", "/api/rider/missions/$finalMissionId", rider)
+        assertEquals("SEQUO_CONSOLIDATION", finalRead["pickupSource"].asText())
+        assertEquals("SEQUO consolidation", finalRead["pickupName"].asText())
+        assertEquals(1, finalRead["packageCount"].asInt())
+        assertEquals(customer.addressId, finalRead["homeDestination"]["addressId"].asText())
+        assertEquals(200, call("POST", "/api/rider/missions/$finalMissionId/pickup/complete", rider,
+            """{"proofMetadata":"SEQUO released one sealed customer package","idempotencyKey":"final-pickup-$finalMissionId"}""").statusCode())
+        assertEquals(200, call("POST", "/api/delivery/missions/$finalMissionId/delivery-pin", operator,
+            """{"rawPin":"123456","expiresAt":"${Instant.now().plusSeconds(3600)}"}""").statusCode())
+        val completed = call("POST", "/api/rider/missions/$finalMissionId/delivery/complete", rider,
+            """{"deliveryPin":"123456","idempotencyKey":"final-delivery-$finalMissionId"}""")
+        assertEquals(200, completed.statusCode(), completed.body())
+        assertEquals("DELIVERED", read("GET", "/api/orders/$orderId", customer.token)["order"]["orderStatus"].asText())
+        assertEquals("DELIVERED_TO_CUSTOMER", read("GET", "/api/consolidations/$manifestId/tracking", customer.token)["tracking"]["status"].asText())
+        val addedMerchant = merchants.save(MerchantRecord(id = "new-member-${UUID.randomUUID()}", name = "Additional fixture merchant"))
+        val changedMembership = call("POST", "/api/admin/cooperatives/$cooperativeId/members", operator,
+            """{"merchantId":"${addedMerchant.id}"}""")
+        assertEquals(200, changedMembership.statusCode(), changedMembership.body())
+        val pendingReview = read("GET", "/api/admin/cooperatives", operator).single { it["id"].asText() == cooperativeId }
+        assertEquals("PENDING_REVIEW", pendingReview["status"].asText())
+        assertTrue(pendingReview["reviewedByUserId"].isNull)
+        assertEquals(2, pendingReview["history"].size())
+        assertTrue(read("GET", "/api/cooperatives", customer.token).none { it["id"].asText() == cooperativeId })
+    }
+
+    @Test
     fun relaySelectionPersistsThroughPaidDispatchAndAtomicDeposit() {
         val site = relayFixture()
         val other = relayFixture()

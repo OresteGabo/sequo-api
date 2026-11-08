@@ -10,6 +10,7 @@ data class ConsolidationPackageCollectedEvent(
     val orderId: String,
     val subOrderId: String,
     val collectedAt: Instant,
+    val actorUserId: String? = null,
 )
 
 @Component
@@ -21,10 +22,11 @@ class ConsolidationMissionEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onPackageCollected(event: ConsolidationPackageCollectedEvent) {
         runCatching {
-            consolidation.markSellerPackageCollectedForOrder(
+            consolidation.recordCourierPickupForOrder(
                 orderId = event.orderId,
                 subOrderId = event.subOrderId,
                 at = event.collectedAt,
+                actor = event.actorUserId,
             )
         }.onFailure { error ->
             logger.warn(

@@ -21,22 +21,23 @@ class ConsolidationMissionEventListenerTest {
             ),
         )
 
-        Mockito.verify(consolidation).markSellerPackageCollectedForOrder(
+        Mockito.verify(consolidation).recordCourierPickupForOrder(
             orderId = "order-1",
             subOrderId = "sub-order-2",
             at = collectedAt,
+            actor = null,
         )
     }
 
     @Test
     fun doesNotReplayFailureToMissionTransaction() {
-        Mockito.`when`(
-            consolidation.markSellerPackageCollectedForOrder(
+        Mockito.doThrow(IllegalArgumentException("manifest not found")).`when`(consolidation)
+            .recordCourierPickupForOrder(
                 orderId = "order-1",
                 subOrderId = "sub-order-2",
                 at = Instant.EPOCH,
-            ),
-        ).thenThrow(IllegalArgumentException("manifest not found"))
+                actor = null,
+            )
 
         listener.onPackageCollected(
             ConsolidationPackageCollectedEvent(
@@ -46,10 +47,11 @@ class ConsolidationMissionEventListenerTest {
             ),
         )
 
-        Mockito.verify(consolidation).markSellerPackageCollectedForOrder(
+        Mockito.verify(consolidation).recordCourierPickupForOrder(
             orderId = "order-1",
             subOrderId = "sub-order-2",
             at = Instant.EPOCH,
+            actor = null,
         )
     }
 }

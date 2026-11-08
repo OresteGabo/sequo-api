@@ -68,10 +68,10 @@ class CustomerOrderRecord(
     @JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_customer_orders_customer"))
     val customer: User? = null,
     @Enumerated(EnumType.STRING) @Column(name = "service_level", nullable = false) val serviceLevel: OrderServiceLevel,
-    @Enumerated(EnumType.STRING) @Column(nullable = false) val route: OrderRoute,
+    @Enumerated(EnumType.STRING) @Column(nullable = false) var route: OrderRoute,
     @Enumerated(EnumType.STRING) @Column(name = "fulfillment_priority", nullable = false) val fulfillmentPriority: FulfillmentPriority,
-    @Column(name = "requires_consolidation", nullable = false) val requiresConsolidation: Boolean,
-    @Column(name = "customer_facing_status", nullable = false) val customerFacingStatus: String,
+    @Column(name = "requires_consolidation", nullable = false) var requiresConsolidation: Boolean,
+    @Column(name = "customer_facing_status", nullable = false) var customerFacingStatus: String,
     @Column(name = "item_subtotal_cfa", nullable = false) val itemSubtotalCfa: Int,
     @Column(name = "delivery_fee_cfa", nullable = false) val deliveryFeeCfa: Int,
     @Column(name = "total_cfa", nullable = false) val totalCfa: Int,
@@ -427,10 +427,11 @@ class OrderDeliveryLifecycleService(
 
         val orderMissions = missions.findByOrderIdOrderByCreatedAtAsc(order.id)
         if (orderMissions.isNotEmpty()) {
-            val completed = setOf(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, DeliveryMissionRecordStatus.RELEASED_BY_RELAY)
+            val completed = setOf(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, DeliveryMissionRecordStatus.RELEASED_BY_RELAY, DeliveryMissionRecordStatus.HANDED_TO_SEQUO)
             val covered = orderMissions.filter { it.status in completed }.mapNotNull { it.merchantSubOrderId }.toSet()
             if (orderMissions.any { it.status !in completed } || (orderMissions.any { it.merchantSubOrderId != null } && merchantSubOrders.findByOrderId(order.id).any { it.id !in covered })) return null
         }
+        if (order.route == OrderRoute.GroupedSequo && orderMissions.none { it.merchantSubOrderId == null && it.status in setOf(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, DeliveryMissionRecordStatus.RELEASED_BY_RELAY) }) return null
         val returnWindowEndsAt = deliveredAt.plusSeconds(72 * 60 * 60)
         order.orderStatus = CustomerOrderStatus.DELIVERED
         order.deliveredAt = deliveredAt

@@ -184,6 +184,8 @@ class MerchantCooperativeRecord(
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 64) var status: CooperativeApprovalStatus,
     @Column(name = "reviewed_by_user_id") var reviewedByUserId: String? = null,
     @Column(name = "reviewed_at") var reviewedAt: Instant? = null,
+    @Column(name = "review_reason", columnDefinition = "text") var reviewReason: String? = null,
+    @Column(name = "review_history_json", columnDefinition = "text") var reviewHistoryJson: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = createdAt,
     @Version @Column(nullable = false) var version: Long = 0,
@@ -238,6 +240,10 @@ interface ProductCustomizationOptionRepository : JpaRepository<ProductCustomizat
 }
 
 interface MerchantCooperativeRepository : JpaRepository<MerchantCooperativeRecord, String> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select c from MerchantCooperativeRecord c where c.id = :id")
+    fun lockForReview(id: String): MerchantCooperativeRecord?
+
     fun findAllByOrderByCreatedAtDesc(): List<MerchantCooperativeRecord>
 }
 
@@ -290,8 +296,8 @@ data class ReplaceProductCustomizationsRequest(val groups: List<ProductCustomiza
 data class QuoteProductCustomizationsRequest(val selections: List<FoodCustomizationSelection> = emptyList())
 data class ProductCustomizationQuote(val productId: String, val basePriceCfa: Int, val optionPriceCfa: Int, val unitPriceCfa: Int)
 data class CreateCooperativeRequest(val code: String, val name: String, val city: String, val area: String? = null, val ownerMerchantId: String)
-data class AddCooperativeMemberRequest(val merchantId: String, val role: CooperativeMemberRole = CooperativeMemberRole.MEMBER)
-data class ReviewCooperativeRequest(val status: CooperativeApprovalStatus)
+data class AddCooperativeMemberRequest(val merchantId: String, val role: CooperativeMemberRole? = null)
+data class ReviewCooperativeRequest(val status: CooperativeApprovalStatus, val reason: String? = null)
 
 data class CustomerProfileDto(
     val userId: String,
@@ -378,6 +384,10 @@ data class CooperativeDto(
     val area: String?,
     val status: CooperativeApprovalStatus,
     val members: List<CooperativeMemberDto>,
+    val reviewedByUserId: String? = null,
+    val reviewedAt: Instant? = null,
+    val reviewReason: String? = null,
+    val history: List<dev.orestegabo.sequo_api.domain.delivery.OperatorHistoryEntry> = emptyList(),
 )
 data class CooperativeMemberDto(val id: String, val merchantId: String, val role: CooperativeMemberRole)
 
@@ -663,9 +673,7 @@ class PlatformCommerceService(
     fun addCooperativeMember(cooperativeId: String, request: AddCooperativeMemberRequest): CooperativeDto {
         val safeCooperativeId = ApiInputPolicy.requiredIdentifier(cooperativeId, "cooperativeId")
         val merchantId = ApiInputPolicy.requiredIdentifier(request.merchantId, "merchantId")
-        val cooperative = cooperatives.findById(safeCooperativeId).orElseThrow {
-            IllegalArgumentException("cooperativeId does not reference an existing cooperative.")
-        }
+        val cooperative = requireNotNull(cooperatives.lockForReview(safeCooperativeId)) { "cooperativeId does not reference an existing cooperative." }
         require(merchants.existsById(merchantId)) { "merchantId does not reference an existing merchant." }
         require(!cooperativeMembers.existsByCooperativeIdAndMerchantId(safeCooperativeId, merchantId)) {
             "merchantId is already a cooperative member."
@@ -675,20 +683,27 @@ class PlatformCommerceService(
                 id = UUID.randomUUID().toString(),
                 cooperativeId = safeCooperativeId,
                 merchantId = merchantId,
-                role = request.role,
+                role = request.role ?: CooperativeMemberRole.MEMBER,
             )
         )
+        cooperative.status = CooperativeApprovalStatus.PENDING_REVIEW
+        cooperative.reviewedByUserId = null; cooperative.reviewedAt = null; cooperative.reviewReason = null
         return cooperative.toDto(cooperativeMembers.findByCooperativeIdOrderByCreatedAtAsc(safeCooperativeId))
     }
 
     @Transactional
     fun reviewCooperative(cooperativeId: String, reviewerUserId: String, request: ReviewCooperativeRequest): CooperativeDto {
         val safeCooperativeId = ApiInputPolicy.requiredIdentifier(cooperativeId, "cooperativeId")
-        require(request.status != CooperativeApprovalStatus.DRAFT) { "DRAFT is not a review outcome." }
-        val cooperative = cooperatives.findById(safeCooperativeId).orElseThrow {
-            IllegalArgumentException("cooperativeId does not reference an existing cooperative.")
-        }
+        require(request.status in setOf(CooperativeApprovalStatus.APPROVED, CooperativeApprovalStatus.REJECTED, CooperativeApprovalStatus.SUSPENDED)) { "Choose an explicit review outcome." }
+        val cooperative = requireNotNull(cooperatives.lockForReview(safeCooperativeId)) { "cooperativeId does not reference an existing cooperative." }
+        val reason = ApiInputPolicy.requiredLongText(request.reason.orEmpty(), "reason")
+        if (cooperative.status == request.status && cooperative.reviewedByUserId == reviewerUserId && cooperative.reviewReason == reason)
+            return cooperative.toDto(cooperativeMembers.findByCooperativeIdOrderByCreatedAtAsc(safeCooperativeId))
         cooperative.status = request.status
+        cooperative.reviewReason = reason
+        cooperative.reviewHistoryJson = dev.orestegabo.sequo_api.domain.delivery.writeHistory(
+            dev.orestegabo.sequo_api.domain.delivery.readHistory(cooperative.reviewHistoryJson) +
+                dev.orestegabo.sequo_api.domain.delivery.OperatorHistoryEntry(request.status.name, reviewerUserId, reason, Instant.now()))
         cooperative.reviewedByUserId = reviewerUserId
         cooperative.reviewedAt = Instant.now()
         cooperative.updatedAt = cooperative.reviewedAt!!
@@ -796,26 +811,25 @@ class ProductCustomizationController(private val service: PlatformCommerceServic
 }
 
 @RestController
-@RequestMapping("/api/cooperatives")
+@RequestMapping("/api/cooperatives", "/api/admin/cooperatives")
 class CooperativeController(private val service: PlatformCommerceService) {
     @GetMapping
-    fun list(): ResponseEntity<Any> = platformSafe { service.cooperatives() }
-
+    fun list(authentication: Authentication?, request: jakarta.servlet.http.HttpServletRequest): ResponseEntity<Any> =
+        if (authentication == null) ResponseEntity.status(401).build()
+        else if (request.requestURI.startsWith("/api/admin/")) staff(authentication) { service.cooperatives() }
+        else if (authentication?.hasAnyRole(RoleGroups.AdminOnly) == true) platformSafe { service.cooperatives() }
+        else platformSafe { service.cooperatives().filter { it.status == CooperativeApprovalStatus.APPROVED }.map { it.copy(reviewedByUserId = null, reviewedAt = null, reviewReason = null, history = emptyList()) } }
     @PostMapping
-    fun create(@RequestBody request: CreateCooperativeRequest): ResponseEntity<Any> =
-        platformSafe { service.createCooperative(request) }
-
+    fun create(authentication: Authentication?, @RequestBody request: CreateCooperativeRequest): ResponseEntity<Any> = staff(authentication) { service.createCooperative(request) }
     @PostMapping("/{cooperativeId}/members")
-    fun addMember(@PathVariable cooperativeId: String, @RequestBody request: AddCooperativeMemberRequest): ResponseEntity<Any> =
-        platformSafe { service.addCooperativeMember(cooperativeId, request) }
-
+    fun addMember(authentication: Authentication?, @PathVariable cooperativeId: String, @RequestBody request: AddCooperativeMemberRequest): ResponseEntity<Any> = staff(authentication) { service.addCooperativeMember(cooperativeId, request) }
     @PostMapping("/{cooperativeId}/review")
-    fun review(
-        @AuthenticationPrincipal reviewerUserId: String?,
-        @PathVariable cooperativeId: String,
-        @RequestBody request: ReviewCooperativeRequest,
-    ): ResponseEntity<Any> =
-        platformAuthenticated(reviewerUserId) { service.reviewCooperative(cooperativeId, it, request) }
+    fun review(authentication: Authentication?, @PathVariable cooperativeId: String, @RequestBody request: ReviewCooperativeRequest): ResponseEntity<Any> =
+        staff(authentication) { service.reviewCooperative(cooperativeId, requireNotNull(authentication).name, request) }
+    private fun staff(auth: Authentication?, block: () -> Any): ResponseEntity<Any> =
+        if (auth == null) ResponseEntity.status(401).build()
+        else if (!auth.hasAnyRole(RoleGroups.AdminOnly)) ResponseEntity.status(403).build()
+        else platformSafe(block)
 }
 
 private fun platformSafe(block: () -> Any): ResponseEntity<Any> = ResponseEntity.ok(block())
@@ -868,7 +882,7 @@ private fun ProductCustomizationOptionRecord.toDto(): ProductCustomizationOption
     ProductCustomizationOptionDto(id, name, priceDeltaCfa, sortOrder, active)
 
 private fun MerchantCooperativeRecord.toDto(members: List<MerchantCooperativeMemberRecord>): CooperativeDto =
-    CooperativeDto(id, code, name, city, area, status, members.map { it.toDto() })
+    CooperativeDto(id, code, name, city, area, status, members.map { it.toDto() }, reviewedByUserId, reviewedAt, reviewReason, dev.orestegabo.sequo_api.domain.delivery.readHistory(reviewHistoryJson))
 
 private fun MerchantCooperativeMemberRecord.toDto(): CooperativeMemberDto =
     CooperativeMemberDto(id, merchantId, role)

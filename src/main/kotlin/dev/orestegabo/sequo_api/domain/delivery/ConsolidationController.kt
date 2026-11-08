@@ -22,28 +22,27 @@ class ConsolidationController(
     data class CreateRequest(
         val manifestId: String,
         val orderId: String,
-        val customerId: String,
-        val sellerPackages: List<ConsolidationSellerPackage>,
+        val customerId: String? = null,
+        val sellerPackages: List<ConsolidationSellerPackage>? = null,
+        val cooperativeId: String? = null,
     )
 
     data class TransitionRequest(
         val event: ConsolidationEvent,
-        val at: Instant = Instant.now(),
+        val at: Instant? = null,
         val finalPackageId: String? = null,
     )
 
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody request: CreateRequest): ResponseEntity<Any> =
-        authenticated(authentication, RoleGroups.AdminOperations) {
-            ResponseEntity.ok(service.create(
-                SequoConsolidationManifest(
-                    manifestId = request.manifestId,
-                    orderId = request.orderId,
-                    customerId = request.customerId,
-                    sellerPackages = request.sellerPackages,
-                )
-            ))
+        authenticated(authentication, RoleGroups.AdminOperations) { actor ->
+            ResponseEntity.ok(service.createForOrder(
+                dev.orestegabo.sequo_api.api.ApiInputPolicy.requiredIdentifier(request.manifestId, "manifestId"),
+                dev.orestegabo.sequo_api.api.ApiInputPolicy.requiredIdentifier(request.orderId, "orderId"), actor.name, request.cooperativeId))
         }
+
+    @GetMapping
+    fun list(authentication: Authentication?): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) { ResponseEntity.ok(service.list()) }
 
     @GetMapping("/{manifestId}")
     fun get(authentication: Authentication?, @PathVariable manifestId: String): ResponseEntity<Any> =
@@ -52,7 +51,7 @@ class ConsolidationController(
             if (!auth.hasAnyRole(RoleGroups.AdminOperations) && auth.name != manifest.customerId) {
                 return@authenticated ResponseEntity.status(403).build()
             }
-            ResponseEntity.ok(manifest)
+            ResponseEntity.ok(if (auth.hasAnyRole(RoleGroups.AdminOperations)) manifest else manifest.customerView())
         }
 
     @GetMapping("/order/{orderId}")
@@ -62,7 +61,7 @@ class ConsolidationController(
             if (!auth.hasAnyRole(RoleGroups.AdminOperations) && auth.name != manifest.customerId) {
                 return@authenticated ResponseEntity.status(403).build()
             }
-            ResponseEntity.ok(manifest)
+            ResponseEntity.ok(if (auth.hasAnyRole(RoleGroups.AdminOperations)) manifest else manifest.customerView())
         }
 
     @PostMapping("/{manifestId}/seller-packages/{subOrderId}/ready")
@@ -75,7 +74,13 @@ class ConsolidationController(
         if (!auth.hasAnyRole(RoleGroups.AdminOperations) && !auth.hasMerchantScope(request.merchantId)) {
             return@authenticated ResponseEntity.status(403).build()
         }
-        ResponseEntity.ok(service.markSellerPackageReady(manifestId, subOrderId, request.merchantId, request.at))
+        val manifest = service.markSellerPackageReady(manifestId, subOrderId, request.merchantId, Instant.now())
+        ResponseEntity.ok(if (auth.hasAnyRole(RoleGroups.AdminOperations)) manifest else mapOf(
+            "manifestId" to manifest.manifestId,
+            "orderId" to manifest.orderId,
+            "status" to manifest.status,
+            "sellerPackages" to manifest.sellerPackages.filter { it.merchantId == request.merchantId },
+        ))
     }
 
     @GetMapping("/{manifestId}/tracking")
@@ -97,8 +102,8 @@ class ConsolidationController(
         @PathVariable manifestId: String,
         @PathVariable subOrderId: String,
         @RequestBody request: CollectedRequest,
-    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) {
-        ResponseEntity.ok(service.markSellerPackageCollected(manifestId, subOrderId, request.at))
+    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) { actor ->
+        ResponseEntity.ok(service.markSellerPackageCollected(manifestId, subOrderId, Instant.now(), actor.name, dev.orestegabo.sequo_api.api.ApiInputPolicy.requiredLongText(request.metadata, "metadata")))
     }
 
     @PostMapping("/{manifestId}/transitions")
@@ -106,15 +111,15 @@ class ConsolidationController(
         authentication: Authentication?,
         @PathVariable manifestId: String,
         @RequestBody request: TransitionRequest,
-    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) {
+    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) { actor ->
         val current = service.get(manifestId) ?: return@authenticated ResponseEntity.notFound().build()
         val result = service.transition(
             ConsolidationTransitionRequest(
                 manifest = current,
                 event = request.event,
-                at = request.at,
+                at = Instant.now(),
                 finalPackageId = request.finalPackageId,
-            )
+            ), actorUserId = actor.name
         )
         if (result.accepted) ResponseEntity.ok(result) else ResponseEntity.badRequest().body(result)
     }
@@ -124,13 +129,14 @@ class ConsolidationController(
         authentication: Authentication?,
         @PathVariable manifestId: String,
         @RequestBody request: FinalPackageDispatchRequest,
-    ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) {
+     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOperations) { actor ->
         ResponseEntity.ok(
             service.dispatchFinalPackage(
                 manifestId = manifestId,
-                customerDeliveryFeeCfa = request.customerDeliveryFeeCfa,
-                courierFeeCfa = request.courierFeeCfa,
-                at = request.at,
+                customerDeliveryFeeCfa = request.customerDeliveryFeeCfa ?: 0,
+                courierFeeCfa = request.courierFeeCfa ?: 0,
+                actorUserId = actor.name,
+                at = Instant.now(),
             )
         )
     }
@@ -145,11 +151,13 @@ class ConsolidationController(
         else -> operation(authentication)
     }
 
-    data class ReadyRequest(val merchantId: String, val at: Instant = Instant.now())
-    data class CollectedRequest(val at: Instant = Instant.now())
+    private fun SequoConsolidationManifest.customerView() = copy(approvedByUserId = null, history = emptyList())
+
+    data class ReadyRequest(val merchantId: String, val at: Instant? = null)
+    data class CollectedRequest(val at: Instant? = null, val metadata: String = "")
     data class FinalPackageDispatchRequest(
-        val customerDeliveryFeeCfa: Int = 0,
-        val courierFeeCfa: Int = 0,
-        val at: Instant = Instant.now(),
+        val customerDeliveryFeeCfa: Int? = null,
+        val courierFeeCfa: Int? = null,
+        val at: Instant? = null,
     )
 }

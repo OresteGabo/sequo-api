@@ -38,7 +38,7 @@ import java.time.Instant
 
 enum class DeliveryMissionRecordMode { STANDARD, EXPRESS, PROGRAMMED, CLICK_COLLECT, RELAY }
 enum class DeliveryMissionRecordDestination { CUSTOMER_ADDRESS, RELAY_POINT, SEQUO_CONSOLIDATION }
-enum class DeliveryMissionRecordStatus { CREATED, OFFERED_TO_COURIER, ACCEPTED_BY_COURIER, PICKED_UP_FROM_SELLER, DEPOSITED_AT_RELAY, DELIVERED_TO_CUSTOMER, RELEASED_BY_RELAY, PROBLEM_REPORTED, CANCELLED }
+enum class DeliveryMissionRecordStatus { CREATED, OFFERED_TO_COURIER, ACCEPTED_BY_COURIER, PICKED_UP_FROM_SELLER, DEPOSITED_AT_RELAY, HANDED_TO_SEQUO, DELIVERED_TO_CUSTOMER, RELEASED_BY_RELAY, PROBLEM_REPORTED, CANCELLED }
 enum class DeliveryProblemResolutionAction { REQUEUE_FOR_DISPATCH, CANCEL_MISSION }
 
 @Entity
@@ -166,6 +166,9 @@ interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
     fun findByOrderIdOrderByCreatedAtAsc(orderId: String): List<DeliveryMission>
     fun findByDeliveryCode(deliveryCode: String): DeliveryMission?
     fun findByMerchantSubOrderId(merchantSubOrderId: String): DeliveryMission?
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from DeliveryMission m where m.merchantSubOrderId = :merchantSubOrderId")
+    fun lockByMerchantSubOrderId(merchantSubOrderId: String): DeliveryMission?
     fun findByDeliveryCodeAndOrderId(deliveryCode: String, orderId: String): DeliveryMission?
     fun findByCourierIdOrderByUpdatedAtDesc(courierId: String): List<DeliveryMission>
     fun findByCourierIdAndStatusInOrderByUpdatedAtDesc(
@@ -249,6 +252,8 @@ data class DeliveryMissionSnapshot(
     val subscriberPriority: Boolean = false,
     val assignmentWorkforceType: DeliveryWorkforceType? = null,
     val assignmentReason: String? = null,
+    val pickupSource: String? = null,
+    val dropoffName: String? = null,
 )
 
 data class DeliveryTrackingSnapshot(
@@ -301,6 +306,7 @@ class DeliveryMissionService(
     private val lines: CustomerOrderLineRecordRepository,
     private val pendingCheckouts: PendingPaymentCheckoutRepository,
     private val merchantSubOrders: MerchantSubOrderRepository,
+    private val consolidationManifests: ConsolidationManifestRepository,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -366,13 +372,22 @@ class DeliveryMissionService(
         val destination = payload?.let { objectMapper.readPendingRequest(it).homeDestination }
         val subOrder = mission.merchantSubOrderId?.let { merchantSubOrders.findById(it).orElse(null) }
         val seller = subOrder?.let { lines.findByOrderIdAndSellerIdOrderByLineIndexAsc(order.id, it.merchantId).firstOrNull()?.sellerName }
+        val finalConsolidation = mission.merchantSubOrderId == null && mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS &&
+            consolidationManifests.findByOrderId(order.id)?.finalPackageId != null
         val active = mission.status in setOf(DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER,
             DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER, DeliveryMissionRecordStatus.PROBLEM_REPORTED)
         return mission.copy(
-            packageCount = subOrder?.packageCount ?: 0,
-            pickupName = seller,
-            dropoffArea = destination?.let { listOfNotNull(it.area, it.city).joinToString(", ") },
-            homeDestination = destination.takeIf { assigned && active && mission.destinationType != DeliveryMissionRecordDestination.RELAY_POINT },
+            packageCount = subOrder?.packageCount ?: if (finalConsolidation) 1 else 0,
+            pickupName = if (finalConsolidation) "SEQUO consolidation" else seller,
+            pickupSource = when {
+                finalConsolidation -> "SEQUO_CONSOLIDATION"
+                subOrder != null -> "MERCHANT"
+                else -> null
+            },
+            dropoffName = "SEQUO consolidation".takeIf { mission.destinationType == DeliveryMissionRecordDestination.SEQUO_CONSOLIDATION },
+            dropoffArea = destination?.takeIf { mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS }
+                ?.let { listOfNotNull(it.area, it.city).joinToString(", ") },
+            homeDestination = destination.takeIf { assigned && active && mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS },
         )
     }
 
@@ -710,6 +725,7 @@ class DeliveryMissionService(
                     orderId = saved.orderId,
                     subOrderId = collectedSubOrderId,
                     collectedAt = at,
+                    actorUserId = actorId,
                 )
             )
         }
@@ -935,6 +951,7 @@ internal fun DeliveryMission.toTrackingSnapshot() =
 private val trackingTerminalStatuses = setOf(
     DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER,
     DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
+    DeliveryMissionRecordStatus.HANDED_TO_SEQUO,
     DeliveryMissionRecordStatus.PROBLEM_REPORTED,
     DeliveryMissionRecordStatus.CANCELLED,
 )
@@ -944,12 +961,13 @@ private fun DeliveryMissionRecordStatus.customerFacingStep(destination: Delivery
         DeliveryMissionRecordStatus.CREATED -> "Preparing dispatch"
         DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> "Waiting for courier acceptance"
         DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> "Courier assigned"
-        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> if (destination == DeliveryMissionRecordDestination.RELAY_POINT) {
-            "On the way to relay point"
-        } else {
-            "On the way to customer"
+        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> when (destination) {
+            DeliveryMissionRecordDestination.RELAY_POINT -> "On the way to relay point"
+            DeliveryMissionRecordDestination.SEQUO_CONSOLIDATION -> "On the way to SEQUO consolidation"
+            DeliveryMissionRecordDestination.CUSTOMER_ADDRESS -> "On the way to customer"
         }
         DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY -> "Available at relay point"
+        DeliveryMissionRecordStatus.HANDED_TO_SEQUO -> "Received by SEQUO for consolidation"
         DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER -> "Delivered"
         DeliveryMissionRecordStatus.RELEASED_BY_RELAY -> "Collected from relay point"
         DeliveryMissionRecordStatus.PROBLEM_REPORTED -> "Delivery needs support"
@@ -961,12 +979,13 @@ private fun DeliveryMissionRecordStatus.nextCustomerFacingStep(destination: Deli
         DeliveryMissionRecordStatus.CREATED -> "Courier offer"
         DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> "Courier acceptance"
         DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> "Seller pickup"
-        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> if (destination == DeliveryMissionRecordDestination.RELAY_POINT) {
-            "Relay deposit"
-        } else {
-            "Customer delivery"
+        DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> when (destination) {
+            DeliveryMissionRecordDestination.RELAY_POINT -> "Relay deposit"
+            DeliveryMissionRecordDestination.SEQUO_CONSOLIDATION -> "SEQUO receipt"
+            DeliveryMissionRecordDestination.CUSTOMER_ADDRESS -> "Customer delivery"
         }
         DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY -> "Customer pickup at relay"
+        DeliveryMissionRecordStatus.HANDED_TO_SEQUO,
         DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER,
         DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
         DeliveryMissionRecordStatus.PROBLEM_REPORTED,
@@ -978,6 +997,7 @@ private fun DeliveryMissionRecordStatus.toWorkflowStatus(): DeliveryMissionStatu
         DeliveryMissionRecordStatus.OFFERED_TO_COURIER -> DeliveryMissionStatus.OfferedToCourier
         DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER -> DeliveryMissionStatus.AcceptedByCourier
         DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER -> DeliveryMissionStatus.PickedUpFromSeller
+        DeliveryMissionRecordStatus.HANDED_TO_SEQUO -> DeliveryMissionStatus.HandedToSequo
         DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY -> DeliveryMissionStatus.DepositedAtRelay
         DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER -> DeliveryMissionStatus.DeliveredToCustomer
         DeliveryMissionRecordStatus.RELEASED_BY_RELAY -> DeliveryMissionStatus.ReleasedByRelay
@@ -991,6 +1011,7 @@ private fun DeliveryMissionStatus.toRecordStatus(): DeliveryMissionRecordStatus 
         DeliveryMissionStatus.OfferedToCourier -> DeliveryMissionRecordStatus.OFFERED_TO_COURIER
         DeliveryMissionStatus.AcceptedByCourier -> DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER
         DeliveryMissionStatus.PickedUpFromSeller -> DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER
+        DeliveryMissionStatus.HandedToSequo -> DeliveryMissionRecordStatus.HANDED_TO_SEQUO
         DeliveryMissionStatus.DepositedAtRelay -> DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY
         DeliveryMissionStatus.DeliveredToCustomer -> DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER
         DeliveryMissionStatus.ReleasedByRelay -> DeliveryMissionRecordStatus.RELEASED_BY_RELAY

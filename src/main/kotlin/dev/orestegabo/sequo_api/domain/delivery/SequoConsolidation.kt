@@ -41,6 +41,9 @@ data class SequoConsolidationManifest(
     val status: ConsolidationStatus = ConsolidationStatus.AwaitingSellerPackages,
     val finalPackageId: String? = null,
     val sequoCustodyAt: Instant? = null,
+    val approvedByUserId: String? = null,
+    val cooperativeId: String? = null,
+    val history: List<OperatorHistoryEntry> = emptyList(),
 ) {
     init {
         require(manifestId.isNotBlank()) { "manifestId must not be blank." }
@@ -144,3 +147,5 @@ class SequoConsolidationService {
     private fun rejected(manifest: SequoConsolidationManifest, reason: String) =
         ConsolidationTransition(false, manifest, reason)
 }
+
+data class OperatorHistoryEntry(val action: String, val actorUserId: String?, val metadata: String, val createdAt: Instant)

@@ -4,6 +4,7 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
@@ -45,6 +46,8 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
             requireNotNull(service.findByOrderId("order-persistence-1")).status,
         )
         assertEquals(2, requireNotNull(service.get("manifest-persistence-1")).sellerPackages.count { it.ready })
+        assertEquals(ConsolidationStatus.ReadyForSequoPickup,
+            service.markSellerPackageReady("manifest-persistence-1", "sub-2", "merchant-2", at).status)
 
         service.markSellerPackageCollected("manifest-persistence-1", "sub-1", at.plusSeconds(180))
         val custody = service.markSellerPackageCollected("manifest-persistence-1", "sub-2", at.plusSeconds(240))
@@ -94,6 +97,26 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
         assertEquals("customer-persistence-1", tracking.customerId)
         assertEquals(ConsolidationStatus.Dispatched, tracking.status)
         assertEquals(first.mission.deliveryCode, tracking.tracking?.deliveryCode)
+    }
+
+    @Test
+    fun reusedManifestIdCannotOverwriteAnotherOrdersManifest() {
+        service.create(persistedManifest("manifest-collision", "order-collision-a"), at)
+        val other = persistedManifest("manifest-collision", "order-collision-b")
+        assertFailsWith<IllegalArgumentException> { service.create(other, at) }
+        assertEquals("order-collision-a", requireNotNull(service.get("manifest-collision")).orderId)
+        assertEquals(null, service.findByOrderId("order-collision-b"))
+    }
+
+    @Test
+    fun blanketCollectionTransitionCannotBypassPackageReceipts() {
+        service.create(persistedManifest("manifest-receipts", "order-receipts"), at)
+        service.markSellerPackageReady("manifest-receipts", "sub-1", "merchant-1", at)
+        service.markSellerPackageReady("manifest-receipts", "sub-2", "merchant-2", at)
+        val result = service.transition(ConsolidationTransitionRequest(
+            requireNotNull(service.get("manifest-receipts")), ConsolidationEvent.SequoCollectsAllPackages, at))
+        assertFalse(result.accepted)
+        assertEquals(ConsolidationStatus.ReadyForSequoPickup, result.manifest.status)
     }
 
     private fun persistedManifest(
@@ -154,7 +177,7 @@ class ConsolidationPersistenceServiceTest @Autowired constructor(
             "customer-persistence-1",
             "Regular",
             "GroupedSequo",
-            "ConsolidatedMerchantPackages",
+            "Standard",
             true,
             "Accepted for fulfillment",
             1_000,

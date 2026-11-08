@@ -31,6 +31,7 @@ enum class DeliveryMissionStatus {
     AcceptedByCourier,
     PickedUpFromSeller,
     DepositedAtRelay,
+    HandedToSequo,
     DeliveredToCustomer,
     ReleasedByRelay,
     ProblemReported,
@@ -206,6 +207,7 @@ class DeliveryMissionWorkflow {
                     DeliveryMissionEvent.RelayReleasesToCustomer -> releaseFromRelay(request)
                     else -> rejected(request.currentStatus, "Relay parcel must be released by relay partner.")
                 }
+            DeliveryMissionStatus.HandedToSequo,
             DeliveryMissionStatus.DeliveredToCustomer,
             DeliveryMissionStatus.ReleasedByRelay,
             DeliveryMissionStatus.ProblemReported,
@@ -276,6 +278,7 @@ class DeliveryMissionWorkflow {
 
     private companion object {
         val terminalStatuses = setOf(
+            DeliveryMissionStatus.HandedToSequo,
             DeliveryMissionStatus.DeliveredToCustomer,
             DeliveryMissionStatus.ReleasedByRelay,
             DeliveryMissionStatus.ProblemReported,
