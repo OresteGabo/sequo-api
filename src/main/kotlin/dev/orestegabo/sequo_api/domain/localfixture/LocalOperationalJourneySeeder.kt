@@ -8,6 +8,7 @@ import dev.orestegabo.sequo_api.domain.delivery.*
 import dev.orestegabo.sequo_api.domain.order.*
 import dev.orestegabo.sequo_api.domain.payment.*
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
+import dev.orestegabo.sequo_api.domain.relay.RelayAvailabilityService
 import dev.orestegabo.sequo_api.domain.settlement.SettlementCourierRecordRepository
 import jakarta.persistence.EntityManager
 import org.springframework.stereotype.Component
@@ -34,6 +35,7 @@ class LocalOperationalJourneySeeder(
     private val delivery: DeliveryMissionService,
     private val missions: DeliveryMissionRepository,
     private val assignments: GuardedDeliveryAssignmentService,
+    private val relays: RelayAvailabilityService,
     private val pins: DeliveryPinService,
     private val lifecycle: OrderDeliveryLifecycleService,
     private val consolidation: ConsolidationPersistenceService,
@@ -67,6 +69,7 @@ class LocalOperationalJourneySeeder(
         result += scene(context, "finance-salaried", "Completed salaried delivery", "payments", "Salaried workforce snapshot with no independent courier payable.",
             prepare = 3, mission = true, complete = true, courierIndex = 1)
         result += seedReturnOrders(context)
+        result += seedRelayOrders(context)
         result += group(context, "group-ready", finalDispatch = false)
         result += group(context, "group-final", finalDispatch = true)
         // Last: leave this rider busy while the independent/salaried available fixtures remain free.
@@ -82,6 +85,27 @@ class LocalOperationalJourneySeeder(
         return context.returnOrderIds.keys.map { stage ->
             scene(context, "return-$stage", "Return journey: $stage", "returns",
                 "Delivered synthetic order reserved for the $stage return scene.", prepare = 3, mission = true, complete = true)
+        }
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    fun seedRelayOrders(context: LocalOperationalFixtureContext): List<LocalFixtureScenario> {
+        policy.requireEnabled()
+        require(context.prefix == "local-ops-v1") { "Unsupported local fixture namespace." }
+        val ages = linkedMapOf("fresh" to Duration.ofHours(1), "after-eight-days" to Duration.ofDays(8).plusHours(1),
+            "after-thirty-days" to Duration.ofDays(30).plusHours(1))
+        return ages.map { (name, age) ->
+            val suffix = "relay-order-$name"
+            val id = context.id(suffix)
+            check(context.relayOrderIds[name] == id.toOrderId()) { "Local relay source identity is unavailable." }
+            if (!existingScene(context, id)) {
+                val sourceAt = context.createdAt.minus(age).minus(Duration.ofHours(1))
+                val destination = relays.requireAvailable(context.relayPointIds[1])
+                val request = request(context, suffix).copy(route = OrderRoute.PointDeRelai, relayDestination = destination)
+                createCheckout(request, PaymentWebhookProviderStatus.VALIDATED, sourceAt)
+            }
+            descriptor(context, suffix, "Relay source order: $name", "relay",
+                "Dedicated paid synthetic relay source, created before its manual logical-slot deposit; no home delivery is claimed.")
         }
     }
 

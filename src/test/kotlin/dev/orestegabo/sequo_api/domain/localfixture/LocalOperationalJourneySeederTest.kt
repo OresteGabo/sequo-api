@@ -52,7 +52,7 @@ class LocalOperationalJourneySeederTest @Autowired constructor(
         val context = LocalOperationalFixtureContext(admin, at)
         foundation.seed(context)
         val scenes = seeder.seed(context)
-        assertEquals(18, scenes.size)
+        assertEquals(21, scenes.size)
         assertTrue(scenes.all { it.summary.contains("LOCAL_FIXTURE") })
         assertEquals(PendingPaymentCheckoutStatus.AWAITING_WEBHOOK, pending.findById(context.id("payment-pending")).orElseThrow().status)
         assertEquals(PendingPaymentCheckoutStatus.FAILED, pending.findById(context.id("payment-failed")).orElseThrow().status)
@@ -75,6 +75,14 @@ class LocalOperationalJourneySeederTest @Autowired constructor(
         assertEquals(DeliveryWorkforceType.SequoSalaried, salaried.assignmentWorkforceType)
         assertEquals(0, postings.findById(salaried.id!!).orElseThrow().courierPayableCfa)
         for (id in context.returnOrderIds.values) assertEquals(CustomerOrderStatus.DELIVERED, orders.findById(id).orElseThrow().orderStatus)
+        for (id in context.relayOrderIds.values) {
+            val source = orders.findById(id).orElseThrow()
+            assertEquals(CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT, source.orderStatus)
+            assertEquals(PaymentValidationStatus.Validated, source.paymentStatus)
+            assertEquals(OrderRoute.PointDeRelai, source.route)
+            assertNull(source.deliveredAt)
+            assertTrue(missions.findByOrderIdOrderByCreatedAtAsc(id).isEmpty())
+        }
         val busyOrder = orders.findByCheckoutId(context.id("dispatch-busy"))!!
         val busy = missions.findByOrderIdOrderByCreatedAtAsc(busyOrder.id).single()
         assertEquals(context.courierIds[2], busy.courierId)
