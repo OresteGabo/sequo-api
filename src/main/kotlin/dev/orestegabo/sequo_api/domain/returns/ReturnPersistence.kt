@@ -86,6 +86,8 @@ interface ReturnRequestRecordRepository : JpaRepository<ReturnRequestRecord, Str
     fun findByOrderIdOrderByCreatedAtDesc(orderId: String): List<ReturnRequestRecord>
     fun findByRelayPointIdOrderByUpdatedAtDesc(relayPointId: String): List<ReturnRequestRecord>
     fun findAllByOrderByUpdatedAtAsc(): List<ReturnRequestRecord>
+    fun countByStatusIn(statuses: Collection<ReturnStatus>): Long
+    fun countByStatusAndInspectionDecisionIsNull(status: ReturnStatus): Long
     @org.springframework.data.jpa.repository.Query("select distinct r from ReturnRequestRecord r, CustomerOrderLineRecord l where r.orderId = l.orderId and l.sellerId = :merchantId order by r.updatedAt asc")
     fun findForMerchant(merchantId: String): List<ReturnRequestRecord>
 }

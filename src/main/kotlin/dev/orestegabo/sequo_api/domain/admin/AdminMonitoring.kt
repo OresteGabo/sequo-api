@@ -12,6 +12,8 @@ import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxRepository
 import dev.orestegabo.sequo_api.domain.notification.NotificationOutboxStatus
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus
+import dev.orestegabo.sequo_api.domain.returns.ReturnRequestRecordRepository
+import dev.orestegabo.sequo_api.domain.returns.ReturnStatus
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutStatus
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import org.springframework.http.ResponseEntity
@@ -116,9 +118,12 @@ data class PayoutQueueSnapshot(
 )
 
 data class ReturnBottleneckSnapshot(
+    // Legacy relay-parcel queues remain separate from the return-request workflow.
     val returnsWaitingRelayAction: Long,
     val returnsWaitingSequoCollection: Long,
     val returnsInProblem: Long,
+    val returnsAwaitingHandoff: Long,
+    val returnsAwaitingInspection: Long,
 )
 
 @Service
@@ -129,6 +134,7 @@ class AdminMonitoringService(
     private val relayParcels: RelayParcelRecordRepository,
     private val notificationOutbox: NotificationOutboxRepository,
     private val settlements: SettlementPersistenceService,
+    private val returns: ReturnRequestRecordRepository,
 ) {
     @Transactional(readOnly = true)
     fun operationsSnapshot(generatedAt: Instant = Instant.now()): AdminOperationsSnapshot =
@@ -272,6 +278,10 @@ class AdminMonitoringService(
                 setOf(RelayParcelStatus.PickedUp)
             ),
             returnsInProblem = relayParcels.countByReturnIdIsNotNullAndStatusIn(setOf(RelayParcelStatus.Problem)),
+            returnsAwaitingHandoff = returns.countByStatusIn(setOf(
+                ReturnStatus.AwaitingRelayDropoff, ReturnStatus.DroppedAtRelay, ReturnStatus.CollectedBySequo,
+            )),
+            returnsAwaitingInspection = returns.countByStatusAndInspectionDecisionIsNull(ReturnStatus.ReceivedBySequo),
         )
 }
 

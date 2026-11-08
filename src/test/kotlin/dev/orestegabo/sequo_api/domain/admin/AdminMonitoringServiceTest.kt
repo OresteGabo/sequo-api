@@ -17,6 +17,11 @@ import dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecord
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus
+import dev.orestegabo.sequo_api.domain.returns.ReturnInspectionDecision
+import dev.orestegabo.sequo_api.domain.returns.ReturnJourneyFixtures
+import dev.orestegabo.sequo_api.domain.returns.ReturnRequestRecord
+import dev.orestegabo.sequo_api.domain.returns.ReturnRequestRecordRepository
+import dev.orestegabo.sequo_api.domain.returns.ReturnStatus
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualCommand
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import dev.orestegabo.sequo_api.domain.settlement.SettlementWorkflowType
@@ -27,6 +32,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.assertAll
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.ApplicationContext
 import org.springframework.transaction.annotation.Transactional
 
 @SpringBootTest
@@ -39,8 +45,45 @@ class AdminMonitoringServiceTest @Autowired constructor(
     private val relayParcels: RelayParcelRecordRepository,
     private val notificationOutbox: NotificationOutboxRepository,
     private val settlements: SettlementPersistenceService,
+    private val returns: ReturnRequestRecordRepository,
+    private val context: ApplicationContext,
 ) {
     private val now = Instant.parse("2026-09-08T10:00:00Z")
+
+    @Test
+    fun returnWorkflowQueuesCountPersistedRequestsWithoutReusingLegacyParcels() {
+        val stages = listOf(
+            ReturnStatus.AwaitingRelayDropoff to null,
+            ReturnStatus.AwaitingRelayDropoff to null,
+            ReturnStatus.DroppedAtRelay to null,
+            ReturnStatus.CollectedBySequo to null,
+            ReturnStatus.ReceivedBySequo to null,
+            ReturnStatus.ReceivedBySequo to ReturnInspectionDecision.ACCEPTED,
+            ReturnStatus.RefundPending to ReturnInspectionDecision.ACCEPTED,
+            ReturnStatus.Requested to null,
+            ReturnStatus.Rejected to ReturnInspectionDecision.REJECTED,
+        )
+        stages.forEachIndexed { index, (status, decision) ->
+            val order = ReturnJourneyFixtures.order(context, now.minusSeconds(3600))
+            returns.save(ReturnRequestRecord(
+                id = "monitoring-return-$index", orderId = order.orderId, customerId = order.owner.id,
+                status = status, reason = "LOCAL_FIXTURE_ONLY monitoring stage", requestedRefundCfa = 3000,
+                returnPinHash = "not-an-exposed-credential", createdAt = now, updatedAt = now,
+                inspectionDecision = decision,
+            ))
+        }
+        // Both representations can exist for a supported legacy return. Never sum them.
+        relayParcels.save(parcel("monitoring-linked-parcel", RelayParcelStatus.Deposited, "monitoring-return-2", now))
+        relayParcels.save(parcel("monitoring-legacy-parcel", RelayParcelStatus.PickedUp, "legacy-return-only", now))
+
+        val queues = service.operationsSnapshot(now).returnBottlenecks
+        assertAll(
+            { assertEquals(4, queues.returnsAwaitingHandoff) },
+            { assertEquals(1, queues.returnsAwaitingInspection) },
+            { assertEquals(1, queues.returnsWaitingRelayAction) },
+            { assertEquals(1, queues.returnsWaitingSequoCollection) },
+        )
+    }
 
     @Test
     fun operationsSnapshotAggregatesOperationalQueuesAndAttentionItems() {
