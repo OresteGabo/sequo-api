@@ -337,17 +337,18 @@ class AdminBusinessParameterInventory(
         if (configuredPlans.isEmpty()) subscriptionValues["Plan configuration"] = "No plans configured; no subscription discount applies."
         val deployment = "SEQUO policy owner approves; authorized deployment operator applies the server configuration."
         val pricingSource = "DeliveryPricingService.effectiveRecord(): active delivery_pricing_settings effective at server time; otherwise DeliveryPricingService.DefaultSettings."
-        val pricingChange = "SEQUO authorizes a controlled delivery_pricing_settings change (profile, minimum_delivery_fee_cfa, extra_km_fee_cfa, included_km, effective_from, active). Future profiles do not apply early. Refresh the effective read and verify quotes before rollout."
+        val pricingChange = "Use Settings > Delivery price management: GET/PUT /api/admin/web/delivery-pricing/manage with the exact revision, SEQUO approval reference, reason and stable retry key. A confirmed save appends a server-effective profile for new quotes; existing orders and scheduled profiles remain unchanged. Refresh effective prices and verify quotes before rollout."
+        val pricingAuthority = "SEQUO ADMIN or SUPER_ADMIN records the approved tariff through the audited delivery price editor."
         return listOf(
             AdminBusinessParameterDto(131, "minimum-delivery-price", "Minimum delivery price",
                 if (pricing.minimumDeliveryFeeCfa == 400 && pricing.includedKm == 5) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
                 linkedMapOf("Minimum delivery charge" to "${pricing.minimumDeliveryFeeCfa} CFA", "Included distance" to "${pricing.includedKm} km", "Active profile" to pricing.profile,
-                    "Effective from" to (pricing.effectiveFrom?.toString() ?: "Built-in fallback")), pricingSource, deployment, pricingChange,
+                    "Effective from" to (pricing.effectiveFrom?.toString() ?: "Built-in fallback")), pricingSource, pricingAuthority, pricingChange,
                 "GET /api/admin/web/delivery-pricing and authenticated /api/cart/quote; test below, at and above the included distance."),
             AdminBusinessParameterDto(132, "extra-kilometer-price", "Price per additional kilometer",
                 if (pricing.extraKmFeeCfa == 100 && pricing.includedKm == 5) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
                 linkedMapOf("Additional kilometer charge" to "${pricing.extraKmFeeCfa} CFA", "Rounding" to "Distance rounds up to the next whole kilometer; extra charge starts above ${pricing.includedKm} km."),
-                pricingSource, deployment, pricingChange, "Compare authoritative quotes immediately below, at and above the distance boundary; client totals and distance are not policy inputs."),
+                pricingSource, pricingAuthority, pricingChange, "Compare authoritative quotes immediately below, at and above the distance boundary; client totals and distance are not policy inputs."),
             AdminBusinessParameterDto(133, "merchant-commissions", "Merchant commission percentages", AdminParameterState.CONFIGURED,
                 linkedMapOf("Runtime default" to "${commission.defaultRateBps} basis points", "Allowed range" to "${commission.minRateBps}–${commission.maxRateBps} basis points", "Persisted overrides" to overrideCount.toString(), "Precedence" to "Merchant override, otherwise MerchantCommissionPolicy default; order snapshots retain their agreed rate."),
                 "MerchantCommissionConfigurationService.resolveRateBps; merchant_commission_overrides; MerchantCommissionPolicy.",
