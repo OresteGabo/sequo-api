@@ -201,9 +201,11 @@ Production hardening still required:
 
 Current implementation:
 
-- Production-like profiles (`docker`, `prod`, `production`, `stage`, `staging`) fail startup when development defaults are still active.
-- Guardrails cover JWT signing secret, notification token encryption secret, Google/Facebook/Apple placeholder IDs, Yas/Moov wallet secrets, explicit HTTPS CORS origins, tracked placeholder/test/local markers, H2 usage, H2 console, and unsafe Hibernate DDL modes.
-- Local Docker Compose and CI explicitly opt into development defaults with `SEQUO_ALLOW_DEV_DEFAULTS=true`; named `prod`, `production`, `stage`, and `staging` profiles still enforce strict checks even if that flag is set.
+- With development-default allowance disabled, production-like profiles (`docker`, `prod`, `production`, `stage`, `staging`) validate JWT and notification encryption secrets, explicit HTTPS CORS, database settings, tracked placeholder markers, H2 console and unsafe Hibernate DDL modes. The current source is `config/ProductionStartupGuardrails.kt`.
+- `SEQUO_ALLOW_DEV_DEFAULTS=true` explicitly bypasses these startup checks, including on named production-like profiles. Task 28's isolated staging configuration sets it to false. Keep it false outside deliberate local fixtures. The separate payment-simulation guard rejects runtime simulation even with this override.
+- Optional identity/provider configuration may remain absent while unavailable; supplying slots is not proof of a connected payment provider. Both wallet transports remain NOT_CONNECTED in the verified candidate.
+- **Open handoff item O-SEC:** `sequo.admin-auth.code-encryption-secret` has a development fallback and is not covered by the strict startup checks or current example environment inventory. Minimum length validation does not reject that known fallback. Its actual deployed value is unverified. Review current protected-code continuity, provide explicit environment-specific configuration and add/test strict validation before online activation; do not silently replace a live key. See [Task 29 open items](docs/TASK29_OPEN_ITEMS.md#o-sec).
+- The notification encryption secret is also used to derive customer relay/return credentials. Inventory these consumers and retained encrypted FCM tokens before any approved rotation. The handoff documents a continuity check, not an automatic key replacement.
 
 ## Operational Alerts
 

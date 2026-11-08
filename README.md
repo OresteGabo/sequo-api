@@ -1,8 +1,14 @@
 # Sequo API
 
+## Current signed-MVP handoff
+
+Start with [Task 29 handoff](docs/TASK29_HANDOFF.md), the [per-clause checklist](docs/TASK29_CONTRACT_CHECKLIST.md) and [open items with owners](docs/TASK29_OPEN_ITEMS.md). The signed source PDF defines scope; older planning notes and percentages below are not acceptance or payment evidence.
+
+The identified `sequo-mvp-rc-20261108-01` candidate is verified locally. Online authenticated acceptance, provider connectivity and distribution remain unverified. No current-candidate testable delivery is recorded, so its 50-calendar-day reporting period remains unstarted. Payment completion, source-transfer rights, legal compliance and warranty dates require the parties' confirmation. The handoff records an admin-login encryption-key configuration/guard gap that must be resolved before online activation; see [security setup](docs/TASK29_OPEN_ITEMS.md#o-sec).
+
 Sequo API is the Spring Boot backend service for SEQUO, a local commerce, logistics, wallet, commission, and settlement platform. The service is responsible for trusted server-side state: authentication, role authorization, catalog and order workflows, pricing, bargaining, cooperative markets, relay logistics, digital wallet payments, returns, refunds, and merchant/courier payout accounting.
 
-This repository is currently a Spring Boot 4.1 / Kotlin / JVM 21 starter. The documentation in this repository defines the intended production backend contract before domain modules are implemented.
+The implemented backend uses Spring Boot 4.1 / Kotlin / JVM 21. Current release results and remaining dependencies are recorded in the handoff above; the planning documentation below does not certify production readiness.
 
 ## Source Material Inspected
 
@@ -22,9 +28,9 @@ The backend documentation was generated from the legacy Sequo product folder and
 | `docs/original/*.md` | French source rules for baskets, IDs, relay points, returns, pricing, commissions, bargaining, payouts |
 | `docs/diagrams/plantuml/auth/*.md` | JWT, refresh token rotation, RBAC, audit, security boundary requirements |
 
-## Authoritative Business Rules
+## Earlier backend planning rules
 
-The current backend scope supersedes older legacy notes where they conflict:
+These earlier planning summaries must be checked against the signed PDF, effective server settings and current handoff. In particular, unapproved subscription/referral benefits remain inactive; relay return intake is conditional, refunds need actual SEQUO receipt/inspection, and live payment/refund/payout execution remains unconnected. No unsupported deadline should be adopted from this table.
 
 | Topic | Current backend rule |
 | --- | --- |
