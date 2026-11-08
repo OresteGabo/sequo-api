@@ -54,6 +54,9 @@ class MerchantMembership(
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = createdAt,
 ) {
     init {
         require(userId.isNotBlank()) { "userId is required." }

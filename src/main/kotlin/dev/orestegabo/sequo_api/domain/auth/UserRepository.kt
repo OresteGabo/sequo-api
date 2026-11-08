@@ -7,6 +7,10 @@ import org.springframework.data.jpa.repository.Query
 import java.util.*
 
 interface UserRepository : JpaRepository<User, String> {
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true)
+    @Query("update User u set u.authorizationVersion = :version, u.recordVersion = u.recordVersion + 1 where u.id = :id")
+    fun rotateAuthorizationVersion(id: String, version: String): Int
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id")
     fun lockCheckoutOwner(id: String): User?
@@ -27,6 +31,10 @@ interface MerchantMembershipRepository : JpaRepository<MerchantMembership, Strin
 }
 
 interface UserDeviceRepository : JpaRepository<UserDevice, String> {
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true)
+    @Query("update UserDevice d set d.revokedAt = :at where d.id = :id and d.revokedAt is null")
+    fun revokeForRotation(id: String, at: java.time.Instant): Int
+
     fun findByDeviceId(deviceId: String): UserDevice?
     fun findByRefreshTokenHash(refreshTokenHash: String): UserDevice?
     fun findAllByUserIdAndRevokedAtIsNullAndExpiresAtAfter(userId: String, expiresAt: java.time.Instant): List<UserDevice>

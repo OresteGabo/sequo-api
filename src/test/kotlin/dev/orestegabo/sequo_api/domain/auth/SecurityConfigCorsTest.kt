@@ -11,7 +11,7 @@ class SecurityConfigCorsTest {
     @Test
     fun corsConfigurationUsesExplicitAllowedOriginsAndSafeHeaders() {
         val configurationSource = SecurityConfig(
-            jwtAuthenticationFilter = JwtAuthenticationFilter(jwtService()),
+            jwtAuthenticationFilter = JwtAuthenticationFilter(jwtService(), org.mockito.Mockito.mock(UserRepository::class.java)),
             inMemoryRateLimiter = InMemoryRateLimiter(),
             corsAllowedOrigins = listOf(
                 "https://app.sequo.example",

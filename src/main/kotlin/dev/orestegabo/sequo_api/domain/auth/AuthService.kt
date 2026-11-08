@@ -120,6 +120,7 @@ class AuthService(
     private val passkeyVerifier: PasskeyVerifier,
     @Value("\${sequo.auth.passkey.relying-party-id:api.sequo.local}")
     private val relyingPartyId: String,
+    private val entityManager: jakarta.persistence.EntityManager,
 ) {
     private val secureRandom = SecureRandom()
     private val codeRandom = SecureRandom()
@@ -331,10 +332,9 @@ class AuthService(
     fun refreshTokens(refreshToken: String, deviceId: String): AuthTokens? {
         val device = userDeviceRepository.findByRefreshTokenHash(tokenService.hash(refreshToken)) ?: return null
         if (device.deviceId != deviceId || device.revokedAt != null || device.expiresAt.isBefore(Instant.now())) return null
-        val user = userRepository.findById(device.userId).orElse(null) ?: return null
+        val user = lockAuthenticationUser(device.userId) ?: return null
         if (!user.canAuthenticate()) return null
-        device.revokedAt = Instant.now()
-        userDeviceRepository.save(device)
+        if (userDeviceRepository.revokeForRotation(requireNotNull(device.id), Instant.now()) != 1) return null
         return issueTokensForUser(
             user = user,
             provider = user.provider,
@@ -390,8 +390,10 @@ class AuthService(
         return true
     }
 
-    private fun issueTokensForUser(user: User, provider: AuthProvider, device: DeviceBinding, now: Instant = Instant.now()): AuthTokens {
+    private fun issueTokensForUser(user: User, provider: AuthProvider, device: DeviceBinding, now: Instant = Instant.now()): AuthTokens? {
         val userId = requireNotNull(user.id)
+        val currentUser = lockAuthenticationUser(userId) ?: return null
+        if (!currentUser.canAuthenticate()) return null
         val rawRefreshToken = tokenService.generate().rawToken
         val expiresAt = now.plus(DeviceRefreshLifetime)
         val existing = userDeviceRepository.findByDeviceId(device.deviceId)
@@ -433,12 +435,17 @@ class AuthService(
                 )
             )
         }
-        val session = accountSession(user, provider, requireNotNull(persistedDevice.id))
+        val session = accountSession(currentUser, provider, requireNotNull(persistedDevice.id))
         return AuthTokens(
             accessToken = jwtService.generateAccessToken(session),
             refreshToken = rawRefreshToken,
             expiresIn = jwtService.accessExpiresInSeconds(),
         )
+    }
+
+    private fun lockAuthenticationUser(id: String): User? = userRepository.lockCheckoutOwner(id)?.also {
+        // A login/refresh may have loaded an earlier managed instance before waiting on the lock.
+        entityManager.refresh(it)
     }
 
     fun accountSession(user: User, provider: AuthProvider = user.provider, sessionId: String? = null): UserSession {
@@ -451,6 +458,7 @@ class AuthService(
             roles = (user.roles + memberships.map { it.role }).toSet().ifEmpty { setOf(RoleCode.CUSTOMER) },
             merchantScopeIds = memberships.map { it.merchantId }.toSet(),
             sessionId = sessionId,
+            authorizationVersion = user.authorizationVersion,
         )
     }
 

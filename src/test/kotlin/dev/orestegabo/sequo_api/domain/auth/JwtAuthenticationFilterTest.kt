@@ -21,7 +21,7 @@ class JwtAuthenticationFilterTest {
         issuer = "sequo-api-test",
         audience = "sequo-mobile-test"
     )
-    private val filter = JwtAuthenticationFilter(jwtService)
+    private val filter = JwtAuthenticationFilter(jwtService, org.mockito.Mockito.mock(UserRepository::class.java))
 
     @AfterTest
     fun clearSecurityContext() {

@@ -16,7 +16,7 @@ data class JwtAuthenticationDetails(
 )
 
 @Component
-class JwtAuthenticationFilter(private val jwtService: JwtService) : OncePerRequestFilter() {
+class JwtAuthenticationFilter(private val jwtService: JwtService, private val users: UserRepository) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -29,7 +29,15 @@ class JwtAuthenticationFilter(private val jwtService: JwtService) : OncePerReque
             val token = authHeader.substring(7)
             val session = jwtService.parseAccessToken(token)
 
-            if (session != null && SecurityContextHolder.getContext().authentication == null) {
+            val currentUser = session?.let { users.findById(it.userId).orElse(null) }
+            // Untouched legacy accounts keep their existing token contract. Explicit managed access
+            // changes rotate a durable version, invalidating old SID and SID-less access tokens.
+            val managedAccessAllowed = session != null &&
+                (if (session.authorizationVersion != null || currentUser?.authorizationVersion != null)
+                    currentUser != null && currentUser.active && currentUser.status.canAuthenticate() &&
+                        session.authorizationVersion == currentUser.authorizationVersion
+                else true)
+            if (session != null && managedAccessAllowed && SecurityContextHolder.getContext().authentication == null) {
                 val authorities = session.roles.map { it.toGrantedAuthority() }
                 val authToken = UsernamePasswordAuthenticationToken(session.userId, null, authorities)
                 authToken.details = JwtAuthenticationDetails(

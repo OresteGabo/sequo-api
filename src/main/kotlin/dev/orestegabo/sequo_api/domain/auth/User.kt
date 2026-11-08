@@ -45,6 +45,13 @@ class User(
     @Column
     var updatedAt: Instant = Instant.now(),
 
+    @Column(name = "authorization_version", length = 64, updatable = false)
+    var authorizationVersion: String? = null,
+
+    @Version
+    @Column(name = "record_version", nullable = false)
+    var recordVersion: Long = 0,
+
     @Transient
     var passwordHash: String? = null,
 
@@ -65,11 +72,12 @@ class User(
     fun beforePersist() {
         val now = Instant.now()
         if (createdAt == Instant.EPOCH) createdAt = now
-        updatedAt = now
+        updatedAt = now.truncatedTo(java.time.temporal.ChronoUnit.MICROS)
     }
 
     @PreUpdate
     fun beforeUpdate() {
-        updatedAt = Instant.now()
+        val now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+        updatedAt = if (now > updatedAt) now else updatedAt.plusNanos(1000)
     }
 }

@@ -69,6 +69,7 @@ data class UserSession(
     val roles: Set<RoleCode> = setOf(RoleCode.CUSTOMER),
     val merchantScopeIds: Set<String> = emptySet(),
     val sessionId: String? = null,
+    val authorizationVersion: String? = null,
 )
 
 enum class AppSource {

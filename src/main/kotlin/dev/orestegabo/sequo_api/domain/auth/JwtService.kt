@@ -35,6 +35,7 @@ class JwtService(
             .expiration(Date(now.time + accessExpiration))
 
         session.sessionId?.let { builder.claim("sid", it) }
+        session.authorizationVersion?.let { builder.claim("authorization_version", it) }
 
         return builder
             .signWith(key)
@@ -81,6 +82,8 @@ class JwtService(
         return try {
             val claims = parseClaims(token) ?: return null
             if (!claimsMatchTokenUse(claims, TokenUse.ACCESS)) return null
+            val authorizationVersion = claims["authorization_version"]?.let { it as? String ?: return null }
+            if (authorizationVersion != null && (authorizationVersion.isBlank() || authorizationVersion.length > 64)) return null
 
             UserSession(
                 userId = claims.subject?.takeIf { it.isNotBlank() } ?: return null,
@@ -89,6 +92,7 @@ class JwtService(
                 roles = parseRoles(claims["roles"]) ?: return null,
                 merchantScopeIds = parseStringSet(claims["merchant_scope_ids"]) ?: return null,
                 sessionId = parseSessionId(claims["sid"]),
+                authorizationVersion = authorizationVersion,
             )
         } catch (e: Exception) {
             null
