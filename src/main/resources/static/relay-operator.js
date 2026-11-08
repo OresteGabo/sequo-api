@@ -6,18 +6,21 @@ let busy = false;
 let releaseOperation = null;
 let sites = [];
 let dispositionOperation = null;
+let customerReturnOperation = null;
+let returnSiteId = "";
 const deviceId = sessionStorage.getItem('sequo_relay_device') || crypto.randomUUID();
 sessionStorage.setItem('sequo_relay_device', deviceId);
 const device = { deviceId, appSource: 'SEQUO_HUB', deviceLabel: 'Relay web' };
 function message(text) { el('message').textContent = text; }
 function clearSession() {
-  accessToken = ''; selected = null; releaseOperation = null; dispositionOperation = null; sites = [];
+  accessToken = ''; selected = null; releaseOperation = null; dispositionOperation = null; customerReturnOperation = null; returnSiteId = ''; sites = [];
   sessionStorage.removeItem('sequo_relay_refresh');
   el('workspace').hidden = true; el('login').hidden = false; el('detail').hidden = true;
   el('parcels').replaceChildren(); el('site').replaceChildren(); el('history').replaceChildren();
   el('parcel-title').textContent = ''; el('parcel-state').textContent = ''; el('deadlines').textContent = ''; el('return-confirmed').checked = false;
   for (const field of ['otp', 'pickup', 'qr-pickup', 'reason', 'review-note', 'return-note']) el(field).value = '';
   el('identity').checked = false;
+  clearCustomerReturns(true);
 }
 async function request(path, options = {}, authenticated = true) {
   const response = await fetch(path, { ...options, cache: 'no-store', headers: {
@@ -34,11 +37,11 @@ async function request(path, options = {}, authenticated = true) {
 const post = (path, body, authenticated = true) => request(path, { method: 'POST', body: JSON.stringify(body) }, authenticated);
 async function run(operation) {
   if (busy) return;
-  busy = true; document.querySelectorAll('button').forEach(button => { button.disabled = true; });
+  busy = true; el('site').disabled = true; document.querySelectorAll('button').forEach(button => { button.disabled = true; });
   message('Chargement…');
   try { await operation(); message('À jour.'); }
   catch (error) { message(`${error.message} Les données affichées peuvent être anciennes.`); }
-  finally { busy = false; document.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
+  finally { busy = false; el('site').disabled = false; document.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
 }
 function bind(id, operation) { el(id).addEventListener('submit', event => { event.preventDefault(); void run(operation); }); }
 function saveTokens(tokens) { accessToken = tokens.accessToken; sessionStorage.setItem('sequo_relay_refresh', tokens.refreshToken); }
@@ -51,6 +54,8 @@ async function openWorkspace() {
 }
 async function reload() {
   selected = null; el('detail').hidden = true; el('parcels').replaceChildren();
+  const siteId = el('site').value;
+  clearCustomerReturns(returnSiteId !== siteId); returnSiteId = siteId;
   const parcels = await request(`/api/relay/parcels${el('overdue-only').checked ? '/overdue' : ''}?relayPointId=${encodeURIComponent(el('site').value)}`);
   el('empty').hidden = parcels.length !== 0;
   for (const parcel of parcels) {
@@ -58,6 +63,49 @@ async function reload() {
     button.dataset.parcelId = parcel.id; button.textContent = `${parcel.id} — ${statusLabel(parcel.status)}`;
     button.onclick = () => void run(() => showDetail(parcel.id)); item.append(button); el('parcels').append(item);
   }
+  await loadCustomerReturns(siteId);
+}
+function clearCustomerReturns(clearIntake = false) {
+  el('customer-returns').replaceChildren(); el('returns-empty').hidden = true;
+  el('customer-return-detail').hidden = true; el('customer-return-title').textContent = '';
+  el('customer-return-state').textContent = ''; el('customer-return-dates').textContent = '';
+  el('customer-return-history').replaceChildren();
+  if (clearIntake) {
+    for (const field of ['customer-return-id', 'customer-return-pin', 'customer-return-note']) el(field).value = '';
+    el('customer-return-received').checked = false; customerReturnOperation = null;
+  }
+}
+function customerReturnStatus(status) {
+  return ({ Requested:'Demandé', AwaitingRelayDropoff:'Dépôt attendu', DroppedAtRelay:'Reçu au relais',
+    CollectedBySequo:'Collecté par SEQUO', ReceivedBySequo:'Reçu par SEQUO', UnderInspection:'En cours d’examen',
+    RefundPending:'Remboursement en attente', Rejected:'Refusé' })[status] || status;
+}
+async function loadCustomerReturns(siteId = el('site').value) {
+  el('customer-returns').replaceChildren(); el('returns-empty').hidden = true;
+  const records = await request(`/api/returns/relay?relayPointId=${encodeURIComponent(siteId)}`);
+  if (!Array.isArray(records) || records.some(item => item.relayPointId !== siteId)) throw Error('Les retours reçus ne correspondent pas au point relais sélectionné. Actualisez.');
+  el('returns-empty').hidden = records.length !== 0;
+  for (const record of records) {
+    const item = document.createElement('li'); const button = document.createElement('button');
+    button.dataset.returnId = record.id; button.textContent = `${record.id} — ${customerReturnStatus(record.status)}`;
+    button.onclick = () => void run(() => showCustomerReturn(record.id)); item.append(button); el('customer-returns').append(item);
+  }
+}
+async function showCustomerReturn(id) {
+  el('customer-return-detail').hidden = true; el('customer-return-history').replaceChildren();
+  const record = await request(`/api/returns/${encodeURIComponent(id)}`);
+  if (record.relayPointId !== el('site').value) throw Error('Ce retour appartient à un autre point relais.');
+  el('customer-return-title').textContent = record.id;
+  el('customer-return-state').textContent = `${customerReturnStatus(record.status)} — ${record.relayPointId} — commande ${record.orderId}`;
+  el('customer-return-dates').textContent = [['Dépôt',record.droppedAt],['Collecte SEQUO',record.collectedBySequoAt],['Réception SEQUO',record.receivedBySequoAt]]
+    .filter(([,at]) => at).map(([label,at]) => `${label} : ${new Date(at).toLocaleString('fr')}`).join(' · ');
+  el('customer-return-history').replaceChildren(...(record.history || []).map(event => {
+    const li = document.createElement('li');
+    const action = ({RELAY_DROPOFF:'Dépôt du retour',SEQUO_COLLECTION:'Collecte par SEQUO'})[event.action] || event.action;
+    li.textContent = [action, event.createdAt && new Date(event.createdAt).toLocaleString('fr'), event.actorUserId, event.metadata].filter(Boolean).join(' — ');
+    return li;
+  }));
+  el('customer-return-detail').hidden = false;
 }
 function statusLabel(status) {
   return ({ Deposited: 'Déposé', PickedUp: 'Retiré', Problem: 'Problème signalé', ReturnedToSeller: 'Retourné au vendeur', Delayed: 'En retard', ReturnToSellerReview: 'À examiner par SEQUO', CollectedBySequo: 'Récupéré par SEQUO', Created: 'Créé' })[status] || status;
@@ -117,6 +165,20 @@ bind('release', async () => {
   await post(`/api/relay/parcels/${encodeURIComponent(id)}/release`, { relayPointId: selected.relayPointId, rawNumericCode: el('pickup').value || null, rawQrNonce: el('qr-pickup').value || null, identityDocumentMatched: el('identity').checked, eventId: releaseOperation.event, idempotencyKey: releaseOperation.key });
   el('pickup').value = ''; el('qr-pickup').value = ''; el('identity').checked = false; releaseOperation = null;
   await showDetail(id);
+});
+bind('return-intake', async () => {
+  const id = el('customer-return-id').value.trim(); const pin = el('customer-return-pin').value;
+  const siteId = el('site').value; const note = el('customer-return-note').value.trim();
+  if (!id || !/^[0-9]{6}$/.test(pin) || !el('customer-return-received').checked) throw Error('Saisissez la référence, le code PIN et confirmez la réception physique du colis.');
+  const proof = JSON.stringify([id, siteId, pin, note]);
+  if (customerReturnOperation?.proof !== proof) customerReturnOperation = { proof, key: crypto.randomUUID() };
+  const saved = await post(`/api/returns/${encodeURIComponent(id)}/relay-dropoff`, {
+    relayPointId: siteId, rawReturnPin: pin, idempotencyKey: customerReturnOperation.key, metadata: note || null,
+  });
+  if (!saved?.id || saved.relayPointId !== siteId) throw Error('La réception du retour n’a pas pu être confirmée pour ce point relais. Actualisez.');
+  await loadCustomerReturns(siteId); await showCustomerReturn(saved.id);
+  for (const field of ['customer-return-id', 'customer-return-pin', 'customer-return-note']) el(field).value = '';
+  el('customer-return-received').checked = false; customerReturnOperation = null;
 });
 bind('problem', async () => { if (!selected) return; const id = selected.id; await post(`/api/relay/parcels/${encodeURIComponent(id)}/problem`, { eventId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), metadata: el('reason').value }); el('reason').value = ''; await showDetail(id); });
 el('reload').onclick = () => void run(reload);

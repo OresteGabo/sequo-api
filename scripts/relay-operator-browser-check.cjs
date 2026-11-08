@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const puppeteer = require('puppeteer-core');
 const base = process.cwd() + '/src/main/resources/static/';
 let note = ''; let overdue = false; let state = 'Deposited'; let offline = false; let expired = false;
+let customerReturn = null; let uncertainReturn = true; let forbiddenReturns = false;
 const calls = [];
 const server = http.createServer(async (req, res) => {
   if (req.url === '/relay-operator.html' || req.url === '/relay-operator.js') {
@@ -13,13 +14,23 @@ const server = http.createServer(async (req, res) => {
   let raw = ''; for await (const part of req) raw += part;
   calls.push({ path: req.url, auth: req.headers.authorization, body: raw && JSON.parse(raw) });
   res.setHeader('Content-Type','application/json');
-  if (req.url.startsWith('/api/relay/') && expired) { res.statusCode = 403; res.end('{}'); return; }
-  if (offline && req.url.startsWith('/api/relay/')) { res.statusCode = 503; res.end('{}'); return; }
+  if ((req.url.startsWith('/api/relay/') && expired) || (req.url.startsWith('/api/returns') && forbiddenReturns)) { res.statusCode = 403; res.end('{}'); return; }
+  if (offline && (req.url.startsWith('/api/relay/') || req.url.startsWith('/api/returns'))) { res.statusCode = 503; res.end('{}'); return; }
   let response = {};
   const parcel = {id:'parcel-fixture-A',relayPointId:'site-A',status:state,custody:{feeStartsAt:'2026-10-08T00:00:00Z',reviewDueAt:'2026-10-30T00:00:00Z',storageFeeEligible:overdue && state !== 'PickedUp',reviewDue:overdue && state !== 'PickedUp',feePolicyKnown:true},history:[{type:'Deposit',createdAt:'2026-11-08T00:00:00Z'}, ...(note ? [{type:'Review',createdAt:'2026-11-08T00:05:00Z',message:note}]:[]), ...(state === 'PickedUp' ? [{type:'RelayRelease',createdAt:'2026-11-08T00:10:00Z'}]:[])]};
   if (req.url.includes('/verify') || req.url.includes('/refresh')) response = {accessToken:'fixture-access',refreshToken:'fixture-refresh'};
-  else if(req.url.endsWith('/sites')) response = [{id:'site-A',name:'Relais A',canReturnToSeller:true}];
+  else if(req.url.endsWith('/sites')) response = [{id:'site-A',name:'Relais A',canReturnToSeller:true},{id:'site-B',name:'Relais B',canReturnToSeller:false}];
   else if(req.url.endsWith('/deadlines/evaluate')) {overdue=true;response=[];}
+  else if(req.url.startsWith('/api/returns/relay?')) response = customerReturn?.relayPointId === new URL(req.url,'http://fixture.invalid').searchParams.get('relayPointId') ? [customerReturn] : [];
+  else if(req.url.endsWith('/relay-dropoff')) {
+    const body = JSON.parse(raw);
+    if (body.rawReturnPin !== '654321') {res.statusCode=400;res.end(JSON.stringify({message:'Code PIN de retour invalide.'}));return;}
+    if (body.relayPointId !== 'site-A') {res.statusCode=400;res.end(JSON.stringify({message:'Point relais non autorisé pour ce retour.'}));return;}
+    customerReturn ||= {id:'return-fixture-A',orderId:'order-fixture',relayPointId:'site-A',status:'DroppedAtRelay',droppedAt:'2026-11-08T00:10:00Z',history:[{action:'RELAY_DROPOFF',actorUserId:'operator-fixture',createdAt:'2026-11-08T00:10:00Z',metadata:null}]};
+    if (uncertainReturn) {uncertainReturn=false;res.statusCode=503;res.end(JSON.stringify({message:'Réponse de réception incertaine (503).'}));return;}
+    response=customerReturn;
+  }
+  else if(req.url === '/api/returns/return-fixture-A') response = customerReturn;
   else if(req.url.includes('?relayPointId=')) response = [parcel];
   else if(req.url.endsWith('/review')) {note=JSON.parse(raw).metadata;response=parcel;}
   else if(req.url.endsWith('/release')) {state = 'PickedUp'; response = {parcel:{...parcel,status:state}};}
@@ -50,15 +61,46 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.$eval('#issue',e=>e.hidden),true);
     assert.equal(await page.$eval('#release',e=>e.hidden),true);
     assert.ok(await page.$eval('#parcels',e=>e.textContent.includes('Retiré')));
-    await page.screenshot({path:'/tmp/sequo-task13-web.png',fullPage:true});
+    await page.type('#customer-return-id','return-fixture-A'); await page.type('#customer-return-pin','111111');
+    await page.type('#customer-return-note','Retour physiquement reçu'); await page.click('#customer-return-received');
+    await page.click('#return-intake button'); await page.waitForFunction(()=>document.getElementById('message').textContent.includes('Code PIN de retour invalide'));
+    assert.equal(await page.$eval('#customer-returns',e=>e.children.length),0);
+    assert.equal(await page.$eval('#customer-return-detail',e=>e.hidden),true);
+    await page.$eval('#customer-return-pin',e=>{e.value='';}); await page.type('#customer-return-pin','654321');
+    await page.click('#return-intake button'); await page.waitForFunction(()=>document.getElementById('message').textContent.includes('incertaine'));
+    assert.equal(await page.$eval('#customer-return-pin',e=>e.value),'654321');
+    await page.click('#return-intake button'); await page.waitForFunction(()=>document.getElementById('customer-return-state').textContent.includes('Reçu au relais'));
+    const intakeCalls=calls.filter(c=>c.path.endsWith('/relay-dropoff') && c.body.rawReturnPin === '654321');
+    assert.equal(intakeCalls.length,2); assert.ok(intakeCalls[0].body.idempotencyKey);
+    assert.deepEqual(intakeCalls[0].body,intakeCalls[1].body);
+    assert.equal(intakeCalls[0].body.relayPointId,'site-A'); assert.equal(intakeCalls[0].body.droppedAt,undefined);
+    assert.equal(intakeCalls[0].body.metadata,'Retour physiquement reçu');
+    assert.equal(customerReturn.history.length,1);
+    assert.equal(await page.$eval('#customer-return-pin',e=>e.value),'');
+    assert.equal(await page.$eval('#customer-return-received',e=>e.checked),false);
+    assert.ok(await page.$eval('#customer-return-history',e=>e.textContent.includes('Dépôt du retour')));
+    await page.select('#site','site-B'); await page.waitForFunction(()=>document.getElementById('returns-empty').hidden === false && !document.getElementById('site').disabled);
+    assert.equal(await page.$eval('#customer-returns',e=>e.children.length),0);
+    assert.equal(await page.$eval('#customer-return-title',e=>e.textContent),'');
+    await page.type('#customer-return-pin','123456'); await page.select('#site','site-A');
+    await page.waitForSelector('#customer-returns button');
+    assert.equal(await page.$eval('#customer-return-pin',e=>e.value),'');
+    await page.click('#customer-returns button'); await page.waitForSelector('#customer-return-detail:not([hidden])');
+    await page.screenshot({path:'/tmp/sequo-task20-relay-web.png',fullPage:true});
     await page.reload(); await page.waitForSelector('#parcels button'); await page.click('#parcels button'); await page.waitForFunction(()=>document.getElementById('history').textContent.includes('Retrait validé'));
     assert.ok(calls.some(c=>c.path.endsWith('/refresh')));
+    await page.waitForSelector('#customer-returns button'); await page.click('#customer-returns button');
+    await page.waitForFunction(()=>document.getElementById('customer-return-history').textContent.includes('Dépôt du retour'));
     offline=true; await page.click('#reload'); await page.waitForFunction(()=>document.getElementById('message').textContent.includes('503'));
-    offline=false; expired=true; await page.click('#reload'); await page.waitForSelector('#login:not([hidden])');
+    offline=false; forbiddenReturns=true; await page.click('#reload'); await page.waitForSelector('#login:not([hidden])');
     assert.equal(await page.$eval('#parcels',e=>e.children.length),0);
     assert.equal(await page.$eval('#parcel-title',e=>e.textContent),'');
     assert.equal(await page.$eval('#history',e=>e.children.length),0);
+    assert.equal(await page.$eval('#customer-returns',e=>e.children.length),0);
+    assert.equal(await page.$eval('#customer-return-history',e=>e.children.length),0);
+    assert.equal(await page.$eval('#customer-return-title',e=>e.textContent),'');
+    assert.equal(await page.$eval('#customer-return-pin',e=>e.value),'');
     assert.deepEqual(errors,[]);
-    console.log('PASS: overdue evaluation/review, managed issuance, mobile browser sign-in, scoped list/detail, issuance, identity release, refresh restore, offline error, expired session clearing. Mock HTTP only.');
+    console.log('PASS: existing parcel flow plus scoped customer-return intake, wrong PIN, uncertain retry/stable body, server history/readback, two-site clearing, refresh restore, offline error and return authorization failure clearing both modules. Mock HTTP only.');
   } finally {await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

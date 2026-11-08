@@ -17,7 +17,22 @@ body{font:18px system-ui,sans-serif;max-width:64rem;margin:2rem auto;padding:0 1
 <button id="logout">Déconnexion</button>
 <label>Point relais<select id="site"></select></label><button id="reload">Actualiser</button><button id="evaluate">Actualiser les délais</button>
 <label><input id="overdue-only" type="checkbox"> Colis en retard / à examiner</label>
-<p>Les produits alimentaires, périssables et sensibles sont exclus. Vérifiez la pièce d’identité avant le retrait.</p>
+<p>Les produits alimentaires, périssables et sensibles sont exclus du transport via relais. Vérifiez la pièce d’identité avant le retrait d’un colis.</p>
+<section>
+<h2>Retours clients</h2>
+<p>Recevez uniquement le colis présenté avec sa référence et le code PIN de retour fourni par SEQUO. L’enregistrement du dépôt ne confirme aucun remboursement.</p>
+<form id="return-intake">
+<label>Référence de retour<input id="customer-return-id" required maxlength="128" autocomplete="off"></label>
+<label>Code PIN de retour<input id="customer-return-pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="off"></label>
+<label>Note de réception<textarea id="customer-return-note" maxlength="1000"></textarea></label>
+<label><input id="customer-return-received" type="checkbox" required> Colis physiquement reçu au point relais sélectionné</label>
+<button>Enregistrer le dépôt du retour client</button>
+</form>
+<h3>Retours reçus dans ce point relais</h3><p id="returns-empty" hidden>Aucun retour reçu.</p><ul id="customer-returns"></ul>
+</section>
+<section id="customer-return-detail" hidden>
+<h2 id="customer-return-title"></h2><p id="customer-return-state"></p><p id="customer-return-dates"></p><ul id="customer-return-history"></ul>
+</section>
 <section><h2>Colis et historique</h2><p id="empty" hidden>Aucun colis.</p><ul id="parcels"></ul></section>
 <section id="detail" hidden>
 <h2 id="parcel-title"></h2><p id="parcel-state"></p><ul id="history"></ul>
