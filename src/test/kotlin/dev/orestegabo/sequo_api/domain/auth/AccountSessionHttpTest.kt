@@ -31,6 +31,7 @@ class AccountSessionHttpTest @Autowired constructor(
     private val users: UserRepository,
     private val memberships: MerchantMembershipRepository,
     private val merchants: CommerceMerchantRepository,
+    private val relayPoints: dev.orestegabo.sequo_api.domain.relay.RelayPointRepository,
 ) {
     @MockitoBean
     private lateinit var google: GoogleTokenVerifier
@@ -102,7 +103,10 @@ class AccountSessionHttpTest @Autowired constructor(
         assertEquals(403, request("GET", "/api/rider/missions", adminToken).statusCode())
         val relay = account("relay", RoleCode.RELAY_PARTNER)
         val relayToken = token(relay, AppSource.SEQUO_HUB)
-        assertEquals(200, request("GET", "/api/hub/summary?hubId=${relay.id}", relayToken).statusCode())
+        assertEquals(403, request("GET", "/api/hub/summary?hubId=${relay.id}", relayToken).statusCode())
+        val relayPoint = relayPoints.save(dev.orestegabo.sequo_api.domain.party.RelayPointRecord(
+            id = "account-relay-fixture", operatorUserId = relay.id, name = "Assigned account fixture relay"))
+        assertEquals(200, request("GET", "/api/hub/summary?hubId=${relayPoint.id}", relayToken).statusCode())
         assertEquals(403, request("GET", "/api/hub/summary?hubId=other-relay", relayToken).statusCode())
         assertEquals(403, request("GET", "/api/admin/web/users", relayToken).statusCode())
     }
