@@ -32,3 +32,11 @@ Workforce writes lock the same courier record used by dispatch policy. They affe
 Relay assignment requires an existing active `RELAY_PARTNER` user and an existing active site. It does not grant roles. Site locking, explicit READ_COMMITTED isolation and locking the target user serialize concurrent assignments; an operator cannot be bound to two active sites through these routes. Explicit removal preserves history and leaves existing custody records intact; admins retain their existing site access. Physical handoff, pickup credentials and parcel release still use their existing scoped routes and proof requirements.
 
 Normal `GET /api/catalog/products/{id}/customizations` remains public and filters unpublished data. The explicit includeInactive flag requires admin authorization even for guessed IDs; it must be used by an admin replacement editor to avoid silently dropping hidden groups/options. Existing nested PUT validation remains authoritative; no atomic menu revision protocol is claimed by this additive read.
+
+## Redacted diagnostic queues
+
+`GET /api/admin/web/notification-outbox` and `GET /api/admin/web/account-deletion-requests` return recent administrative metadata, default50 rows, bounded to1..200 by `limit`. Each also supports `/{id}` with the same redaction and admin/no-store guard. Missing IDs return404.
+
+Outbox rows expose event/aggregate IDs, event type, recorded processing status, attempt count and timestamps. They omit message payload, worker lease identity, provider bodies, tokens and recipients. Outbox PROCESSED means recorded event processing, not proven external delivery. No retry, resend or provider execution action is introduced.
+
+Deletion-request rows expose ID, user ID, recorded status and requested/reviewed timestamps. They omit private reason/confirmation text. No approval, legal erasure or deletion is performed by these reads. Retention and fulfilment policy still needs its own authorized workflow.
