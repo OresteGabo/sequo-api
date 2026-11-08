@@ -143,6 +143,10 @@ data class AdminDeliveryMissionDto(
     val shortfallCfa: Int,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val deliveryOption: dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer? = null,
+    val subscriberPriority: Boolean = false,
+    val assignmentWorkforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
+    val assignmentReason: String? = null,
 )
 
 data class AdminPaymentsDto(
@@ -485,6 +489,10 @@ private fun DeliveryMission.toAdminDto(): AdminDeliveryMissionDto =
         shortfallCfa = shortfallCfa,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        deliveryOption = deliveryOptionPayload?.let { dev.orestegabo.sequo_api.domain.delivery.readDeliveryModeOffer(it) },
+        subscriberPriority = subscriberPriority,
+        assignmentWorkforceType = assignmentWorkforceType,
+        assignmentReason = assignmentReason,
     )
 
 private fun MerchantPayoutAccrualRecord.toAdminDto(): AdminMerchantPayoutDto =

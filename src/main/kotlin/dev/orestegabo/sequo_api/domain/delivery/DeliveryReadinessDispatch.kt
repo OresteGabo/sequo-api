@@ -66,16 +66,17 @@ class DeliveryReadinessDispatchService(
                 skipped += subOrder.skipped("customer_pickup_does_not_need_courier_mission")
                 return@forEach
             }
+            val request = pending.findById(order.checkoutId).orElse(null)?.requestPayload?.let { com.fasterxml.jackson.databind.ObjectMapper().readPendingRequest(it) }
             created += deliveryMissionService.create(
                 CreateDeliveryMissionCommand(
                     deliveryCode = subOrder.deliveryCode(subOrderId),
                     orderId = subOrder.orderId,
                     merchantSubOrderId = subOrderId,
-                    deliveryMode = plan.modeFor(order.serviceLevel),
+                    deliveryMode = request?.deliveryOption?.missionMode ?: plan.modeFor(order.serviceLevel),
+                    deliveryOption = request?.deliveryOption,
+                    subscriberPriority = request?.subscriberPriority ?: false,
                     destinationType = plan.destination,
-                    relayDestination = pending.findById(order.checkoutId).orElse(null)?.requestPayload?.let {
-                        com.fasterxml.jackson.databind.ObjectMapper().readPendingRequest(it).relayDestination
-                    },
+                    relayDestination = request?.relayDestination,
                     customerDeliveryFeeCfa = order.deliveryFeeCfa,
                     courierFeeCfa = order.deliveryFeeCfa,
                     shortfallCfa = 0,

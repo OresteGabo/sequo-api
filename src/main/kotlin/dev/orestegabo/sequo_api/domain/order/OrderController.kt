@@ -32,7 +32,8 @@ class OrderController(
             "Use the basket checkout endpoint for this checkout ID."
         }
         require(request.route != OrderRoute.PointDeRelai && request.relayDestination == null) { "Use the basket checkout endpoint for relay delivery." }
-        val secureRequest = request.copy(customerId = userId)
+        require(request.deliveryOption == null) { "Use the basket quote and checkout endpoints to select a delivery mode." }
+        val secureRequest = request.copy(customerId = userId, subscriberPriority = false)
         
         val processor = factory.processorFor(secureRequest.serviceLevel)
         val result = processor.process(secureRequest)

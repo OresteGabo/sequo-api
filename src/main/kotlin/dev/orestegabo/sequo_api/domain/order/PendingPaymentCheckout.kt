@@ -202,6 +202,8 @@ data class PendingOrderProcessingRequestPayload(
     val countryCode: String,
     val homeDestination: HomeDeliveryDestination? = null,
     val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
+    val deliveryOption: dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer? = null,
+    val subscriberPriority: Boolean = false,
 )
 
 data class PendingOrderLineRequestPayload(
@@ -233,6 +235,8 @@ private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRe
     countryCode = countryCode,
     homeDestination = homeDestination,
     relayDestination = relayDestination,
+    deliveryOption = deliveryOption,
+    subscriberPriority = subscriberPriority,
 )
 
 private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload(
@@ -269,6 +273,8 @@ private fun PendingOrderProcessingRequestPayload.toRequest() = OrderProcessingRe
     countryCode = countryCode,
     homeDestination = homeDestination,
     relayDestination = relayDestination,
+    deliveryOption = deliveryOption,
+    subscriberPriority = subscriberPriority,
 )
 
 private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
@@ -323,6 +329,8 @@ internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRe
         paymentProvider = PaymentProviderId(root.requiredText("paymentProvider")),
         paymentReference = root.requiredText("paymentReference"),
         countryCode = root.requiredText("countryCode"),
+        deliveryOption = root.get("deliveryOption")?.takeUnless { it.isNull }?.let { dev.orestegabo.sequo_api.domain.delivery.readDeliveryModeOffer(it.toString()) },
+        subscriberPriority = root.path("subscriberPriority").asBoolean(false),
         relayDestination = root.get("relayDestination")?.takeUnless { it.isNull }?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it.toString()) },
         homeDestination = root.get("homeDestination")?.takeUnless { it.isNull }?.let {
             HomeDeliveryDestination(

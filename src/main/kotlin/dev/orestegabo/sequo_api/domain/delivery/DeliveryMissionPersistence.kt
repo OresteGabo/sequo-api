@@ -61,6 +61,11 @@ class DeliveryMission(
     @Enumerated(EnumType.STRING) @Column(name = "delivery_mode", nullable = false, length = 64) var deliveryMode: DeliveryMissionRecordMode,
     @Enumerated(EnumType.STRING) @Column(name = "destination_type", nullable = false, length = 64) var destinationType: DeliveryMissionRecordDestination,
     @Enumerated(EnumType.STRING) @Column(name = "status", nullable = false, length = 64) var status: DeliveryMissionRecordStatus = DeliveryMissionRecordStatus.CREATED,
+    @Column(name = "freelancer_fee_estimate_cfa") var freelancerFeeEstimateCfa: Int? = null,
+    @Column(name = "delivery_option_payload", columnDefinition = "text") var deliveryOptionPayload: String? = null,
+    @Column(name = "subscriber_priority", nullable = false) var subscriberPriority: Boolean = false,
+    @Enumerated(EnumType.STRING) @Column(name = "assignment_workforce_type", length = 64) var assignmentWorkforceType: DeliveryWorkforceType? = null,
+    @Column(name = "assignment_reason", columnDefinition = "text") var assignmentReason: String? = null,
     @Column(name = "relay_point_id") var relayPointId: String? = null,
     @Column(name = "relay_destination_payload", columnDefinition = "text") var relayDestinationPayload: String? = null,
     @Column(name = "relay_reroute_key", length = 128) var relayRerouteKey: String? = null,
@@ -68,8 +73,8 @@ class DeliveryMission(
     @Column(name = "relay_reroute_reason", columnDefinition = "text") var relayRerouteReason: String? = null,
     @Column(name = "relay_rerouted_at") var relayReroutedAt: Instant? = null,
     @Column(name = "customer_delivery_fee_cfa", nullable = false) val customerDeliveryFeeCfa: Int = 0,
-    @Column(name = "courier_fee_cfa", nullable = false) val courierFeeCfa: Int = 0,
-    @Column(name = "shortfall_cfa", nullable = false) val shortfallCfa: Int = 0,
+    @Column(name = "courier_fee_cfa", nullable = false) var courierFeeCfa: Int = 0,
+    @Column(name = "shortfall_cfa", nullable = false) var shortfallCfa: Int = 0,
     @Column(name = "assigned_at") var assignedAt: Instant? = null,
     @Column(name = "accepted_at") var acceptedAt: Instant? = null,
     @Column(name = "pickup_at") var pickupAt: Instant? = null,
@@ -154,6 +159,7 @@ class DeliveryProblemResolutionRecord(
 }
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
+    fun countByCourierIdAndStatusIn(courierId: String, status: Collection<DeliveryMissionRecordStatus>): Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from DeliveryMission m where m.id = :id")
     fun lockForAction(id: String): DeliveryMission?
@@ -199,6 +205,10 @@ data class CreateDeliveryMissionCommand(
     val courierFeeCfa: Int = 0,
     val shortfallCfa: Int = 0,
     val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
+    val deliveryOption: DeliveryModeOffer? = null,
+    val subscriberPriority: Boolean = false,
+    val assignmentWorkforceType: DeliveryWorkforceType? = null,
+    val assignmentReason: String? = null,
 ) {
     init {
         require(deliveryCode.isNotBlank() && orderId.isNotBlank()) { "Mission references cannot be blank." }
@@ -235,6 +245,10 @@ data class DeliveryMissionSnapshot(
     val dropoffArea: String? = null,
     val homeDestination: HomeDeliveryDestination? = null,
     val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
+    val deliveryOption: DeliveryModeOffer? = null,
+    val subscriberPriority: Boolean = false,
+    val assignmentWorkforceType: DeliveryWorkforceType? = null,
+    val assignmentReason: String? = null,
 )
 
 data class DeliveryTrackingSnapshot(
@@ -253,6 +267,10 @@ data class DeliveryTrackingSnapshot(
     val deliveredAt: Instant?,
     val updatedAt: Instant,
     val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
+    val deliveryOption: DeliveryModeOffer? = null,
+    val subscriberPriority: Boolean = false,
+    val assignmentWorkforceType: DeliveryWorkforceType? = null,
+    val assignmentReason: String? = null,
 )
 
 data class DeliveryProblemResolutionSnapshot(
@@ -380,10 +398,13 @@ class DeliveryMissionService(
                 merchantSubOrderId = command.merchantSubOrderId,
                 deliveryMode = command.deliveryMode,
                 destinationType = command.destinationType,
+                deliveryOptionPayload = command.deliveryOption?.let { objectMapper.writeValueAsString(it) },
+                subscriberPriority = command.subscriberPriority,
                 relayPointId = command.relayDestination?.id,
                 relayDestinationPayload = command.relayDestination?.let { objectMapper.writeValueAsString(it) },
                 customerDeliveryFeeCfa = command.customerDeliveryFeeCfa,
                 courierFeeCfa = command.courierFeeCfa,
+                freelancerFeeEstimateCfa = command.courierFeeCfa,
                 shortfallCfa = command.shortfallCfa,
                 createdAt = at,
                 updatedAt = at,
@@ -398,6 +419,7 @@ class DeliveryMissionService(
         }
         val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
         if (mission.status != DeliveryMissionRecordStatus.CREATED) return rejected("invalid_mission_state", "Only a new mission can be assigned.")
+        refreshWorkforce(mission, courierId)
         mission.courierId = courierId
         mission.assignedAt = at
         mission.updatedAt = at
@@ -419,6 +441,7 @@ class DeliveryMissionService(
             return rejected("mission_not_reassignable", "Only missions that have not been picked up can be reassigned.")
         }
 
+        refreshWorkforce(mission, courierId)
         mission.courierId = courierId
         mission.assignedAt = at
         mission.acceptedAt = null
@@ -732,6 +755,21 @@ class DeliveryMissionService(
             DeliveryMissionEvent.CourierDepositsAtRelay -> mission.relayDepositProofMetadata != null
             else -> false
         }
+    private fun refreshWorkforce(mission: DeliveryMission, courierId: String) {
+        val courier = couriers.findById(courierId).orElse(null)
+        require(courier == null || courier.status == "ACTIVE") { "Courier is unavailable." }
+        val estimate = mission.freelancerFeeEstimateCfa ?: mission.courierFeeCfa
+        mission.freelancerFeeEstimateCfa = estimate
+        mission.assignmentWorkforceType = when (courier?.workforceType?.uppercase()) {
+            "SEQUO_SALARIED", "SEQUOSALARIED", "SALARIED" -> DeliveryWorkforceType.SequoSalaried
+            "FREELANCER", "INDEPENDENT" -> DeliveryWorkforceType.Freelancer
+            else -> null
+        }
+        mission.assignmentReason = "Explicit staff assignment."
+        mission.courierFeeCfa = if (mission.assignmentWorkforceType == DeliveryWorkforceType.SequoSalaried) 0 else estimate
+        mission.shortfallCfa = if (mission.assignmentWorkforceType == DeliveryWorkforceType.SequoSalaried) 0 else (estimate - mission.customerDeliveryFeeCfa).coerceAtLeast(0)
+    }
+
     private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(mission.toSnapshot(), message)
     private fun rejected(code: String, message: String) = DeliveryMissionServiceResult.Rejected(code, message)
 
@@ -853,6 +891,10 @@ fun DeliveryMission.toSnapshot() =
         problemMetadata = problemMetadata,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        deliveryOption = deliveryOptionPayload?.let(::readDeliveryModeOffer),
+        subscriberPriority = subscriberPriority,
+        assignmentWorkforceType = assignmentWorkforceType,
+        assignmentReason = assignmentReason,
         relayDestination = relayDestinationPayload?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it) },
     )
 
@@ -883,6 +925,10 @@ internal fun DeliveryMission.toTrackingSnapshot() =
         relayDepositedAt = relayDepositedAt,
         deliveredAt = deliveredAt,
         updatedAt = updatedAt,
+        deliveryOption = deliveryOptionPayload?.let(::readDeliveryModeOffer),
+        subscriberPriority = subscriberPriority,
+        assignmentWorkforceType = assignmentWorkforceType,
+        assignmentReason = assignmentReason,
         relayDestination = relayDestinationPayload?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it) },
     )
 

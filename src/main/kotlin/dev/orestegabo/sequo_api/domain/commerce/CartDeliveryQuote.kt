@@ -35,6 +35,8 @@ data class CartDeliveryQuote(
     val currency: String = "XOF",
     val relayPointId: String? = null,
     val fulfillmentMode: String = "HOME",
+    val deliveryOption: dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer? = null,
+    val availableDeliveryModes: List<dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer> = emptyList(),
 )
 
 internal data class ReviewedCart(
@@ -50,6 +52,7 @@ class CartDeliveryQuoteService(
     private val commerce: CommerceService,
     private val addresses: CustomerAddressRepository,
     private val pricing: DeliveryPricingService,
+    private val options: dev.orestegabo.sequo_api.domain.delivery.DeliveryOptionsService,
     private val relays: dev.orestegabo.sequo_api.domain.relay.RelayAvailabilityService,
     @Value("\${sequo.cart.straight-line-dispatch-origin:}") configuredOrigin: String,
 ) {
@@ -61,10 +64,10 @@ class CartDeliveryQuoteService(
     private val distanceProvider = StraightLineRoutingDistanceProvider()
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    fun quote(userId: String, addressId: String, relayPointId: String? = null): CartDeliveryQuote = review(userId, addressId, relayPointId).quote
+    fun quote(userId: String, addressId: String, relayPointId: String? = null, deliveryMode: String? = null): CartDeliveryQuote = review(userId, addressId, relayPointId, deliveryMode).quote
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    internal fun review(userId: String, addressId: String, relayPointId: String? = null): ReviewedCart {
+    internal fun review(userId: String, addressId: String, relayPointId: String? = null, deliveryMode: String? = null): ReviewedCart {
         val address = requireNotNull(
             addresses.findByIdAndUserId(ApiInputPolicy.requiredIdentifier(addressId, "addressId"), userId)
                 ?.takeIf { it.active && it.kind != CustomerAddressKind.RELAY },
@@ -83,6 +86,8 @@ class CartDeliveryQuoteService(
         }
         val meters = distanceProvider.estimate(RoutingDistanceRequest(dispatchOrigin, GeoPoint(relay?.latitude ?: latitude, relay?.longitude ?: longitude)))
         val delivery = pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0))
+        val offers = options.offers(meters / 1000.0, delivery.finalDeliveryFeeCfa)
+        val selectedOption = options.select(deliveryMode, offers)
         val total = cart.subtotalCfa.toLong() + delivery.finalDeliveryFeeCfa
         require(total <= Int.MAX_VALUE) { "Cart quote is too large." }
         val destination = HomeDeliveryDestination(
@@ -91,7 +96,7 @@ class CartDeliveryQuoteService(
         )
         val orderPricing = OrderPricingSnapshot(cart.subtotalCfa, delivery, total.toInt())
         val snapshot = listOf(
-            destination, relay, orderPricing, meters,
+            destination, relay, selectedOption, orderPricing, meters,
             cart.items.sortedBy { it.id }.map {
                 listOf(it.id, it.product, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections)
             },
@@ -110,6 +115,8 @@ class CartDeliveryQuoteService(
             totalCfa = total.toInt(),
             relayPointId = relay?.id,
             fulfillmentMode = if (relay == null) "HOME" else "RELAY",
+            deliveryOption = selectedOption,
+            availableDeliveryModes = offers,
         )
         return ReviewedCart(cart, quote, destination, orderPricing, relay)
     }
@@ -120,6 +127,6 @@ class CartDeliveryQuoteService(
 @RestController
 class CartDeliveryQuoteController(private val quotes: CartDeliveryQuoteService) {
     @GetMapping("/api/cart/quote")
-    fun quote(@AuthenticationPrincipal userId: String?, @RequestParam addressId: String, @RequestParam(required = false) relayPointId: String?) =
-        authenticated(userId) { quotes.quote(it, addressId, relayPointId) }
+    fun quote(@AuthenticationPrincipal userId: String?, @RequestParam addressId: String, @RequestParam(required = false) relayPointId: String?, @RequestParam(required = false) deliveryMode: String?) =
+        authenticated(userId) { quotes.quote(it, addressId, relayPointId, deliveryMode) }
 }

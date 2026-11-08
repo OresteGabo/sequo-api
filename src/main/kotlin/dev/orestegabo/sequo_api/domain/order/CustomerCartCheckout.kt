@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 
 internal const val CART_CHECKOUT_PREFIX = "cart-"
 
-data class SubmitCartCheckoutRequest(val addressId: String, val quoteRevision: String, val paymentProvider: String, val relayPointId: String? = null)
+data class SubmitCartCheckoutRequest(val addressId: String, val quoteRevision: String, val paymentProvider: String, val relayPointId: String? = null, val deliveryMode: String? = null)
 
 data class CustomerCheckoutSummary(
     val checkoutId: String,
@@ -47,6 +47,7 @@ internal class CheckoutQuoteChanged : RuntimeException()
 @Service
 class CustomerCartCheckoutService(
     private val quotes: CartDeliveryQuoteService,
+    private val options: dev.orestegabo.sequo_api.domain.delivery.DeliveryOptionsService,
     private val users: UserRepository,
     private val checkouts: PendingPaymentCheckoutRepository,
     private val pending: PendingPaymentCheckoutService,
@@ -75,14 +76,14 @@ class CustomerCartCheckoutService(
         val checkoutId = "$CART_CHECKOUT_PREFIX$digest"
         checkouts.findByCheckoutIdAndCustomerId(checkoutId, customerId)?.let {
             val existing = mapper.readPendingRequest(it.requestPayload)
-            require(existing.homeDestination?.addressId == addressId && existing.relayDestination?.id == request.relayPointId && it.paymentProvider == provider.value) {
+            require(existing.homeDestination?.addressId == addressId && existing.relayDestination?.id == request.relayPointId && (request.deliveryMode == null || existing.deliveryOption?.id?.name == request.deliveryMode) && it.paymentProvider == provider.value) {
                 "Checkout retry must use the original address and payment provider."
             }
             return it.summary(existing)
         }
 
         val reviewed = try {
-            quotes.review(customerId, addressId, request.relayPointId)
+            quotes.review(customerId, addressId, request.relayPointId, request.deliveryMode)
         } catch (_: IllegalArgumentException) {
             throw CheckoutQuoteChanged()
         }
@@ -115,6 +116,7 @@ class CustomerCartCheckoutService(
             checkoutId, customerId, OrderServiceLevel.Regular, if (reviewed.relayDestination == null) OrderRoute.FastDelivery else OrderRoute.PointDeRelai,
             lines, reviewed.quote.distanceMeters / 1000.0,
             paymentProvider = provider, paymentReference = checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
+            deliveryOption = reviewed.quote.deliveryOption, subscriberPriority = options.subscriberPriority(customerId),
         )
         val result = processor.process(order, reviewed.pricing)
         val status = when (result) {

@@ -67,6 +67,10 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     private val relayLockers: dev.orestegabo.sequo_api.domain.hub.RelayLockerRepository,
     private val jdbc: org.springframework.jdbc.core.JdbcTemplate,
     private val relayCredentials: dev.orestegabo.sequo_api.domain.relay.RelayPickupCodeRecordRepository,
+    private val rateLimiter: dev.orestegabo.sequo_api.domain.auth.InMemoryRateLimiter,
+    private val modeEnvironment: org.springframework.core.env.ConfigurableEnvironment,
+    private val subscriptions: dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionRepository,
+    private val subscriptionPlans: dev.orestegabo.sequo_api.domain.platform.SubscriptionPlanRepository,
 ) {
     companion object {
         @JvmStatic @org.springframework.test.context.DynamicPropertySource
@@ -82,6 +86,9 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
             registry.add("spring.flyway.enabled") { "true" }
         }
     }
+    @org.junit.jupiter.api.BeforeEach
+    fun resetRequestBudget() { rateLimiter.resetForTests() }
+
     @LocalServerPort private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = ObjectMapper()
@@ -588,6 +595,133 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertTrue(read("GET", "/api/relay/parcels/storage-fees?relayPointId=${site.id}", journey.admin).isEmpty)
     }
 
+    @Test
+    fun configuredModesPersistThroughFulfillmentWithSubscriberPriorityAndIndependentFallback() {
+        val settings = modeFixtureSettings()
+        modeEnvironment.propertySources.addFirst(org.springframework.core.env.MapPropertySource("task16-fixture", settings))
+        val originalStatuses = couriers.findAll().associate { it.id to it.status }
+        try {
+            for (choice in listOf("EXPRESS", "CLASSIC", "DEFERRED")) {
+                couriers.findAll().forEach { it.status = "INACTIVE"; couriers.save(it) }
+                val journey = paidPickedUp(deliveryMode = choice, subscriber = choice != "CLASSIC", autoPickup = false)
+                val salaryUser = users.save(User(email = "salary-${UUID.randomUUID()}@fixture.invalid", provider = AuthProvider.EMAIL, roles = mutableSetOf(RoleCode.COURIER)))
+                val salary = couriers.save(CourierRecord("salary-${UUID.randomUUID()}", userId = salaryUser.id, workforceType = "SEQUO_SALARIED", vehicleType = "MOTO"))
+                if (choice == "DEFERRED") assertEquals(200, call("POST", "/api/delivery/missions/couriers/pause", journey.admin,
+                    """{"courierId":"${salary.id}","reason":"Fixture unavailable"}""").statusCode())
+                val path = "/api/delivery/missions/${journey.missionId}/assign-policy"
+                assertEquals(403, call("POST", path, journey.customer.token).statusCode())
+                assertEquals(403, call("POST", path, journey.rider).statusCode())
+                val assignedResponse = call("POST", path, journey.admin)
+                assertEquals(200, assignedResponse.statusCode(), assignedResponse.body())
+                val assigned = json.readTree(assignedResponse.body())
+                assertEquals(choice, assigned["deliveryOption"]["id"].asText())
+                assertEquals("LOCAL_FIXTURE_ONLY", assigned["deliveryOption"]["zoneId"].asText())
+                assertEquals(400, assigned["deliveryOption"]["deliveryFeeCfa"].asInt())
+                assertEquals(choice != "CLASSIC", assigned["subscriberPriority"].asBoolean())
+                assertEquals(if (choice == "EXPRESS") "SequoSalaried" else "Freelancer", assigned["assignmentWorkforceType"].asText())
+                if (choice == "EXPRESS") assertEquals(salary.id, assigned["courierId"].asText())
+                assertEquals(assigned["courierId"], readPost(path, journey.admin)["courierId"])
+                val courier = couriers.findById(assigned["courierId"].asText()).orElseThrow()
+                val rider = jwt.generateAccessToken(UserSession(requireNotNull(courier.userId), null, AuthProvider.EMAIL, setOf(RoleCode.COURIER)))
+                assertEquals(200, call("POST", "/api/delivery/missions/${journey.missionId}/offer", journey.admin).statusCode())
+                assertEquals(200, call("POST", "/api/rider/missions/${journey.missionId}/accept", rider).statusCode())
+                val mission = read("GET", "/api/rider/missions/${journey.missionId}", rider)
+                assertEquals(assigned["deliveryOption"], mission["deliveryOption"])
+                val ops = read("GET", "/api/admin/web/deliveries", journey.admin)["missions"].single { it["id"].asText() == journey.missionId }
+                assertEquals(assigned["deliveryOption"], ops["deliveryOption"])
+                assertEquals(200, call("POST", "/api/rider/missions/${journey.missionId}/pickup/complete", rider,
+                    """{"proofMetadata":"Mode fixture pickup","idempotencyKey":"pickup-${journey.missionId}"}""").statusCode())
+                assertEquals(200, call("POST", "/api/rider/missions/${journey.missionId}/delivery/complete", rider,
+                    """{"proofMetadata":"Customer handoff confirmed","idempotencyKey":"delivered-${journey.missionId}"}""").statusCode())
+                val order = read("GET", "/api/orders/${journey.orderId}", journey.customer.token)
+                assertEquals("DELIVERED", order["order"]["orderStatus"].asText())
+                assertEquals(assigned["deliveryOption"], order["deliveries"].single()["deliveryOption"])
+            }
+        } finally {
+            modeEnvironment.propertySources.remove("task16-fixture")
+            couriers.findAll().forEach { it.status = originalStatuses[it.id] ?: "INACTIVE"; couriers.save(it) }
+        }
+    }
+
+    @Test
+    fun staleOrOutOfZoneDeliveryChoicesCannotBypassAuthoritativeQuote() {
+        val settings = modeFixtureSettings()
+        modeEnvironment.propertySources.addFirst(org.springframework.core.env.MapPropertySource("task16-fixture", settings))
+        try {
+            val fixture = fixture()
+            fun reviewed() = read("GET", "/api/cart/quote?addressId=${fixture.addressId}&deliveryMode=CLASSIC", fixture.token)
+            val quote = reviewed()
+            assertEquals(3, quote["availableDeliveryModes"].size())
+            val body = """{"addressId":"${fixture.addressId}","quoteRevision":"${quote["revision"].asText()}","deliveryMode":"CLASSIC","paymentProvider":"yas_togo","subscriberPriority":true,"distanceKm":0,"totalCfa":1}"""
+            settings["sequo.delivery.modes.classic.enabled"] = false
+            assertEquals(409, call("POST", "/api/orders/checkouts", fixture.token, body).statusCode())
+            assertTrue(pending.findByCustomerIdOrderByCreatedAtDesc(fixture.userId).isEmpty())
+            settings["sequo.delivery.modes.classic.enabled"] = true
+            settings["sequo.delivery.modes.classic.eta-max-minutes"] = 300
+            assertEquals(409, call("POST", "/api/orders/checkouts", fixture.token, body).statusCode())
+            addresses.findById(fixture.addressId).orElseThrow().also { it.longitude = 0.2; addresses.save(it) }
+            assertEquals(400, call("GET", "/api/cart/quote?addressId=${fixture.addressId}&deliveryMode=CLASSIC", fixture.token).statusCode())
+            for ((longitude, fee) in listOf(0.0449 to 400, 0.0451 to 500)) {
+                addresses.findById(fixture.addressId).orElseThrow().also { it.longitude = longitude; addresses.save(it) }
+                assertEquals(fee, reviewed()["deliveryFeeCfa"].asInt())
+            }
+            val fresh = reviewed()
+            val accepted = call("POST", "/api/orders/checkouts", fixture.token, body.replace(quote["revision"].asText(), fresh["revision"].asText()))
+            assertEquals(202, accepted.statusCode(), accepted.body())
+            val stored = pending.findByCustomerIdOrderByCreatedAtDesc(fixture.userId).single()
+            assertFalse(json.readPendingRequest(stored.requestPayload).subscriberPriority)
+        } finally { modeEnvironment.propertySources.remove("task16-fixture") }
+    }
+
+    @Test
+    fun policyAssignmentCannotReserveOneCourierForTwoConcurrentMissions() {
+        modeEnvironment.propertySources.addFirst(org.springframework.core.env.MapPropertySource("task16-fixture", modeFixtureSettings()))
+        val statuses = couriers.findAll().associate { it.id to it.status }
+        try {
+            val first = paidPickedUp(deliveryMode = "CLASSIC", autoPickup = false)
+            val second = paidPickedUp(deliveryMode = "CLASSIC", autoPickup = false)
+            val eligibleId = couriers.findByUserId(requireNotNull(jwt.parseAccessToken(first.rider)).userId)!!.id
+            couriers.findAll().forEach { it.status = if (it.id == eligibleId) "ACTIVE" else "INACTIVE"; couriers.save(it) }
+            val calls = listOf(first, second).map { journey -> CompletableFuture.supplyAsync {
+                call("POST", "/api/delivery/missions/${journey.missionId}/assign-policy", journey.admin)
+            } }.map { it.join() }
+            assertEquals(1, calls.count { it.statusCode() == 200 })
+            assertEquals(1, calls.count { it.statusCode() == 409 })
+            assertEquals(1, listOf(first, second).count { deliveryMissions.findById(it.missionId).orElseThrow().courierId == eligibleId })
+        } finally {
+            modeEnvironment.propertySources.remove("task16-fixture")
+            couriers.findAll().forEach { it.status = statuses[it.id] ?: "INACTIVE"; couriers.save(it) }
+        }
+    }
+
+    @Test
+    fun manualReassignmentRefreshesWorkforceAndPreservesIndependentFeeEstimate() {
+        val journey = paidPickedUp(autoPickup = false)
+        val salaryUser = users.save(User(email = "salary-${UUID.randomUUID()}@fixture.invalid", provider = AuthProvider.EMAIL, roles = mutableSetOf(RoleCode.COURIER)))
+        val salary = couriers.save(CourierRecord("salary-${UUID.randomUUID()}", userId = salaryUser.id, workforceType = "SEQUO_SALARIED", vehicleType = "MOTO"))
+        val path = "/api/delivery/missions/${journey.missionId}"
+        val salaried = call("POST", "$path/assign", journey.admin, """{"courierId":"${salary.id}"}""")
+        assertEquals(200, salaried.statusCode(), salaried.body())
+        assertEquals(0, json.readTree(salaried.body())["courierFeeCfa"].asInt())
+        val independent = couriers.findByUserId(requireNotNull(jwt.parseAccessToken(journey.rider)).userId)!!
+        val changed = call("POST", "$path/reassign", journey.admin, """{"courierId":"${independent.id}"}""")
+        assertEquals(200, changed.statusCode(), changed.body())
+        val snapshot = json.readTree(changed.body())
+        assertEquals("Freelancer", snapshot["assignmentWorkforceType"].asText())
+        assertEquals(400, snapshot["courierFeeCfa"].asInt())
+        assertEquals(400, deliveryMissions.findById(journey.missionId).orElseThrow().freelancerFeeEstimateCfa)
+    }
+
+    private fun modeFixtureSettings(): MutableMap<String, Any> = mutableMapOf<String, Any>(
+        "sequo.delivery.zone-id" to "LOCAL_FIXTURE_ONLY", "sequo.delivery.max-distance-km" to 10.0,
+    ).also { settings ->
+        for ((mode, times) in mapOf("express" to (30 to 60), "classic" to (120 to 240), "deferred" to (1440 to 2880))) {
+            settings["sequo.delivery.modes.$mode.enabled"] = true
+            settings["sequo.delivery.modes.$mode.eta-min-minutes"] = times.first
+            settings["sequo.delivery.modes.$mode.eta-max-minutes"] = times.second
+        }
+    }
+
     private data class RelayFixture(val id: String, val slotId: String, val operator: String)
     private fun relayFixture(): RelayFixture {
         val user = users.save(User(email = "operator-${UUID.randomUUID()}@fixture.invalid", provider = AuthProvider.EMAIL, roles = mutableSetOf(RoleCode.RELAY_PARTNER)))
@@ -601,8 +735,13 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     }
 
     private data class RelayJourney(val customer: Fixture, val orderId: String, val missionId: String, val rider: String, val admin: String)
-    private fun paidPickedUp(relayId: String? = null, category: String? = null): RelayJourney {
+    private fun paidPickedUp(relayId: String? = null, category: String? = null, deliveryMode: String? = null, subscriber: Boolean = false, autoPickup: Boolean = true): RelayJourney {
         val fixture = fixture()
+        if (subscriber) {
+            val plan = subscriptionPlans.save(dev.orestegabo.sequo_api.domain.platform.SubscriptionPlanRecord("fixture-plan-${fixture.userId}", "Fixture paid plan", 1000, 0))
+            subscriptions.save(dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionRecord("fixture-sub-${fixture.userId}", fixture.userId, plan.id,
+                status = dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionStatus.ACTIVE, startedAt = Instant.now().minusSeconds(86400), currentPeriodEndsAt = Instant.now().plusSeconds(30L * 86400)))
+        }
         if (category != null) products.findById(fixture.productId).orElseThrow().also {
             it.category = category
             if (category in listOf("food", "perishable")) { it.cameraVerified = true; it.capturedAtLabel = Instant.now().toString() }
@@ -618,10 +757,10 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val merchant = jwt.generateAccessToken(UserSession(owner.first, null, AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_OWNER), setOf(merchantId)))
         val admin = account(RoleCode.ADMIN).second
         val rider = account(RoleCode.COURIER)
-        couriers.save(CourierRecord(id = "courier-${rider.first}", userId = rider.first, workforceType = "FREELANCER"))
-        val relayQuery = relayId?.let { "&relayPointId=$it" }.orEmpty()
+        couriers.save(CourierRecord(id = "courier-${rider.first}", userId = rider.first, workforceType = "FREELANCER", vehicleType = "MOTO"))
+        val relayQuery = relayId?.let { "&relayPointId=$it" }.orEmpty() + deliveryMode?.let { "&deliveryMode=$it" }.orEmpty()
         val quote = read("GET", "/api/cart/quote?addressId=${fixture.addressId}$relayQuery", fixture.token)
-        val relayField = relayId?.let { ",\"relayPointId\":\"$it\"" }.orEmpty()
+        val relayField = relayId?.let { ",\"relayPointId\":\"$it\"" }.orEmpty() + deliveryMode?.let { ",\"deliveryMode\":\"$it\"" }.orEmpty()
         val submit = call("POST", "/api/orders/checkouts", fixture.token,
             """{"addressId":"${fixture.addressId}","quoteRevision":"${quote["revision"].asText()}","paymentProvider":"yas_togo"$relayField}""")
         assertEquals(202, submit.statusCode(), submit.body())
@@ -636,6 +775,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         }
         val dispatched = readPost("/api/delivery/missions/dispatch-ready", admin)
         val missionId = dispatched["createdMissions"].single { it["orderId"].asText() == orderId }["id"].asText()
+        if (!autoPickup) return RelayJourney(fixture, orderId, missionId, rider.second, admin)
         assertEquals(200, call("POST", "/api/delivery/missions/$missionId/offer", admin).statusCode())
         assertEquals(200, call("POST", "/api/rider/missions/$missionId/accept", rider.second).statusCode())
         assertEquals(200, call("POST", "/api/rider/missions/$missionId/pickup/complete", rider.second,

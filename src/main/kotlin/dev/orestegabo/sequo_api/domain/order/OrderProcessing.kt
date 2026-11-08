@@ -93,6 +93,8 @@ data class OrderProcessingRequest(
     val countryCode: String = "TG",
     val homeDestination: HomeDeliveryDestination? = null,
     val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
+    val deliveryOption: dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer? = null,
+    val subscriberPriority: Boolean = false,
 )
 
 data class HomeDeliveryDestination(
