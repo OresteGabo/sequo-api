@@ -9,13 +9,21 @@ let dispositionOperation = null;
 let reviewOperation = null;
 let customerReturnOperation = null;
 let returnSiteId = "";
-const deviceId = sessionStorage.getItem('sequo_relay_device') || crypto.randomUUID();
-sessionStorage.setItem('sequo_relay_device', deviceId);
-const device = { deviceId, appSource: 'SEQUO_HUB', deviceLabel: 'Relay web' };
+const relayDeviceId = sessionStorage.getItem('sequo_relay_device') || crypto.randomUUID();
+sessionStorage.setItem('sequo_relay_device', relayDeviceId);
+let deviceId = relayDeviceId;
+let sessionKind = 'relay';
+const device = { deviceId: relayDeviceId, appSource: 'SEQUO_HUB', deviceLabel: 'Relay web' };
+const localAdminRequested = location.protocol === 'http:' && location.port === '5173' &&
+  ['127.0.0.1', 'localhost'].includes(location.hostname) &&
+  new URLSearchParams(location.search).get('session') === 'local-admin';
 function message(text) { el('message').textContent = text; }
-function clearSession() {
+function clearSession(clearCredentials = true) {
   accessToken = ''; selected = null; releaseOperation = null; dispositionOperation = null; reviewOperation = null; customerReturnOperation = null; returnSiteId = ''; sites = [];
-  sessionStorage.removeItem('sequo_relay_refresh');
+  if (clearCredentials && sessionKind === 'local-admin') {
+    sessionStorage.removeItem('sequo_admin_access_token'); sessionStorage.removeItem('sequo_admin_refresh_token');
+  } else if (clearCredentials) sessionStorage.removeItem('sequo_relay_refresh');
+  sessionKind = 'relay'; deviceId = relayDeviceId;
   el('workspace').hidden = true; el('login').hidden = false; el('detail').hidden = true;
   el('parcels').replaceChildren(); el('site').replaceChildren(); el('history').replaceChildren();
   el('parcel-title').textContent = ''; el('parcel-state').textContent = ''; el('deadlines').textContent = ''; el('return-confirmed').checked = false;
@@ -23,11 +31,14 @@ function clearSession() {
   el('identity').checked = false;
   clearCustomerReturns(true);
 }
-async function request(path, options = {}, authenticated = true) {
+async function request(path, options = {}, authenticated = true, retry = true) {
   const response = await fetch(path, { ...options, cache: 'no-store', headers: {
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(authenticated ? { Authorization: `Bearer ${accessToken}` } : {}),
   } });
+  if (authenticated && response.status === 401 && sessionKind === 'local-admin' && retry && await refreshAdminSession()) {
+    return request(path, options, authenticated, false);
+  }
   if (!response.ok) {
     if (authenticated && [401, 403].includes(response.status)) { clearSession(); throw Error('Session expirée ou accès refusé. Reconnectez-vous.'); }
     let error; try { error = await response.json(); } catch (_) { /* Empty error response. */ }
@@ -58,10 +69,49 @@ function updateDecisionDrafts() {
     if (pending && pending.id === selected?.id) el(field).value = pending.note;
   }
 }
-function saveTokens(tokens) { accessToken = tokens.accessToken; sessionStorage.setItem('sequo_relay_refresh', tokens.refreshToken); }
+function saveTokens(tokens) {
+  accessToken = tokens.accessToken;
+  if (sessionKind === 'local-admin') {
+    sessionStorage.setItem('sequo_admin_access_token', tokens.accessToken);
+    sessionStorage.setItem('sequo_admin_refresh_token', tokens.refreshToken);
+  } else sessionStorage.setItem('sequo_relay_refresh', tokens.refreshToken);
+}
+async function refreshAdminSession() {
+  const refreshToken = sessionStorage.getItem('sequo_admin_refresh_token');
+  if (!refreshToken) return false;
+  const response = await fetch('/api/auth/refresh', { method: 'POST', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken, deviceId }) });
+  if (!response.ok) return false;
+  const tokens = await response.json();
+  if (!tokens.accessToken || !tokens.refreshToken) return false;
+  saveTokens(tokens); return true;
+}
+async function restoreLocalAdminSession() {
+  // The fixed capability-only cross-origin request carries the browser's real Origin. A same-origin
+  // proxied GET would omit it. It carries no token, and cannot enable the server's local guard.
+  const capability = await fetch('http://127.0.0.1:55840/api/admin-auth/development-access', { cache: 'no-store' });
+  const access = capability.ok ? await capability.json() : null;
+  if (access?.enabled !== true || access.mode !== 'LOCAL_DEVELOPMENT') {
+    throw Error('Le partage de session est disponible uniquement dans l’espace local de développement.');
+  }
+  const adminDevice = localStorage.getItem('sequo_admin_device_id');
+  const token = sessionStorage.getItem('sequo_admin_access_token');
+  const refresh = sessionStorage.getItem('sequo_admin_refresh_token');
+  if (!adminDevice || (!token && !refresh)) throw Error('Ouvrez SEQUO Admin dans cet onglet et connectez-vous avant les opérations relais.');
+  sessionKind = 'local-admin'; deviceId = adminDevice; accessToken = token || '';
+  try {
+    if (!accessToken && !await refreshAdminSession()) { clearSession(); throw Error('La session administrateur a expiré. Reconnectez-vous dans SEQUO Admin.'); }
+    const user = await request('/api/auth/me');
+    if (!user?.active || user.status !== 'ACTIVE' || !Array.isArray(user.roles) ||
+        !user.roles.some(role => ['ADMIN', 'SUPER_ADMIN'].includes(role))) {
+      clearSession(); throw Error('Un compte administrateur SEQUO actif est requis.');
+    }
+    await openWorkspace();
+  } catch (error) { clearSession(false); throw error; }
+}
 async function openWorkspace() {
   sites = await request('/api/relay/parcels/sites');
-  if (!sites.length) { clearSession(); throw Error('Aucun point relais actif attribué à ce compte. Contactez SEQUO.'); }
+  if (!sites.length) { clearSession(sessionKind !== 'local-admin'); throw Error('Aucun point relais actif attribué à ce compte. Contactez SEQUO.'); }
   el('site').replaceChildren(...sites.map(site => { const option = document.createElement('option'); option.value = site.id; option.textContent = site.name; return option; }));
   el('login').hidden = true; el('workspace').hidden = false;
   await reload();
@@ -225,6 +275,11 @@ el('reload').onclick = () => void run(reload);
 el('evaluate').onclick = () => void run(async () => { await post('/api/relay/parcels/deadlines/evaluate', {relayPointId: el('site').value}); await reload(); });
 el('overdue-only').onchange = () => void run(reload);
 el('site').onchange = () => void run(reload);
-el('logout').onclick = () => void run(async () => { try { await post('/api/auth/logout', { refreshToken: sessionStorage.getItem('sequo_relay_refresh'), deviceId }); } finally { clearSession(); } });
+el('logout').onclick = () => void run(async () => {
+  const admin = sessionKind === 'local-admin';
+  try { await post('/api/auth/logout', { refreshToken: sessionStorage.getItem(admin ? 'sequo_admin_refresh_token' : 'sequo_relay_refresh'), deviceId }, !admin); }
+  finally { clearSession(); }
+});
 const refreshToken = sessionStorage.getItem('sequo_relay_refresh');
-if (refreshToken) void run(async () => { try { saveTokens(await post('/api/auth/refresh', { refreshToken, deviceId }, false)); await openWorkspace(); } catch (error) { clearSession(); throw error; } });
+if (localAdminRequested) void run(restoreLocalAdminSession);
+else if (refreshToken) void run(async () => { try { saveTokens(await post('/api/auth/refresh', { refreshToken, deviceId }, false)); await openWorkspace(); } catch (error) { clearSession(); throw error; } });
