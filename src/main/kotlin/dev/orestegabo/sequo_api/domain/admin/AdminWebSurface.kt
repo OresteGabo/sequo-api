@@ -645,7 +645,7 @@ private fun MerchantRecord.toAdminDto(): AdminMerchantDto =
         updatedAt = updatedAt,
     )
 
-private fun CustomerOrderRecord.toAdminDto(): AdminOrderDto =
+internal fun CustomerOrderRecord.toAdminDto(): AdminOrderDto =
     AdminOrderDto(
         id = id,
         customerId = customerId,
