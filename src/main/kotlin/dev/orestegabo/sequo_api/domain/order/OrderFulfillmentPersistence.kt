@@ -408,6 +408,7 @@ class OrderDeliveryLifecycleService(
     private val settlements: SettlementPersistenceService,
     private val publisher: ApplicationEventPublisher,
     private val missions: DeliveryMissionRepository,
+    @org.springframework.beans.factory.annotation.Value("\${sequo.returns.window-hours:72}") private val returnWindowHours: Long = 72,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -419,11 +420,15 @@ class OrderDeliveryLifecycleService(
     ): CustomerOrderSnapshot? {
         if (mission.status !in deliveryTerminalStatuses) return null
         val order = orders.lockForCompletion(mission.orderId) ?: return null
-        postDeliveryShortfall(mission, deliveredAt)
-        if (order.orderStatus == CustomerOrderStatus.DELIVERED) {
-            accrueMerchantPayouts(order, order.deliveredAt ?: deliveredAt)
+        if (order.deliveredAt != null || order.orderStatus in setOf(CustomerOrderStatus.DELIVERED,
+                CustomerOrderStatus.RETURN_REQUESTED, CustomerOrderStatus.REFUNDED)) {
+            // Mission retries must retain the authoritative handoff and any later return/refund state.
             return order.toSnapshot()
         }
+        if (order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT ||
+            order.paymentStatus != PaymentValidationStatus.Validated
+        ) return null
+        postDeliveryShortfall(mission, deliveredAt)
 
         val orderMissions = missions.findByOrderIdOrderByCreatedAtAsc(order.id)
         if (orderMissions.isNotEmpty()) {
@@ -432,7 +437,7 @@ class OrderDeliveryLifecycleService(
             if (orderMissions.any { it.status !in completed } || (orderMissions.any { it.merchantSubOrderId != null } && merchantSubOrders.findByOrderId(order.id).any { it.id !in covered })) return null
         }
         if (order.route == OrderRoute.GroupedSequo && orderMissions.none { it.merchantSubOrderId == null && it.status in setOf(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, DeliveryMissionRecordStatus.RELEASED_BY_RELAY) }) return null
-        val returnWindowEndsAt = deliveredAt.plusSeconds(72 * 60 * 60)
+        val returnWindowEndsAt = deliveredAt.plus(java.time.Duration.ofHours(returnWindowHours))
         order.orderStatus = CustomerOrderStatus.DELIVERED
         order.deliveredAt = deliveredAt
         order.returnWindowEndsAt = returnWindowEndsAt

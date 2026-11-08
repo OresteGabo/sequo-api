@@ -3,6 +3,7 @@ package dev.orestegabo.sequo_api.domain.order
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderStatus
+import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
 import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutAccrualCommand
 import dev.orestegabo.sequo_api.domain.settlement.SettlementPersistenceService
 import dev.orestegabo.sequo_api.domain.settlement.SettlementWorkflowType
@@ -111,23 +112,36 @@ class CustomerPickupConfirmationService(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val confirmations: CustomerPickupConfirmationRepository,
     private val settlements: SettlementPersistenceService,
+    @org.springframework.beans.factory.annotation.Value("\${sequo.returns.window-hours:72}") private val returnWindowHours: Long = 72,
 ) {
     @Transactional
     fun confirm(command: ConfirmCustomerPickupCommand): CustomerPickupConfirmationResult {
-        val order = orders.findById(command.orderId).orElse(null)
+        val order = orders.lockForCompletion(command.orderId)
             ?: return rejected("order_not_found", "Customer order was not found.")
-        val existing = confirmations.findByOrderIdAndIdempotencyKey(command.orderId, command.idempotencyKey)
-        if (existing != null) {
-            return CustomerPickupConfirmationResult.Success(existing.toSnapshot(order))
-        }
         if (order.customerId != command.customerId) {
             return rejected("customer_scope_mismatch", "This customer cannot confirm pickup for another customer order.")
+        }
+        val existing = confirmations.findByOrderIdAndIdempotencyKey(command.orderId, command.idempotencyKey)
+            ?: confirmations.findByOrderIdOrderByConfirmedAtAsc(command.orderId)
+                .firstOrNull { it.customerId == order.customerId }
+        if (existing != null) {
+            if (existing.customerId != order.customerId) {
+                return rejected("customer_scope_mismatch", "This pickup confirmation belongs to another customer.")
+            }
+            // A new retry key still refers to the original handoff, including after a return or refund.
+            return CustomerPickupConfirmationResult.Success(existing.toSnapshot(order))
         }
         if (order.route != OrderRoute.Pickup) {
             return rejected("not_pickup_order", "Customer pickup confirmation is only allowed for pickup orders.")
         }
-        if (order.orderStatus == CustomerOrderStatus.DELIVERED) {
+        if (order.deliveredAt != null || order.orderStatus in setOf(CustomerOrderStatus.DELIVERED,
+                CustomerOrderStatus.RETURN_REQUESTED, CustomerOrderStatus.REFUNDED)) {
             return rejected("pickup_already_confirmed", "This pickup order is already delivered.")
+        }
+        if (order.paymentStatus != PaymentValidationStatus.Validated ||
+            order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT
+        ) {
+            return rejected("order_not_paid_or_active", "Only a verified paid and active order can be collected.")
         }
         val subOrders = merchantSubOrders.findByOrderId(order.id)
         if (subOrders.isEmpty()) {
@@ -138,7 +152,7 @@ class CustomerPickupConfirmationService(
             return rejected("pickup_not_ready", "All merchant packages must be ready before customer pickup.")
         }
 
-        val returnWindowEndsAt = command.confirmedAt.plusSeconds(RETURN_WINDOW_SECONDS)
+        val returnWindowEndsAt = command.confirmedAt.plus(java.time.Duration.ofHours(returnWindowHours))
         order.orderStatus = CustomerOrderStatus.DELIVERED
         order.deliveredAt = command.confirmedAt
         order.returnWindowEndsAt = returnWindowEndsAt
@@ -233,7 +247,4 @@ class CustomerPickupConfirmationService(
             returnWindowEndsAt = order.returnWindowEndsAt,
         )
 
-    private companion object {
-        const val RETURN_WINDOW_SECONDS = 72L * 60L * 60L
-    }
 }
