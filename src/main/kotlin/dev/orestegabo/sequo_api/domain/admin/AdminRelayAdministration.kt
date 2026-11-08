@@ -153,8 +153,8 @@ class AdminRelayAdministrationService(
             mapOf("missionId" to missionId, "lockerId" to lockerId, "physicalReceiptConfirmed" to "true",
                 "expectedMissionUpdatedAt" to expected(request.expectedMissionUpdatedAt).toString(), "expectedSlotUpdatedAt" to expected(request.expectedSlotUpdatedAt).toString()))
         replay(intent)?.let { return response(it, missionId) }
-        val reference = missions.findById(missionId).orElse(null) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
-        orders.lockForCompletion(reference.orderId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+        val orderId = missions.orderReference(missionId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+        orders.lockForCompletion(orderId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
         val mission = requireNotNull(missions.lockForAction(missionId)); site(id)
         val slot = requireNotNull(lockers.lockForDeposit(lockerId)) { "Logical slot was not found." }
         replay(intent)?.let { return response(it, missionId) }

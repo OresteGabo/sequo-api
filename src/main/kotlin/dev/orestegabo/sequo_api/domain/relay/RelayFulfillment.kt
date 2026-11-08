@@ -39,8 +39,10 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
     }
 
     private fun depositInternal(missionId: String, actor: String, relayPointId: String?, lockerCode: String?, proof: String?, key: String?, bySequo: Boolean): DeliveryMissionServiceResult {
-        val reference = missions.findById(missionId).orElse(null) ?: throw IllegalArgumentException("Mission is unavailable.")
-        orders.lockForCompletion(reference.orderId) ?: throw IllegalArgumentException("Order is unavailable.")
+        // Do not attach a mission before waiting for its parent lock: a concurrent completed
+        // deposit would leave that managed version stale when the mission lock is acquired.
+        val orderId = missions.orderReference(missionId) ?: throw IllegalArgumentException("Mission is unavailable.")
+        orders.lockForCompletion(orderId) ?: throw IllegalArgumentException("Order is unavailable.")
         val mission = requireNotNull(missions.lockForAction(missionId)) { "Mission is unavailable." }
         if (!bySequo) require(mission.courierId != null && mission.courierId == delivery.courierIdForActor(actor)) { "Only the assigned courier may deposit this parcel." }
         require(!key.isNullOrBlank() && key.length <= 128) { "A stable deposit retry key is required." }

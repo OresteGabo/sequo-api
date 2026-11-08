@@ -160,6 +160,8 @@ class DeliveryProblemResolutionRecord(
 }
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
+    @Query("select m.orderId from DeliveryMission m where m.id = :id")
+    fun orderReference(id: String): String?
     fun countByCourierIdAndStatusInAndIdNot(courierId: String, status: Collection<DeliveryMissionRecordStatus>, id: String): Long
     fun countByCourierIdAndStatusIn(courierId: String, status: Collection<DeliveryMissionRecordStatus>): Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)

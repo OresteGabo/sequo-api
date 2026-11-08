@@ -132,7 +132,9 @@ class AdminRelayAdministrationHttpTest @Autowired constructor(
         val product = products.findById(context.generalProductId).orElseThrow(); product.category = "Food"; products.saveAndFlush(product)
         assertEquals(400, request("POST", "$root/$target/deposits", body).statusCode())
         products.findById(context.generalProductId).orElseThrow().also { it.category = "GenericSealedItem"; products.saveAndFlush(it) }
-        val deposited = ok(request("POST", "$root/$target/deposits", body))
+        val simultaneous = (1..2).map { CompletableFuture.supplyAsync { request("POST", "$root/$target/deposits", body) } }.map { ok(it.join()) }
+        assertEquals(simultaneous[0]["operation"]["id"], simultaneous[1]["operation"]["id"])
+        val deposited = simultaneous.first()
         val parcelId = deposited["parcelId"].asText()
         assertEquals("DEPOSITED_AT_RELAY", deposited["mission"]["status"].asText())
         assertEquals(context.courierIds[0], deposited["mission"]["courierId"].asText())
@@ -140,6 +142,7 @@ class AdminRelayAdministrationHttpTest @Autowired constructor(
         assertEquals(adminId, custody.findByRelayParcelIdOrderByCreatedAtAsc(parcelId).single { it.type == RelayCustodyEventType.Deposit }.actorUserId)
         assertEquals(HubLockerStatus.OCCUPIED, lockers.findById(targetSlot.id).orElseThrow().status)
         assertEquals(1, parcels.findByDeliveryMissionId(mission.id).size)
+        assertEquals(1L, jdbc.queryForObject("select count(*) from relay_pickup_codes where relay_parcel_id=?", Long::class.java, parcelId))
         assertEquals(deposited["operation"]["id"], ok(request("POST", "$root/$target/deposits", body))["operation"]["id"])
         assertEquals(409, request("POST", "$root/$target/deposits", body + ("reason" to "Changed repeated intent")).statusCode())
         val occupied = lockers.findById(targetSlot.id).orElseThrow()
