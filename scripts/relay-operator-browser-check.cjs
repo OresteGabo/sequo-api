@@ -3,7 +3,7 @@ const http = require('node:http');
 const assert = require('node:assert/strict');
 const puppeteer = require('puppeteer-core');
 const base = process.cwd() + '/src/main/resources/static/';
-let state = 'Deposited'; let offline = false; let expired = false;
+let note = ''; let overdue = false; let state = 'Deposited'; let offline = false; let expired = false;
 const calls = [];
 const server = http.createServer(async (req, res) => {
   if (req.url === '/relay-operator.html' || req.url === '/relay-operator.js') {
@@ -16,10 +16,12 @@ const server = http.createServer(async (req, res) => {
   if (req.url.startsWith('/api/relay/') && expired) { res.statusCode = 403; res.end('{}'); return; }
   if (offline && req.url.startsWith('/api/relay/')) { res.statusCode = 503; res.end('{}'); return; }
   let response = {};
-  const parcel = {id:'parcel-fixture-A',relayPointId:'site-A',status:state,history:[{type:'Deposit',createdAt:'2026-11-08T00:00:00Z'}, ...(state === 'PickedUp' ? [{type:'RelayRelease',createdAt:'2026-11-08T00:10:00Z'}]:[])]};
+  const parcel = {id:'parcel-fixture-A',relayPointId:'site-A',status:state,custody:{feeStartsAt:'2026-10-08T00:00:00Z',reviewDueAt:'2026-10-30T00:00:00Z',storageFeeEligible:overdue && state !== 'PickedUp',reviewDue:overdue && state !== 'PickedUp',feePolicyKnown:true},history:[{type:'Deposit',createdAt:'2026-11-08T00:00:00Z'}, ...(note ? [{type:'Review',createdAt:'2026-11-08T00:05:00Z',message:note}]:[]), ...(state === 'PickedUp' ? [{type:'RelayRelease',createdAt:'2026-11-08T00:10:00Z'}]:[])]};
   if (req.url.includes('/verify') || req.url.includes('/refresh')) response = {accessToken:'fixture-access',refreshToken:'fixture-refresh'};
-  else if(req.url.endsWith('/sites')) response = [{id:'site-A',name:'Relais A'}];
+  else if(req.url.endsWith('/sites')) response = [{id:'site-A',name:'Relais A',canReturnToSeller:true}];
+  else if(req.url.endsWith('/deadlines/evaluate')) {overdue=true;response=[];}
   else if(req.url.includes('?relayPointId=')) response = [parcel];
+  else if(req.url.endsWith('/review')) {note=JSON.parse(raw).metadata;response=parcel;}
   else if(req.url.endsWith('/release')) {state = 'PickedUp'; response = {parcel:{...parcel,status:state}};}
   else if(req.url.includes('/parcels/')) response = parcel;
   res.end(JSON.stringify(response));
@@ -34,7 +36,14 @@ const server = http.createServer(async (req, res) => {
     await page.type('#phone','+22890000000'); await page.click('#request-code button');
     await page.waitForSelector('#verify-code:not([hidden])'); await page.type('#otp','123456'); await page.click('#verify-code button');
     await page.waitForSelector('#parcels button'); await page.click('#parcels button'); await page.waitForSelector('#detail:not([hidden])');
-    await page.type('#numeric','123456'); await page.click('#issue button'); await page.waitForFunction(()=>document.getElementById('numeric').value === '');
+    await page.click('#evaluate'); await page.waitForFunction(()=>document.getElementById('message').textContent === 'À jour.' && !document.getElementById('evaluate').disabled); await page.waitForSelector('#parcels button'); await page.click('#parcels button');
+    await page.waitForSelector('#review:not([hidden])');
+    await page.type('#review-note','Hold for SEQUO coordination'); await page.click('#review button');
+    await page.waitForFunction(()=>document.getElementById('review-note').value === '');
+    await page.waitForFunction(()=>document.getElementById('history').textContent.includes('coordination'));
+    assert.ok(calls.some(c=>c.path.endsWith('/review') && c.body.metadata.includes('coordination')));
+    await page.click('#issue button'); await page.waitForFunction(()=>document.getElementById('message').textContent === 'À jour.');
+    assert.ok(calls.some(c=>c.path.endsWith('/pickup-credential')));
     await page.type('#pickup','123456'); await page.click('#identity'); await page.click('#release button');
     await page.waitForFunction(()=>document.getElementById('parcel-state').textContent.includes('Retiré'));
     assert.equal(calls.find(c=>c.path.endsWith('/release')).body.identityDocumentMatched,true);
@@ -42,7 +51,7 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.$eval('#release',e=>e.hidden),true);
     assert.ok(await page.$eval('#parcels',e=>e.textContent.includes('Retiré')));
     await page.screenshot({path:'/tmp/sequo-task13-web.png',fullPage:true});
-    await page.reload(); await page.waitForSelector('#parcels button');
+    await page.reload(); await page.waitForSelector('#parcels button'); await page.click('#parcels button'); await page.waitForFunction(()=>document.getElementById('history').textContent.includes('Retrait validé'));
     assert.ok(calls.some(c=>c.path.endsWith('/refresh')));
     offline=true; await page.click('#reload'); await page.waitForFunction(()=>document.getElementById('message').textContent.includes('503'));
     offline=false; expired=true; await page.click('#reload'); await page.waitForSelector('#login:not([hidden])');
@@ -50,6 +59,6 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.$eval('#parcel-title',e=>e.textContent),'');
     assert.equal(await page.$eval('#history',e=>e.children.length),0);
     assert.deepEqual(errors,[]);
-    console.log('PASS: mobile browser sign-in, scoped list/detail, issuance, identity release, refresh restore, offline error, expired session clearing. Mock HTTP only.');
+    console.log('PASS: overdue evaluation/review, managed issuance, mobile browser sign-in, scoped list/detail, issuance, identity release, refresh restore, offline error, expired session clearing. Mock HTTP only.');
   } finally {await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

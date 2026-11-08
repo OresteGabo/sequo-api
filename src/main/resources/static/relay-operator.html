@@ -15,12 +15,16 @@ body{font:18px system-ui,sans-serif;max-width:64rem;margin:2rem auto;padding:0 1
 </section>
 <main id="workspace" hidden>
 <button id="logout">Déconnexion</button>
-<label>Point relais<select id="site"></select></label><button id="reload">Actualiser</button>
+<label>Point relais<select id="site"></select></label><button id="reload">Actualiser</button><button id="evaluate">Actualiser les délais</button>
+<label><input id="overdue-only" type="checkbox"> Colis en retard / à examiner</label>
 <p>Les produits alimentaires, périssables et sensibles sont exclus. Vérifiez la pièce d’identité avant le retrait.</p>
 <section><h2>Colis et historique</h2><p id="empty" hidden>Aucun colis.</p><ul id="parcels"></ul></section>
 <section id="detail" hidden>
 <h2 id="parcel-title"></h2><p id="parcel-state"></p><ul id="history"></ul>
-<form id="issue"><h3>Associer un code de retrait</h3><label>Code à six chiffres<input id="numeric" pattern="[0-9]{6}" inputmode="numeric" required></label><label>Valeur QR (facultative, 16 caractères minimum)<input id="qr-new" minlength="16"></label><button>Associer pour 24 heures</button></form>
+<p id="deadlines"></p>
+<form id="issue"><h3>Code de retrait client</h3><p>Le code et le QR sont accessibles uniquement dans la commande du client connecté. La création ou le renouvellement conserve l’historique.</p><button>Créer ou renouveler le code client</button></form>
+<form id="review" hidden><h3>Décision opérateur</h3><label>Instruction / demande de prise en charge SEQUO<textarea id="review-note" required maxlength="2000"></textarea></label><button>Conserver au relais et consigner la décision</button></form>
+<form id="seller-return" hidden><h3>Retour vendeur confirmé</h3><label>Référence de remise au vendeur<textarea id="return-note" required maxlength="2000"></textarea></label><label><input id="return-confirmed" type="checkbox" required> Retour physique au vendeur confirmé</label><button>Enregistrer le retour vendeur</button></form>
 <form id="release"><h3>Valider le retrait</h3><label>Code numérique<input id="pickup" inputmode="numeric" pattern="[0-9]{6}"></label><label>Ou valeur du QR présenté<input id="qr-pickup"></label><label><input id="identity" type="checkbox" required> Pièce d’identité vérifiée et correspondante</label><button>Confirmer le retrait</button></form>
 <form id="problem"><h3>Signaler un problème</h3><label>Description<textarea id="reason" maxlength="2000" required></textarea></label><button>Enregistrer le problème</button></form>
 </section>
