@@ -66,6 +66,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     private val relayPoints: dev.orestegabo.sequo_api.domain.relay.RelayPointRepository,
     private val relayLockers: dev.orestegabo.sequo_api.domain.hub.RelayLockerRepository,
     private val jdbc: org.springframework.jdbc.core.JdbcTemplate,
+    private val relayCredentials: dev.orestegabo.sequo_api.domain.relay.RelayPickupCodeRecordRepository,
 ) {
     companion object {
         @JvmStatic @org.springframework.test.context.DynamicPropertySource
@@ -513,6 +514,78 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
             assertEquals(400, call("POST", "/api/delivery/missions/${excluded.missionId}/relay-reroute", excluded.admin,
                 """{"relayPointId":"${freeSite.id}","customerApproved":true,"reason":"Attempt excluded category","idempotencyKey":"reroute-${excluded.missionId}"}""").statusCode())
         }
+    }
+
+    @Test
+    fun managedRelayPickupIsOwnedReloadableExpiredAndReleasedAtomically() {
+        val site = relayFixture(); val journey = paidPickedUp(site.id)
+        val deposit = call("POST", "/api/rider/missions/${journey.missionId}/relay-deposit", journey.rider,
+            """{"relayPointId":"${site.id}","lockerCode":"SLOT-1","proofMetadata":"Custody accepted","idempotencyKey":"deposit-${journey.missionId}"}""")
+        assertEquals(200, deposit.statusCode(), deposit.body())
+        val path = "/api/orders/${journey.orderId}/relay-pickups"
+        val response = call("GET", path, journey.customer.token)
+        assertEquals("no-store", response.headers().firstValue("Cache-Control").orElse(""))
+        val original = json.readTree(response.body()).single()
+        assertEquals("READY", original["credentialState"].asText())
+        assertTrue(original["numericCode"].asText().matches(Regex("[0-9]{6}")))
+        assertEquals(original, read("GET", path, journey.customer.token).single())
+        for (token in listOf(fixture().token, journey.admin, site.operator)) assertEquals(404, call("GET", path, token).statusCode())
+        val rows = original["qrModules"].map { it.asText() }; val size = rows.size
+        val pixels = IntArray(size * size) { if (rows[it / size][it % size] == '1') 0xff000000.toInt() else 0xffffffff.toInt() }
+        val bitmap = com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(com.google.zxing.RGBLuminanceSource(size, size, pixels)))
+        assertEquals(original["qrNonce"].asText(), com.google.zxing.qrcode.QRCodeReader().decode(bitmap, mapOf(com.google.zxing.DecodeHintType.PURE_BARCODE to true)).text)
+        val parcelId = original["parcelId"].asText()
+        val saved = relayCredentials.findFirstByRelayParcelIdOrderByCreatedAtDesc(parcelId)!!
+        assertEquals(1, saved.customerDeliveryVersion)
+        assertFalse(saved.codeHash.contains(original["numericCode"].asText()))
+        jdbc.update("update relay_pickup_codes set expires_at=? where id=?", java.sql.Timestamp.from(Instant.now().minusSeconds(1)), saved.id)
+        val expired = read("GET", path, journey.customer.token).single()
+        assertEquals("EXPIRED", expired["credentialState"].asText()); assertTrue(expired["numericCode"].isNull)
+        val releasePath = "/api/relay/parcels/$parcelId/release"
+        val key = "pickup-$parcelId"
+        fun body(qr: String, identity: Boolean = true, retryKey: String = key) = """{"relayPointId":"${site.id}","rawQrNonce":"$qr","identityDocumentMatched":$identity,"eventId":"release-$parcelId","idempotencyKey":"$retryKey"}"""
+        assertEquals(400, call("POST", releasePath, site.operator, body(original["qrNonce"].asText())).statusCode())
+        assertEquals(200, call("POST", "$path/$parcelId/credential", journey.customer.token).statusCode())
+        val renewed = read("GET", path, journey.customer.token).single()
+        assertEquals("READY", renewed["credentialState"].asText())
+        assertFalse(original["qrNonce"] == renewed["qrNonce"])
+        assertEquals(400, call("POST", releasePath, site.operator, body(original["qrNonce"].asText())).statusCode())
+        assertEquals(400, call("POST", releasePath, site.operator, body(renewed["qrNonce"].asText(), false)).statusCode())
+        val calls = (1..2).map { CompletableFuture.supplyAsync { call("POST", releasePath, site.operator, body(renewed["qrNonce"].asText())) } }.map { it.join() }
+        calls.forEach { assertEquals(200, it.statusCode(), it.body()) }
+        assertEquals(400, call("POST", releasePath, site.operator, body(renewed["qrNonce"].asText(), retryKey = "different-$key")).statusCode())
+        val closed = read("GET", path, journey.customer.token).single()
+        assertEquals("CLOSED", closed["credentialState"].asText()); assertTrue(closed["numericCode"].isNull)
+        val order = read("GET", "/api/orders/${journey.orderId}", journey.customer.token)
+        assertEquals("DELIVERED", order["order"]["orderStatus"].asText())
+        assertEquals("RELEASED_BY_RELAY", order["deliveries"].single()["status"].asText())
+        assertEquals(1, read("GET", "/api/relay/parcels/$parcelId", site.operator)["history"].count { it["type"].asText() == "RelayRelease" })
+    }
+
+    @Test
+    fun overdueReviewAndSellerReturnAreExplicitScopedAndDoNotChargeAutomatically() {
+        val site = relayFixture(); val journey = paidPickedUp(site.id)
+        assertEquals(200, call("POST", "/api/rider/missions/${journey.missionId}/relay-deposit", journey.rider,
+            """{"relayPointId":"${site.id}","lockerCode":"SLOT-1","proofMetadata":"Custody accepted","idempotencyKey":"deposit-${journey.missionId}"}""").statusCode())
+        val parcelId = "mission-${journey.missionId}"
+        val returnPath = "/api/relay/parcels/$parcelId/return-to-seller"
+        val returned = """{"eventId":"return-$parcelId","idempotencyKey":"return-$parcelId","metadata":"Seller physically received staged parcel"}"""
+        assertEquals(400, call("POST", returnPath, journey.admin, returned).statusCode())
+        val old = Instant.now().minusSeconds(30L * 86400 + 1)
+        jdbc.update("update relay_parcels set deposited_at=?,fee_starts_at=? where id=?", java.sql.Timestamp.from(old), java.sql.Timestamp.from(old.plusSeconds(8L * 86400)), parcelId)
+        assertTrue(read("GET", "/api/relay/parcels/overdue?relayPointId=${site.id}", site.operator).any { it["id"].asText() == parcelId })
+        assertEquals(200, call("POST", "/api/relay/parcels/deadlines/evaluate", site.operator, """{"relayPointId":"${site.id}"}""").statusCode())
+        assertEquals(200, call("POST", "/api/relay/parcels/$parcelId/review", site.operator,
+            """{"eventId":"review-$parcelId","idempotencyKey":"review-$parcelId","metadata":"Hold for SEQUO seller coordination"}""").statusCode())
+        val parcel = read("GET", "/api/relay/parcels/$parcelId", site.operator)
+        assertEquals("ReturnToSellerReview", parcel["status"].asText())
+        assertTrue(parcel["history"].any { it["message"].asText().contains("seller coordination") })
+        assertEquals(403, call("POST", returnPath, site.operator, returned).statusCode())
+        repeat(2) { assertEquals(200, call("POST", returnPath, journey.admin, returned).statusCode()) }
+        assertEquals("ReturnedToSeller", read("GET", "/api/relay/parcels/$parcelId", site.operator)["status"].asText())
+        assertTrue(read("GET", "/api/relay/parcels/overdue?relayPointId=${site.id}", site.operator).none { it["id"].asText() == parcelId })
+        assertEquals("CANCELLED", read("GET", "/api/rider/missions/${journey.missionId}", journey.rider)["status"].asText())
+        assertTrue(read("GET", "/api/relay/parcels/storage-fees?relayPointId=${site.id}", journey.admin).isEmpty)
     }
 
     private data class RelayFixture(val id: String, val slotId: String, val operator: String)

@@ -175,6 +175,10 @@ class OrderPricingSnapshotRecord(
 )
 
 interface CustomerOrderRecordRepository : JpaRepository<CustomerOrderRecord, String> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select o from CustomerOrderRecord o where o.id = :id")
+    fun lockForCompletion(id: String): CustomerOrderRecord?
+
     fun findByCheckoutId(checkoutId: String): CustomerOrderRecord?
     fun findByCustomerIdOrderByCreatedAtDesc(customerId: String): List<CustomerOrderRecord>
 }
@@ -403,6 +407,7 @@ class OrderDeliveryLifecycleService(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val settlements: SettlementPersistenceService,
     private val publisher: ApplicationEventPublisher,
+    private val missions: DeliveryMissionRepository,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -413,13 +418,19 @@ class OrderDeliveryLifecycleService(
         deliveredAt: Instant = mission.deliveredAt ?: Instant.now(),
     ): CustomerOrderSnapshot? {
         if (mission.status !in deliveryTerminalStatuses) return null
-        val order = orders.findById(mission.orderId).orElse(null) ?: return null
+        val order = orders.lockForCompletion(mission.orderId) ?: return null
         postDeliveryShortfall(mission, deliveredAt)
         if (order.orderStatus == CustomerOrderStatus.DELIVERED) {
             accrueMerchantPayouts(order, order.deliveredAt ?: deliveredAt)
             return order.toSnapshot()
         }
 
+        val orderMissions = missions.findByOrderIdOrderByCreatedAtAsc(order.id)
+        if (orderMissions.isNotEmpty()) {
+            val completed = setOf(DeliveryMissionRecordStatus.DELIVERED_TO_CUSTOMER, DeliveryMissionRecordStatus.RELEASED_BY_RELAY)
+            val covered = orderMissions.filter { it.status in completed }.mapNotNull { it.merchantSubOrderId }.toSet()
+            if (orderMissions.any { it.status !in completed } || (orderMissions.any { it.merchantSubOrderId != null } && merchantSubOrders.findByOrderId(order.id).any { it.id !in covered })) return null
+        }
         val returnWindowEndsAt = deliveredAt.plusSeconds(72 * 60 * 60)
         order.orderStatus = CustomerOrderStatus.DELIVERED
         order.deliveredAt = deliveredAt

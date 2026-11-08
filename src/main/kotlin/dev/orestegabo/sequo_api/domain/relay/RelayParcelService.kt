@@ -26,6 +26,8 @@ enum class RelayCustodyEventType {
     SequoCollection,
     ReturnDropoff,
     Problem,
+    Delay,
+    Review,
 }
 
 data class RelayLocker(
@@ -75,6 +77,7 @@ data class RelayPickupCode(
     val usedAt: Instant? = null,
     val attemptCount: Int = 0,
     val createdAt: Instant,
+    val customerDeliveryVersion: Int? = null,
 ) {
     init {
         require(id.isNotBlank()) { "id is required." }

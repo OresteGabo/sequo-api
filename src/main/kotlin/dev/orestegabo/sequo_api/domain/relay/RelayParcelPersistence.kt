@@ -78,6 +78,7 @@ class RelayPickupCodeRecord(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "relay_parcel_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_pickup_codes_parcel"))
     val relayParcel: RelayParcelRecord? = null,
+    @Column(name = "customer_delivery_version") val customerDeliveryVersion: Int? = null,
     @Column(name = "code_hash", nullable = false) val codeHash: String,
     @Column(name = "qr_nonce_hash") val qrNonceHash: String? = null,
     @Column(name = "identity_check_required", nullable = false) val identityCheckRequired: Boolean = true,
@@ -128,7 +129,16 @@ class RelayStorageFeeAssessmentRecord(
     @Version @Column(nullable = false) var version: Long = 0,
 )
 
+interface RelayParcelReference { val orderId: String?; val deliveryMissionId: String? }
+
 interface RelayParcelRecordRepository : JpaRepository<RelayParcelRecord, String> {
+    @org.springframework.data.jpa.repository.Query("select p.orderId as orderId, p.deliveryMissionId as deliveryMissionId from RelayParcelRecord p where p.id = :id")
+    fun reference(id: String): RelayParcelReference?
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select p from RelayParcelRecord p where p.relayPointId = :site order by p.id")
+    fun lockForReview(site: String): List<RelayParcelRecord>
+
+    fun findByOrderIdOrderByCreatedAtAsc(orderId: String): List<RelayParcelRecord>
     fun findByDeliveryMissionId(deliveryMissionId: String): List<RelayParcelRecord>
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select p from RelayParcelRecord p where p.id = :id")
@@ -186,6 +196,8 @@ class RelayParcelPersistenceService(
     fun findParcel(id: String): RelayParcel? = parcels.findById(id).orElse(null)?.toDomain(
         events.findByRelayParcelIdOrderByCreatedAtAsc(id).map { it.toDomain() }
     )
+
+    fun lockReviewParcels(site: String): List<RelayParcel> = parcels.lockForReview(site).map { requireNotNull(findParcel(it.id)) }
 
     fun lockParcel(id: String): RelayParcel? = parcels.lockForPickup(id)?.let { findParcel(id) }
     fun codeExists(id: String): Boolean = pickupCodes.existsById(id)
@@ -410,15 +422,16 @@ class RelayParcelApplicationService(
 
     @Transactional
     fun evaluateDelayed(relayPointId: String, evaluatedAt: java.time.Instant): List<RelayParcel> =
-        persistence.listParcels(relayPointId)
-            .mapNotNull { parcel ->
-                val updated = domain.markDelayedIfNeeded(parcel, evaluatedAt)
-                if (updated.status in delayedNotificationStatuses && updated.status != parcel.status) {
-                    persistence.save(updated).also { publishRelayDelayEvent(it) }
-                } else {
-                    null
-                }
-            }
+        persistence.lockReviewParcels(relayPointId).mapNotNull { parcel ->
+            val updated = domain.markDelayedIfNeeded(parcel, evaluatedAt)
+            if (updated.status !in delayedNotificationStatuses || updated.status == parcel.status) return@mapNotNull null
+            val type = if (updated.status == RelayParcelStatus.ReturnToSellerReview) RelayCustodyEventType.Review else RelayCustodyEventType.Delay
+            val event = RelayCustodyEvent("${parcel.id}:deadline:${updated.status.name}", parcel.id, null, type,
+                "Relay deadline reached: ${updated.status.name}.", "deadline:${updated.status.name}", evaluatedAt)
+            persistence.saveProblem(updated, event)
+            publishRelayDelayEvent(updated)
+            updated
+        }
 
     @Transactional
     fun evaluateDelayedForAllRelayPoints(evaluatedAt: java.time.Instant): List<RelayParcel> =
@@ -507,6 +520,7 @@ class RelayParcelApplicationService(
         )
         val returned = parcel.copy(
             status = RelayParcelStatus.ReturnedToSeller,
+            collectedAt = returnedAt,
             updatedAt = returnedAt,
             custodyEvents = parcel.custodyEvents + event,
         )
@@ -612,6 +626,7 @@ private fun RelayPickupCode.toRecord() = RelayPickupCodeRecord(
     id = id,
     relayParcelId = relayParcelId,
     codeHash = codeHash,
+    customerDeliveryVersion = customerDeliveryVersion,
     qrNonceHash = qrNonceHash,
     identityCheckRequired = identityCheckRequired,
     expiresAt = expiresAt,
@@ -647,7 +662,7 @@ private fun RelayParcelRecord.toDomain(custodyEvents: List<RelayCustodyEvent> = 
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
-private fun RelayPickupCodeRecord.toDomain() = RelayPickupCode(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt)
+private fun RelayPickupCodeRecord.toDomain() = RelayPickupCode(id, relayParcelId, codeHash, qrNonceHash, identityCheckRequired, expiresAt, usedAt, attemptCount, createdAt, customerDeliveryVersion)
 private fun RelayCustodyEventRecord.toDomain() = RelayCustodyEvent(id, relayParcelId, actorUserId, type, metadata, idempotencyKey, createdAt)
 private fun RelayStorageFeeAssessmentRecord.toDomain() = RelayStorageFeeAssessment(
     id = id,
@@ -708,6 +723,8 @@ private fun RelayCustodyEventType.toSqlValue(): String =
         RelayCustodyEventType.SequoCollection -> "SEQUO_COLLECTION"
         RelayCustodyEventType.ReturnDropoff -> "RETURN_DROPOFF"
         RelayCustodyEventType.Problem -> "PROBLEM"
+        RelayCustodyEventType.Delay -> "DELAY"
+        RelayCustodyEventType.Review -> "REVIEW"
     }
 
 private fun String.toRelayCustodyEventType(): RelayCustodyEventType =
@@ -718,5 +735,7 @@ private fun String.toRelayCustodyEventType(): RelayCustodyEventType =
         "SEQUO_COLLECTION" -> RelayCustodyEventType.SequoCollection
         "RETURN_DROPOFF" -> RelayCustodyEventType.ReturnDropoff
         "PROBLEM" -> RelayCustodyEventType.Problem
+        "DELAY" -> RelayCustodyEventType.Delay
+        "REVIEW" -> RelayCustodyEventType.Review
         else -> error("Unknown relay custody event type: $this")
     }

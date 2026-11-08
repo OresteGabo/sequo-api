@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*
 class RelayFulfillmentService(private val missions: DeliveryMissionRepository, private val delivery: DeliveryMissionService,
     private val orders: CustomerOrderRecordRepository, private val eligibility: RelayOrderEligibilityService,
     private val availability: RelayAvailabilityService, private val lockers: RelayLockerRepository,
+    private val credentials: RelayCustomerPickupService,
     private val parcels: RelayParcelApplicationService, private val parcelRecords: RelayParcelRecordRepository) {
     private fun requireEligible(orderId: String) {
         val order = orders.findById(orderId).orElseThrow { IllegalArgumentException("Order is unavailable.") }
@@ -56,6 +57,7 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
         locked.status = HubLockerStatus.OCCUPIED; locked.availabilityReason = HubLockerAvailabilityReason.SYSTEM_OCCUPIED
         locked.updatedByUserId = actor; locked.updatedAt = Instant.now()
         lockers.save(locked)
+        credentials.issue("mission-$missionId")
         return result
     }
 

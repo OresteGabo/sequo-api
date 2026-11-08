@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 class RelayParcelController(
     private val service: RelayParcelApplicationService,
     private val access: RelayOperatorAccess,
+    private val operations: RelayPickupOperations,
 ) {
     data class PickupCodeRequest(
         val codeId: String,
@@ -38,7 +39,7 @@ class RelayParcelController(
         val idempotencyKey: String,
     )
     data class ProblemRequest(val eventId: String, val idempotencyKey: String, val metadata: String)
-    data class ReturnToSellerRequest(val eventId: String, val idempotencyKey: String, val metadata: String, val returnedAt: Instant = Instant.now())
+    data class ReturnToSellerRequest(val eventId: String, val idempotencyKey: String, val metadata: String, val returnedAt: Instant? = null)
     data class StorageFeeAssessmentRequest(val relayPointId: String, val dailyFeeCfa: Int, val evaluatedAt: Instant = Instant.now())
     data class ParcelResponse(
         val id: String,
@@ -55,8 +56,9 @@ class RelayParcelController(
         val createdAt: Instant,
         val updatedAt: Instant,
         val history: List<CustodyHistoryEntry> = emptyList(),
+        val custody: RelayDeadlines? = null,
     )
-    data class CustodyHistoryEntry(val type: RelayCustodyEventType, val createdAt: Instant)
+    data class CustodyHistoryEntry(val type: RelayCustodyEventType, val createdAt: Instant, val message: String? = null)
     data class PickupCredentialResponse(val id: String, val parcelId: String, val identityCheckRequired: Boolean, val expiresAt: Instant, val usedAt: Instant?, val attemptCount: Int)
     data class OperationResponse(val parcel: ParcelResponse, val pickupCode: PickupCredentialResponse?, val eventId: String?)
 
@@ -119,7 +121,7 @@ class RelayParcelController(
         @RequestBody request: ReleaseRequest,
     ): ResponseEntity<Any> = parcelRequired(authentication, parcelId) { authenticated ->
         if (!access.permits(authenticated, request.relayPointId) || service.getParcel(parcelId)?.relayPointId != request.relayPointId) return@parcelRequired ResponseEntity.status(403).build()
-        service.verifyPickup(
+        operations.release(
             parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             relayPointId = ApiInputPolicy.requiredIdentifier(request.relayPointId, "relayPointId"),
             actorUserId = authenticated.name,
@@ -152,14 +154,15 @@ class RelayParcelController(
         @PathVariable parcelId: String,
         @RequestBody request: ReturnToSellerRequest,
     ): ResponseEntity<Any> = roleRequired(authentication, RoleGroups.AdminOperations) { authenticated ->
-        require(!request.returnedAt.isAfter(Instant.now())) { "returnedAt cannot be in the future." }
-        service.returnToSeller(
+        val returnedAt = request.returnedAt ?: Instant.now()
+        require(!returnedAt.isAfter(Instant.now())) { "returnedAt cannot be in the future." }
+        operations.returnToSeller(
             parcelId = ApiInputPolicy.requiredIdentifier(parcelId, "parcelId"),
             actorUserId = authenticated.name,
             eventId = ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
             idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
             metadata = ApiInputPolicy.requiredLongText(request.metadata, "metadata"),
-            returnedAt = request.returnedAt,
+            returnedAt = returnedAt,
         ).toResponse()
     }
 
@@ -181,12 +184,34 @@ class RelayParcelController(
         ResponseEntity.ok(service.listStorageFeeAssessments(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")))
     }
 
-    data class AssignedRelay(val id: String, val name: String)
+    data class AssignedRelay(val id: String, val name: String, val canReturnToSeller: Boolean)
 
     @GetMapping("/sites")
     fun sites(authentication: Authentication?): ResponseEntity<Any> =
         roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
-            ResponseEntity.ok(access.assignedPoints(actor).map { AssignedRelay(it.id, it.name) })
+            ResponseEntity.ok(access.assignedPoints(actor).map { AssignedRelay(it.id, it.name, actor.hasAnyRole(RoleGroups.AdminOperations)) })
+        }
+
+    @GetMapping("/overdue")
+    fun overdue(authentication: Authentication?, @RequestParam relayPointId: String): ResponseEntity<Any> =
+        roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
+            if (!access.permits(actor, relayPointId)) return@roleRequired ResponseEntity.status(403).build()
+            ResponseEntity.ok(service.listParcels(relayPointId).filter { parcel -> parcel.deadlines()?.let { it.storageFeeEligible || it.reviewDue } == true }.map(::toResponse))
+        }
+
+    @PostMapping("/deadlines/evaluate")
+    fun evaluate(authentication: Authentication?, @RequestBody request: Map<String, String>): ResponseEntity<Any> =
+        roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
+            val site = ApiInputPolicy.requiredIdentifier(request["relayPointId"].orEmpty(), "relayPointId")
+            if (!access.permits(actor, site)) return@roleRequired ResponseEntity.status(403).build()
+            ResponseEntity.ok(service.evaluateDelayed(site, Instant.now()).map(::toResponse))
+        }
+
+    @PostMapping("/{parcelId}/review")
+    fun review(authentication: Authentication?, @PathVariable parcelId: String, @RequestBody request: ProblemRequest): ResponseEntity<Any> =
+        parcelRequired(authentication, parcelId) { actor ->
+            operations.review(parcelId, actor.name, ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
+                ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey), ApiInputPolicy.requiredLongText(request.metadata, "metadata")).toResponse()
         }
 
     private fun parcelRequired(authentication: Authentication?, parcelId: String, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
@@ -230,5 +255,6 @@ private fun toResponse(parcel: RelayParcel) = RelayParcelController.ParcelRespon
     collectedAt = parcel.collectedAt,
     createdAt = parcel.createdAt,
     updatedAt = parcel.updatedAt,
-    history = parcel.custodyEvents.map { RelayParcelController.CustodyHistoryEntry(it.type, it.createdAt) },
+    custody = parcel.deadlines(),
+    history = parcel.custodyEvents.map { RelayParcelController.CustodyHistoryEntry(it.type, it.createdAt, it.metadata.takeIf { _ -> it.type in setOf(RelayCustodyEventType.Review, RelayCustodyEventType.ReturnDropoff, RelayCustodyEventType.Delay) }) },
 )
