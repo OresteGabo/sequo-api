@@ -73,3 +73,6 @@ out/
 
 ### Kotlin ###
 .kotlin/
+
+# Release tooling caches
+__pycache__/
