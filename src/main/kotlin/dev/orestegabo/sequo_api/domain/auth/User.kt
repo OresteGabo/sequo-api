@@ -50,6 +50,7 @@ class User(
 
     @Version
     @Column(name = "record_version", nullable = false)
+    @org.hibernate.annotations.ColumnDefault("0")
     var recordVersion: Long = 0,
 
     @Transient
