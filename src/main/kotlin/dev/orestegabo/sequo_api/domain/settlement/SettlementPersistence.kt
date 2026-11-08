@@ -102,6 +102,10 @@ interface SettlementLedgerEntryRecordRepository : JpaRepository<SettlementLedger
 
 interface SettlementCourierRecordRepository : JpaRepository<CourierRecord, String> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select c from CourierRecord c where c.id = :id")
+    fun lockForAdministration(id: String): CourierRecord?
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select c from CourierRecord c where c.status = 'ACTIVE' order by c.id")
     fun lockActiveForDispatch(): List<CourierRecord>
 

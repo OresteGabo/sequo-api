@@ -100,7 +100,7 @@ class RelayPointRecord(
     val id: String,
 
     @Column(name = "operator_user_id")
-    val operatorUserId: String? = null,
+    var operatorUserId: String? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "operator_user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_relay_points_operator_user"))

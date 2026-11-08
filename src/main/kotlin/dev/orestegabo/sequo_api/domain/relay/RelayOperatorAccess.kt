@@ -10,6 +10,10 @@ import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
 
 interface RelayPointRepository : JpaRepository<RelayPointRecord, String> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select p from RelayPointRecord p where p.id = :id")
+    fun lockForAdministration(id: String): RelayPointRecord?
+
     fun findByOperatorUserId(operatorUserId: String): List<RelayPointRecord>
 }
 
