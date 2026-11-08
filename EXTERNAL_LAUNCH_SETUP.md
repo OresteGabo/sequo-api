@@ -4,6 +4,8 @@ This file tracks launch work that happens outside this codebase: provider accoun
 
 Last audited: 2026-09-11.
 
+Payment sections reviewed for Task25 on2026-11-08: both operators remain NOT_CONNECTED. See [Task24 missing operator inputs](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK24_PROVIDER_PREPARATION.md) and [Task25 reconciliation evidence](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK25_COLLECTIONS_RECONCILIATION.md). Public business pages and internal normalized fixtures do not establish approved API formats or sandbox access.
+
 ## How To Use This Checklist
 
 - Put real values only in the deployment secret manager or local `.env` files that are ignored by git.
@@ -48,8 +50,10 @@ Last audited: 2026-09-11.
 
 | Variable | Needed for | Notes |
 | --- | --- | --- |
-| `YAS_TOGO_API_KEY` | Payment/refund adapter | Current code has the env key but still needs the real adapter. |
-| `YAS_TOGO_WEBHOOK_SECRET` | Signed webhook intake | Current webhook persistence expects this. |
+| `YAS_TOGO_API_BASE_URL` | Operator environment | Approved sandbox/live URL still needed; no outgoing transport implemented. |
+| `YAS_TOGO_API_KEY` | Opaque credential slot | Final operator auth mapping still needs approved specifications. |
+| `YAS_TOGO_MERCHANT_ACCOUNT_ID` | SEQUO merchant account | Approved account and payee-binding specification still needed. |
+| `YAS_TOGO_WEBHOOK_SECRET` | Callback credential slot | A value alone cannot activate callbacks; the runtime adapter currently rejects them. |
 
 Useful links:
 
@@ -65,8 +69,10 @@ Useful links:
 
 | Variable | Needed for | Notes |
 | --- | --- | --- |
-| `MOOV_AFRICA_API_KEY` | Payment/refund adapter | Current code has the env key but still needs the real adapter. |
-| `MOOV_AFRICA_WEBHOOK_SECRET` | Signed webhook intake | Current webhook persistence expects this. |
+| `MOOV_AFRICA_API_BASE_URL` | Operator environment | Approved sandbox/live URL still needed; no outgoing transport implemented. |
+| `MOOV_AFRICA_API_KEY` | Opaque credential slot | Final Flooz auth mapping still needs approved specifications. |
+| `MOOV_AFRICA_MERCHANT_ACCOUNT_ID` | SEQUO merchant account | Approved account and payee-binding specification still needed. |
+| `MOOV_AFRICA_WEBHOOK_SECRET` | Callback credential slot | A value alone cannot activate callbacks; the runtime adapter currently rejects them. |
 
 Useful links:
 
@@ -74,12 +80,12 @@ Useful links:
 
 ### Payment Callback URLs To Reserve
 
-Use the final production API domain when creating provider callbacks.
+These are candidate SEQUO normalized-intake paths, with the actual underscore provider IDs. Register an operator callback only after its approved raw format, authentication/mapping and environment are implemented and verified. Keep production disabled until operator acceptance and the permitted rollout check pass.
 
 | Provider | Callback URL | Current backend state |
 | --- | --- | --- |
-| Yas Togo | `https://<api-domain>/api/payments/webhooks/yas-togo` | Signed webhook intake exists; order reconciliation still needs code. |
-| Moov Africa | `https://<api-domain>/api/payments/webhooks/moov-africa` | Signed webhook intake exists; order reconciliation still needs code. |
+| Yas Togo | `https://<api-domain>/api/payments/webhooks/yas_togo` | Internal reconciliation exists; approved provider callback transport/verification is not connected. |
+| Moov Africa | `https://<api-domain>/api/payments/webhooks/moov_africa` | Internal reconciliation exists; approved provider callback transport/verification is not connected. |
 
 ### Firebase Cloud Messaging
 
