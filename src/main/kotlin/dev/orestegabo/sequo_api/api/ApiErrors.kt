@@ -24,6 +24,10 @@ data class ApiErrorResponse(
 
 @RestControllerAdvice
 class ApiExceptionHandler {
+    @ExceptionHandler(dev.orestegabo.sequo_api.domain.payment.PaymentWebhookReceiptConflict::class)
+    fun paymentWebhookConflict(error: dev.orestegabo.sequo_api.domain.payment.PaymentWebhookReceiptConflict): ResponseEntity<ApiErrorResponse> =
+        errorResponse(HttpStatus.CONFLICT, "payment_webhook_conflict", requireNotNull(error.message))
+
     @ExceptionHandler(dev.orestegabo.sequo_api.domain.returns.ReturnWriteConflict::class)
     fun returnConflict(error: dev.orestegabo.sequo_api.domain.returns.ReturnWriteConflict): ResponseEntity<ApiErrorResponse> =
         errorResponse(HttpStatus.CONFLICT, "return_conflict", requireNotNull(error.message))

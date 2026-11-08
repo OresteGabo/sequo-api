@@ -133,6 +133,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
             SequoPaymentProviders.YasTogo, "fixture-event-$id", id, id, "fixture-provider-reference",
             saved.amountCfa, PaymentWebhookProviderStatus.VALIDATED, now, now,
         )
+        assertEquals(202, webhook("""{"eventId":"${event.eventId}","checkoutId":"$id","paymentReference":"$id","providerReference":"${event.providerReference}","amountCfa":${saved.amountCfa},"status":"VALIDATED","occurredAt":"$now"}""").statusCode())
         assertTrue(reconciliation.reconcile(event) is PaymentReconciliationResult.Fulfilled)
         assertTrue(reconciliation.reconcile(event) is PaymentReconciliationResult.Fulfilled)
         assertEquals(1, orders.findByCustomerIdOrderByCreatedAtDesc(fixture.userId).size)

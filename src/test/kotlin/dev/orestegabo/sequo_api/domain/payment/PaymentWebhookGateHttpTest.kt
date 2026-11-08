@@ -136,8 +136,8 @@ private fun callbackPostgres(registry: DynamicPropertyRegistry) {
     registry.add("spring.flyway.enabled") { "true" }
 }
 
-private data class CallbackPending(val checkoutId: String, val customerId: String, val merchantId: String, val provider: PaymentProviderId)
-private object CallbackFixtures {
+internal data class CallbackPending(val checkoutId: String, val customerId: String, val merchantId: String, val provider: PaymentProviderId)
+internal object CallbackFixtures {
     val json = ObjectMapper()
     private val client = HttpClient.newHttpClient()
     fun pending(context: ApplicationContext, provider: PaymentProviderId): CallbackPending {
@@ -158,9 +158,11 @@ private object CallbackFixtures {
             OrderPricingSnapshot(2000, delivery, 2000 + delivery.finalDeliveryFeeCfa), PendingPaymentCheckoutStatus.AWAITING_WEBHOOK)
         return CallbackPending(checkoutId, requireNotNull(customer.id), merchantId, provider)
     }
-    fun event(pending: CallbackPending, id: String, status: String = "VALIDATED") = json.writeValueAsString(mapOf(
-        "eventId" to id, "checkoutId" to pending.checkoutId, "paymentReference" to pending.checkoutId,
-        "providerReference" to "internal-fixture-${pending.provider.value}", "amountCfa" to 2400, "currency" to "XOF",
+    fun event(pending: CallbackPending, id: String, status: String = "VALIDATED",
+        providerReference: String? = "internal-fixture-${pending.checkoutId}", amountCfa: Int = 2400,
+        paymentReference: String = pending.checkoutId) = json.writeValueAsString(mapOf(
+        "eventId" to id, "checkoutId" to pending.checkoutId, "paymentReference" to paymentReference,
+        "providerReference" to providerReference, "amountCfa" to amountCfa, "currency" to "XOF",
         "status" to status, "occurredAt" to Instant.now().toString()))
     fun send(port: Int, provider: PaymentProviderId, body: String, signature: String? = null, includeHeaders: Boolean = true): HttpResponse<String> {
         val timestamp = Instant.now().epochSecond

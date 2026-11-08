@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 enum class PaymentWebhookProviderStatus { PENDING, VALIDATED, FAILED, CANCELLED }
+enum class PaymentWebhookReconciliationStatus { PENDING, FULFILLED, IGNORED, REVIEW_REQUIRED, ERROR, LEGACY_REVIEW_REQUIRED }
 
 /** An internal normalized event; production acceptance requires the provider adapter's verification. */
 data class PaymentWebhookCommand(
@@ -83,10 +84,18 @@ class PaymentWebhookEventRecord(
     @Column(name = "occurred_at", nullable = false) val occurredAt: Instant,
     @Column(name = "payload_hash", nullable = false, length = 128) val payloadHash: String,
     @Column(name = "received_at", nullable = false) val receivedAt: Instant,
+    @Enumerated(EnumType.STRING) @Column(name = "reconciliation_status", nullable = false, length = 32)
+    var reconciliationStatus: PaymentWebhookReconciliationStatus = PaymentWebhookReconciliationStatus.PENDING,
+    @Column(name = "reconciliation_reason", length = 96) var reconciliationReason: String? = null,
+    @Column(name = "reconciled_at") var reconciledAt: Instant? = null,
 )
 
 interface PaymentWebhookEventRepository : JpaRepository<PaymentWebhookEventRecord, String> {
     fun findByProviderAndEventId(provider: String, eventId: String): PaymentWebhookEventRecord?
+    fun findTop100ByCheckoutIdOrderByReceivedAtDesc(checkoutId: String): List<PaymentWebhookEventRecord>
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select e from PaymentWebhookEventRecord e where e.id = :id")
+    fun lockForReconciliation(id: String): PaymentWebhookEventRecord?
 }
 
 fun interface PaymentWebhookVerifier {
@@ -98,6 +107,7 @@ class PaymentWebhookService(
     private val events: PaymentWebhookEventRepository,
     private val publisher: ApplicationEventPublisher,
     private val verifier: PaymentWebhookVerifier,
+    private val entityManager: jakarta.persistence.EntityManager,
 ) {
     private val replayWindow = Duration.ofMinutes(5)
 
@@ -120,8 +130,7 @@ class PaymentWebhookService(
             return PaymentWebhookResult(command.eventId, command.provider, duplicate = true, accepted = true)
         }
 
-        val saved = events.save(
-            PaymentWebhookEventRecord(
+        val saved = PaymentWebhookEventRecord(
                 id = "${command.provider.value}:${command.eventId}",
                 provider = command.provider.value,
                 eventId = command.eventId,
@@ -134,13 +143,23 @@ class PaymentWebhookService(
                 payloadHash = payloadHash,
                 receivedAt = command.receivedAt,
             )
-        )
+        try {
+            // The provider/event identity is immutable evidence. JPA merge must never replace it
+            // if another receipt was committed after the initial duplicate lookup.
+            entityManager.persist(saved)
+            entityManager.flush()
+        } catch (failure: RuntimeException) {
+            if (generateSequence<Throwable>(failure) { it.cause }.any {
+                    it is jakarta.persistence.EntityExistsException || (it is java.sql.SQLException && it.sqlState == "23505")
+                }) throw PaymentWebhookReceiptConflict()
+            throw failure
+        }
         publisher.publishEvent(saved.toAcceptedEvent(command.provider))
         return PaymentWebhookResult(command.eventId, command.provider, duplicate = false, accepted = true)
     }
 }
 
-private fun PaymentWebhookEventRecord.toAcceptedEvent(providerId: PaymentProviderId): PaymentWebhookAcceptedEvent =
+internal fun PaymentWebhookEventRecord.toAcceptedEvent(providerId: PaymentProviderId = PaymentProviderId(provider)): PaymentWebhookAcceptedEvent =
     PaymentWebhookAcceptedEvent(
         provider = providerId,
         eventId = eventId,
@@ -156,3 +175,6 @@ private fun PaymentWebhookEventRecord.toAcceptedEvent(providerId: PaymentProvide
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray(Charsets.UTF_8))
     .joinToString("") { "%02x".format(it) }
+
+@org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CONFLICT)
+class PaymentWebhookReceiptConflict : RuntimeException("Payment event identity conflicted with another receipt. Retry the unchanged event.")

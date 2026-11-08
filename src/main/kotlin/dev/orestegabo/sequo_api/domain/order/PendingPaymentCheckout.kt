@@ -5,6 +5,13 @@ import dev.orestegabo.sequo_api.domain.payment.PaymentProviderId
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationResult
 import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookAcceptedEvent
 import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookProviderStatus
+import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookEventRepository
+import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookReconciliationStatus
+import dev.orestegabo.sequo_api.domain.payment.PaymentTransactionClaimRepository
+import dev.orestegabo.sequo_api.domain.payment.PaymentTransactionClaimRecord
+import dev.orestegabo.sequo_api.domain.payment.PaymentReconciliationFailureRecorder
+import dev.orestegabo.sequo_api.domain.payment.paymentTransactionClaimId
+import dev.orestegabo.sequo_api.domain.payment.toAcceptedEvent
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingBreakdown
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -67,8 +74,9 @@ interface PendingPaymentCheckoutRepository : JpaRepository<PendingPaymentCheckou
 }
 
 sealed class PaymentReconciliationResult {
-    data class Fulfilled(val fulfillment: PersistedOrderFulfillment) : PaymentReconciliationResult()
+    data class Fulfilled(val fulfillment: PersistedOrderFulfillment, val reason: String = "fulfilled") : PaymentReconciliationResult()
     data class Ignored(val reason: String) : PaymentReconciliationResult()
+    data class ReviewRequired(val reason: String) : PaymentReconciliationResult()
 }
 
 @Service
@@ -76,6 +84,10 @@ class PendingPaymentCheckoutService(
     private val pendingCheckouts: PendingPaymentCheckoutRepository,
     private val fulfillmentPersistence: OrderFulfillmentPersistenceService,
     private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
+    private val events: PaymentWebhookEventRepository,
+    private val claims: PaymentTransactionClaimRepository,
+    private val orders: CustomerOrderRecordRepository,
+    private val entityManager: jakarta.persistence.EntityManager,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -117,32 +129,69 @@ class PendingPaymentCheckoutService(
             completedAt = now.takeUnless { status == PendingPaymentCheckoutStatus.AWAITING_WEBHOOK },
         ))
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = [Exception::class])
     fun reconcile(event: PaymentWebhookAcceptedEvent): PaymentReconciliationResult {
-        val pending = pendingCheckouts.lockForReconciliation(event.checkoutId)
-            ?: return PaymentReconciliationResult.Ignored("pending_checkout_not_found")
+        val receipt = events.lockForReconciliation("${event.provider.value}:${event.eventId}")
+            ?: return PaymentReconciliationResult.Ignored("verified_receipt_not_found")
+        if (receipt.reconciliationStatus == PaymentWebhookReconciliationStatus.LEGACY_REVIEW_REQUIRED)
+            return PaymentReconciliationResult.Ignored("legacy_event_review_required")
+        val canonical = receipt.toAcceptedEvent()
+        if (receipt.reconciliationStatus == PaymentWebhookReconciliationStatus.FULFILLED) {
+            return existingFulfillment(canonical.checkoutId)?.let { PaymentReconciliationResult.Fulfilled(it, "already_fulfilled") }
+                ?: PaymentReconciliationResult.ReviewRequired("completed_checkout_without_order")
+        }
+        if (receipt.reconciliationStatus !in setOf(PaymentWebhookReconciliationStatus.PENDING, PaymentWebhookReconciliationStatus.ERROR))
+            return PaymentReconciliationResult.Ignored(receipt.reconciliationReason ?: "receipt_already_processed")
 
-        if (event.currency != "XOF") return PaymentReconciliationResult.Ignored("currency_mismatch")
-        if (event.provider.value != pending.paymentProvider) return PaymentReconciliationResult.Ignored("provider_mismatch")
-        if (event.paymentReference != pending.paymentReference) return PaymentReconciliationResult.Ignored("payment_reference_mismatch")
-        if (event.amountCfa != pending.amountCfa) return PaymentReconciliationResult.Ignored("amount_mismatch")
+        // Reconstruct every financial field from immutable accepted evidence, never the listener argument.
+        val result = reconcileVerified(canonical)
+        receipt.reconciliationStatus = when (result) {
+            is PaymentReconciliationResult.Fulfilled -> PaymentWebhookReconciliationStatus.FULFILLED
+            is PaymentReconciliationResult.Ignored -> PaymentWebhookReconciliationStatus.IGNORED
+            is PaymentReconciliationResult.ReviewRequired -> PaymentWebhookReconciliationStatus.REVIEW_REQUIRED
+        }
+        receipt.reconciliationReason = when (result) {
+            is PaymentReconciliationResult.Fulfilled -> result.reason
+            is PaymentReconciliationResult.Ignored -> result.reason
+            is PaymentReconciliationResult.ReviewRequired -> result.reason
+        }
+        receipt.reconciledAt = Instant.now()
+        events.save(receipt)
+        return result
+    }
+
+    private fun existingFulfillment(checkoutId: String): PersistedOrderFulfillment? {
+        val stored = orders.findByCheckoutId(checkoutId) ?: return null
+        val details = fulfillmentPersistence.getForCustomer(stored.id, stored.customerId) ?: return null
+        return PersistedOrderFulfillment(details.order, details.lines, details.pricingSnapshot, details.merchantSubOrders)
+    }
+
+    private fun reconcileVerified(event: PaymentWebhookAcceptedEvent): PaymentReconciliationResult {
+        val pending = pendingCheckouts.lockForReconciliation(event.checkoutId)
+            ?: return PaymentReconciliationResult.ReviewRequired("pending_checkout_not_found")
+
+        if (event.currency != "XOF") return PaymentReconciliationResult.ReviewRequired("currency_mismatch")
+        if (event.provider.value != pending.paymentProvider) return PaymentReconciliationResult.ReviewRequired("provider_mismatch")
+        if (event.paymentReference != pending.paymentReference) return PaymentReconciliationResult.ReviewRequired("payment_reference_mismatch")
+        if (event.amountCfa != pending.amountCfa) return PaymentReconciliationResult.ReviewRequired("amount_mismatch")
 
         if (pending.status == PendingPaymentCheckoutStatus.COMPLETED) {
-            val order = fulfillmentPersistence.getForCustomer(pending.checkoutId.toOrderId(), pending.customerId)
-            return if (order != null) {
-                PaymentReconciliationResult.Fulfilled(
-                    PersistedOrderFulfillment(
-                        order = order.order,
-                        lines = order.lines,
-                        pricingSnapshot = order.pricingSnapshot,
-                        merchantSubOrders = order.merchantSubOrders,
-                    )
-                )
-            } else {
-                PaymentReconciliationResult.Ignored("completed_checkout_without_order")
+            if (event.status == PaymentWebhookProviderStatus.PENDING) return PaymentReconciliationResult.Ignored("pending_after_completion")
+            if (event.status != PaymentWebhookProviderStatus.VALIDATED) return PaymentReconciliationResult.ReviewRequired("terminal_event_after_completion")
+            if (!event.providerReference.isNullOrBlank()) {
+                val knownReferences = listOfNotNull(pending.providerReference,
+                    orders.findByCheckoutId(pending.checkoutId)?.providerReference).filter { it.isNotBlank() }
+                // Preserve historical values. A null pending reference does not erase known paid
+                // evidence, and contradictory stored references require operator review.
+                if (knownReferences.any { it != event.providerReference })
+                    return PaymentReconciliationResult.ReviewRequired("completed_checkout_provider_reference_mismatch")
             }
+            return existingFulfillment(pending.checkoutId)?.let { PaymentReconciliationResult.Fulfilled(it, "already_fulfilled") }
+                ?: PaymentReconciliationResult.ReviewRequired("completed_checkout_without_order")
         }
         if (pending.status != PendingPaymentCheckoutStatus.AWAITING_WEBHOOK) {
+            if (event.status == PaymentWebhookProviderStatus.VALIDATED)
+                return PaymentReconciliationResult.ReviewRequired("validated_payment_after_${pending.status.name.lowercase()}_checkout")
             return PaymentReconciliationResult.Ignored("checkout_not_awaiting_webhook")
         }
 
@@ -151,11 +200,7 @@ class PendingPaymentCheckoutService(
             PaymentWebhookProviderStatus.FAILED,
             PaymentWebhookProviderStatus.CANCELLED -> {
                 val now = event.receivedAt
-                pending.status = if (event.status == PaymentWebhookProviderStatus.FAILED) {
-                    PendingPaymentCheckoutStatus.FAILED
-                } else {
-                    PendingPaymentCheckoutStatus.CANCELLED
-                }
+                pending.status = if (event.status == PaymentWebhookProviderStatus.FAILED) PendingPaymentCheckoutStatus.FAILED else PendingPaymentCheckoutStatus.CANCELLED
                 pending.updatedAt = now
                 pending.completedAt = now
                 pending.providerReference = event.providerReference
@@ -166,11 +211,26 @@ class PendingPaymentCheckoutService(
             PaymentWebhookProviderStatus.VALIDATED -> Unit
         }
 
+        event.providerReference?.takeIf { it.isNotBlank() }?.let { reference ->
+            val claimId = paymentTransactionClaimId(event.provider.value, reference)
+            val existing = claims.findById(claimId).orElse(null)
+            if ((existing != null && existing.checkoutId != pending.checkoutId) || claims.paidReferenceExistsElsewhere(
+                    event.provider.value, reference, pending.checkoutId))
+                return PaymentReconciliationResult.ReviewRequired("provider_transaction_reference_already_used")
+            if (existing == null) {
+                // Unique provider/reference constraint serializes competing checkouts. A racing loser
+                // rolls back; its durable receipt becomes ERROR and a verified retry sees the winner.
+                entityManager.persist(PaymentTransactionClaimRecord(claimId, event.provider.value, reference,
+                    pending.checkoutId, firstEventId = event.eventId, claimedAt = Instant.now()))
+                entityManager.flush()
+            }
+        }
+
         val request = objectMapper.readPendingRequest(pending.requestPayload)
         val pricing = objectMapper.readPricingSnapshot(pending.pricingPayload)
         val accepted = request.toAcceptedForFulfillment(pricing, event.providerReference ?: event.paymentReference)
         benefits.complete(pending.checkoutId, pending.customerId)
-        val fulfilled = fulfillmentPersistence.persistAcceptedOrder(request, accepted, event.occurredAt)
+        val fulfilled = fulfillmentPersistence.persistAcceptedOrder(request, accepted, event.receivedAt)
 
         pending.status = PendingPaymentCheckoutStatus.COMPLETED
         pending.updatedAt = event.receivedAt
@@ -185,10 +245,17 @@ class PendingPaymentCheckoutService(
 @Component
 class PaymentWebhookReconciliationListener(
     private val pendingPaymentCheckouts: PendingPaymentCheckoutService,
+    private val failureRecorder: PaymentReconciliationFailureRecorder,
 ) {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onPaymentWebhookAccepted(event: PaymentWebhookAcceptedEvent) {
-        pendingPaymentCheckouts.reconcile(event)
+        try {
+            pendingPaymentCheckouts.reconcile(event)
+        } catch (_: Exception) {
+            // Receipt acceptance is durable already. Keep a safe processing outcome visible and
+            // allow the same verified provider event to retry without exposing exception details.
+            failureRecorder.record(event)
+        }
     }
 }
 
