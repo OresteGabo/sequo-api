@@ -1,16 +1,18 @@
 # Settlements And Returns
 
-This document defines how Sequo API handles returns, refunds, physical custody, merchant payouts, courier costs, and financial settlement.
+This document contains planning notes for returns, refunds, custody and settlement. Some extended states and automation below are proposals for later work, not the current runtime. The signed PDF defines scope. See [Task 19 evidence](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK19_CUSTOMER_RETURNS.md) for the implemented customer request/status API and pending decisions.
+
+Current customer return states are Requested, AwaitingRelayDropoff, DroppedAtRelay, ReceivedBySequo, RefundPending and Rejected. A request or relay deposit does not itself authorize or complete a refund. Whole-order requests, server-owned deadlines and scoped history are implemented; item-level selection and later provider execution are separate work.
 
 ## Authoritative Rules
 
 | Topic | Rule |
 | --- | --- |
 | Return window | 72 hours after delivery/customer receipt |
-| Return intake | Customer must drop item at a Point de Relai |
-| Relay eligibility | Food and perishable products cannot be routed to Point de Relai by default |
-| Delayed relay parcels | Fees may start after 2 weeks; return-to-seller timing needs owner approval |
-| Refund trigger | Automated refund can start only after Sequo physically receives the item |
+| Return intake | Eligible relay drop-off or explicit approved instructions; Click-and-collect treatment remains pending agreement |
+| Relay eligibility | Food, perishable and sensitive items are excluded by the existing relay policy; this is separate from requesting a return |
+| Delayed relay parcels | Configured fees strictly after 8 days; operator review at 30 days, without automatic disposition |
+| Refund trigger | SEQUO physical receipt/inspection and an authorized refund instruction are required; customer request does not execute a payment |
 | Merchant payout | Scheduled within 1 week of package receipt, net of holds and adjustments |
 | Shortfall | Sequo covers delivery fee shortfall when customer delivery payment is lower than courier fee |
 | Wallet rails | Yas Togo and Moov Africa only for current backend scope |
@@ -20,7 +22,7 @@ This document defines how Sequo API handles returns, refunds, physical custody, 
 
 Eligible when all are true:
 
-- Order item belongs to a returnable product category.
+- Order items satisfy the explicitly approved configured return policy. No blanket food-return exclusion is inferred from the PDF's relay rules.
 - Delivery or pickup receipt occurred less than or equal to 72 hours ago.
 - Item is not already returned, refunded, or under unresolved fraud lock.
 - Customer is the order owner.
@@ -29,12 +31,11 @@ Eligible when all are true:
 Ineligible by default:
 
 - Return requested after 72 hours.
-- Consumed/perishable goods where policy blocks returns.
-- Restaurant/hot-food orders unless admin exception.
+- Categories explicitly excluded by an approved return policy (RETURN_EXCLUDED_CATEGORIES defaults empty).
 - Customer cannot provide required reason/evidence.
 - Item was previously refunded.
 
-## Return State Machine
+## Proposed Extended Operational State Machine (Later Work)
 
 | State | Meaning | Next states |
 | --- | --- | --- |

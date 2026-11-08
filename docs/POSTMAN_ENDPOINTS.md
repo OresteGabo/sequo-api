@@ -293,25 +293,27 @@ Release body:
 | `POST` | `/api/returns` | Yes | Customer/support/admin |
 | `GET` | `/api/returns` | Yes | Customer/support/admin |
 | `GET` | `/api/returns/{{return_id}}` | Yes | Customer/relay/support/admin |
-| `GET` | `/api/returns/orders/{{order_id}}` | Yes | Support/admin |
+| `GET` | `/api/returns/orders/{{order_id}}` | Yes | Owned customer/support/admin |
+| `GET` | `/api/returns/orders/{{order_id}}/eligibility` | Yes | Owned customer |
 | `POST` | `/api/returns/{{return_id}}/relay-dropoff` | Yes | Relay/admin |
 | `POST` | `/api/returns/{{return_id}}/physical-receipt` | Yes | Support/admin |
 | `POST` | `/api/returns/{{return_id}}/refund` | Yes | Admin |
 
-Create return body:
+Customer create return body (freeze this ID/reason when retrying an uncertain submission):
 
 ```json
 {
   "returnId": "postman-return-001",
   "orderId": "{{order_id}}",
-  "customerId": "{{customer_id}}",
-  "reason": "Wrong item",
-  "requestedRefundCfa": 2500,
-  "rawReturnPin": "135790",
-  "productReturnable": true,
-  "merchantAllowsReturn": true
+  "reason": "Wrong item"
 }
 ```
+
+Task 19 derives customer identity, request time, whole-order item refund ceiling, category policy and PIN server-side. Customer timestamps, policy flags, amount, PIN and adminOverride cannot change eligibility; a forged customerId is denied. The default 72-hour window is inclusive and measured from persisted handoff time. Existing same-order requests return their canonical ID, including retries with a new proposed ID; a changed reason under the same ID is rejected. A return ID belonging to another order/customer cannot replay or overwrite it.
+
+Eligibility returns eligible/code/message, deliveredAt/returnWindowEndsAt, existingReturnId, dropoffMethod, instructions and actual available relayPoints. Owned list/detail return actual status, instructions and returnPin only for an active server-issued relay credential. Responses are no-store; hashes and internal inspection/operator fields are omitted from customer views. Legacy unknown PINs are not invented on read. Relay operators may read deposited returns only at their assigned active site and cannot forge relayPointId on intake.
+
+RELAY instructions require order relay eligibility, available capacity/hours, assigned operator and CUSTOMER_RETURNS/LOCKER_INTAKE controls. Without an eligible transport/location, record Requested and show pending SEQUO instructions. Click-and-collect defaults to CUSTOMER_MANAGED_PENDING until SEQUO agrees its treatment. There is no new blanket food-return ban: RETURN_EXCLUDED_CATEGORIES defaults empty and requires approved exclusions; existing food/perishable/sensitive relay exclusions remain separate. Effective settings: RETURN_WINDOW_HOURS=72, RETURN_CLICK_AND_COLLECT_MODE=PENDING. Requests do not start refunds; physical receipt/inspection and authorized later refund instruction are separate.
 
 ## Bargaining
 
