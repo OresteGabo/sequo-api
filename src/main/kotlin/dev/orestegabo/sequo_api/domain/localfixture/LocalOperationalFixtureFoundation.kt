@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Timestamp
+import java.time.temporal.ChronoUnit
 
 /** Master data only; paid orders, fulfillment and custody are made by normal services separately. */
 @Service
@@ -46,7 +47,7 @@ class LocalOperationalFixtureFoundation(
             } else {
                 require(users.findByEmail(person.email) == null) { "Local fixture email is already bound elsewhere." }
                 jdbc.update("insert into users(id,email,display_name,is_active,provider,status,created_at,updated_at) values (?,?,?,true,'EMAIL','ACTIVE',?,?)",
-                    person.id, person.email, person.name, Timestamp.from(c.createdAt), Timestamp.from(c.createdAt))
+                    person.id, person.email, person.name, Timestamp.from(c.createdAt.minus(45, ChronoUnit.DAYS)), Timestamp.from(c.createdAt.minus(45, ChronoUnit.DAYS)))
                 person.roles.forEach { role -> jdbc.update("insert into user_roles(user_id,role_code) values (?,?)", person.id, role) }
             }
         }
@@ -55,7 +56,7 @@ class LocalOperationalFixtureFoundation(
             val owner = c.id(if (index == 0) "owner-yawa" else "owner-mawuli")
             val existing = merchants.findById(merchantId).orElse(null)
             if (existing == null) merchants.saveAndFlush(MerchantRecord(id = merchantId, ownerUserId = owner, name = name,
-                createdAt = c.createdAt, updatedAt = c.createdAt))
+                createdAt = c.createdAt.minus(45, ChronoUnit.DAYS), updatedAt = c.createdAt))
             else require(existing.ownerUserId == owner) { "Local merchant ownership collision." }
             membership(c, owner, merchantId, "MERCHANT_OWNER", "owner-$index")
         }
@@ -67,7 +68,7 @@ class LocalOperationalFixtureFoundation(
             if (existing == null) {
                 couriers.saveAndFlush(CourierRecord(id = id, userId = userId,
                     workforceType = if (index == 1) "SequoSalaried" else "Freelancer", vehicleType = "Moto",
-                    createdAt = c.createdAt, updatedAt = c.createdAt))
+                    createdAt = c.createdAt.minus(45, ChronoUnit.DAYS), updatedAt = c.createdAt))
                 if (index == 3) availability.pause(id, c.adminId, "LOCAL_FIXTURE — rider taking a scheduled break", at = c.createdAt)
             } else require(existing.userId == userId) { "Local rider ownership collision." }
         }
@@ -78,17 +79,17 @@ class LocalOperationalFixtureFoundation(
                 name = if (index == 0) "[TEST] Relais Tokoin" else "[TEST] Relais Adidogomé", city = "Lomé (local test)",
                 neighborhood = if (index == 0) "Tokoin" else "Adidogomé", landmark = "Synthetic site — no physical locker or delivery",
                 latitude = if (index == 0) 6.1725 else 6.1950, longitude = if (index == 0) 1.2314 else 1.1700,
-                createdAt = c.createdAt, updatedAt = c.createdAt))
+                createdAt = c.createdAt.minus(45, ChronoUnit.DAYS), updatedAt = c.createdAt))
             // Retain operator/site edits on interrupted setup or subsequent checks.
             val gridId = c.id("grid-${index + 1}")
             if (entityManager.find(RelayLockerGridRecord::class.java, gridId) == null) {
-                entityManager.persist(RelayLockerGridRecord(id = gridId, relayPointId = id, gridCode = "TEST-${index + 1}", label = "Local logical slots", createdAt = c.createdAt, updatedAt = c.createdAt))
+                entityManager.persist(RelayLockerGridRecord(id = gridId, relayPointId = id, gridCode = "TEST-${index + 1}", label = "Local logical slots", createdAt = c.createdAt.minus(45, ChronoUnit.DAYS), updatedAt = c.createdAt))
                 entityManager.flush()
             }
             for (slot in 1..3) {
                 val slotId = c.id("slot-${index + 1}-$slot")
                 if (!lockers.existsById(slotId)) lockers.save(RelayLockerRecord(id = slotId, relayPointId = id, relayLockerGridId = gridId,
-                    lockerCode = "TEST-${if (index == 0) 'A' else 'B'}$slot", createdAt = c.createdAt, updatedAt = c.createdAt))
+                    lockerCode = "TEST-${if (index == 0) 'A' else 'B'}$slot", createdAt = c.createdAt.minus(45, ChronoUnit.DAYS), updatedAt = c.createdAt))
             }
         }
         product(c, c.generalProductId, c.merchantIds[0], "[TEST] Gourde inox 750 ml", 4800, "GenericSealedItem", true)
@@ -117,14 +118,14 @@ class LocalOperationalFixtureFoundation(
             status = if (active) CatalogProductStatus.ACTIVE else CatalogProductStatus.INACTIVE,
             category = category, detail = "LOCAL_FIXTURE — synthetic product for admin practice. No real sale or capture evidence.",
             basePriceCfa = price, bargainingEnabled = bargaining, photoRequired = category == "Food",
-            cameraVerified = false, createdAt = c.createdAt, updatedAt = c.createdAt))
+            cameraVerified = false, createdAt = c.createdAt.minus(45, ChronoUnit.DAYS), updatedAt = c.createdAt))
     }
 
     private fun membership(c: LocalOperationalFixtureContext, user: String, merchant: String, role: String, suffix: String) {
         val count = jdbc.queryForObject("select count(*) from merchant_memberships where user_id=? and merchant_id=? and role_code=?",
             Long::class.java, user, merchant, role) ?: 0
         if (count == 0L) jdbc.update("insert into merchant_memberships(id,user_id,merchant_id,role_code,active,created_at,updated_at) values (?,?,?,?,true,?,?)",
-            c.id("membership-$suffix"), user, merchant, role, Timestamp.from(c.createdAt), Timestamp.from(c.createdAt))
+            c.id("membership-$suffix"), user, merchant, role, Timestamp.from(c.createdAt.minus(45, ChronoUnit.DAYS)), Timestamp.from(c.createdAt.minus(45, ChronoUnit.DAYS)))
     }
 
     fun accounts(c: LocalOperationalFixtureContext): List<LocalFixtureAccount> {
