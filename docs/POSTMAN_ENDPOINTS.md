@@ -562,3 +562,9 @@ See [Task 13 evidence and staging reproduction](TASK13_RELAY_ACCESS.md) for the 
 `GET /api/cart/relay-points` offers only points available for the authenticated persisted basket. Pass optional `relayPointId` to cart quote and checkout; the reviewed destination/eligibility survives payment and dispatch. Rider/generic courier `relay-deposit` now requires the persisted `relayPointId`, actual `lockerCode`, proof and stable key. It atomically records custody, mission deposit and occupied slot. Staff can approve a failed home handoff through `POST /api/delivery/missions/{id}/relay-reroute` with explicit customer agreement, reason and key. Customer/Rider approval is denied.
 
 See [Task 14 contract, acceptance and deployment evidence](TASK14_RELAY_FULFILLMENT.md) for V42, changed files, 90 passing API regressions, separate PostgreSQL migration/journey checks, six Rider tests, platform compilation and exact unverified staging/device steps. Configure approved point coordinates/assignments/slots before enabling the flow; no legacy destination is guessed or automatically migrated.
+
+## Task 15 — Relay pickup and overdue operations
+
+Customer-owned `GET /api/orders/{orderId}/relay-pickups` returns the actual managed numeric/QR credential with no-store caching; explicit renewal uses `POST /api/orders/{orderId}/relay-pickups/{parcelId}/credential`. Operator managed issuance exposes metadata only. The existing parcel release route now atomically completes linked delivery/order fulfillment after credential and identity validation. Scoped overdue/evaluation/review actions and staff seller return are available in `/relay-operator.html`.
+
+See [Task 15 evidence and reproduction](TASK15_RELAY_PICKUP.md) for V43, all boundary/security/retry checks, local PostgreSQL evidence, customer compilation and unverified device/staging steps. Fee amounts and retroactive legacy policy still require SEQUO approval; no automated charge/disposition was added.
