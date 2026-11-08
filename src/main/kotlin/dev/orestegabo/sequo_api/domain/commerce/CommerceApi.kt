@@ -130,12 +130,13 @@ class CustomerCartItemRecord(
     @Column(nullable = false) var quantity: Int,
     @Column(name = "configuration_key", nullable = false, length = 64) val configurationKey: String = "",
     @Column(name = "selections_json", nullable = false, columnDefinition = "text") val selectionsJson: String = "[]",
+    @Column(name = "bargaining_thread_id") var bargainingThreadId: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.now(),
     @Column(nullable = false) var version: Long = 0,
 )
 
-enum class BargainingThreadStatus { OPEN, ACCEPTED, REJECTED, EXPIRED, CANCELLED }
+enum class BargainingThreadStatus { OPEN, ACCEPTED, REJECTED, EXPIRED, CANCELLED, LOCKED_ATTEMPTS_EXHAUSTED }
 enum class BargainingActorType { CUSTOMER, MERCHANT, SUPPORT }
 enum class BargainingOfferType { OFFER, COUNTER_OFFER, ACCEPT, REJECT, MESSAGE }
 
@@ -155,14 +156,16 @@ class BargainingThreadRecord(
     @Enumerated(EnumType.STRING) @Column(nullable = false) var status: BargainingThreadStatus = BargainingThreadStatus.OPEN,
     @Column(name = "opened_at", nullable = false) val openedAt: Instant = Instant.now(),
     @Column(name = "closed_at") var closedAt: Instant? = null,
-    @Column(name = "expires_at") val expiresAt: Instant? = null,
+    @Column(name = "expires_at") var expiresAt: Instant? = null,
     @Column(name = "last_offer_cfa") var lastOfferCfa: Int? = null,
     @Column(name = "accepted_price_cfa") var acceptedPriceCfa: Int? = null,
     @Version @Column(nullable = false) var version: Long = 0,
 )
 
 @Entity
-@Table(name = "bargaining_offers")
+@Table(name = "bargaining_offers", uniqueConstraints = [jakarta.persistence.UniqueConstraint(
+    name = "ux_bargaining_offer_actor_retry", columnNames = ["actor_user_id", "idempotency_key"],
+)])
 class BargainingOfferRecord(
     @Id val id: String,
     @Column(name = "thread_id", nullable = false) val threadId: String,
@@ -174,6 +177,8 @@ class BargainingOfferRecord(
     @Enumerated(EnumType.STRING) @Column(name = "offer_type", nullable = false) val offerType: BargainingOfferType,
     @Column(name = "amount_cfa") val amountCfa: Int? = null,
     @Column(length = 500) val message: String? = null,
+    @Column(name = "idempotency_key", length = 128) val idempotencyKey: String? = null,
+    @Column(name = "request_fingerprint", length = 64) val requestFingerprint: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
 )
 
@@ -245,10 +250,19 @@ interface CustomerCartItemRepository : JpaRepository<CustomerCartItemRecord, Str
 interface BargainingThreadRepository : JpaRepository<BargainingThreadRecord, String> {
     fun findByCustomerIdOrderByOpenedAtDesc(customerId: String): List<BargainingThreadRecord>
     fun findByIdAndCustomerId(id: String, customerId: String): BargainingThreadRecord?
+    fun findByMerchantIdOrderByOpenedAtDesc(merchantId: String): List<BargainingThreadRecord>
+    fun findByCustomerIdAndMerchantIdAndProductIdOrderByOpenedAtDesc(customerId: String, merchantId: String, productId: String): List<BargainingThreadRecord>
+    @Query("select t.customerId from BargainingThreadRecord t where t.id = :id")
+    fun customerReference(id: String): String?
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from BargainingThreadRecord t where t.id = :id")
+    fun lockForAction(id: String): BargainingThreadRecord?
 }
 
 interface BargainingOfferRepository : JpaRepository<BargainingOfferRecord, String> {
     fun findByThreadIdOrderByCreatedAtAsc(threadId: String): List<BargainingOfferRecord>
+    fun findByActorUserIdAndIdempotencyKey(actorUserId: String, idempotencyKey: String): BargainingOfferRecord?
+    fun findByThreadIdInOrderByCreatedAtAsc(threadIds: Collection<String>): List<BargainingOfferRecord>
 }
 
 data class CommerceHomeDto(
@@ -315,11 +329,16 @@ data class CommerceCartItemDto(
     val productTotalCfa: Int?,
     val optionTotalCfa: Int?,
     val available: Boolean,
+    val bargainingThreadId: String? = null,
+    val negotiatedUnitPriceCfa: Int? = null,
+    val negotiatedPriceExpiresAt: Instant? = null,
+    val unavailableReason: String? = null,
 )
 data class UpsertCartItemRequest(
     val productId: String,
     val quantity: Int,
     val selections: List<FoodCustomizationSelection>? = null,
+    val bargainingThreadId: String? = null,
 )
 
 data class ManageCatalogProductRequest(
@@ -381,8 +400,11 @@ data class MerchantProductPhotoStatusDto(
     val status: String,
 )
 
-data class CreateBargainingThreadRequest(val productId: String, val amountCfa: Int, val message: String? = null)
-data class CreateBargainingOfferRequest(val amountCfa: Int? = null, val message: String? = null)
+data class CreateBargainingThreadRequest(val productId: String, val amountCfa: Int, val message: String? = null, val idempotencyKey: String? = null)
+data class CreateBargainingOfferRequest(
+    val amountCfa: Int? = null, val message: String? = null, val offerType: BargainingOfferType? = null,
+    val expectedOfferId: String? = null, val idempotencyKey: String? = null,
+)
 data class BargainingThreadDto(
     val id: String,
     val customerId: String,
@@ -393,6 +415,16 @@ data class BargainingThreadDto(
     val acceptedPriceCfa: Int?,
     val openedAt: Instant,
     val offers: List<BargainingOfferDto>,
+    val productName: String? = null,
+    val catalogPriceCfa: Int? = null,
+    val bargainingEnabled: Boolean = false,
+    val customerAttemptsUsed: Int = 0,
+    val merchantAttemptsUsed: Int = 0,
+    val maxCustomerAttempts: Int = 3,
+    val maxMerchantAttempts: Int = 3,
+    val acceptedAt: Instant? = null,
+    val expiresAt: Instant? = null,
+    val nextActor: BargainingActorType? = null,
 )
 data class BargainingOfferDto(
     val id: String,
@@ -415,6 +447,7 @@ class CommerceService(
     private val users: UserRepository,
     private val bargainingThreads: BargainingThreadRepository,
     private val bargainingOffers: BargainingOfferRepository,
+    private val bargaining: PersistedBargainingService,
     private val cameraMedia: CatalogCameraMedia,
     private val platformCommerce: PlatformCommerceService,
     @Value("\${sequo.catalog.approved-generic-image-url:}") private val approvedGenericImageUrl: String,
@@ -764,22 +797,35 @@ class CommerceService(
             val selections = cartSelectionsMapper.readTree(item.selectionsJson).map { selection ->
                 FoodCustomizationSelection(selection["groupId"].asText(), selection["optionIds"].map { it.asText() }.toSet())
             }
+            var unavailableReason: String? = null
             val price = try {
                 platformCommerce.quoteCustomizations(product.id, QuoteProductCustomizationsRequest(selections))
                     .takeIf { it.unitPriceCfa.toLong() * item.quantity <= Int.MAX_VALUE }
-            } catch (_: IllegalArgumentException) {
+            } catch (error: IllegalArgumentException) {
+                unavailableReason = error.message
                 null
             }
+            val negotiated = item.bargainingThreadId?.let { id ->
+                try { bargaining.acceptedPrice(userId, product, id) }
+                catch (error: IllegalArgumentException) { unavailableReason = error.message; null }
+            }
+            val available = price != null && (item.bargainingThreadId == null || negotiated != null)
+            val basePrice = negotiated?.unitPriceCfa ?: price?.basePriceCfa
+            val unitPrice = price?.let { requireNotNull(basePrice) + it.optionPriceCfa }
             CommerceCartItemDto(
                 id = item.id,
                 product = product.toDto(showConfiguredBargaining = false)
                     .copy(customizations = menus[product.id].orEmpty().filter { it.active }),
                 quantity = item.quantity,
-                lineTotalCfa = price?.unitPriceCfa?.times(item.quantity),
+                lineTotalCfa = unitPrice?.times(item.quantity).takeIf { available },
                 selections = selections,
-                productTotalCfa = price?.basePriceCfa?.times(item.quantity),
-                optionTotalCfa = price?.optionPriceCfa?.times(item.quantity),
-                available = price != null,
+                productTotalCfa = basePrice?.times(item.quantity).takeIf { available },
+                optionTotalCfa = price?.optionPriceCfa?.times(item.quantity).takeIf { available },
+                available = available,
+                bargainingThreadId = item.bargainingThreadId,
+                negotiatedUnitPriceCfa = unitPrice.takeIf { negotiated != null && available },
+                negotiatedPriceExpiresAt = negotiated?.expiresAt,
+                unavailableReason = unavailableReason ?: "Product or selected options are unavailable.".takeUnless { available },
             )
         }
         val subtotal = items.sumOf { (it.lineTotalCfa ?: 0).toLong() }
@@ -792,17 +838,20 @@ class CommerceService(
         require(users.lockCheckoutOwner(userId)?.active == true) { "Customer account is unavailable." }
         val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
         require(request.quantity in 1..99) { "quantity must be between 1 and 99." }
-        requireNotNull(products.lockForCustomization(productId)) { "Product is unavailable." }
+        val product = requireNotNull(products.lockForCustomization(productId)) { "Product is unavailable." }
+        request.bargainingThreadId?.let { bargaining.acceptedPrice(userId, product, it) }
         val selections = request.selections.orEmpty().sortedBy { it.groupId }
             .map { it.copy(optionIds = it.optionIds.toSortedSet()) }
         val price = platformCommerce.quoteCustomizations(productId, QuoteProductCustomizationsRequest(selections))
         require(price.unitPriceCfa.toLong() * request.quantity <= Int.MAX_VALUE) { "Cart line total is too large." }
         val json = cartSelectionsMapper.writeValueAsString(selections)
-        val configurationKey = if (selections.isEmpty()) "" else
-            MessageDigest.getInstance("SHA-256").digest(json.toByteArray()).toHexString()
+        val configurationIdentity = request.bargainingThreadId?.let { cartSelectionsMapper.writeValueAsString(listOf(selections, it)) } ?: json
+        val configurationKey = if (selections.isEmpty() && request.bargainingThreadId == null) "" else
+            MessageDigest.getInstance("SHA-256").digest(configurationIdentity.toByteArray()).toHexString()
 
         cartItems.findByUserIdAndProductIdAndConfigurationKey(userId, productId, configurationKey)?.also {
             it.quantity = request.quantity
+            it.bargainingThreadId = request.bargainingThreadId
             it.updatedAt = Instant.now()
         } ?: cartItems.save(
             CustomerCartItemRecord(
@@ -812,6 +861,7 @@ class CommerceService(
                 quantity = request.quantity,
                 configurationKey = configurationKey,
                 selectionsJson = json,
+                bargainingThreadId = request.bargainingThreadId,
             )
         )
         return cart(userId)
@@ -833,68 +883,15 @@ class CommerceService(
     }
 
     @Transactional
-    fun createBargainingThread(userId: String, request: CreateBargainingThreadRequest): BargainingThreadDto {
-        val productId = ApiInputPolicy.requiredIdentifier(request.productId, "productId")
-        require(request.amountCfa >= 0) { "amountCfa must be non-negative." }
-        val product = requireBargainingProduct(productId)
-        val merchantId = requireNotNull(product.merchantId)
-        product.bargainFloorCfa?.let { floor -> require(request.amountCfa >= floor) { "amountCfa is below the bargaining floor." } }
-
-        val thread = bargainingThreads.save(
-            BargainingThreadRecord(
-                id = UUID.randomUUID().toString(),
-                customerId = userId,
-                merchantId = merchantId,
-                productId = productId,
-                lastOfferCfa = request.amountCfa,
-            )
-        )
-        bargainingOffers.save(
-            BargainingOfferRecord(
-                id = UUID.randomUUID().toString(),
-                threadId = thread.id,
-                actorUserId = userId,
-                actorType = BargainingActorType.CUSTOMER,
-                offerType = BargainingOfferType.OFFER,
-                amountCfa = request.amountCfa,
-                message = ApiInputPolicy.optionalLongText(request.message, "message", 500),
-            )
-        )
-        return thread.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(thread.id))
-    }
+    fun createBargainingThread(userId: String, request: CreateBargainingThreadRequest): BargainingThreadDto =
+        bargaining.create(userId, request)
 
     @Transactional(readOnly = true)
-    fun bargainingThreads(userId: String): List<BargainingThreadDto> =
-        bargainingThreads.findByCustomerIdOrderByOpenedAtDesc(userId)
-            .map { it.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(it.id)) }
+    fun bargainingThreads(userId: String): List<BargainingThreadDto> = bargaining.customerThreads(userId)
 
     @Transactional
-    fun addCustomerBargainingOffer(userId: String, threadId: String, request: CreateBargainingOfferRequest): BargainingThreadDto {
-        val safeThreadId = ApiInputPolicy.requiredIdentifier(threadId, "threadId")
-        val thread = bargainingThreads.findByIdAndCustomerId(safeThreadId, userId)
-            ?: throw IllegalArgumentException("threadId does not reference one of this customer's bargaining threads.")
-        require(thread.status == BargainingThreadStatus.OPEN) { "Bargaining thread is not open." }
-        request.amountCfa?.let {
-            require(it >= 0) { "amountCfa must be non-negative." }
-            requireBargainingProduct(thread.productId)
-        }
-        require(request.amountCfa != null || !request.message.isNullOrBlank()) { "amountCfa or message is required." }
-
-        val offerType = if (request.amountCfa == null) BargainingOfferType.MESSAGE else BargainingOfferType.OFFER
-        request.amountCfa?.let { thread.lastOfferCfa = it }
-        bargainingOffers.save(
-            BargainingOfferRecord(
-                id = UUID.randomUUID().toString(),
-                threadId = thread.id,
-                actorUserId = userId,
-                actorType = BargainingActorType.CUSTOMER,
-                offerType = offerType,
-                amountCfa = request.amountCfa,
-                message = ApiInputPolicy.optionalLongText(request.message, "message", 500),
-            )
-        )
-        return thread.toDto(bargainingOffers.findByThreadIdOrderByCreatedAtAsc(thread.id))
-    }
+    fun addCustomerBargainingOffer(userId: String, threadId: String, request: CreateBargainingOfferRequest): BargainingThreadDto =
+        bargaining.customerOffer(userId, threadId, request)
 
     private fun requireBargainingProduct(productId: String): ProductRecord {
         val product = products.findActiveForBargaining(productId)
@@ -1085,22 +1082,25 @@ class CommerceCartController(private val commerce: CommerceService) {
 
 @RestController
 @RequestMapping("/api/bargaining")
-class BargainingController(private val commerce: CommerceService) {
+class BargainingController(private val bargaining: PersistedBargainingService) {
     @GetMapping("/threads")
-    fun threads(@AuthenticationPrincipal userId: String?): ResponseEntity<Any> =
-        authenticated(userId) { commerce.bargainingThreads(it) }
+    fun threads(authentication: Authentication?, @RequestParam(required = false) merchantId: String?): ResponseEntity<Any> =
+        if (authentication == null) ResponseEntity.status(401).build() else ok { bargaining.list(authentication, merchantId) }
+
+    @GetMapping("/threads/{threadId}")
+    fun thread(authentication: Authentication?, @PathVariable threadId: String): ResponseEntity<Any> =
+        if (authentication == null) ResponseEntity.status(401).build() else ok { bargaining.get(authentication, threadId) }
 
     @PostMapping("/threads")
-    fun createThread(@AuthenticationPrincipal userId: String?, @RequestBody request: CreateBargainingThreadRequest): ResponseEntity<Any> =
-        authenticated(userId) { commerce.createBargainingThread(it, request) }
+    fun createThread(authentication: Authentication?, @RequestBody request: CreateBargainingThreadRequest): ResponseEntity<Any> =
+        if (authentication == null) ResponseEntity.status(401).build()
+        else if (!authentication.hasAnyRole(setOf(RoleCode.CUSTOMER))) ResponseEntity.status(403).build()
+        else ok { bargaining.create(authentication.name, request) }
 
     @PostMapping("/threads/{threadId}/offers")
-    fun addOffer(
-        @AuthenticationPrincipal userId: String?,
-        @PathVariable threadId: String,
-        @RequestBody request: CreateBargainingOfferRequest,
-    ): ResponseEntity<Any> =
-        authenticated(userId) { commerce.addCustomerBargainingOffer(it, threadId, request) }
+    fun addOffer(authentication: Authentication?, @PathVariable threadId: String,
+        @RequestBody request: CreateBargainingOfferRequest): ResponseEntity<Any> =
+        if (authentication == null) ResponseEntity.status(401).build() else ok { bargaining.act(authentication, threadId, request) }
 }
 
 private val merchantCatalogRoles = setOf(RoleCode.MERCHANT_OWNER, RoleCode.MERCHANT_STAFF)
@@ -1173,11 +1173,11 @@ private fun ProductRecord.toDto(showConfiguredBargaining: Boolean = true): Catal
         subcategory = subcategory,
         detail = detail,
         priceCfa = basePriceCfa,
-        optionHint = optionHint,
+        optionHint = optionHint?.takeUnless { !showConfiguredBargaining && it.contains("historical minimum", ignoreCase = true) },
         originalPriceCfa = originalPriceCfa,
         hasDiscount = originalPriceCfa?.let { original -> basePriceCfa?.let { original > it } } ?: false,
         bargainingEnabled = if (showConfiguredBargaining) bargainingEnabled else acceptsBargaining(),
-        bargainFloorCfa = bargainFloorCfa,
+        bargainFloorCfa = bargainFloorCfa.takeIf { showConfiguredBargaining },
         cameraVerified = cameraVerified,
         capturedAtLabel = capturedAtLabel,
         photoRequired = photoRequired,

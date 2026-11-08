@@ -276,11 +276,14 @@ class CommerceServiceTest @Autowired constructor(
             userId,
             CreateBargainingThreadRequest(productId = "bargain-product", amountCfa = 1500, message = "Can you accept this?"),
         )
-        val updated = service.addCustomerBargainingOffer(userId, thread.id, CreateBargainingOfferRequest(amountCfa = 1600))
+        assertFailsWith<IllegalArgumentException> {
+            service.addCustomerBargainingOffer(userId, thread.id, CreateBargainingOfferRequest(amountCfa = 1600))
+        }
+        val updated = service.addCustomerBargainingOffer(userId, thread.id, CreateBargainingOfferRequest(message = "Waiting for your reply"))
 
         assertEquals(BargainingThreadStatus.OPEN, updated.status)
         assertEquals(2, updated.offers.size)
-        assertEquals(1600, updated.lastOfferCfa)
+        assertEquals(1500, updated.lastOfferCfa)
     }
 
     private fun seedCatalog() {

@@ -75,6 +75,7 @@ data class OrderLineRequest(
     val selections: List<FoodCustomizationSelection> = emptyList(),
     val optionLabel: String? = null,
     val relayCategory: dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory? = null,
+    val bargainingLockId: String? = null,
 ) {
     val effectiveUnitPriceCfa: Int
         get() = negotiatedUnitPriceCfa ?: unitPriceCfa

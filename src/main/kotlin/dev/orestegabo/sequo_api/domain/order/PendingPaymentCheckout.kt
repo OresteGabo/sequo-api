@@ -220,6 +220,7 @@ data class PendingOrderLineRequestPayload(
     val selections: List<FoodCustomizationSelection> = emptyList(),
     val optionLabel: String? = null,
     val relayCategory: dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory? = null,
+    val bargainingLockId: String? = null,
 )
 
 private fun OrderProcessingRequest.toPendingPayload() = PendingOrderProcessingRequestPayload(
@@ -248,6 +249,7 @@ private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload
     quantity = quantity,
     unitPriceCfa = unitPriceCfa,
     negotiatedUnitPriceCfa = negotiatedUnitPriceCfa,
+    bargainingLockId = bargainingLockId,
     photoEvidenceType = when (val evidence = photoEvidence) {
         is ProductPhotoEvidence.LiveCameraCapture -> "LIVE_CAMERA_CAPTURE"
         ProductPhotoEvidence.GenericCatalogImage -> "GENERIC_CATALOG_IMAGE"
@@ -286,6 +288,7 @@ private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
     quantity = quantity,
     unitPriceCfa = unitPriceCfa,
     negotiatedUnitPriceCfa = negotiatedUnitPriceCfa,
+    bargainingLockId = bargainingLockId,
     selections = selections,
     optionLabel = optionLabel,
     relayCategory = relayCategory,
@@ -315,6 +318,7 @@ internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRe
                 quantity = line.requiredInt("quantity"),
                 unitPriceCfa = line.requiredInt("unitPriceCfa"),
                 negotiatedUnitPriceCfa = line.optionalInt("negotiatedUnitPriceCfa"),
+                bargainingLockId = line.path("bargainingLockId").takeIf { it.isTextual }?.asText(),
                 photoEvidenceType = line.requiredText("photoEvidenceType"),
                 capturedAtEpochMillis = line.optionalLong("capturedAtEpochMillis"),
                 relayCategory = line.path("relayCategory").takeIf { it.isTextual }?.asText()?.let { dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory.valueOf(it) },

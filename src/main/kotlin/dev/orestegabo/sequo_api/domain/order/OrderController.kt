@@ -15,6 +15,7 @@ class OrderController(
     private val fulfillmentPersistence: OrderFulfillmentPersistenceService,
     private val pendingPaymentCheckouts: PendingPaymentCheckoutService,
     private val customerPickupConfirmationService: CustomerPickupConfirmationService,
+    private val catalogProducts: dev.orestegabo.sequo_api.domain.commerce.CommerceProductRepository,
 ) {
     private val factory = OrderProcessorFactory(
         RegularOrderProcessor(paymentProcessor, pricingService),
@@ -33,6 +34,12 @@ class OrderController(
         }
         require(request.route != OrderRoute.PointDeRelai && request.relayDestination == null) { "Use the basket checkout endpoint for relay delivery." }
         require(request.deliveryOption == null) { "Use the basket quote and checkout endpoints to select a delivery mode." }
+        require(request.lines.none { it.negotiatedUnitPriceCfa != null || it.bargainingLockId != null }) {
+            "Use the basket quote and checkout endpoints for an accepted negotiated price."
+        }
+        require(request.lines.none { catalogProducts.existsById(it.productId) }) {
+            "Use the basket quote and checkout endpoints for catalog products."
+        }
         val secureRequest = request.copy(customerId = userId, subscriberPriority = false)
         
         val processor = factory.processorFor(secureRequest.serviceLevel)

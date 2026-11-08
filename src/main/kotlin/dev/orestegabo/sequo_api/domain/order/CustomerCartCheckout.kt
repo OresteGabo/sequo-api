@@ -104,7 +104,9 @@ class CustomerCartCheckoutService(
             }
             OrderLineRequest(
                 product.id, seller.id, seller.name, product.name, category, item.quantity,
-                requireNotNull(item.lineTotalCfa) / item.quantity, photoEvidence = photo, selections = item.selections,
+                requireNotNull(product.priceCfa) + requireNotNull(item.optionTotalCfa) / item.quantity,
+                negotiatedUnitPriceCfa = item.negotiatedUnitPriceCfa,
+                bargainingLockId = item.bargainingThreadId, photoEvidence = photo, selections = item.selections,
                 relayCategory = dev.orestegabo.sequo_api.domain.relay.catalogRelayCategory(product.category),
                 optionLabel = item.selections.flatMap { selection ->
                     product.customizations.firstOrNull { it.id == selection.groupId }?.options.orEmpty()

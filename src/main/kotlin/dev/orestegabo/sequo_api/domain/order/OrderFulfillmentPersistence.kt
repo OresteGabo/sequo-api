@@ -591,7 +591,7 @@ private fun OrderProcessingResult.AcceptedForFulfillment.toPricingSnapshotRecord
     courierFeeEstimateCfa = null,
     deliveryShortfallEstimateCfa = null,
     bargainingLockIds = request.lines.mapIndexedNotNull { index, line ->
-        line.negotiatedUnitPriceCfa?.let { "${order.orderId}:line:$index" }
+        line.negotiatedUnitPriceCfa?.let { line.bargainingLockId ?: "${order.orderId}:line:$index" }
     }.joinToString(",").ifBlank { null },
     totalCfa = order.pricing.totalCfa,
     createdAt = createdAt,

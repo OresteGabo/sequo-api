@@ -24,6 +24,10 @@ data class ApiErrorResponse(
 
 @RestControllerAdvice
 class ApiExceptionHandler {
+    @ExceptionHandler(dev.orestegabo.sequo_api.domain.commerce.BargainingRetryConflict::class)
+    fun bargainingConflict(error: dev.orestegabo.sequo_api.domain.commerce.BargainingRetryConflict): ResponseEntity<ApiErrorResponse> =
+        errorResponse(HttpStatus.CONFLICT, "bargaining_conflict", requireNotNull(error.message))
+
     @ExceptionHandler(IllegalArgumentException::class)
     fun illegalArgument(error: IllegalArgumentException): ResponseEntity<ApiErrorResponse> =
         errorResponse(HttpStatus.BAD_REQUEST, "invalid_request", error.message ?: "Invalid request.")

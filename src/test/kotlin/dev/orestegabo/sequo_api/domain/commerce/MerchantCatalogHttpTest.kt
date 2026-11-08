@@ -118,7 +118,8 @@ class MerchantCatalogHttpTest @Autowired constructor(
             ProductRecord(id = product, merchantId = merchant, name = "Rice", basePriceCfa = 2000, bargainingEnabled = true)
         )
         val owner = token(merchant)
-        val customer = token("bargaining-http-customer", RoleCode.CUSTOMER)
+        val customerUser = users.save(User(email = "bargaining-http-customer@fixture.invalid", provider = AuthProvider.EMAIL))
+        val customer = jwt.generateAccessToken(UserSession(requireNotNull(customerUser.id), customerUser.email, AuthProvider.EMAIL, setOf(RoleCode.CUSTOMER)))
         val other = token("bargaining-http-other")
         val threads = "/api/bargaining/threads"
         val newThread = """{"productId":"$product","amountCfa":1500}"""
@@ -160,8 +161,16 @@ class MerchantCatalogHttpTest @Autowired constructor(
         assertEquals(200, updateEligibility(true, owner).statusCode())
         assertEquals(200, request("PATCH", "$endpoint/$product", owner, """{"detail":"Legacy edit"}""").statusCode())
         assertEligibility(true)
-        assertEquals(200, request("POST", offers, customer, """{"amountCfa":1600}""").statusCode())
-        assertEquals(200, request("POST", threads, customer, newThread).statusCode())
+        val firstOffer = json.readTree(initial.body()).path("offers").single().path("id").asText()
+        val counter = request("POST", offers, owner,
+            """{"offerType":"COUNTER_OFFER","amountCfa":1600,"expectedOfferId":"$firstOffer","idempotencyKey":"toggle-counter"}""")
+        assertEquals(200, counter.statusCode(), counter.body())
+        val counterId = json.readTree(counter.body()).path("offers").last().path("id").asText()
+        assertEquals(200, request("POST", offers, customer,
+            """{"offerType":"REJECT","expectedOfferId":"$counterId","idempotencyKey":"toggle-reject"}""").statusCode())
+        val resumed = request("POST", threads, customer, newThread)
+        assertEquals(200, resumed.statusCode(), resumed.body())
+        assertEquals(threadId, json.readTree(resumed.body()).path("id").asText())
     }
 
     @Test
