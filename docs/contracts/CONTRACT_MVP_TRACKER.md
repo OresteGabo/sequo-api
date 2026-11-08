@@ -136,7 +136,7 @@ Additional folders found but not counted as contract MVP app deliverables: `sequ
 | [ ] | Yes | Eligible returns can be dropped at relay point | `sequo-api/domain/returns`, `sequo-api/domain/relay`, `SequoHub/RETURNS_HANDLING.md`, `SequoHub/feature/handover` | Backend and hub UI surfaces exist, but full customer-to-hub return flow needs final wiring and verification. |
 | [x] | Yes | SEQUO recovers returned product | `sequo-api/domain/returns`, `SequoHub/RETURNS_HANDLING.md` | Admin/collection UI may need completion. |
 | [x] | Yes | Refund after SEQUO receives and checks product condition | `sequo-api/domain/returns/ReturnProcessing.kt`, tests | Payment provider refund execution needs final integration. |
-| [x] | Yes | Refund instruction within reasonable delay, e.g. one week | `sequo-api/domain/returns`, `Sequo/RETURNS_POLICY.md` | Admin/payment execution UI remains partial. |
+| [ ] | Unit pending | Refund instruction within the signed PDF’s “3” after receipt (unit omitted) | `sequo-api/domain/returns`, `docs/TASK20_RETURN_CUSTODY.md` | Instruction/audit and admin UI implemented; due date remains UNCONFIGURED until written clarification. Provider execution separate. |
 
 ## Commissions And SEQUO Fees
 

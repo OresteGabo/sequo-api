@@ -2,7 +2,7 @@
 
 This document contains planning notes for returns, refunds, custody and settlement. Some extended states and automation below are proposals for later work, not the current runtime. The signed PDF defines scope. See [Task 19 evidence](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK19_CUSTOMER_RETURNS.md) for the implemented customer request/status API and pending decisions.
 
-Current customer return states are Requested, AwaitingRelayDropoff, DroppedAtRelay, ReceivedBySequo, RefundPending and Rejected. A request or relay deposit does not itself authorize or complete a refund. Whole-order requests, server-owned deadlines and scoped history are implemented; item-level selection and later provider execution are separate work.
+Current customer return states are Requested, AwaitingRelayDropoff, DroppedAtRelay, CollectedBySequo, ReceivedBySequo, RefundPending and Rejected. Task 20 adds explicit collection, physical receipt, condition inspection and one authorized refund instruction; see [Task 20 evidence](docs/TASK20_RETURN_CUSTODY.md). RefundPending means an instruction is recorded, with provider payment NOT_SUBMITTED. Legacy pending refunds require reconciliation before further instruction. A request or relay deposit does not itself authorize or complete a refund. Whole-order requests, server-owned deadlines and scoped history are implemented; item-level selection and later provider execution are separate work.
 
 ## Authoritative Rules
 
@@ -12,7 +12,8 @@ Current customer return states are Requested, AwaitingRelayDropoff, DroppedAtRel
 | Return intake | Eligible relay drop-off or explicit approved instructions; Click-and-collect treatment remains pending agreement |
 | Relay eligibility | Food, perishable and sensitive items are excluded by the existing relay policy; this is separate from requesting a return |
 | Delayed relay parcels | Configured fees strictly after 8 days; operator review at 30 days, without automatic disposition |
-| Refund trigger | SEQUO physical receipt/inspection and an authorized refund instruction are required; customer request does not execute a payment |
+| Refund trigger | Recorded SEQUO collection and physical receipt, explicit ACCEPTED inspection and admin instruction; no payment provider execution |
+| Refund instruction deadline | UNCONFIGURED; signed clause 66 omits the unit after “3”; no due date until written clarification |
 | Merchant payout | Scheduled within 1 week of package receipt, net of holds and adjustments |
 | Shortfall | Sequo covers delivery fee shortfall when customer delivery payment is lower than courier fee |
 | Wallet rails | Yas Togo and Moov Africa only for current backend scope |
@@ -51,7 +52,7 @@ Ineligible by default:
 | `EXPIRED` | Customer missed drop-off deadline | terminal |
 | `DISPUTED` | Support/admin investigation | `REFUND_APPROVED`, `REFUND_REJECTED` |
 
-## Return Flow
+## Proposed Extended Return Flow (Later Provider Work)
 
 1. Customer requests return from order history.
 2. API validates 72-hour eligibility.
@@ -68,7 +69,7 @@ Ineligible by default:
 
 ## Physical Receipt Rule
 
-Automated refunds must not be triggered merely because the customer opened a return or relay accepted a parcel. The refund trigger is Sequo physical receipt.
+Automated refunds must not be triggered merely because the customer opened a return or relay accepted a parcel. The current refund instruction requires actual recorded SEQUO receipt and a separate accepted inspection; receipt alone does not authorize an instruction. The runtime operator actions use authenticated actors and server timestamps. Original legacy receipt notes are preserved, with no inferred inspection approval.
 
 The domain service validates and records the following physical receipt data:
 
@@ -93,7 +94,9 @@ The domain service validates and records the following physical receipt data:
 | Customer preference change | Configurable policy |
 | Suspected fraud | Support/admin decision |
 
-## Refund Execution
+## Proposed Provider Refund Execution (Unimplemented)
+
+Task 20 persists a single instruction ID on the locked return row and blocks another instruction on a legacy duplicate return for the same whole order. It does not submit money, mark payment successful, change the parent order to REFUNDED or post a provider-confirmed refund ledger entry. A later provider adapter must reconcile this durable instruction and use its ID as the stable retry identity.
 
 Refunds:
 

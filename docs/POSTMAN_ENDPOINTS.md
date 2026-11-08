@@ -296,7 +296,11 @@ Release body:
 | `GET` | `/api/returns/orders/{{order_id}}` | Yes | Owned customer/support/admin |
 | `GET` | `/api/returns/orders/{{order_id}}/eligibility` | Yes | Owned customer |
 | `POST` | `/api/returns/{{return_id}}/relay-dropoff` | Yes | Relay/admin |
+| `GET` | `/api/returns/relay?relayPointId={{relay_id}}` | Yes | Assigned active relay/admin, redacted custody only |
+| `GET` | `/api/returns/merchant?merchantId={{merchant_id}}` | Yes | Scoped merchant/admin, own lines and statuses only |
+| `POST` | `/api/returns/{{return_id}}/collection` | Yes | Support/admin |
 | `POST` | `/api/returns/{{return_id}}/physical-receipt` | Yes | Support/admin |
+| `POST` | `/api/returns/{{return_id}}/inspection` | Yes | Support/admin |
 | `POST` | `/api/returns/{{return_id}}/refund` | Yes | Admin |
 
 Customer create return body (freeze this ID/reason when retrying an uncertain submission):
@@ -314,6 +318,15 @@ Task 19 derives customer identity, request time, whole-order item refund ceiling
 Eligibility returns eligible/code/message, deliveredAt/returnWindowEndsAt, existingReturnId, dropoffMethod, instructions and actual available relayPoints. Owned list/detail return actual status, instructions and returnPin only for an active server-issued relay credential. Responses are no-store; hashes and internal inspection/operator fields are omitted from customer views. Legacy unknown PINs are not invented on read. Relay operators may read deposited returns only at their assigned active site and cannot forge relayPointId on intake.
 
 RELAY instructions require order relay eligibility, available capacity/hours, assigned operator and CUSTOMER_RETURNS/LOCKER_INTAKE controls. Without an eligible transport/location, record Requested and show pending SEQUO instructions. Click-and-collect defaults to CUSTOMER_MANAGED_PENDING until SEQUO agrees its treatment. There is no new blanket food-return ban: RETURN_EXCLUDED_CATEGORIES defaults empty and requires approved exclusions; existing food/perishable/sensitive relay exclusions remain separate. Effective settings: RETURN_WINDOW_HOURS=72, RETURN_CLICK_AND_COLLECT_MODE=PENDING. Requests do not start refunds; physical receipt/inspection and authorized later refund instruction are separate.
+
+Task 20 custody uses server timestamps and authenticated actors for every step. Intake accepts `{relayPointId,rawReturnPin,idempotencyKey,metadata?}` (older clients without a key retain a deterministic intake identity). In `/relay-operator.html`, confirm physical handoff and enter the actual return ID/PIN at the assigned available site. Staff GET `/api/returns` lists all returns unless filtered; customer reads stay owned. The admin Returns panel performs these actions:
+
+1. `POST /api/returns/{id}/collection` with `{idempotencyKey,metadata?}` from DroppedAtRelay.
+2. `POST .../physical-receipt` with `{idempotencyKey,conditionAssessment,responsibility}` from CollectedBySequo. Optional legacy receivedAt is ignored.
+3. `POST .../inspection` with `{idempotencyKey,decision:"ACCEPTED"|"REJECTED",conditionAssessment,responsibility}` after actual receipt. Original receipt context is retained.
+4. Admin-only `POST .../refund` with `{amountCfa,idempotencyKey}` after ACCEPTED inspection. This creates one durable `refundInstruction` with REQUESTED / NOT_SUBMITTED, not a completed payment.
+
+Responsibility is Merchant, Sequo or Courier. Repeat unchanged operations return canonical state, even after later stages; conflicting intent is rejected. Refund retries with new keys return the same instruction if the amount matches. Pending legacy refunds and another instructed return for the same whole order block further instructions pending reconciliation. No actor/time/approval is fabricated for legacy records. Customers and relay operators cannot see internal condition notes or refund-authorizing staff details. `history` comes from server persistence. `refundDeadlineState=UNCONFIGURED` and `refundDueAt=null` until clause 66’s missing unit has written clarification; no default days/week is inferred.
 
 ## Bargaining
 
