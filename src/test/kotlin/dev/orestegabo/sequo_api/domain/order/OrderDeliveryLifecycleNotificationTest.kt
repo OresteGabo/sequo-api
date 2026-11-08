@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import dev.orestegabo.sequo_api.domain.delivery.CreateDeliveryMissionCommand
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionEvent
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
@@ -14,6 +16,8 @@ import dev.orestegabo.sequo_api.domain.payment.PaymentValidationResult
 import dev.orestegabo.sequo_api.domain.payment.SequoPaymentProviders
 import dev.orestegabo.sequo_api.domain.payment.YasTogoPaymentMethod
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
+import dev.orestegabo.sequo_api.domain.party.CourierRecord
+import dev.orestegabo.sequo_api.domain.settlement.SettlementCourierRecordRepository
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,10 +31,14 @@ class OrderDeliveryLifecycleNotificationTest @Autowired constructor(
     private val lifecycle: OrderDeliveryLifecycleService,
     private val deliveryMissions: DeliveryMissionService,
     private val outbox: NotificationOutboxRepository,
+    private val users: UserRepository,
+    private val couriers: SettlementCourierRecordRepository,
 ) {
     @Test
     fun `delivery completion publishes notification outbox event after commit`() {
-        val request = request("checkout-delivery-notification")
+        val customer = users.save(User(email = "delivery-notification-fixture@fixture.invalid"))
+        couriers.save(CourierRecord("courier-lifecycle-notif", workforceType = "FREELANCER", vehicleType = "MOTO"))
+        val request = request("checkout-delivery-notification").copy(customerId = requireNotNull(customer.id))
         val processor = RegularOrderProcessor(
             paymentProcessor = PaymentProcessor(
                 listOf(YasTogoPaymentMethod(validateHandler = { validatedPayment(it) }))

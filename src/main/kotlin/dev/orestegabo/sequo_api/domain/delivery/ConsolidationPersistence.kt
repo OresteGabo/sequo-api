@@ -85,6 +85,7 @@ class ConsolidationPersistenceService(
     private val members: dev.orestegabo.sequo_api.domain.platform.MerchantCooperativeMemberRepository,
     private val entityManager: jakarta.persistence.EntityManager,
     private val pending: dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository,
+    private val publisher: org.springframework.context.ApplicationEventPublisher,
 ) {
     private val objectMapper = ObjectMapper()
     private val transitionService = SequoConsolidationService()
@@ -224,6 +225,7 @@ class ConsolidationPersistenceService(
             receipt.status = DeliveryMissionRecordStatus.HANDED_TO_SEQUO
             receipt.dropoffProofMetadata = metadata; receipt.dropoffProofActorId = actorUserId; receipt.updatedAt = at
             missions.save(receipt)
+            publisher.publishEvent(dev.orestegabo.sequo_api.domain.settlement.DeliverySettlementReadyEvent(requireNotNull(receipt.id)))
         }
         val updated = manifest.copy(
             sellerPackages = manifest.sellerPackages.map {

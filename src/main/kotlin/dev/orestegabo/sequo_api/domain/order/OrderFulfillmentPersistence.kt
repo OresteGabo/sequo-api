@@ -430,7 +430,6 @@ class OrderDeliveryLifecycleService(
         if (order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT ||
             order.paymentStatus != PaymentValidationStatus.Validated
         ) return null
-        postDeliveryShortfall(mission, deliveredAt)
 
         val orderMissions = missions.findByOrderIdOrderByCreatedAtAsc(order.id)
         if (orderMissions.isNotEmpty()) {
@@ -503,20 +502,6 @@ class OrderDeliveryLifecycleService(
                 )
             )
         }
-    }
-
-    private fun postDeliveryShortfall(mission: DeliveryMissionSnapshot, deliveredAt: Instant) {
-        val courierId = mission.courierId?.takeIf { it.isNotBlank() } ?: return
-        settlements.postDeliveryShortfall(
-            DeliveryShortfallCommand(
-                entryId = "${mission.id}:delivery-shortfall",
-                deliveryMissionId = mission.id,
-                customerDeliveryFeeCfa = mission.customerDeliveryFeeCfa,
-                finalCourierFeeCfa = mission.courierFeeCfa,
-                courierId = courierId,
-                createdAt = deliveredAt,
-            )
-        )
     }
 
     private fun CustomerOrderRecord.deliveryNotificationEvent(

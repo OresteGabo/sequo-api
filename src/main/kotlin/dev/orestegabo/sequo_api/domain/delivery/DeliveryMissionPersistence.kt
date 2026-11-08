@@ -99,6 +99,7 @@ class DeliveryMission(
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = createdAt,
     @Version @Column(name = "version", nullable = false) var version: Long = 0,
+    @Column(name = "settlement_policy_version") var settlementPolicyVersion: Int? = 1,
 ) {
     init {
         require(deliveryCode.isNotBlank()) { "deliveryCode cannot be blank." }
@@ -729,6 +730,9 @@ class DeliveryMissionService(
                 )
             )
         }
+        if (event in setOf(DeliveryMissionEvent.CourierDeliversToCustomer, DeliveryMissionEvent.CourierDepositsAtRelay,
+                DeliveryMissionEvent.RelayReleasesToCustomer)) publisher.publishEvent(
+            dev.orestegabo.sequo_api.domain.settlement.DeliverySettlementReadyEvent(requireNotNull(saved.id)))
         if (event == DeliveryMissionEvent.ReportProblem) publishProblemEvent(saved)
         return success(saved, result.reason)
     }

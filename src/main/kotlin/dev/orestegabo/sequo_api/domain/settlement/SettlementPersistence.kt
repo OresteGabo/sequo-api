@@ -75,6 +75,7 @@ class SettlementLedgerEntryRecord(
     @Column(name = "source_id", nullable = false) val sourceId: String,
     @Column(nullable = false) val description: String,
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
+    @Enumerated(EnumType.STRING) @Column(name = "workforce_type") val workforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
 )
 
 interface MerchantPayoutAccrualRecordRepository : JpaRepository<MerchantPayoutAccrualRecord, String> {
@@ -343,9 +344,10 @@ private fun SettlementLedgerEntry.toRecord() = SettlementLedgerEntryRecord(
     sourceId = sourceId,
     description = description,
     createdAt = createdAt,
+    workforceType = workforceType,
 )
 
 private fun SettlementLedgerEntryRecord.toDomain() = SettlementLedgerEntry(
     id, account, direction, amountCfa, merchantId, courierId, relayPointId,
-    sourceType, sourceId, description, createdAt,
+    sourceType, sourceId, description, createdAt, workforceType,
 )

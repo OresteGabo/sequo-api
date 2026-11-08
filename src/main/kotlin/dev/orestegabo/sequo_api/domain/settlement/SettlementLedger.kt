@@ -61,6 +61,7 @@ data class SettlementLedgerEntry(
     val sourceId: String,
     val description: String,
     val createdAt: Instant,
+    val workforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
 ) {
     init {
         require(id.isNotBlank()) { "id is required." }
@@ -322,6 +323,7 @@ class SettlementLedgerService(
                 sourceId = command.originalEntry.id,
                 description = command.reason,
                 createdAt = command.createdAt,
+                workforceType = command.originalEntry.workforceType,
             )
         )
     }

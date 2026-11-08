@@ -9,6 +9,10 @@ import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordMode
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionServiceResult
+import dev.orestegabo.sequo_api.domain.auth.User
+import dev.orestegabo.sequo_api.domain.auth.UserRepository
+import dev.orestegabo.sequo_api.domain.party.CourierRecord
+import dev.orestegabo.sequo_api.domain.settlement.SettlementCourierRecordRepository
 import dev.orestegabo.sequo_api.domain.delivery.MerchantFulfillmentService
 import dev.orestegabo.sequo_api.domain.payment.PaymentProcessor
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationRequest
@@ -44,6 +48,8 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val merchantFulfillment: MerchantFulfillmentService,
     private val customerPickup: CustomerPickupConfirmationService,
     private val orderController: OrderController,
+    private val users: UserRepository,
+    private val couriers: SettlementCourierRecordRepository,
 ) {
     @Test
     fun `accepted paid order is persisted and split into merchant sub-orders idempotently`() {
@@ -275,7 +281,11 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
 
     @Test
     fun `delivery completion marks order delivered and opens return window with audit events`() {
-        val request = request(lines = listOf(foodLine()))
+        val customer = users.save(User(email = "lifecycle-fixture@fixture.invalid"))
+        // Local deterministic fixture: base500 less50 credit equals the actually paid450.
+        val request = request(lines = listOf(foodLine())).copy(customerId = requireNotNull(customer.id),
+            deliveryDistanceKm = 5.1, referralCreditCfa = 50)
+        couriers.save(CourierRecord("courier-lifecycle", workforceType = "FREELANCER", vehicleType = "MOTO"))
         service.persistAcceptedOrder(request, acceptedOrder(request), Instant.parse("2026-09-08T10:00:00Z"))
         val mission = deliveryMissions.create(
             CreateDeliveryMissionCommand(
@@ -324,12 +334,15 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
         assertEquals(Instant.parse("2026-09-12T12:00:00Z"), payout.payoutEligibleAt)
         assertTrue(payout.activeReturnHold)
         assertEquals(2, payout.ledgerEntries.size)
-        val shortfallEntries = settlements.listLedgerEntries(SettlementSourceType.DeliveryMission, delivered.mission.id)
-        assertEquals(1, shortfallEntries.size)
-        assertEquals(SettlementLedgerAccount.SequoDeliveryShortfallExpense, shortfallEntries.single().account)
-        assertEquals(SettlementLedgerDirection.Debit, shortfallEntries.single().direction)
-        assertEquals(250, shortfallEntries.single().amountCfa)
-        assertEquals("courier-lifecycle", shortfallEntries.single().courierId)
+        val deliveryEntries = settlements.listLedgerEntries(SettlementSourceType.DeliveryMission, delivered.mission.id)
+        assertEquals(2, deliveryEntries.size)
+        val shortfall = deliveryEntries.single { it.account == SettlementLedgerAccount.SequoDeliveryShortfallExpense }
+        val payable = deliveryEntries.single { it.account == SettlementLedgerAccount.CourierPayable }
+        assertEquals(SettlementLedgerDirection.Debit, shortfall.direction)
+        assertEquals(250, shortfall.amountCfa)
+        assertEquals(SettlementLedgerDirection.Credit, payable.direction)
+        assertEquals(700, payable.amountCfa)
+        assertTrue(deliveryEntries.all { it.courierId == "courier-lifecycle" })
     }
 
     private fun acceptedOrder(request: OrderProcessingRequest): OrderProcessingResult.AcceptedForFulfillment {
