@@ -58,7 +58,8 @@ class RelayParcelController(
         val history: List<CustodyHistoryEntry> = emptyList(),
         val custody: RelayDeadlines? = null,
     )
-    data class CustodyHistoryEntry(val type: RelayCustodyEventType, val createdAt: Instant, val message: String? = null)
+    data class CustodyHistoryEntry(val type: RelayCustodyEventType, val createdAt: Instant, val message: String? = null,
+        val id: String? = null, val actorUserId: String? = null)
     data class PickupCredentialResponse(val id: String, val parcelId: String, val identityCheckRequired: Boolean, val expiresAt: Instant, val usedAt: Instant?, val attemptCount: Int)
     data class OperationResponse(val parcel: ParcelResponse, val pickupCode: PickupCredentialResponse?, val eventId: String?)
 
@@ -256,5 +257,7 @@ private fun toResponse(parcel: RelayParcel) = RelayParcelController.ParcelRespon
     createdAt = parcel.createdAt,
     updatedAt = parcel.updatedAt,
     custody = parcel.deadlines(),
-    history = parcel.custodyEvents.map { RelayParcelController.CustodyHistoryEntry(it.type, it.createdAt, it.metadata.takeIf { _ -> it.type in setOf(RelayCustodyEventType.Review, RelayCustodyEventType.ReturnDropoff, RelayCustodyEventType.Delay) }) },
+    history = parcel.custodyEvents.map { RelayParcelController.CustodyHistoryEntry(it.type, it.createdAt,
+        it.metadata.takeIf { _ -> it.type in setOf(RelayCustodyEventType.Review, RelayCustodyEventType.ReturnDropoff, RelayCustodyEventType.Delay) },
+        it.id, it.actorUserId) },
 )

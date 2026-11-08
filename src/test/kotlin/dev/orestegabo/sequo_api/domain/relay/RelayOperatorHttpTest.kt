@@ -43,6 +43,51 @@ class RelayOperatorHttpTest @Autowired constructor(
             ?: HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString())
     }
 
+    @Test fun overdueDecisionsExposeStoredActorsAndRequireAuthorizedCurrentCustody() {
+        val operator = token(RoleCode.RELAY_PARTNER)
+        val other = token(RoleCode.RELAY_PARTNER)
+        val admin = token(RoleCode.ADMIN)
+        val site = "site-${UUID.randomUUID()}"
+        val otherSite = "site-${UUID.randomUUID()}"
+        points.save(RelayPointRecord(id = site, operatorUserId = operator.first, name = "Decision fixture"))
+        points.save(RelayPointRecord(id = otherSite, operatorUserId = other.first, name = "Other decision fixture"))
+        val parcel = "parcel-${UUID.randomUUID()}"
+        val path = "/api/relay/parcels/$parcel"
+        val creation = call("POST", "/api/relay/parcels", operator.second, mapOf(
+            "parcelId" to parcel, "relayPointId" to site, "orderId" to "isolated-order", "category" to "GeneralGoods",
+            "depositCode" to UUID.randomUUID().toString(), "createdAt" to Instant.now().minusSeconds(31L * 86400).toString(),
+            "availableLockers" to listOf(mapOf("id" to "slot-$parcel", "relayPointId" to site, "active" to true, "occupied" to false))))
+        assertEquals(200, creation.statusCode(), creation.body())
+        val review = mapOf("eventId" to UUID.randomUUID().toString(), "idempotencyKey" to UUID.randomUUID().toString(),
+            "metadata" to "Keep parcel pending SEQUO collection.")
+        for (denied in listOf(other.second, token(RoleCode.CUSTOMER).second, "expired.invalid.token", null)) {
+            assertEquals(403, call("POST", "$path/review", denied, review).statusCode())
+        }
+        val responses = (1..2).map { CompletableFuture.supplyAsync { call("POST", "$path/review", operator.second, review) } }.map { it.join() }
+        responses.forEach { assertEquals(200, it.statusCode(), it.body()) }
+        fun stored() = json.readTree(call("GET", path, admin.second).body())
+        val history = stored()["history"]
+        val savedReview = history.single { it["type"].asText() == "Review" }
+        assertEquals(review["eventId"], savedReview["id"].asText())
+        assertEquals(operator.first, savedReview["actorUserId"].asText())
+        assertEquals(review["metadata"], savedReview["message"].asText())
+        assertEquals(2, history.size())
+        val disposition = mapOf("eventId" to UUID.randomUUID().toString(), "idempotencyKey" to UUID.randomUUID().toString(),
+            "metadata" to "Physical return to seller, fixture receipt.")
+        assertEquals(403, call("POST", "$path/return-to-seller", operator.second, disposition).statusCode())
+        val returned = (1..2).map { CompletableFuture.supplyAsync { call("POST", "$path/return-to-seller", admin.second, disposition) } }.map { it.join() }
+        returned.forEach { assertEquals(200, it.statusCode(), it.body()) }
+        val readback = stored()
+        assertEquals("ReturnedToSeller", readback["status"].asText())
+        val savedReturn = readback["history"].single { it["type"].asText() == "ReturnDropoff" }
+        assertEquals(admin.first, savedReturn["actorUserId"].asText())
+        assertEquals(disposition["eventId"], savedReturn["id"].asText())
+        assertEquals(3, readback["history"].size())
+        assertEquals(400, call("POST", "$path/review", operator.second, review + ("idempotencyKey" to UUID.randomUUID().toString())).statusCode())
+        assertEquals(400, call("POST", "$path/return-to-seller", admin.second, disposition + ("idempotencyKey" to UUID.randomUUID().toString())).statusCode())
+        assertEquals(3, stored()["history"].size())
+    }
+
     @Test fun twoOperatorsCannotReadOrMutateEachOthersSitesAndCredentialsAreSingleUse() {
         val a = token(RoleCode.RELAY_PARTNER)
         val b = token(RoleCode.RELAY_PARTNER)

@@ -6,6 +6,7 @@ let busy = false;
 let releaseOperation = null;
 let sites = [];
 let dispositionOperation = null;
+let reviewOperation = null;
 let customerReturnOperation = null;
 let returnSiteId = "";
 const deviceId = sessionStorage.getItem('sequo_relay_device') || crypto.randomUUID();
@@ -13,7 +14,7 @@ sessionStorage.setItem('sequo_relay_device', deviceId);
 const device = { deviceId, appSource: 'SEQUO_HUB', deviceLabel: 'Relay web' };
 function message(text) { el('message').textContent = text; }
 function clearSession() {
-  accessToken = ''; selected = null; releaseOperation = null; dispositionOperation = null; customerReturnOperation = null; returnSiteId = ''; sites = [];
+  accessToken = ''; selected = null; releaseOperation = null; dispositionOperation = null; reviewOperation = null; customerReturnOperation = null; returnSiteId = ''; sites = [];
   sessionStorage.removeItem('sequo_relay_refresh');
   el('workspace').hidden = true; el('login').hidden = false; el('detail').hidden = true;
   el('parcels').replaceChildren(); el('site').replaceChildren(); el('history').replaceChildren();
@@ -41,9 +42,22 @@ async function run(operation) {
   message('Chargement…');
   try { await operation(); message('À jour.'); }
   catch (error) { message(`${error.message} Les données affichées peuvent être anciennes.`); }
-  finally { busy = false; el('site').disabled = false; document.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
+  finally { updateDecisionDrafts(); busy = false; el('site').disabled = false; document.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
 }
-function bind(id, operation) { el(id).addEventListener('submit', event => { event.preventDefault(); void run(operation); }); }
+function bind(id, operation) { el(id).addEventListener('submit', event => { event.preventDefault(); void run(async () => {
+  const pending = reviewOperation || dispositionOperation;
+  if (pending && ['issue', 'release', 'problem', 'review', 'seller-return'].includes(id) &&
+      (pending.id !== selected?.id || id !== (reviewOperation ? 'review' : 'seller-return'))) {
+    throw Error('Une décision reste à confirmer. Actualisez le colis concerné ou réessayez exactement la même décision.');
+  }
+  await operation();
+}); }); }
+function updateDecisionDrafts() {
+  for (const [field, pending] of [['review-note', reviewOperation], ['return-note', dispositionOperation]]) {
+    el(field).readOnly = Boolean(pending);
+    if (pending && pending.id === selected?.id) el(field).value = pending.note;
+  }
+}
 function saveTokens(tokens) { accessToken = tokens.accessToken; sessionStorage.setItem('sequo_relay_refresh', tokens.refreshToken); }
 async function openWorkspace() {
   sites = await request('/api/relay/parcels/sites');
@@ -117,7 +131,14 @@ async function showDetail(id) {
     for (const field of ['pickup', 'qr-pickup', 'reason', 'review-note', 'return-note']) el(field).value = '';
     el('identity').checked = false;
   }
+  if (parcel.id !== id || parcel.relayPointId !== el('site').value) throw Error('Le colis ne correspond pas au point relais sélectionné.');
   selected = parcel;
+  if (reviewOperation?.id === id && parcel.history.some(event => event.id === reviewOperation.event)) {
+    reviewOperation = null; el('review-note').value = '';
+  }
+  if (dispositionOperation?.id === id && parcel.history.some(event => event.id === dispositionOperation.event)) {
+    dispositionOperation = null; el('return-note').value = ''; el('return-confirmed').checked = false;
+  }
   document.querySelectorAll('[data-parcel-id]').forEach(button => {
     if (button.dataset.parcelId === id) button.textContent = `${id} — ${statusLabel(selected.status)}`;
   });
@@ -126,7 +147,7 @@ async function showDetail(id) {
   el('problem').hidden = ['PickedUp', 'CollectedBySequo', 'ReturnedToSeller'].includes(selected.status);
   el('parcel-title').textContent = selected.id;
   el('parcel-state').textContent = `${statusLabel(selected.status)} — ${selected.relayPointId}`;
-  el('history').replaceChildren(...selected.history.map(event => { const li = document.createElement('li'); li.textContent = `${({Deposit:'Dépôt',RelayRelease:'Retrait validé',Pickup:'Retrait',SequoCollection:'Récupération SEQUO',ReturnDropoff:'Retour',Problem:'Problème',Delay:'Délai dépassé',Review:'Revue opérateur'})[event.type] || event.type} — ${new Date(event.createdAt).toLocaleString('fr')}${event.message ? ` — ${event.message}` : ''}`; return li; }));
+  el('history').replaceChildren(...selected.history.map(event => { const li = document.createElement('li'); li.textContent = `${({Deposit:'Dépôt',RelayRelease:'Retrait validé',Pickup:'Retrait',SequoCollection:'Récupération SEQUO',ReturnDropoff:'Retour',Problem:'Problème',Delay:'Délai dépassé',Review:'Revue opérateur'})[event.type] || event.type} — ${new Date(event.createdAt).toLocaleString('fr')}${event.actorUserId ? ` — ${event.actorUserId}` : ''}${event.message ? ` — ${event.message}` : ''}`; return li; }));
   const deadline = selected.custody;
   el('deadlines').textContent = deadline ? `Frais éventuels strictement après : ${deadline.feeStartsAt ? new Date(deadline.feeStartsAt).toLocaleString('fr') : 'politique historique à approuver'}. Revue à 30 jours : ${new Date(deadline.reviewDueAt).toLocaleString('fr')}. Aucun tarif ajouté par cet écran.` : '';
   const overdue = deadline?.storageFeeEligible || deadline?.reviewDue;
@@ -145,15 +166,34 @@ bind('issue', async () => {
 bind('review', async () => {
   if (!selected) return;
   const id = selected.id;
-  await post(`/api/relay/parcels/${encodeURIComponent(id)}/review`, {eventId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), metadata: el('review-note').value});
-  el('review-note').value = ''; await showDetail(id);
+  if (!reviewOperation) {
+    const note = el('review-note').value.trim();
+    if (!window.confirm(`Conserver le colis ${id} au relais ${selected.relayPointId} et consigner : ${note} ?`)) return;
+    reviewOperation = {id, note, event: crypto.randomUUID(), key: crypto.randomUUID()};
+  }
+  const pending = reviewOperation;
+  await post(`/api/relay/parcels/${encodeURIComponent(id)}/review`, {eventId: pending.event, idempotencyKey: pending.key, metadata: pending.note});
+  await showDetail(id);
+  if (reviewOperation && (selected.history.some(event => event.id != null) ||
+      !selected.history.some(event => event.type === 'Review' && event.message === pending.note))) {
+    throw Error('La revue n’est pas confirmée dans l’historique serveur. Actualisez ou réessayez la même décision.');
+  }
+  reviewOperation = null; el('review-note').value = '';
 });
 bind('seller-return', async () => {
   if (!selected || !el('return-confirmed').checked) return;
   const id = selected.id; const note = el('return-note').value;
-  if (dispositionOperation?.id !== id || dispositionOperation?.note !== note) dispositionOperation = { id, note, key: crypto.randomUUID(), event: crypto.randomUUID() };
-  await post(`/api/relay/parcels/${encodeURIComponent(id)}/return-to-seller`, {eventId: dispositionOperation.event, idempotencyKey: dispositionOperation.key, metadata: note});
-  el('return-confirmed').checked = false; el('return-note').value = ''; dispositionOperation = null; await showDetail(id);
+  if (!dispositionOperation) {
+    if (!window.confirm(`Enregistrer le retour physique du colis ${id} au vendeur ? Référence : ${note}`)) return;
+    dispositionOperation = { id, note, key: crypto.randomUUID(), event: crypto.randomUUID() };
+  }
+  const pending = dispositionOperation;
+  await post(`/api/relay/parcels/${encodeURIComponent(id)}/return-to-seller`, {eventId: pending.event, idempotencyKey: pending.key, metadata: pending.note});
+  await showDetail(id);
+  if (dispositionOperation && (selected.history.some(event => event.id != null) || selected.status !== 'ReturnedToSeller')) {
+    throw Error('Le retour vendeur n’est pas confirmé dans l’historique serveur. Actualisez ou réessayez la même décision.');
+  }
+  el('return-confirmed').checked = false; el('return-note').value = ''; dispositionOperation = null;
 });
 bind('release', async () => {
   if (!selected) return;
