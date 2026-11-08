@@ -32,6 +32,9 @@ import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
 import dev.orestegabo.sequo_api.domain.order.FulfillmentPriority
 import dev.orestegabo.sequo_api.domain.order.OrderRoute
 import dev.orestegabo.sequo_api.domain.order.OrderServiceLevel
+import dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRecord
+import dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository
+import dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutStatus
 import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookEventRecord
 import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookEventRepository
@@ -50,10 +53,12 @@ import dev.orestegabo.sequo_api.domain.settlement.MerchantPayoutStatus
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.http.ResponseEntity
+import org.springframework.http.CacheControl
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -66,6 +71,7 @@ interface AdminWebReadPort {
     fun orders(limit: Int): List<AdminOrderDto>
     fun deliveries(limit: Int): AdminDeliveryDto
     fun payments(limit: Int): AdminPaymentsDto
+    fun paymentCheckout(checkoutId: String): AdminPaymentCheckoutDetailDto? = null
     fun commissions(limit: Int): AdminCommissionsDto
     fun deliveryPricing(): AdminDeliveryPricingDto
     fun returns(limit: Int): List<AdminReturnDto>
@@ -160,6 +166,27 @@ data class AdminDeliveryMissionDto(
 data class AdminPaymentsDto(
     val merchantPayouts: List<AdminMerchantPayoutDto>,
     val webhookEvents: List<AdminPaymentWebhookDto>,
+    val checkouts: List<AdminPaymentCheckoutDto> = emptyList(),
+)
+
+data class AdminPaymentCheckoutDto(
+    val checkoutId: String,
+    val paymentProvider: String,
+    val paymentReference: String,
+    val providerReference: String?,
+    val amountCfa: Int,
+    val status: PendingPaymentCheckoutStatus,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val completedAt: Instant?,
+    val orderId: String?,
+    val orderStatus: CustomerOrderStatus?,
+    val currency: String = "XOF",
+)
+
+data class AdminPaymentCheckoutDetailDto(
+    val checkout: AdminPaymentCheckoutDto,
+    val events: List<AdminPaymentWebhookDto>,
 )
 
 data class AdminMerchantPayoutDto(
@@ -190,6 +217,9 @@ data class AdminPaymentWebhookDto(
     val status: PaymentWebhookProviderStatus,
     val occurredAt: Instant,
     val receivedAt: Instant,
+    val reconciliationStatus: String? = null,
+    val reconciliationReason: String? = null,
+    val reconciledAt: Instant? = null,
 )
 
 data class AdminCommissionsDto(
@@ -394,6 +424,7 @@ class AdminWebReadService(
     private val relayParcels: RelayParcelRecordRepository,
     private val relayStorageFees: RelayStorageFeeAssessmentRecordRepository,
     private val paymentWebhooks: PaymentWebhookEventRepository,
+    private val pendingCheckouts: PendingPaymentCheckoutRepository,
     private val returns: ReturnRequestRecordRepository,
 ) : AdminWebReadPort {
     private val defaultCommissionRateBps = MerchantCommissionPolicy().defaultRateBps
@@ -456,7 +487,23 @@ class AdminWebReadService(
         AdminPaymentsDto(
             merchantPayouts = merchantPayouts.findAll(page(limit)).content.map(MerchantPayoutAccrualRecord::toAdminDto),
             webhookEvents = paymentWebhooks.findAll(page(limit)).content.map(PaymentWebhookEventRecord::toAdminDto),
+            checkouts = pendingCheckouts.findAll(page(limit).withSort(Sort.by(Sort.Direction.DESC, "updatedAt")))
+                .content.map(::paymentCheckoutSummary),
         )
+
+    @Transactional(readOnly = true)
+    override fun paymentCheckout(checkoutId: String): AdminPaymentCheckoutDetailDto? {
+        val record = pendingCheckouts.findById(checkoutId).orElse(null) ?: return null
+        return AdminPaymentCheckoutDetailDto(paymentCheckoutSummary(record),
+            paymentWebhooks.findTop100ByCheckoutIdOrderByReceivedAtDesc(checkoutId).map(PaymentWebhookEventRecord::toAdminDto))
+    }
+
+    private fun paymentCheckoutSummary(checkout: PendingPaymentCheckoutRecord): AdminPaymentCheckoutDto {
+        val order = orders.findByCheckoutId(checkout.checkoutId)
+        return AdminPaymentCheckoutDto(checkout.checkoutId, checkout.paymentProvider, checkout.paymentReference,
+            checkout.providerReference, checkout.amountCfa, checkout.status, checkout.createdAt, checkout.updatedAt,
+            checkout.completedAt, order?.id, order?.orderStatus)
+    }
 
     @Transactional(readOnly = true)
     override fun commissions(limit: Int): AdminCommissionsDto =
@@ -532,7 +579,15 @@ class AdminWebController(
 
     @GetMapping("/payments")
     fun payments(authentication: Authentication?, @RequestParam(defaultValue = "50") limit: Int): ResponseEntity<Any> =
-        adminRequired(authentication) { ResponseEntity.ok(service.payments(limit)) }
+        adminRequired(authentication) { ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.payments(limit)) }
+
+    @GetMapping("/payments/checkouts/{checkoutId}")
+    fun paymentCheckout(authentication: Authentication?, @PathVariable checkoutId: String): ResponseEntity<Any> =
+        adminRequired(authentication) {
+            service.paymentCheckout(dev.orestegabo.sequo_api.api.ApiInputPolicy.requiredIdentifier(checkoutId, "checkoutId"))
+                ?.let { ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(it) }
+                ?: ResponseEntity.notFound().build()
+        }
 
     @GetMapping("/commissions")
     fun commissions(authentication: Authentication?, @RequestParam(defaultValue = "50") limit: Int): ResponseEntity<Any> =
@@ -659,6 +714,9 @@ private fun PaymentWebhookEventRecord.toAdminDto(): AdminPaymentWebhookDto =
         status = status,
         occurredAt = occurredAt,
         receivedAt = receivedAt,
+        reconciliationStatus = reconciliationStatus.name,
+        reconciliationReason = reconciliationReason,
+        reconciledAt = reconciledAt,
     )
 
 private fun MerchantCommissionOverrideRecord.toAdminDto(): AdminCommissionOverrideDto =
