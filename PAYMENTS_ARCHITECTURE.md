@@ -1,6 +1,8 @@
 # Payments Architecture
 
-This document defines the production payment architecture for Sequo API, with a focus on Togo payment rails: Yas Togo, Moov Africa, customer checkout, refunds, logistics settlement, merchant payouts, and reconciliation.
+Task24 status: provider integration is **PREPARATION ONLY, NOT CONNECTED**. The current implementation and missing operator inputs are recorded in [Task24 preparation](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK24_PROVIDER_PREPARATION.md). The diagrams, sample provider DTO names and proposed lifecycle below are internal design notes, not approved Yas/Flooz specifications or proof of connectivity. Configured credentials or stored LIVE_READY labels cannot activate the stub adapters.
+
+This document describes the intended payment architecture for Sequo API, with a focus on Togo payment rails: Yas Togo, Moov Africa, customer checkout, refunds, logistics settlement, merchant payouts, and reconciliation.
 
 It is aligned with the current Kotlin/Spring Boot repository. The code already contains payment abstractions in `dev.orestegabo.sequo_api.domain.payment`, pending checkout reconciliation in `domain.order`, Flyway migrations for `payment_webhook_events` and `pending_payment_checkouts`, and settlement ledger tables.
 
@@ -11,7 +13,7 @@ It is aligned with the current Kotlin/Spring Boot repository. The code already c
 | Payment providers | `yas_togo`, `moov_africa` as `PaymentProviderId` values |
 | Provider abstraction | `SequoPaymentMethod`, `YasTogoPaymentMethod`, `MoovAfricaPaymentMethod`, `PaymentProcessor` |
 | Payment policy | `ConfigurablePaymentPolicy`; cash withdrawal and cash referral payout disabled globally |
-| Webhooks | `/api/payments/webhooks/{provider}` with HMAC-SHA256 verification |
+| Webhooks | `/api/payments/webhooks/{provider}` is normalized internal intake; production acceptance requires the provider adapter's verification, currently unconnected. HMAC fixtures exist only in test source. |
 | Webhook idempotency | `payment_webhook_events` unique `(provider, event_id)` and payload hash conflict detection |
 | Pending checkout | `pending_payment_checkouts`, reconciled after accepted webhook event |
 | Settlement | `merchant_payout_accruals` and `settlement_ledger_entries` |

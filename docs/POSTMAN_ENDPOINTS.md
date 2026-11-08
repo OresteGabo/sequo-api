@@ -490,17 +490,19 @@ Preference patch body:
 
 | Method | Endpoint | Auth | How to test |
 | --- | --- | --- | --- |
-| `POST` | `/api/payments/webhooks/{provider}` | Provider headers | Use `yas-togo` or `moov-africa` plus webhook headers |
+| `POST` | `/api/payments/webhooks/{provider}` | Verified adapter | Internal normalized intake for `yas_togo` or `moov_africa`; runtime adapters currently reject callbacks. See Task24 preparation. |
 | `GET` | `/api/admin/monitoring/operations` | Support/admin | Operational snapshot |
 
-Webhook headers:
+The following headers/body describe SEQUO's internal normalized fixture contract. They are **not approved Yas or Flooz callback formats**, and cannot authenticate a production callback while the provider adapter is unconnected.
+
+Internal fixture headers:
 
 ```http
 X-Sequo-Webhook-Timestamp: 1790420000
 X-Sequo-Webhook-Signature: test-signature
 ```
 
-Webhook body:
+Internal fixture body:
 
 ```json
 {
@@ -532,11 +534,11 @@ The deterministic payment exercise lives in the test source set. Run it with Jav
 
 The HTTP fixture submits an owned basket, signs events with a test-only secret, and sends them to `POST /api/payments/webhooks/yas_togo`. It checks pending, wrong amount, wrong reference, wrong currency, forged signature, success, duplicate success, failure, and late success. Each accepted fixture goes through the existing webhook service and reconciliation listener. A pending or failed checkout has no merchant fulfillment.
 
-The webhook route authenticates the raw body using `X-Sequo-Webhook-Timestamp` (epoch seconds) and `X-Sequo-Webhook-Signature` (HMAC-SHA256 of `timestamp.rawBody`). Set a dedicated staging webhook secret through the existing wallet environment configuration. Tracked development placeholder secrets are rejected. Events with an explicit currency must use `XOF`. Legacy events that omit currency retain the existing XOF interpretation.
+The test-source verifier authenticates fixture bodies using `X-Sequo-Webhook-Timestamp` (epoch seconds) and `X-Sequo-Webhook-Signature` (HMAC-SHA256 of `timestamp.rawBody`). It is explicitly imported by isolated tests and absent from the production artifact. Production acceptance delegates to the actual provider adapter, which currently rejects callbacks even when credential slots are populated. A secret alone does not approve an invented callback protocol. Events with an explicit currency must use `XOF`. Legacy events that omit currency retain the existing XOF interpretation.
 
 Runtime payment simulation is disabled. Setting `sequo.payments.simulator.enabled=true` fails application initialization in every profile, including production with the development-security override enabled. Test classes and fixture credentials are excluded from the production application artifact.
 
-The public provider read exposes `apiConfigured` and `checkoutConnected` booleans. Configured credentials can be reported while provider execution is still being prepared. The current wallet adapters report `checkoutConnected=false`. The customer UI shows this configuration state before submission and reloads pending, failed, or paid states from authenticated checkout/order reads.
+The public provider read exposes safe effective readiness and `apiConfigured`/`checkoutConnected` booleans. `apiConfigured` reports only syntactically present config slots, never a successful request. Stored LIVE_READY/enabled labels cannot override disconnected execution. Current wallet adapters report `checkoutConnected=false`, and checkout/refund/payout enabled flags remain false. The customer UI shows this state before submission and reloads pending, failed, or paid states from authenticated checkout/order reads. See [Task24 configuration matrix and missing inputs](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK24_PROVIDER_PREPARATION.md).
 
 For the device check, connect the customer debug app and API to the same isolated staging database, sign in as a staging customer, and add a published product with valid media. Select an owned home address with coordinates and review the quote. Submit and open Orders to see pending confirmation. Restart the app and refresh Orders. Send a signed staging event using the displayed checkout ID as both `checkoutId` and `paymentReference`, the stored checkout amount as `amountCfa`, `currency=XOF`, a unique `eventId`, and `status=VALIDATED`. Refresh Orders and verify one paid order. Repeat the same signed body with a fresh signature timestamp and verify the same order. Use a separate checkout with `status=FAILED` to verify the failed state. Device and deployed staging checks require authorized environment access.
 
