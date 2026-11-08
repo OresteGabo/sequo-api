@@ -2,6 +2,8 @@
 
 ## Current signed-MVP handoff
 
+Android follow-up: [8 November stability and iPhone feature comparison](docs/ANDROID_STABILITY_2026-11-08.md) records newer client fixes, explicit local test builds and the remaining real-account/device checks. Those builds do not replace the frozen Task 28 candidate or establish complete feature acceptance.
+
 Start with [Task 29 handoff](docs/TASK29_HANDOFF.md), the [per-clause checklist](docs/TASK29_CONTRACT_CHECKLIST.md) and [open items with owners](docs/TASK29_OPEN_ITEMS.md). The signed source PDF defines scope; older planning notes and percentages below are not acceptance or payment evidence.
 
 The identified `sequo-mvp-rc-20261108-01` candidate is verified locally. Online authenticated acceptance, provider connectivity and distribution remain unverified. No current-candidate testable delivery is recorded, so its 50-calendar-day reporting period remains unstarted. Payment completion, source-transfer rights, legal compliance and warranty dates require the parties' confirmation. The handoff records an admin-login encryption-key configuration/guard gap that must be resolved before online activation; see [security setup](docs/TASK29_OPEN_ITEMS.md#o-sec).
