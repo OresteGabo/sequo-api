@@ -22,7 +22,7 @@ SEQUO_RELEASE_ID=sequo-mvp-rc-20261108-01 SEQUO_SOURCE_REVISION="$sequo_release_
   JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew --offline bootJar
 ```
 
-The JAR includes `META-INF/build-info.properties` under `BOOT-INF/classes`. Authenticated `/actuator/info` can expose the same public identity when `health,info` are enabled. No secret is put in build metadata. For an image, pass the same public `SEQUO_RELEASE_ID` and exact `SEQUO_SOURCE_REVISION` as Docker build arguments, and record the resulting image ID/digest. The production workflow is pinned to its tested SHA, refuses a dirty remote checkout and forwards both identifiers; it does not follow a later untested `main` head.
+The JAR includes `META-INF/build-info.properties` either at its root or under `BOOT-INF/classes`, depending on the packaged layout. The verifier accepts one unambiguous resource; both actual layouts were checked. Authenticated `/actuator/info` can expose the same public identity when `health,info` are enabled. No secret is put in build metadata. For an image, pass the same public `SEQUO_RELEASE_ID` and exact `SEQUO_SOURCE_REVISION` as Docker build arguments, and record the resulting image ID/digest. The production workflow is pinned to its tested SHA, refuses a dirty remote checkout and forwards both identifiers; it does not follow a later untested `main` head.
 
 In each of `Sequo`, `SequoVendor`, `SequoRider`:
 
@@ -42,6 +42,8 @@ Admin: use `sequo-admin/docs/RELEASE_RECETTE.md` and `scripts/prepare-release.mj
 ## 2. Package and verify the evidence
 
 `scripts/release_candidate.py` copies only explicitly supplied artifacts/reports. It records source revisions and hashes of acknowledged tracked changes, hashes every migration and artifact, and binds API/admin embedded metadata or mobile hash-bound build reports to the release/source identity. Unknown artifact provenance is labelled UNKNOWN rather than invented. The inventory verifies every file plus the immutable manifest; hashes detect corruption and are not a signature or deployment approval.
+
+Freeze each runtime checkout at the commit named by its artifact metadata. Evidence/tool-only commits can follow the build; use a detached temporary source checkout at the recorded runtime commit when preparing its bundle, so a later workspace HEAD is not mistaken for the artifact source. Do not copy secret environment files into that source snapshot.
 
 ```sh
 python3 -m unittest discover -s scripts/tests -v

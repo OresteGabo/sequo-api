@@ -51,11 +51,11 @@ class ReleaseEvidenceTest(unittest.TestCase):
             subprocess.run(["git", "-C", str(repo), "add", "source.txt"], check=True)
             subprocess.run(["git", "-C", str(repo), "-c", "user.name=Release fixture", "-c", "user.email=fixture@invalid", "commit", "-qm", "fixture"], check=True)
 
-    def api_artifact(self, release_id="fixture-rc"):
+    def api_artifact(self, release_id="fixture-rc", location="BOOT-INF/classes/META-INF/build-info.properties"):
         artifact = self.base / "api.jar"
         revision = release.git(self.base / "sequo-api", "rev-parse", "HEAD")
         with zipfile.ZipFile(artifact, "w") as archive:
-            archive.writestr("BOOT-INF/classes/META-INF/build-info.properties", f"build.releaseId={release_id}\nbuild.revision={revision}\n")
+            archive.writestr(location, f"build.releaseId={release_id}\nbuild.revision={revision}\n")
         return artifact
 
     def test_bundle_hashes_actual_files_and_does_not_start_acceptance(self):
@@ -77,6 +77,17 @@ class ReleaseEvidenceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             release.prepare(self.base, self.base / "bundle", "fixture-rc", "LOCAL_FIXTURE", [f"sequo-api.jvm={artifact}"])
         self.assertFalse((self.base / "bundle").exists())
+
+    def test_container_build_info_layout_is_verified_and_ambiguous_metadata_is_refused(self):
+        self.repositories()
+        artifact = self.api_artifact(location="META-INF/build-info.properties")
+        output = self.base / "container-bundle"
+        release.prepare(self.base, output, "fixture-rc", "LOCAL_FIXTURE", [f"sequo-api.jvm={artifact}"])
+        release.verify(output)
+        with zipfile.ZipFile(artifact, "a") as archive:
+            archive.writestr("BOOT-INF/classes/META-INF/build-info.properties", "build.releaseId=another-release\n")
+        with self.assertRaises(ValueError):
+            release.prepare(self.base, self.base / "ambiguous", "fixture-rc", "LOCAL_FIXTURE", [f"sequo-api.jvm={artifact}"])
 
     def test_manifest_and_receipt_cannot_escape_complete_checksum_and_calendar_validation(self):
         self.repositories()

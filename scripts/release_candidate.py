@@ -47,7 +47,10 @@ def provenance(repo):
 def artifact_identity(path, component, report):
     if component == "sequo-api" and path.suffix == ".jar":
         with zipfile.ZipFile(path) as archive:
-            props = dict(line.split("=", 1) for line in archive.read("BOOT-INF/classes/META-INF/build-info.properties").decode().splitlines()
+            locations = [name for name in ("BOOT-INF/classes/META-INF/build-info.properties", "META-INF/build-info.properties") if name in archive.namelist()]
+            if len(locations) != 1:
+                raise ValueError("API artifact requires one unambiguous build-info resource")
+            props = dict(line.split("=", 1) for line in archive.read(locations[0]).decode().splitlines()
                          if line and not line.startswith("#") and "=" in line)
         return {"verification": "EMBEDDED_BUILD_INFO", "releaseId": props.get("build.releaseId"),
                 "revision": props.get("build.revision")}
