@@ -24,6 +24,7 @@ class HubMobileControllerTest @Autowired constructor(
     private val preferenceController: UserPreferenceController,
     private val userRepository: UserRepository,
     private val relayPoints: dev.orestegabo.sequo_api.domain.relay.RelayPointRepository,
+    private val lockers: RelayLockerRepository,
 ) {
     @Test
     fun hubSummaryRequiresAuthenticationAndRelayScope() {
@@ -40,8 +41,10 @@ class HubMobileControllerTest @Autowired constructor(
 
     @Test
     fun relayPartnerCanUpdateOwnLockerAvailability() {
+        val operator = auth("hub-locker", RoleCode.RELAY_PARTNER)
+        lockers.save(RelayLockerRecord(id = "locker-controller-1", relayPointId = "hub-locker", relayLockerGridId = "hub-locker", lockerCode = "A1"))
         val response = hubController.updateLockerAvailability(
-            authentication = auth("hub-locker", RoleCode.RELAY_PARTNER),
+            authentication = operator,
             lockerId = "locker-controller-1",
             request = HubMobileController.LockerAvailabilityRequest(
                 relayPointId = "hub-locker",

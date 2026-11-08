@@ -23,6 +23,7 @@ class RelayOperatorHttpTest @Autowired constructor(
     private val points: RelayPointRepository,
     private val credentials: RelayPickupCodeRecordRepository,
     private val missions: dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionService,
+    private val legacyParcels: RelayParcelApplicationService,
 ) {
     @LocalServerPort private var port = 0
     private val client = HttpClient.newHttpClient()
@@ -43,6 +44,15 @@ class RelayOperatorHttpTest @Autowired constructor(
             ?: HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString())
     }
 
+    // Historical/manual records remain supported reads. New HTTP writes must use guided custody.
+    private fun legacyParcel(site: String, actor: String, at: Instant = Instant.now()): String {
+        val id = "parcel-${UUID.randomUUID()}"
+        assertIs<RelayParcelServiceResult.Accepted>(legacyParcels.createParcel(RelayParcelCreateCommand(id, site,
+            orderId = "isolated-order", category = RelayParcelCategory.GeneralGoods, depositCode = "deposit-$id",
+            availableLockers = listOf(RelayLocker("slot-$id", site, true, false)), createdAt = at), actor))
+        return id
+    }
+
     @Test fun overdueDecisionsExposeStoredActorsAndRequireAuthorizedCurrentCustody() {
         val operator = token(RoleCode.RELAY_PARTNER)
         val other = token(RoleCode.RELAY_PARTNER)
@@ -51,13 +61,8 @@ class RelayOperatorHttpTest @Autowired constructor(
         val otherSite = "site-${UUID.randomUUID()}"
         points.save(RelayPointRecord(id = site, operatorUserId = operator.first, name = "Decision fixture"))
         points.save(RelayPointRecord(id = otherSite, operatorUserId = other.first, name = "Other decision fixture"))
-        val parcel = "parcel-${UUID.randomUUID()}"
+        val parcel = legacyParcel(site, operator.first, Instant.now().minusSeconds(31L * 86400))
         val path = "/api/relay/parcels/$parcel"
-        val creation = call("POST", "/api/relay/parcels", operator.second, mapOf(
-            "parcelId" to parcel, "relayPointId" to site, "orderId" to "isolated-order", "category" to "GeneralGoods",
-            "depositCode" to UUID.randomUUID().toString(), "createdAt" to Instant.now().minusSeconds(31L * 86400).toString(),
-            "availableLockers" to listOf(mapOf("id" to "slot-$parcel", "relayPointId" to site, "active" to true, "occupied" to false))))
-        assertEquals(200, creation.statusCode(), creation.body())
         val review = mapOf("eventId" to UUID.randomUUID().toString(), "idempotencyKey" to UUID.randomUUID().toString(),
             "metadata" to "Keep parcel pending SEQUO collection.")
         for (denied in listOf(other.second, token(RoleCode.CUSTOMER).second, "expired.invalid.token", null)) {
@@ -105,8 +110,10 @@ class RelayOperatorHttpTest @Autowired constructor(
             return id to call("POST", "/api/relay/parcels", actor, mapOf("parcelId" to id, "relayPointId" to site, "orderId" to "isolated-order", "category" to category.name,
                 "depositCode" to "deposit-$id", "availableLockers" to listOf(mapOf("id" to "slot-$id", "relayPointId" to site, "active" to true, "occupied" to false)), "createdAt" to Instant.now().toString()))
         }
-        val (parcelA, createdA) = deposit(siteA, a.second)
-        val (parcelB, createdB) = deposit(siteB, b.second)
+        val parcelA = legacyParcel(siteA, a.first)
+        val parcelB = legacyParcel(siteB, b.first)
+        val createdA = call("GET", "/api/relay/parcels/$parcelA", a.second)
+        val createdB = call("GET", "/api/relay/parcels/$parcelB", b.second)
         assertEquals(200, createdA.statusCode(), createdA.body())
         assertEquals(200, createdB.statusCode(), createdB.body())
         assertEquals(403, deposit(siteB, a.second).second.statusCode())
@@ -196,7 +203,7 @@ class RelayOperatorHttpTest @Autowired constructor(
             qrRelease + ("eventId" to release["eventId"])).statusCode())
         assertEquals(200, call("POST", "/api/relay/parcels/$parcelB/release", b.second, qrRelease).statusCode())
         assertEquals("PickedUp", json.readTree(call("GET", "/api/relay/parcels/$parcelB", b.second).body())["status"].asText())
-        val (problemParcel, _) = deposit(siteB, b.second)
+        val problemParcel = legacyParcel(siteB, b.first)
         val problem = call("POST", "/api/relay/parcels/$problemParcel/problem", b.second,
             mapOf("eventId" to UUID.randomUUID().toString(), "idempotencyKey" to UUID.randomUUID().toString(), "metadata" to "Damaged packaging"))
         assertEquals(200, problem.statusCode(), problem.body())

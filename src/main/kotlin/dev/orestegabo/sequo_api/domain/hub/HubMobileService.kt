@@ -305,10 +305,21 @@ class HubMobileService(
     fun updateLockerAvailability(
         command: LockerAvailabilityCommand,
         occurredAt: Instant = Instant.now(),
+        operatorInitiated: Boolean = false,
     ): LockerAvailabilitySnapshot {
-        val existing = lockers.findById(command.lockerId).orElse(null)
+        val existing = if (operatorInitiated) requireNotNull(lockers.lockForDeposit(command.lockerId)) {
+            "Logical slot is not recorded. Ask SEQUO to create it through relay setup."
+        } else lockers.findById(command.lockerId).orElse(null)
         if (existing != null && existing.relayPointId != command.relayPointId) {
             throw IllegalArgumentException("Locker does not belong to the requested relay point.")
+        }
+        if (operatorInitiated) {
+            require(command.status in setOf(HubLockerStatus.AVAILABLE, HubLockerStatus.MAINTENANCE)) {
+                "Occupied custody must be recorded by the guarded parcel deposit workflow."
+            }
+            require(existing?.status != HubLockerStatus.OCCUPIED && parcels.findByRelayPointIdOrderByUpdatedAtDesc(command.relayPointId).none {
+                it.lockerId == command.lockerId && it.status !in setOf(RelayParcelStatus.PickedUp, RelayParcelStatus.ReturnedToSeller, RelayParcelStatus.CollectedBySequo)
+            }) { "Resolve current parcel custody through pickup or collection before changing this logical slot." }
         }
         val locker = existing ?: RelayLockerRecord(
             id = command.lockerId,

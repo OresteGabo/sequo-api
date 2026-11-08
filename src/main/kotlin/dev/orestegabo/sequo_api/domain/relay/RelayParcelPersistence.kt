@@ -321,13 +321,13 @@ class RelayParcelApplicationService(
     private val objectMapper = ObjectMapper()
 
     @Transactional
-    fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
+    fun createParcel(command: RelayParcelCreateCommand, actorUserId: String? = null): RelayParcelServiceResult {
         if (persistence.findParcel(command.parcelId) != null)
             return RelayParcelServiceResult.Rejected(RelayParcelRejection("parcel_already_exists", "Parcel already exists; reload its current state."))
         val sourceCategories = command.orderId?.let(eligibility::categories).orEmpty()
         if (sourceCategories.isNotEmpty() && !relayCategoriesAllowed(sourceCategories))
             return RelayParcelServiceResult.Rejected(RelayParcelRejection("relay_not_allowed_for_category", "Food, perishable and sensitive orders cannot use relay pickup."))
-        val result = domain.createParcel(command)
+        val result = domain.createParcel(command, actorUserId)
         if (result is RelayParcelServiceResult.Accepted) persistence.saveCreated(result)
         return result
     }

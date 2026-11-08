@@ -123,7 +123,8 @@ class HubMobileController(
                         reason = request.reason,
                         expectedAvailableAt = request.expectedAvailableAt,
                         updatedByUserId = authenticated.name,
-                    )
+                    ),
+                    operatorInitiated = true,
                 )
             )
         }

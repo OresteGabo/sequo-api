@@ -69,7 +69,10 @@ class RelayParcelController(
             // Linked delivery custody must be created atomically by the mission deposit action.
             require(command.deliveryMissionId == null) { "Use the mission relay-deposit action with its persisted destination and storage slot." }
             if (!access.permits(actor, command.relayPointId)) return@roleRequired ResponseEntity.status(403).build()
-            service.createParcel(command).toResponse()
+            // Raw client locker lists, timestamps and source references are not evidence of custody.
+            // Supported legacy records remain readable; new custody uses an authorized mission.
+            ResponseEntity.badRequest().body(dev.orestegabo.sequo_api.api.ApiErrorResponse(
+                "relay_guided_deposit_required", "Use the assigned rider relay-deposit action or the SEQUO physical receipt workflow after recorded pickup."))
         }
 
     @GetMapping

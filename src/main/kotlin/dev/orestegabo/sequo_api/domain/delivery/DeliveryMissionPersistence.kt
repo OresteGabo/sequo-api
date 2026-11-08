@@ -309,6 +309,7 @@ class DeliveryMissionService(
     private val pendingCheckouts: PendingPaymentCheckoutRepository,
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val consolidationManifests: ConsolidationManifestRepository,
+    private val administrativeUsers: dev.orestegabo.sequo_api.domain.auth.UserRepository,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -687,8 +688,29 @@ class DeliveryMissionService(
 
     @Transactional
     fun transition(missionId: String, actorId: String, event: DeliveryMissionEvent, proof: String? = null, deliveryPinValidated: Boolean = false, relayPickupValidated: Boolean = false, identityValidated: Boolean = false, problemReason: String? = null, at: Instant = Instant.now()): DeliveryMissionServiceResult {
+        return transitionAuthorized(missionId, actorId, event, proof, deliveryPinValidated, relayPickupValidated, identityValidated, problemReason, at)
+    }
+
+    /** SEQUO can confirm physical relay receipt after an actual rider pickup; the real staff actor is retained. */
+    @Transactional
+    fun sequoDepositsAtRelay(missionId: String, actorId: String, proof: String, at: Instant = Instant.now()): DeliveryMissionServiceResult {
+        val actor = administrativeUsers.findById(actorId).orElse(null)
+        require(actor != null && actor.active && actor.status.canAuthenticate() &&
+            actor.roles.any { it in dev.orestegabo.sequo_api.domain.auth.RoleGroups.AdminOnly }) { "An active administrator is required." }
         val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
-        if (event in courierScopedEvents && (mission.courierId == null || mission.courierId != courierIdForActor(actorId))) {
+        require(mission.status == DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER && mission.pickupAt != null &&
+            mission.destinationType == DeliveryMissionRecordDestination.RELAY_POINT && proof.isNotBlank()) {
+            "Recorded rider pickup and actual physical relay receipt are required."
+        }
+        return transitionAuthorized(missionId, actorId, DeliveryMissionEvent.CourierDepositsAtRelay, proof,
+            false, false, false, null, at, sequoRelayDeposit = true)
+    }
+
+    private fun transitionAuthorized(missionId: String, actorId: String, event: DeliveryMissionEvent, proof: String?,
+        deliveryPinValidated: Boolean, relayPickupValidated: Boolean, identityValidated: Boolean, problemReason: String?,
+        at: Instant, sequoRelayDeposit: Boolean = false): DeliveryMissionServiceResult {
+        val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if (!sequoRelayDeposit && event in courierScopedEvents && (mission.courierId == null || mission.courierId != courierIdForActor(actorId))) {
             return rejected("courier_scope_mismatch", "Only the assigned courier can update this mission.")
         }
         if (proof != null && proof.isNotBlank() && event in proofEvents && proofAlreadySubmitted(mission, event)) {

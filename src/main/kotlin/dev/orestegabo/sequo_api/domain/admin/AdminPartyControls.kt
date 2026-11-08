@@ -54,7 +54,8 @@ data class AdminCourierDto(val id: String, val userId: String?, val displayName:
     val availability: CourierAvailabilitySnapshot, val activeMissionCount: Long, val updatedAt: Instant)
 data class AdminCourierDetailDto(val courier: AdminCourierDto, val payOverview: RiderPayoutSummaryResponse?, val history: List<AdminPartyChangeDto>)
 data class AdminRelaySiteDto(val id: String, val name: String, val status: String, val operatorUserId: String?,
-    val operatorDisplayName: String?, val city: String?, val neighborhood: String?, val landmark: String?, val updatedAt: Instant)
+    val operatorDisplayName: String?, val city: String?, val neighborhood: String?, val landmark: String?, val updatedAt: Instant,
+    val latitude: Double? = null, val longitude: Double? = null)
 data class AdminRelaySiteDetailDto(val site: AdminRelaySiteDto, val history: List<AdminPartyChangeDto>)
 data class AdminLogicalSlotDto(val id: String, val relayPointId: String, val relayLockerGridId: String, val lockerCode: String,
     val status: HubLockerStatus, val availabilityReason: HubLockerAvailabilityReason?, val expectedAvailableAt: Instant?, val updatedAt: Instant)
@@ -200,7 +201,8 @@ class AdminPartyControlService(
         courier.userId?.let { settlement.riderPayoutSummary(it) }, history("COURIER_WORKFORCE", courier.id))
 
     private fun siteDto(site: RelayPointRecord) = AdminRelaySiteDto(site.id, site.name, site.status, site.operatorUserId,
-        site.operatorUserId?.let { users.findById(it).orElse(null)?.displayName }, site.city, site.neighborhood, site.landmark, site.updatedAt)
+        site.operatorUserId?.let { users.findById(it).orElse(null)?.displayName }, site.city, site.neighborhood, site.landmark, site.updatedAt,
+        site.latitude, site.longitude)
     private fun siteDetail(site: RelayPointRecord) = AdminRelaySiteDetailDto(siteDto(site), history("RELAY_OPERATOR", site.id))
 }
 

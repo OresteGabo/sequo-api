@@ -18,7 +18,8 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
     private val orders: CustomerOrderRecordRepository, private val eligibility: RelayOrderEligibilityService,
     private val availability: RelayAvailabilityService, private val lockers: RelayLockerRepository,
     private val credentials: RelayCustomerPickupService,
-    private val parcels: RelayParcelApplicationService, private val parcelRecords: RelayParcelRecordRepository) {
+    private val parcels: RelayParcelApplicationService, private val parcelRecords: RelayParcelRecordRepository,
+    private val administrativeUsers: dev.orestegabo.sequo_api.domain.auth.UserRepository) {
     private fun requireEligible(orderId: String) {
         val order = orders.findById(orderId).orElseThrow { IllegalArgumentException("Order is unavailable.") }
         require(order.paymentStatus == PaymentValidationStatus.Validated && order.orderStatus == CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT) { "Order is not paid and active." }
@@ -27,8 +28,21 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
 
     @Transactional
     fun deposit(missionId: String, actor: String, relayPointId: String?, lockerCode: String?, proof: String?, key: String?): DeliveryMissionServiceResult {
+        return depositInternal(missionId, actor, relayPointId, lockerCode, proof, key, false)
+    }
+
+    @Transactional
+    fun depositBySequo(missionId: String, actor: String, relayPointId: String, lockerCode: String, proof: String, key: String): DeliveryMissionServiceResult {
+        val user = administrativeUsers.findById(actor).orElse(null)
+        require(user != null && user.active && user.status.canAuthenticate() && user.roles.any { it in RoleGroups.AdminOnly }) { "An active administrator is required." }
+        return depositInternal(missionId, actor, relayPointId, lockerCode, proof, key, true)
+    }
+
+    private fun depositInternal(missionId: String, actor: String, relayPointId: String?, lockerCode: String?, proof: String?, key: String?, bySequo: Boolean): DeliveryMissionServiceResult {
+        val reference = missions.findById(missionId).orElse(null) ?: throw IllegalArgumentException("Mission is unavailable.")
+        orders.lockForCompletion(reference.orderId) ?: throw IllegalArgumentException("Order is unavailable.")
         val mission = requireNotNull(missions.lockForAction(missionId)) { "Mission is unavailable." }
-        require(mission.courierId != null && mission.courierId == delivery.courierIdForActor(actor)) { "Only the assigned courier may deposit this parcel." }
+        if (!bySequo) require(mission.courierId != null && mission.courierId == delivery.courierIdForActor(actor)) { "Only the assigned courier may deposit this parcel." }
         require(!key.isNullOrBlank() && key.length <= 128) { "A stable deposit retry key is required." }
         require(!relayPointId.isNullOrBlank() && relayPointId == mission.relayPointId && mission.destinationType == DeliveryMissionRecordDestination.RELAY_POINT) { "Deposit must use the persisted relay destination." }
         val depositCode = java.security.MessageDigest.getInstance("SHA-256")
@@ -48,11 +62,12 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
         val slot = lockerCode?.let { lockers.findByRelayPointIdAndLockerCode(relayPointId, it) }
         val locked = requireNotNull(slot?.let { lockers.lockForDeposit(it.id) }) { "Storage slot is unavailable at this relay." }
         require(locked.relayPointId == relayPointId && locked.status == HubLockerStatus.AVAILABLE) { "Storage slot is unavailable at this relay." }
-        val result = delivery.transitionIdempotent(missionId, actor, DeliveryMissionEvent.CourierDepositsAtRelay, key, proof)
+        val result = if (bySequo) delivery.sequoDepositsAtRelay(missionId, actor, proof)
+            else delivery.transitionIdempotent(missionId, actor, DeliveryMissionEvent.CourierDepositsAtRelay, key, proof)
         require(result is DeliveryMissionServiceResult.Success) { (result as DeliveryMissionServiceResult.Rejected).message }
         val created = parcels.createParcel(RelayParcelCreateCommand("mission-$missionId", relayPointId,
             orderId = mission.orderId, deliveryMissionId = missionId, category = RelayParcelCategory.GeneralGoods,
-            depositCode = depositCode, availableLockers = listOf(RelayLocker(locked.id, relayPointId, true, false)), createdAt = Instant.now()))
+            depositCode = depositCode, availableLockers = listOf(RelayLocker(locked.id, relayPointId, true, false)), createdAt = Instant.now()), actor)
         require(created is RelayParcelServiceResult.Accepted) { "Relay custody could not be recorded." }
         locked.status = HubLockerStatus.OCCUPIED; locked.availabilityReason = HubLockerAvailabilityReason.SYSTEM_OCCUPIED
         locked.updatedByUserId = actor; locked.updatedAt = Instant.now()

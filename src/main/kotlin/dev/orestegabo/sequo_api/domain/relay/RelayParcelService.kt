@@ -164,7 +164,7 @@ class RelayParcelService(
         require(maxPickupAttempts > 0) { "maxPickupAttempts must be positive." }
     }
 
-    fun createParcel(command: RelayParcelCreateCommand): RelayParcelServiceResult {
+    fun createParcel(command: RelayParcelCreateCommand, actorUserId: String? = null): RelayParcelServiceResult {
         validateCreate(command)?.let { return RelayParcelServiceResult.Rejected(it) }
         if (!policy.relayPickupAllowed(command.category)) {
             return rejected("relay_not_allowed_for_category", "Food, perishable and sensitive parcels cannot use relay pickup.")
@@ -176,7 +176,7 @@ class RelayParcelService(
         val event = RelayCustodyEvent(
             id = "${command.parcelId}:deposit",
             relayParcelId = command.parcelId,
-            actorUserId = null,
+            actorUserId = actorUserId,
             type = RelayCustodyEventType.Deposit,
             metadata = "Parcel deposited at relay ${command.relayPointId} in locker ${locker.id}.",
             idempotencyKey = command.depositCode,
