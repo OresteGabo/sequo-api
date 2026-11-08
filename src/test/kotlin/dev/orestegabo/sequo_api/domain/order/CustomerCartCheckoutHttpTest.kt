@@ -332,8 +332,8 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val (adminId, admin) = account(RoleCode.ADMIN)
         val (riderOneId, riderOne) = account(RoleCode.COURIER)
         val (riderTwoId, riderTwo) = account(RoleCode.COURIER)
-        val courierOne = couriers.save(CourierRecord(id = "courier-$riderOneId", userId = riderOneId, workforceType = "FREELANCER"))
-        val courierTwo = couriers.save(CourierRecord(id = "courier-$riderTwoId", userId = riderTwoId, workforceType = "FREELANCER"))
+        val courierOne = couriers.save(CourierRecord(id = "courier-$riderOneId", userId = riderOneId, workforceType = "FREELANCER", vehicleType = "MOTO"))
+        val courierTwo = couriers.save(CourierRecord(id = "courier-$riderTwoId", userId = riderTwoId, workforceType = "FREELANCER", vehicleType = "MOTO"))
         for (token in listOf(fixture.token, merchant, admin, riderOne, riderTwo)) {
             assertEquals(200, call("GET", "/api/auth/me", token).statusCode())
         }
@@ -354,7 +354,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val mission = json.readTree(dispatched.body())["createdMissions"].single { it["orderId"].asText() == orderId }
         val missionId = mission["id"].asText()
         val deliveryCode = mission["deliveryCode"].asText()
-        assertEquals(200, call("POST", "/api/delivery/missions/$missionId/offer", admin).statusCode())
+        assignAndOffer(missionId, admin, courierOne.id)
         val offered = read("GET", "/api/rider/missions/$missionId", riderOne)
         assertTrue(offered["homeDestination"].isNull)
         val race = listOf(riderOne, riderTwo).map { token ->
@@ -968,7 +968,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val merchant = jwt.generateAccessToken(UserSession(owner.first, null, AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_OWNER), setOf(merchantId)))
         val admin = account(RoleCode.ADMIN).second
         val rider = account(RoleCode.COURIER)
-        couriers.save(CourierRecord(id = "courier-${rider.first}", userId = rider.first, workforceType = "FREELANCER", vehicleType = "MOTO"))
+        val courier = couriers.save(CourierRecord(id = "courier-${rider.first}", userId = rider.first, workforceType = "FREELANCER", vehicleType = "MOTO"))
         val relayQuery = relayId?.let { "&relayPointId=$it" }.orEmpty() + deliveryMode?.let { "&deliveryMode=$it" }.orEmpty()
         val quote = read("GET", "/api/cart/quote?addressId=${fixture.addressId}$relayQuery", fixture.token)
         val relayField = relayId?.let { ",\"relayPointId\":\"$it\"" }.orEmpty() + deliveryMode?.let { ",\"deliveryMode\":\"$it\"" }.orEmpty()
@@ -987,12 +987,22 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val dispatched = readPost("/api/delivery/missions/dispatch-ready", admin)
         val missionId = dispatched["createdMissions"].single { it["orderId"].asText() == orderId }["id"].asText()
         if (!autoPickup) return RelayJourney(fixture, orderId, missionId, rider.second, admin)
-        assertEquals(200, call("POST", "/api/delivery/missions/$missionId/offer", admin).statusCode())
+        assignAndOffer(missionId, admin, courier.id)
         assertEquals(200, call("POST", "/api/rider/missions/$missionId/accept", rider.second).statusCode())
         assertEquals(200, call("POST", "/api/rider/missions/$missionId/pickup/complete", rider.second,
             """{"proofMetadata":"Merchant custody proof","idempotencyKey":"pickup-$missionId"}""").statusCode())
         return RelayJourney(fixture, orderId, missionId, rider.second, admin)
     }
+
+    private fun assignAndOffer(missionId: String, admin: String, courierId: String) {
+        val assigned = call("POST", "/api/delivery/missions/$missionId/assign", admin,
+            """{"courierId":"$courierId","reason":"Assign the linked active rider for this paid HTTP fixture journey","idempotencyKey":"fixture-assign-$missionId"}""")
+        assertEquals(200, assigned.statusCode(), assigned.body())
+        val offered = call("POST", "/api/delivery/missions/$missionId/offer", admin,
+            """{"reason":"Offer the explicitly assigned paid HTTP fixture journey","idempotencyKey":"fixture-offer-$missionId"}""")
+        assertEquals(200, offered.statusCode(), offered.body())
+    }
+
     private fun readPost(path: String, token: String): JsonNode {
         val result = call("POST", path, token); assertEquals(200, result.statusCode(), result.body()); return json.readTree(result.body())
     }
