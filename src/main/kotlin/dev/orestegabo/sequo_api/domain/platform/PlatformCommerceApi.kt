@@ -38,6 +38,7 @@ import dev.orestegabo.sequo_api.domain.payment.PaymentConfigurationIssue
 import dev.orestegabo.sequo_api.domain.payment.PaymentIntegrationStatus
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -843,8 +844,15 @@ class PaymentProviderReadinessController(private val service: PlatformCommerceSe
 @RequestMapping("/api/catalog/products/{productId}/customizations")
 class ProductCustomizationController(private val service: PlatformCommerceService) {
     @GetMapping
-    fun list(@PathVariable productId: String): ResponseEntity<Any> =
-        platformSafe { service.publicCustomizations(productId) }
+    fun list(
+        @PathVariable productId: String,
+        authentication: Authentication? = null,
+        @RequestParam(defaultValue = "false") includeInactive: Boolean = false,
+    ): ResponseEntity<Any> =
+        if (!includeInactive) platformSafe { service.publicCustomizations(productId) }
+        else if (authentication?.isAuthenticated != true || !authentication.hasAnyRole(RoleGroups.AdminOnly)) {
+            ResponseEntity.status(403).cacheControl(org.springframework.http.CacheControl.noStore()).build()
+        } else ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(service.customizations(productId))
 
     @PostMapping("/quote")
     fun quote(@PathVariable productId: String, @RequestBody request: QuoteProductCustomizationsRequest): ResponseEntity<Any> =

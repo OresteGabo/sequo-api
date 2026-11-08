@@ -51,6 +51,32 @@ class MerchantCatalogHttpTest @Autowired constructor(
     private val endpoint = "/api/merchant/catalog/products"
 
     @Test
+    fun adminEditorReadsFullInactiveMenuWithoutChangingPublicOrMerchantScope() {
+        val merchant = "admin-inactive-menu-merchant"
+        val product = "admin-inactive-menu-product"
+        merchants.save(MerchantRecord(id = merchant, name = "Inactive menu fixture"))
+        products.save(ProductRecord(id = product, merchantId = merchant, name = "Food fixture", category = "food",
+            basePriceCfa = 2000, status = CatalogProductStatus.INACTIVE))
+        val admin = jwt.generateAccessToken(UserSession("fixture-menu-admin", null, AuthProvider.EMAIL, setOf(RoleCode.ADMIN)))
+        val customer = jwt.generateAccessToken(UserSession("fixture-menu-customer", null, AuthProvider.EMAIL, setOf(RoleCode.CUSTOMER)))
+        val path = "/api/catalog/products/$product/customizations"
+        val setup = """{"groups":[{"name":"Visible group","minChoices":0,"maxChoices":1,"options":[{"name":"Active option","priceDeltaCfa":100},{"name":"Inactive option","priceDeltaCfa":200,"active":false}]},{"name":"Inactive group","active":false,"minChoices":0,"maxChoices":1,"options":[{"name":"Hidden choice","priceDeltaCfa":300,"active":false}]}]}"""
+        val saved = request("PUT", path, admin, setup)
+        assertEquals(200, saved.statusCode(), saved.body())
+        val privateRead = request("GET", "$path?includeInactive=true", admin)
+        assertEquals(200, privateRead.statusCode(), privateRead.body())
+        assertEquals(json.readTree(saved.body()), json.readTree(privateRead.body()))
+        assertEquals("no-store", privateRead.headers().firstValue("Cache-Control").orElseThrow())
+        assertEquals(2, json.readTree(privateRead.body()).size())
+        assertEquals(0, json.readTree(request("GET", path).body()).size())
+        listOf<String?>(null, customer, token("foreign-menu-merchant")).forEach {
+            assertEquals(403, request("GET", "$path?includeInactive=true", it).statusCode())
+        }
+        assertEquals(200, request("PUT", path, admin, privateRead.body().let { "{\"groups\":$it}" }).statusCode())
+        assertEquals(json.readTree(privateRead.body()), json.readTree(request("GET", "$path?includeInactive=true", admin).body()))
+    }
+
+    @Test
     fun merchantPublishesEditsAndTogglesCustomerVisibility() {
         val merchant = "catalog-http-owner"
         merchants.save(MerchantRecord(id = merchant, name = "Catalog HTTP owner", status = "ACTIVE"))
