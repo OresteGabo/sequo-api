@@ -40,6 +40,22 @@ class HubMobileControllerTest @Autowired constructor(
     }
 
     @Test
+    fun lockerListUsesPersistedSlotsAndRejectsForgedRelayScope() {
+        val operator = auth("hub-slot-own", RoleCode.RELAY_PARTNER)
+        lockers.save(RelayLockerRecord(id = "slot-own", relayPointId = "hub-slot-own", relayLockerGridId = "hub-slot-own", lockerCode = "A1"))
+        lockers.save(RelayLockerRecord(id = "slot-other", relayPointId = "hub-slot-other", relayLockerGridId = "hub-slot-other", lockerCode = "B1"))
+
+        assertEquals(HttpStatus.UNAUTHORIZED, hubController.lockers(null, "hub-slot-own").statusCode)
+        assertEquals(HttpStatus.FORBIDDEN, hubController.lockers(operator, "hub-slot-other").statusCode)
+        assertEquals(HttpStatus.FORBIDDEN, hubController.lockers(auth("customer-slots", RoleCode.CUSTOMER), "hub-slot-own").statusCode)
+        val own = hubController.lockers(operator, "hub-slot-own")
+        assertEquals(HttpStatus.OK, own.statusCode)
+        assertEquals(listOf("slot-own"), (own.body as List<*>).map { (it as LockerAvailabilitySnapshot).lockerId })
+        assertEquals(HttpStatus.OK, hubController.lockers(auth("admin-slots", RoleCode.ADMIN), "hub-slot-other").statusCode)
+        assertEquals(emptyList<LockerAvailabilitySnapshot>(), hubController.lockers(auth("hub-slots-empty", RoleCode.RELAY_PARTNER), "hub-slots-empty").body)
+    }
+
+    @Test
     fun relayPartnerCanUpdateOwnLockerAvailability() {
         val operator = auth("hub-locker", RoleCode.RELAY_PARTNER)
         lockers.save(RelayLockerRecord(id = "locker-controller-1", relayPointId = "hub-locker", relayLockerGridId = "hub-locker", lockerCode = "A1"))

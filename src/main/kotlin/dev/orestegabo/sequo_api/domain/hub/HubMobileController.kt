@@ -107,6 +107,15 @@ class HubMobileController(
             ResponseEntity.ok(service.summary(safeHubId))
         }
 
+    @GetMapping("/lockers")
+    fun lockers(
+        authentication: Authentication?,
+        @RequestParam relayPointId: String,
+    ): ResponseEntity<Any> =
+        hubAccessRequired(authentication, relayPointId) {
+            ResponseEntity.ok(service.lockers(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId")))
+        }
+
     @PostMapping("/lockers/{lockerId}/availability")
     fun updateLockerAvailability(
         authentication: Authentication?,

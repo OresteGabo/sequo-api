@@ -301,6 +301,10 @@ class HubMobileService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun lockers(relayPointId: String): List<LockerAvailabilitySnapshot> =
+        lockers.findByRelayPointId(relayPointId).sortedBy { it.lockerCode }.map { it.toSnapshot() }
+
     @Transactional
     fun updateLockerAvailability(
         command: LockerAvailabilityCommand,
