@@ -610,6 +610,23 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertTrue(pendingReview["reviewedByUserId"].isNull)
         assertEquals(2, pendingReview["history"].size())
         assertTrue(read("GET", "/api/cooperatives", customer.token).none { it["id"].asText() == cooperativeId })
+        // Opt-in redacted acceptance evidence from this actual local HTTP journey, never runtime code.
+        System.getenv("SEQUO_RELEASE_EVIDENCE_PATH")?.let { filename ->
+            val target = java.nio.file.Path.of(filename).toAbsolutePath().normalize()
+            require(target.toString().matches(Regex("/(private/)?tmp/sequo-task28-[A-Za-z0-9._-]+\\.json"))) {
+                "Acceptance evidence must use a task-owned local temporary JSON file."
+            }
+            java.nio.file.Files.writeString(target, json.writeValueAsString(mapOf(
+                "evidenceKind" to "AUTOMATED_LOCAL_HTTP_FIXTURE", "stagingVerified" to false,
+                "releaseId" to System.getenv("SEQUO_RELEASE_ID"), "sourceRevision" to System.getenv("SEQUO_SOURCE_REVISION"),
+                "orderId" to orderId, "checkoutId" to checkoutId, "customerId" to customer.userId,
+                "merchantIds" to merchantIds, "merchantActorIds" to merchantAccounts.map { it.first },
+                "riderActorIds" to riderAccounts.map { it.first }, "adminActorId" to operatorId,
+                "manifestId" to manifestId, "finalMissionId" to finalMissionId,
+                "finalOrderState" to "DELIVERED", "finalDeliveryState" to "DELIVERED_TO_CUSTOMER",
+                "deviceJourneysVerified" to false, "providerPaymentVerified" to false,
+            )), java.nio.file.StandardOpenOption.CREATE_NEW)
+        }
     }
 
     @Test

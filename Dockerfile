@@ -2,6 +2,9 @@
 
 FROM eclipse-temurin:21-jdk AS build
 
+ARG SEQUO_RELEASE_ID=local-unidentified
+ARG SEQUO_SOURCE_REVISION=unidentified
+
 WORKDIR /workspace
 
 COPY gradlew settings.gradle.kts build.gradle.kts ./

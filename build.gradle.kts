@@ -13,6 +13,18 @@ plugins {
 group = "dev.orestegabo"
 version = "0.0.1-SNAPSHOT"
 
+val sequoReleaseId = providers.environmentVariable("SEQUO_RELEASE_ID").getOrElse("local-unidentified")
+val sequoSourceRevision = providers.environmentVariable("SEQUO_SOURCE_REVISION").getOrElse("unidentified")
+require(sequoReleaseId.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,95}"))) { "Invalid public release identifier." }
+require(sequoSourceRevision == "unidentified" || sequoSourceRevision.matches(Regex("[a-f0-9]{40,64}"))) { "Invalid source revision." }
+springBoot {
+    buildInfo {
+        properties {
+            additional.set(mapOf("releaseId" to sequoReleaseId, "revision" to sequoSourceRevision))
+        }
+    }
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21

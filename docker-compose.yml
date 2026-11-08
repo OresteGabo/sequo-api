@@ -29,6 +29,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        SEQUO_RELEASE_ID: ${SEQUO_RELEASE_ID:-local-unidentified}
+        SEQUO_SOURCE_REVISION: ${SEQUO_SOURCE_REVISION:-unidentified}
     restart: unless-stopped
     mem_limit: ${API_MEMORY_LIMIT:-1536m}
     security_opt:

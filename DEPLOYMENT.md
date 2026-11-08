@@ -1,5 +1,7 @@
 # Production Deployment
 
+For the isolated staging release and outstanding launch gates, use `docs/TASK28_RELEASE_RUNBOOK.md`. Do not use the production project or database as a staging target. Production auto-deployment requires both `AUTO_DEPLOY_ENABLED=true` and `PAID_LAUNCH_APPROVED=true`; keep paid launch disabled while provider and operational gates are missing.
+
 This project can run on a single Linux VPS with Docker Compose. The default Compose setup is sized for a small 4GB RAM server and runs the Spring Boot API with PostgreSQL.
 
 ## VPS Prerequisites
@@ -60,7 +62,7 @@ Important values:
 | `JWT_SECRET` | At least 32 random characters. |
 | `NOTIFICATION_TOKEN_ENCRYPTION_SECRET` | At least 32 random characters. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated explicit HTTPS origins, no wildcards. |
-| `SEQUO_ALLOW_DEV_DEFAULTS` | Set to `true` only for temporary staging/dev VPS boots with placeholder values. Keep `false` for real production. |
+| `SEQUO_ALLOW_DEV_DEFAULTS` | Keep `false` for the Task 28 staging profile and production. Legacy development-only overrides are not staging acceptance evidence. |
 | `API_MEMORY_LIMIT` | Defaults to `1536m`. |
 | `POSTGRES_MEMORY_LIMIT` | Defaults to `1536m`. |
 | `JAVA_TOOL_OPTIONS` | Defaults to `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom`. |

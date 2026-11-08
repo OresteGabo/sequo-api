@@ -146,6 +146,25 @@ class ProductionStartupGuardrailsIntegrationTest {
         ).close()
     }
 
+    @Test
+    fun stagingRefusesUneditedEnvironmentTemplateSecrets() {
+        val failure = kotlin.test.assertFails {
+            startGuardrailContext(
+                "spring.profiles.active=staging",
+                "sequo.security.allow-dev-defaults=false",
+                "sequo.auth.jwt.secret=replace_with_at_least_32_random_characters",
+                "sequo.notifications.token-encryption-secret=replace_with_another_32_random_characters",
+                "sequo.security.cors.allowed-origins=https://admin.fixture.invalid",
+                "spring.datasource.url=jdbc:postgresql://postgres:5432/sequo_staging",
+                "spring.datasource.username=sequo_staging",
+                "spring.datasource.password=replace_with_a_unique_database_password",
+                "spring.jpa.hibernate.ddl-auto=validate",
+                "spring.h2.console.enabled=false",
+            ).close()
+        }
+        assertTrue(failure.fullMessage().contains("tracked placeholder"))
+    }
+
     private fun startGuardrailContext(vararg properties: String): ConfigurableApplicationContext =
         SpringApplicationBuilder(GuardrailContext::class.java)
             .web(WebApplicationType.NONE)

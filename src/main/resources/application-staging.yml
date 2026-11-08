@@ -1,0 +1,21 @@
+# Isolated staging uses the same PostgreSQL/Flyway/security rules as production.
+# No test payment verifier or role-account seed is packaged in this profile.
+spring:
+  config:
+    import: classpath:application-prod.yml
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+sequo:
+  security:
+    allow-dev-defaults: false
+  payments:
+    simulator:
+      enabled: false

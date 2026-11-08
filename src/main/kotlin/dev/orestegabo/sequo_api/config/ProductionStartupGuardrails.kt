@@ -145,6 +145,7 @@ object StartupSecurityChecks {
         "0.0.0.0",
         "sequo_dev_password",
         "replace_this",
+        "replace_with",
         "change_before_prod",
         "change_me",
         "dev_client_id",

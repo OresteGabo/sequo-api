@@ -16,7 +16,7 @@ This repository uses GitHub Actions for the first production-ready automation la
 | Pull request to `main` or `develop` | Runs build, tests, and dependency review. |
 | Push to `main` or `develop` | Runs build and tests. |
 | Push to `main` | Uploads the Spring Boot JAR artifact after the build succeeds. |
-| Push to `main` with `AUTO_DEPLOY_ENABLED=true` | Deploys the latest `main` branch to the configured production host after build, Docker image validation, and PostgreSQL migration validation succeed. |
+| Push to `main` with `AUTO_DEPLOY_ENABLED=true` and `PAID_LAUNCH_APPROVED=true` | Deploys the latest `main` branch to the configured production host after build, Docker image validation, and PostgreSQL migration validation succeed. |
 | Manual `workflow_dispatch` | Allows maintainers to run the pipeline on demand. |
 
 ## CI Gates
@@ -40,7 +40,7 @@ Required checks before merge:
 | Dependency review | Yes for PRs | Fails PRs that introduce high-severity or critical vulnerable dependency changes. |
 | Test reports artifact | Yes | Uploaded on every run for debugging failed CI results. |
 | Boot JAR artifact | Yes on `main` | Uploaded after successful pushes to `main`. |
-| Production-host deployment | Enabled on `main` when configured | Runs only when the repository variable `AUTO_DEPLOY_ENABLED` is set to `true`. |
+| Production-host deployment | Enabled on `main` when configured | Runs only when the repository variable `AUTO_DEPLOY_ENABLED` and `PAID_LAUNCH_APPROVED` are both set to `true`. |
 
 ## Continuous Delivery
 
@@ -87,7 +87,8 @@ Add this repository variable in `Settings > Secrets and variables > Actions > Va
 
 | Variable | Value | Purpose |
 | --- | --- | --- |
-| `AUTO_DEPLOY_ENABLED` | `true` | Enables automatic production deployment after successful pushes to `main`. Leave unset or set to `false` while SSH is broken. |
+| `AUTO_DEPLOY_ENABLED` | `true` | Technical auto-deployment switch. Keep false while staging/access is unverified. |
+| `PAID_LAUNCH_APPROVED` | unset / `false` | Separate production gate. Set true only after provider sandbox, operational reconciliation, rollout and applicable acceptance gates are verified in writing. Both providers currently remain NOT_CONNECTED. |
 
 The VPS must already have:
 
