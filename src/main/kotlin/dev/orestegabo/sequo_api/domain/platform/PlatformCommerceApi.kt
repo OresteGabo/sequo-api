@@ -1,5 +1,8 @@
 package dev.orestegabo.sequo_api.domain.platform
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.catalog.ProductRecord
 import dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository
@@ -405,8 +408,11 @@ data class CooperativeDto(
     val reviewedAt: Instant? = null,
     val reviewReason: String? = null,
     val history: List<dev.orestegabo.sequo_api.domain.delivery.OperatorHistoryEntry> = emptyList(),
+    val publicReference: String? = null,
+    val reviewerReference: String? = null,
 )
-data class CooperativeMemberDto(val id: String, val merchantId: String, val role: CooperativeMemberRole)
+data class CooperativeMemberDto(val id: String, val merchantId: String, val role: CooperativeMemberRole,
+    val merchantReference: String? = null)
 
 @Service
 class PlatformCommerceService(
@@ -426,7 +432,16 @@ class PlatformCommerceService(
     private val users: UserRepository,
     private val referralAwardPolicy: dev.orestegabo.sequo_api.domain.subscription.ReferralAwardPolicy,
     @org.springframework.beans.factory.annotation.Qualifier("benefitsClock") private val benefitsClock: Clock,
+    private val publicReferences: PublicReferenceRegistry? = null,
 ) {
+    private fun MerchantCooperativeRecord.toDto(members: List<MerchantCooperativeMemberRecord>): CooperativeDto =
+        toCooperativeDto(members).let { dto -> dto.copy(
+            publicReference = publicReferences.referenceOrNull(PublicReferenceKind.COOPERATIVE, id),
+            reviewerReference = publicReferences.referenceOrNull(PublicReferenceKind.USER, reviewedByUserId),
+            members = dto.members.map { it.copy(merchantReference = publicReferences.referenceOrNull(PublicReferenceKind.MERCHANT, it.merchantId)) },
+            history = dto.history.map { it.copy(actorReference = publicReferences.referenceOrNull(PublicReferenceKind.USER, it.actorUserId)) },
+        ) }
+
     @Transactional(readOnly = true)
     fun profile(userId: String): CustomerProfileDto? = profiles.findByUserId(userId)?.toDto()
 
@@ -873,7 +888,7 @@ class CooperativeController(private val service: PlatformCommerceService) {
         if (authentication == null) ResponseEntity.status(401).build()
         else if (request.requestURI.startsWith("/api/admin/")) staff(authentication) { service.cooperatives() }
         else if (authentication?.hasAnyRole(RoleGroups.AdminOnly) == true) platformSafe { service.cooperatives() }
-        else platformSafe { service.cooperatives().filter { it.status == CooperativeApprovalStatus.APPROVED }.map { it.copy(reviewedByUserId = null, reviewedAt = null, reviewReason = null, history = emptyList()) } }
+        else platformSafe { service.cooperatives().filter { it.status == CooperativeApprovalStatus.APPROVED }.map { it.copy(reviewedByUserId = null, reviewerReference = null, reviewedAt = null, reviewReason = null, history = emptyList()) } }
     @PostMapping
     fun create(authentication: Authentication?, @RequestBody request: CreateCooperativeRequest): ResponseEntity<Any> = staff(authentication) { service.createCooperative(request) }
     @PostMapping("/{cooperativeId}/members")
@@ -941,7 +956,7 @@ private fun ProductCustomizationGroupRecord.toDto(options: List<ProductCustomiza
 private fun ProductCustomizationOptionRecord.toDto(): ProductCustomizationOptionDto =
     ProductCustomizationOptionDto(id, name, priceDeltaCfa, sortOrder, active)
 
-private fun MerchantCooperativeRecord.toDto(members: List<MerchantCooperativeMemberRecord>): CooperativeDto =
+private fun MerchantCooperativeRecord.toCooperativeDto(members: List<MerchantCooperativeMemberRecord>): CooperativeDto =
     CooperativeDto(id, code, name, city, area, status, members.map { it.toDto() }, reviewedByUserId, reviewedAt, reviewReason, dev.orestegabo.sequo_api.domain.delivery.readHistory(reviewHistoryJson))
 
 private fun MerchantCooperativeMemberRecord.toDto(): CooperativeMemberDto =

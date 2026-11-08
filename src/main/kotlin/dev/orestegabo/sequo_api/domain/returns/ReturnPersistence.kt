@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.returns
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
@@ -182,6 +186,13 @@ data class ReturnRequestSnapshot(
     val refundInstructionState: String = "NOT_INSTRUCTED",
     val receiptConditionAssessment: String? = null,
     val receiptResponsibility: RefundResponsibility? = null,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val customerReference: String? = null,
+    val relayReference: String? = null,
+    val receivingOperatorReference: String? = null,
+    val collectingOperatorReference: String? = null,
+    val inspectingOperatorReference: String? = null,
 )
 
 sealed class PersistedReturnResult {
@@ -200,6 +211,7 @@ class ReturnPersistenceService(
     private val relayEligibility: dev.orestegabo.sequo_api.domain.relay.RelayOrderEligibilityService,
     private val relayAvailability: dev.orestegabo.sequo_api.domain.relay.RelayAvailabilityService,
     private val entityManager: jakarta.persistence.EntityManager,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     private val domain = ReturnProcessingService(returnWindow = policy.window)
     private val objectMapper = ObjectMapper()
@@ -242,13 +254,28 @@ class ReturnPersistenceService(
         }
         val plan = plan(order)
         return CustomerReturnEligibility(orderId, rejection == null, rejection?.code, rejection?.message,
-            order.deliveredAt, deadline, existing?.id, plan.method, plan.instructions, plan.points)
+            order.deliveredAt, deadline, existing?.id, plan.method, plan.instructions, plan.points,
+            orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+            existingReturnReference = references.referenceOrNull(PublicReferenceKind.RETURN, existing?.id))
+    }
+
+    /** Existence/scope predicate only; it never issues or reveals an intake credential. */
+    @Transactional(readOnly = true)
+    fun canResolveForRelay(returnId: String, relayPointId: String): Boolean {
+        if (returnId.isBlank() || relayPointId.isBlank()) return false
+        val record = returns.findById(returnId).orElse(null) ?: return false
+        record.relayPointId?.let { return it == relayPointId }
+        if (record.status != ReturnStatus.AwaitingRelayDropoff) return false
+        val order = orders.findById(record.orderId).orElse(null) ?: return false
+        if (!dev.orestegabo.sequo_api.domain.relay.relayCategoriesAllowed(relayEligibility.categories(order.id))) return false
+        val routing = plan(order)
+        return routing.method == "RELAY" && routing.points.any { it.id == relayPointId }
     }
 
     @Transactional(readOnly = true)
     fun customerReturnsForOrder(customerId: String, orderId: String): List<ReturnRequestSnapshot> {
         ownedOrder(customerId, orderId)
-        return returns.findByOrderIdOrderByCreatedAtDesc(orderId).map { customerView(customerId, it.toSnapshot()) }
+        return returns.findByOrderIdOrderByCreatedAtDesc(orderId).map { customerView(customerId, it.toSnapshot(references)) }
     }
 
     @Transactional(readOnly = true)
@@ -272,12 +299,12 @@ class ReturnPersistenceService(
             policy.credential(customerId, order.id, record.id).takeIf { Sha256ReturnPinHasher().matches(it, record.returnPinHash) } else null
         if (record.status == ReturnStatus.AwaitingRelayDropoff && routing.method == "RELAY" && raw == null)
             routing = ReturnDropoffPlan("SEQUO_INSTRUCTIONS_PENDING", "Your return is recorded. Contact SEQUO to confirm the existing return credential before going to a relay.")
-        return snapshot.copy(receivingOperatorId = null, conditionAssessment = null, responsibility = null,
+        return snapshot.copy(receivingOperatorReference = null, collectingOperatorReference = null, inspectingOperatorReference = null, receivingOperatorId = null, conditionAssessment = null, responsibility = null,
             receiptConditionAssessment = null, receiptResponsibility = null,
             dropoffMethod = routing.method, instructions = routing.instructions, relayPoints = routing.points, returnPin = raw,
             collectingOperatorId = null, inspectingOperatorId = null,
-            history = snapshot.history.map { it.copy(actorUserId = null, metadata = null) },
-            refundInstruction = snapshot.refundInstruction?.copy(requestedByUserId = null))
+            history = snapshot.history.map { it.copy(actorUserId = null, actorReference = null, metadata = null) },
+            refundInstruction = snapshot.refundInstruction?.copy(requestedByUserId = null, requestedByReference = null))
     }
 
     private fun ownedOrder(customerId: String, orderId: String): CustomerOrderRecord =
@@ -525,7 +552,7 @@ class ReturnPersistenceService(
     private fun custodyIntent(vararg values: Any?): String = Sha256ReturnPinHasher().hash(objectMapper.writeValueAsString(values.toList()))
 
     @Transactional(readOnly = true)
-    fun listAll(): List<ReturnRequestSnapshot> = returns.findAllByOrderByUpdatedAtAsc().map { it.toSnapshot() }
+    fun listAll(): List<ReturnRequestSnapshot> = returns.findAllByOrderByUpdatedAtAsc().map { it.toSnapshot(references) }
 
     @Transactional(readOnly = true)
     fun listForMerchant(merchantId: String): List<MerchantReturnSnapshot> = returns.findForMerchant(merchantId).map { record ->
@@ -536,15 +563,16 @@ class ReturnPersistenceService(
             if (record.refundInstructionId != null) "NOT_SUBMITTED" else "UNCONFIRMED", order.paymentStatus.name,
             orderLines.findByOrderIdAndSellerIdOrderByLineIndexAsc(record.orderId, merchantId).map {
                 MerchantReturnLine(it.productId, it.productName, it.quantity)
-            })
+            }, publicReference = references.referenceOrNull(PublicReferenceKind.RETURN, record.id),
+            orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, record.orderId))
     }
 
     @Transactional(readOnly = true)
     fun listForRelay(relayPointId: String): List<ReturnRequestSnapshot> =
-        returns.findByRelayPointIdOrderByUpdatedAtDesc(relayPointId).map { relayView(it.toSnapshot()) }
+        returns.findByRelayPointIdOrderByUpdatedAtDesc(relayPointId).map { relayView(it.toSnapshot(references)) }
 
     fun relayView(snapshot: ReturnRequestSnapshot): ReturnRequestSnapshot = snapshot.copy(
-        customerId = "", reason = "", requestedRefundCfa = 0, refundAmountCfa = null,
+        customerId = "", customerReference = null, receivingOperatorReference = null, collectingOperatorReference = null, inspectingOperatorReference = null, reason = "", requestedRefundCfa = 0, refundAmountCfa = null,
         receivingOperatorId = null, conditionAssessment = null, responsibility = null,
         receiptConditionAssessment = null, receiptResponsibility = null,
         collectingOperatorId = null, inspectingOperatorId = null, refundInstruction = null,
@@ -555,23 +583,23 @@ class ReturnPersistenceService(
         val record = returns.findById(returnId).orElse(null) ?: return null
         if (!canRead(record.customerId, record.relayPointId)) throw org.springframework.web.server.ResponseStatusException(
             org.springframework.http.HttpStatus.FORBIDDEN)
-        return record.toSnapshot()
+        return record.toSnapshot(references)
     }
 
     @Transactional(readOnly = true)
     fun listForCustomer(customerId: String): List<ReturnRequestSnapshot> {
         require(customerId.isNotBlank()) { "customerId is required." }
-        return returns.findByCustomerIdOrderByCreatedAtDesc(customerId).map { it.toSnapshot() }
+        return returns.findByCustomerIdOrderByCreatedAtDesc(customerId).map { it.toSnapshot(references) }
     }
 
     @Transactional(readOnly = true)
     fun listByStatus(status: ReturnStatus): List<ReturnRequestSnapshot> =
-        returns.findByStatusOrderByUpdatedAtAsc(status).map { it.toSnapshot() }
+        returns.findByStatusOrderByUpdatedAtAsc(status).map { it.toSnapshot(references) }
 
     @Transactional(readOnly = true)
     fun listForOrder(orderId: String): List<ReturnRequestSnapshot> {
         require(orderId.isNotBlank()) { "orderId is required." }
-        return returns.findByOrderIdOrderByCreatedAtDesc(orderId).map { it.toSnapshot() }
+        return returns.findByOrderIdOrderByCreatedAtDesc(orderId).map { it.toSnapshot(references) }
     }
 
     private fun CustomerOrderRecord.returnItemCategory(): ReturnItemCategory {
@@ -615,7 +643,7 @@ class ReturnPersistenceService(
         is ReturnProcessingResult.Rejected -> PersistedReturnResult.Rejected(rejection)
     }
 
-    private fun accepted(record: ReturnRequestRecord) = PersistedReturnResult.Accepted(record.toSnapshot())
+    private fun accepted(record: ReturnRequestRecord) = PersistedReturnResult.Accepted(record.toSnapshot(references))
 
     private fun rejected(code: String, message: String) =
         PersistedReturnResult.Rejected(ReturnRejection(code, message))
@@ -762,8 +790,15 @@ private fun ReturnRequestRecord.toDomain() = ReturnRequest(
     refundAmountCfa = refundAmountCfa,
 )
 
-private fun ReturnRequestRecord.toSnapshot() = ReturnRequestSnapshot(
+private fun ReturnRequestRecord.toSnapshot(references: PublicReferenceRegistry? = null) = ReturnRequestSnapshot(
     id = id,
+    publicReference = references.referenceOrNull(PublicReferenceKind.RETURN, id),
+    orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+    customerReference = references.referenceOrNull(PublicReferenceKind.USER, customerId),
+    relayReference = references.referenceOrNull(PublicReferenceKind.RELAY, relayPointId),
+    receivingOperatorReference = references.referenceOrNull(PublicReferenceKind.USER, receivingOperatorId),
+    collectingOperatorReference = references.referenceOrNull(PublicReferenceKind.USER, collectingOperatorId),
+    inspectingOperatorReference = references.referenceOrNull(PublicReferenceKind.USER, inspectingOperatorId),
     orderId = orderId,
     customerId = customerId,
     status = status,
@@ -784,16 +819,20 @@ private fun ReturnRequestRecord.toSnapshot() = ReturnRequestSnapshot(
     inspectionDecision = inspectionDecision,
     inspectedAt = inspectedAt,
     inspectingOperatorId = inspectingOperatorId,
-    history = storedCustodyHistory(custodyHistoryJson).map { ReturnCustodyEvent(it.action, it.createdAt, it.actorUserId, it.metadata) },
+    history = storedCustodyHistory(custodyHistoryJson).map { ReturnCustodyEvent(it.action, it.createdAt, it.actorUserId, it.metadata, actorReference = references.referenceOrNull(PublicReferenceKind.USER, it.actorUserId)) },
     refundInstruction = refundInstructionId?.let { ReturnRefundInstruction(it, requireNotNull(refundAmountCfa),
-        requireNotNull(refundInstructedAt), refundInstructingOperatorId) },
+        requireNotNull(refundInstructedAt), refundInstructingOperatorId,
+        publicReference = references.referenceOrNull(PublicReferenceKind.INSTRUCTION, it),
+        requestedByReference = references.referenceOrNull(PublicReferenceKind.USER, refundInstructingOperatorId)) },
     refundInstructionState = if (refundInstructionId != null) "REQUESTED" else if (status == ReturnStatus.RefundPending || refundIdempotencyKey != null) "LEGACY_REVIEW_REQUIRED" else "NOT_INSTRUCTED",
     receiptConditionAssessment = receiptConditionAssessment,
     receiptResponsibility = receiptResponsibility,
 )
 
 
-data class ReturnCustodyEvent(val action: String, val createdAt: Instant, val actorUserId: String?, val metadata: String?)
+data class ReturnCustodyEvent(val action: String, val createdAt: Instant, val actorUserId: String?, val metadata: String?,
+    val actorReference: String? = null,
+)
 data class ReturnRefundInstruction(
     val id: String,
     val amountCfa: Int,
@@ -802,6 +841,8 @@ data class ReturnRefundInstruction(
     val currency: String = "XOF",
     val status: String = "REQUESTED",
     val paymentStatus: String = "NOT_SUBMITTED",
+    val publicReference: String? = null,
+    val requestedByReference: String? = null,
 )
 
 private data class StoredReturnCustodyEvent(
@@ -837,4 +878,6 @@ data class MerchantReturnSnapshot(
     val droppedAt: Instant?, val collectedBySequoAt: Instant?, val receivedBySequoAt: Instant?,
     val inspectionDecision: ReturnInspectionDecision?, val refundInstructionState: String,
     val refundPaymentStatus: String, val orderPaymentStatus: String, val lines: List<MerchantReturnLine>,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
 )

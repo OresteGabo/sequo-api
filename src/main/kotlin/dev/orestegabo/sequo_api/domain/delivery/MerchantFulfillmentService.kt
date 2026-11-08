@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.notification.NotificationEventType
 import dev.orestegabo.sequo_api.domain.notification.NotificationSeverity
@@ -59,6 +63,9 @@ data class MerchantSubOrderSnapshot(
     val orderPaymentStatus: PaymentValidationStatus? = null,
     val orderCreatedAt: Instant? = null,
     val deliveredAt: Instant? = null,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val merchantReference: String? = null,
 )
 
 data class MerchantOrderLineSnapshot(
@@ -69,6 +76,7 @@ data class MerchantOrderLineSnapshot(
     val unitPriceCfa: Int,
     val lineTotalCfa: Int,
     val optionLabel: String?,
+    val productReference: String? = null,
 )
 
 data class MerchantFulfillmentSlaSnapshot(
@@ -109,6 +117,7 @@ class MerchantFulfillmentService(
     private val publisher: ApplicationEventPublisher,
     private val sellerResponseSla: Duration = Duration.ofHours(24),
     private val packingSla: Duration = Duration.ofHours(48),
+    private val references: PublicReferenceRegistry? = null,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -397,9 +406,10 @@ class MerchantFulfillmentService(
             MerchantOrderLineSnapshot(
                 line.id, line.productId, line.productName, line.quantity, unitPrice, unitPrice * line.quantity,
                 pendingLines?.get(line.lineIndex)?.path("optionLabel")?.takeIf { it.isTextual }?.asText(),
+                productReference = references.referenceOrNull(PublicReferenceKind.PRODUCT, line.productId),
             )
         }
-        return subOrder.toSnapshot().copy(
+        return subOrder.toSnapshot(references).copy(
             lines = lines,
             orderStatus = order?.orderStatus,
             orderPaymentStatus = order?.paymentStatus,
@@ -610,10 +620,13 @@ private fun NotificationEventType.merchantFulfillmentBody(): String =
         else -> "Merchant fulfillment was updated."
     }
 
-private fun MerchantSubOrder.toSnapshot(): MerchantSubOrderSnapshot =
+private fun MerchantSubOrder.toSnapshot(references: PublicReferenceRegistry? = null): MerchantSubOrderSnapshot =
     MerchantSubOrderSnapshot(
         id = requireNotNull(id) { "Persisted merchant sub-order id is required." },
         subOrderCode = subOrderCode,
+        publicReference = references.referenceOrNull(PublicReferenceKind.MERCHANT_ORDER, id),
+        orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+        merchantReference = references.referenceOrNull(PublicReferenceKind.MERCHANT, merchantId),
         orderId = orderId,
         merchantId = merchantId,
         status = status,

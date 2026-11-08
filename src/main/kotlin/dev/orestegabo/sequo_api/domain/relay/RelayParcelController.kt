@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
@@ -22,6 +26,7 @@ class RelayParcelController(
     private val service: RelayParcelApplicationService,
     private val access: RelayOperatorAccess,
     private val operations: RelayPickupOperations,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     data class PickupCodeRequest(
         val codeId: String,
@@ -57,9 +62,17 @@ class RelayParcelController(
         val updatedAt: Instant,
         val history: List<CustodyHistoryEntry> = emptyList(),
         val custody: RelayDeadlines? = null,
-    )
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val deliveryReference: String? = null,
+    val returnReference: String? = null,
+    val relayReference: String? = null,
+    val lockerReference: String? = null,
+)
     data class CustodyHistoryEntry(val type: RelayCustodyEventType, val createdAt: Instant, val message: String? = null,
-        val id: String? = null, val actorUserId: String? = null)
+        val id: String? = null, val actorUserId: String? = null,
+    val actorReference: String? = null,
+)
     data class PickupCredentialResponse(val id: String, val parcelId: String, val identityCheckRequired: Boolean, val expiresAt: Instant, val usedAt: Instant?, val attemptCount: Int)
     data class OperationResponse(val parcel: ParcelResponse, val pickupCode: PickupCredentialResponse?, val eventId: String?)
 
@@ -84,7 +97,7 @@ class RelayParcelController(
         if (!access.permits(actor, relayPointId)) return@roleRequired ResponseEntity.status(403).build()
         ResponseEntity.ok(
             service.listParcels(ApiInputPolicy.requiredIdentifier(relayPointId, "relayPointId"), status)
-                .map { toResponse(it) }
+                .map { toResponse(it, references) }
         )
     }
 
@@ -98,7 +111,7 @@ class RelayParcelController(
             if (!access.permits(authenticated, parcel.relayPointId) || (safeRelayPointId != null && parcel.relayPointId != safeRelayPointId)) {
                 return@roleRequired ResponseEntity.status(403).build()
             }
-            ResponseEntity.ok(toResponse(parcel))
+            ResponseEntity.ok(toResponse(parcel, references))
         }
 
     @PostMapping("/{parcelId}/pickup-code")
@@ -115,7 +128,7 @@ class RelayParcelController(
             rawQrNonce = ApiInputPolicy.optionalShortText(request.rawQrNonce, "rawQrNonce", 256),
             identityCheckRequired = request.identityCheckRequired,
             expiresAt = request.expiresAt,
-        ).toResponse()
+        ).toResponse(references)
     }
 
     @PostMapping("/{parcelId}/release")
@@ -134,7 +147,7 @@ class RelayParcelController(
             identityDocumentMatched = request.identityDocumentMatched,
             eventId = ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
             idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
-        ).toResponse()
+        ).toResponse(references)
     }
 
     @PostMapping("/{parcelId}/problem")
@@ -149,7 +162,7 @@ class RelayParcelController(
             ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
             ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
             ApiInputPolicy.requiredLongText(request.metadata, "metadata"),
-        ).toResponse()
+        ).toResponse(references)
     }
 
     @PostMapping("/{parcelId}/return-to-seller")
@@ -167,7 +180,7 @@ class RelayParcelController(
             idempotencyKey = ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey),
             metadata = ApiInputPolicy.requiredLongText(request.metadata, "metadata"),
             returnedAt = returnedAt,
-        ).toResponse()
+        ).toResponse(references)
     }
 
     @PostMapping("/storage-fees/assess")
@@ -200,7 +213,7 @@ class RelayParcelController(
     fun overdue(authentication: Authentication?, @RequestParam relayPointId: String): ResponseEntity<Any> =
         roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
             if (!access.permits(actor, relayPointId)) return@roleRequired ResponseEntity.status(403).build()
-            ResponseEntity.ok(service.listParcels(relayPointId).filter { parcel -> parcel.deadlines()?.let { it.storageFeeEligible || it.reviewDue } == true }.map(::toResponse))
+            ResponseEntity.ok(service.listParcels(relayPointId).filter { parcel -> parcel.deadlines()?.let { it.storageFeeEligible || it.reviewDue } == true }.map { toResponse(it, references) })
         }
 
     @PostMapping("/deadlines/evaluate")
@@ -208,14 +221,14 @@ class RelayParcelController(
         roleRequired(authentication, RoleGroups.RelayOperators) { actor ->
             val site = ApiInputPolicy.requiredIdentifier(request["relayPointId"].orEmpty(), "relayPointId")
             if (!access.permits(actor, site)) return@roleRequired ResponseEntity.status(403).build()
-            ResponseEntity.ok(service.evaluateDelayed(site, Instant.now()).map(::toResponse))
+            ResponseEntity.ok(service.evaluateDelayed(site, Instant.now()).map { toResponse(it, references) })
         }
 
     @PostMapping("/{parcelId}/review")
     fun review(authentication: Authentication?, @PathVariable parcelId: String, @RequestBody request: ProblemRequest): ResponseEntity<Any> =
         parcelRequired(authentication, parcelId) { actor ->
             operations.review(parcelId, actor.name, ApiInputPolicy.requiredIdentifier(request.eventId, "eventId"),
-                ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey), ApiInputPolicy.requiredLongText(request.metadata, "metadata")).toResponse()
+                ApiInputPolicy.requiredIdempotencyKey(request.idempotencyKey), ApiInputPolicy.requiredLongText(request.metadata, "metadata")).toResponse(references)
         }
 
     private fun parcelRequired(authentication: Authentication?, parcelId: String, operation: (Authentication) -> ResponseEntity<Any>): ResponseEntity<Any> =
@@ -234,10 +247,10 @@ class RelayParcelController(
     data class ErrorResponse(val code: String, val message: String)
 }
 
-private fun RelayParcelServiceResult.toResponse(): ResponseEntity<Any> = when (this) {
+private fun RelayParcelServiceResult.toResponse(references: PublicReferenceRegistry? = null): ResponseEntity<Any> = when (this) {
     is RelayParcelServiceResult.Accepted -> ResponseEntity.ok(
         RelayParcelController.OperationResponse(
-            parcel = toResponse(value.parcel),
+            parcel = toResponse(value.parcel, references),
             pickupCode = value.pickupCode?.let { RelayParcelController.PickupCredentialResponse(it.id, it.relayParcelId, it.identityCheckRequired, it.expiresAt, it.usedAt, it.attemptCount) },
             eventId = value.event?.id,
         )
@@ -245,8 +258,14 @@ private fun RelayParcelServiceResult.toResponse(): ResponseEntity<Any> = when (t
     is RelayParcelServiceResult.Rejected -> ResponseEntity.badRequest().body(RelayParcelController.ErrorResponse(rejection.code, rejection.message))
 }
 
-private fun toResponse(parcel: RelayParcel) = RelayParcelController.ParcelResponse(
+private fun toResponse(parcel: RelayParcel, references: PublicReferenceRegistry? = null) = RelayParcelController.ParcelResponse(
     id = parcel.id,
+    publicReference = references.referenceOrNull(PublicReferenceKind.PARCEL, parcel.id),
+    orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, parcel.orderId),
+    deliveryReference = references.referenceOrNull(PublicReferenceKind.DELIVERY, parcel.deliveryMissionId),
+    returnReference = references.referenceOrNull(PublicReferenceKind.RETURN, parcel.returnId),
+    relayReference = references.referenceOrNull(PublicReferenceKind.RELAY, parcel.relayPointId),
+    lockerReference = references.referenceOrNull(PublicReferenceKind.LOCKER, parcel.lockerId),
     relayPointId = parcel.relayPointId,
     lockerId = parcel.lockerId,
     orderId = parcel.orderId,
@@ -262,5 +281,5 @@ private fun toResponse(parcel: RelayParcel) = RelayParcelController.ParcelRespon
     custody = parcel.deadlines(),
     history = parcel.custodyEvents.map { RelayParcelController.CustodyHistoryEntry(it.type, it.createdAt,
         it.metadata.takeIf { _ -> it.type in setOf(RelayCustodyEventType.Review, RelayCustodyEventType.ReturnDropoff, RelayCustodyEventType.Delay) },
-        it.id, it.actorUserId) },
+        it.id, it.actorUserId, actorReference = references.referenceOrNull(PublicReferenceKind.USER, it.actorUserId)) },
 )

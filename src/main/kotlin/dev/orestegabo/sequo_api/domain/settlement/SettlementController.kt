@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.settlement
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/settlements")
 class SettlementController(
     private val service: SettlementPersistenceService,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     @GetMapping("/merchant-payouts")
     fun merchantPayouts(
@@ -29,9 +34,9 @@ class SettlementController(
         if (!auth.canReadMerchantPayouts(safeMerchantId)) return@authenticated ResponseEntity.status(403).build()
         ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
             service.listMerchantPayouts(safeMerchantId, status).map { payout ->
-                val view = payout.toResponse()
+                val view = payout.toResponse(references)
                 if (auth.hasAnyRole(RoleGroups.AdminOnly)) view else view.copy(
-                    ledgerEntries = view.ledgerEntries.map { it.copy(courierId = null, relayPointId = null) })
+                    ledgerEntries = view.ledgerEntries.map { it.copy(courierId = null, courierReference = null, relayPointId = null, relayReference = null) })
             })
     }
 
@@ -41,7 +46,7 @@ class SettlementController(
         @RequestParam sourceType: SettlementSourceType,
         @RequestParam sourceId: String,
     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOnly) {
-        ResponseEntity.ok(service.listLedgerEntries(sourceType, ApiInputPolicy.requiredIdentifier(sourceId, "sourceId")).map { it.toResponse() })
+        ResponseEntity.ok(service.listLedgerEntries(sourceType, ApiInputPolicy.requiredIdentifier(sourceId, "sourceId")).map { it.toResponse(references) })
     }
 
     @PostMapping("/merchant-payouts/evaluate-eligible")
@@ -49,7 +54,7 @@ class SettlementController(
         authentication: Authentication?,
         @RequestParam(required = false) evaluatedAt: Instant?,
     ): ResponseEntity<Any> = authenticated(authentication, RoleGroups.AdminOnly) {
-        ResponseEntity.ok(service.evaluateEligible(evaluatedAt ?: Instant.now()).map { it.toResponse() })
+        ResponseEntity.ok(service.evaluateEligible(evaluatedAt ?: Instant.now()).map { it.toResponse(references) })
     }
 
     private fun Authentication.canReadMerchantPayouts(merchantId: String): Boolean =
@@ -85,6 +90,10 @@ data class MerchantPayoutResponse(
     val activeReturnHold: Boolean,
     val activeDisputeHold: Boolean,
     val ledgerEntries: List<SettlementLedgerEntryResponse>,
+    val publicReference: String? = null,
+    val merchantReference: String? = null,
+    val orderReference: String? = null,
+    val sourceOrderItemReference: String? = null,
 )
 
 data class SettlementLedgerEntryResponse(
@@ -100,10 +109,19 @@ data class SettlementLedgerEntryResponse(
     val description: String,
     val createdAt: Instant,
     val workforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
+    val publicReference: String? = null,
+    val merchantReference: String? = null,
+    val courierReference: String? = null,
+    val relayReference: String? = null,
+    val missionReference: String? = null,
 )
 
-private fun MerchantPayoutAccrual.toResponse() = MerchantPayoutResponse(
+private fun MerchantPayoutAccrual.toResponse(references: PublicReferenceRegistry? = null) = MerchantPayoutResponse(
     id = id,
+    publicReference = references.referenceOrNull(PublicReferenceKind.FINANCIAL, id),
+    merchantReference = references.referenceOrNull(PublicReferenceKind.MERCHANT, merchantId),
+    orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+    sourceOrderItemReference = references.referenceOrNull(PublicReferenceKind.MERCHANT_ORDER, sourceOrderItemId),
     merchantId = merchantId,
     orderId = orderId,
     sourceOrderItemId = sourceOrderItemId,
@@ -117,11 +135,16 @@ private fun MerchantPayoutAccrual.toResponse() = MerchantPayoutResponse(
     workflowType = workflowType,
     activeReturnHold = activeReturnHold,
     activeDisputeHold = activeDisputeHold,
-    ledgerEntries = ledgerEntries.map { it.toResponse() },
+    ledgerEntries = ledgerEntries.map { it.toResponse(references) },
 )
 
-private fun SettlementLedgerEntry.toResponse() = SettlementLedgerEntryResponse(
+private fun SettlementLedgerEntry.toResponse(references: PublicReferenceRegistry? = null) = SettlementLedgerEntryResponse(
     id = id,
+    publicReference = references.referenceOrNull(PublicReferenceKind.LEDGER, id),
+    merchantReference = references.referenceOrNull(PublicReferenceKind.MERCHANT, merchantId),
+    courierReference = references.referenceOrNull(PublicReferenceKind.COURIER, courierId),
+    relayReference = references.referenceOrNull(PublicReferenceKind.RELAY, relayPointId),
+    missionReference = if (sourceType == SettlementSourceType.DeliveryMission) references.referenceOrNull(PublicReferenceKind.DELIVERY, sourceId) else null,
     account = account,
     direction = direction,
     amountCfa = amountCfa,

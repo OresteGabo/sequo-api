@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.localfixture
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import dev.orestegabo.sequo_api.domain.auth.*
 import dev.orestegabo.sequo_api.domain.order.toOrderId
 import jakarta.persistence.*
@@ -35,9 +37,11 @@ data class LocalOperationalFixtureContext(val adminId: String, val createdAt: In
         .associateWith { id("return-$it").toOrderId() }
 }
 
-data class LocalFixtureAccount(val id: String, val name: String, val email: String, val roles: List<String>, val purpose: String)
+data class LocalFixtureAccount(val id: String, val name: String, val email: String, val roles: List<String>, val purpose: String,
+    val publicReference: String? = null)
 data class LocalFixtureScenario(val id: String, val title: String, val summary: String, val category: String,
-    val resourceIds: Map<String, String>, val nextActions: List<String>, val credentials: Map<String, String> = emptyMap())
+    val resourceIds: Map<String, String>, val nextActions: List<String>, val credentials: Map<String, String> = emptyMap(),
+    val resourceReferences: Map<String, String> = emptyMap())
 data class LocalFixtureManifest(val environment: String = "LOCAL_FIXTURE", val namespace: String = "local-ops-v1",
     val version: Int = 1, val seededAt: Instant? = null, val accounts: List<LocalFixtureAccount> = emptyList(),
     val scenarios: List<LocalFixtureScenario> = emptyList(),
@@ -91,6 +95,7 @@ class LocalOperationalFixtureService(
     private val journeys: LocalOperationalJourneySeeder,
     private val returns: LocalReturnRelayFixtureSeeder,
     private val users: UserRepository,
+    private val publicReferences: PublicReferenceRegistry? = null,
 ) {
     fun authorized(authentication: Authentication?): Boolean {
         if (!policy.enabled || authentication?.name != policy.adminId) return false
@@ -100,15 +105,31 @@ class LocalOperationalFixtureService(
     }
 
     @Transactional(readOnly = true)
-    fun manifest(): LocalFixtureManifest = runs.findById("local-ops-v1").orElse(null)?.manifestJson
-        ?.let { LocalFixtureManifestCodec.decode(it) } ?: LocalFixtureManifest()
+    fun manifest(): LocalFixtureManifest = withReferences(runs.findById("local-ops-v1").orElse(null)?.manifestJson
+        ?.let { LocalFixtureManifestCodec.decode(it) } ?: LocalFixtureManifest())
+
+    /** Refresh display metadata only; never rewrite the retained scene, credentials or business state. */
+    private fun withReferences(manifest: LocalFixtureManifest): LocalFixtureManifest {
+        val registry = publicReferences ?: return manifest
+        val kinds = mapOf("userId" to PublicReferenceKind.USER, "customerId" to PublicReferenceKind.USER,
+            "operatorUserId" to PublicReferenceKind.USER, "merchantId" to PublicReferenceKind.MERCHANT,
+            "productId" to PublicReferenceKind.PRODUCT, "courierId" to PublicReferenceKind.COURIER,
+            "checkoutId" to PublicReferenceKind.CHECKOUT, "orderId" to PublicReferenceKind.ORDER,
+            "missionId" to PublicReferenceKind.DELIVERY, "manifestId" to PublicReferenceKind.GROUP,
+            "returnId" to PublicReferenceKind.RETURN, "parcelId" to PublicReferenceKind.PARCEL,
+            "relayPointId" to PublicReferenceKind.RELAY, "lockerId" to PublicReferenceKind.LOCKER)
+        return manifest.copy(accounts = manifest.accounts.map { it.copy(publicReference = registry.reference(PublicReferenceKind.USER, it.id)) },
+            scenarios = manifest.scenarios.map { scene -> scene.copy(resourceReferences = scene.resourceIds.mapNotNull { (field, id) ->
+                kinds[field]?.let { field to registry.reference(it, id) }
+            }.toMap()) })
+    }
 
     /** The registry row alone stays locked. Domain service transactions must commit before reconciliation. */
     @Transactional
     fun seed(): LocalFixtureManifest {
         policy.requireEnabled()
         val run = requireNotNull(runs.lockRun("local-ops-v1")) { "Local fixture metadata migration is missing." }
-        run.manifestJson?.let { return LocalFixtureManifestCodec.decode(it) }
+        run.manifestJson?.let { return withReferences(LocalFixtureManifestCodec.decode(it)) }
         val context = LocalOperationalFixtureContext(policy.adminId, Instant.now())
         val accounts = foundation.seed(context)
         val supportingOrderIds = context.returnOrderIds.keys.map { stage -> context.id("return-$stage") } + context.relayOrderIds.keys.map { name -> context.id("relay-order-$name") }
@@ -117,7 +138,7 @@ class LocalOperationalFixtureService(
         val manifest = LocalFixtureManifest(seededAt = context.createdAt, accounts = accounts, scenarios = scenes)
         run.manifestJson = LocalFixtureManifestCodec.encode(manifest)
         run.seededAt = context.createdAt
-        return manifest
+        return withReferences(manifest)
     }
 }
 

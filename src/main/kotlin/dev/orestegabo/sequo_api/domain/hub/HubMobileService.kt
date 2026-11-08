@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.hub
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import dev.orestegabo.sequo_api.domain.notification.NotificationAppFamily
 import dev.orestegabo.sequo_api.domain.relay.RelayCredentialHasher
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecord
@@ -41,6 +43,10 @@ data class HubScanResolution(
     val identityVerificationRequired: Boolean,
     val feeDueCfa: Int,
     val blockingReason: String?,
+    val publicReference: String? = null,
+    val parcelReference: String? = null,
+    val returnReference: String? = null,
+    val lockerReference: String? = null,
 )
 
 data class HubSummarySnapshot(
@@ -79,6 +85,8 @@ data class LockerAvailabilitySnapshot(
     val reason: HubLockerAvailabilityReason?,
     val expectedAvailableAt: Instant?,
     val updatedAt: Instant,
+    val publicReference: String? = null,
+    val relayPointReference: String? = null,
 )
 
 data class WeeklyOpeningHourCommand(
@@ -275,7 +283,13 @@ class HubMobileService(
     private val controlDecisions: HubControlDecisionRepository,
     private val userPreferences: UserAppPreferenceRepository,
     private val credentialHasher: RelayCredentialHasher = Sha256RelayCredentialHasher(),
+    private val publicReferences: PublicReferenceRegistry? = null,
 ) {
+    private fun RelayLockerRecord.toSnapshot(): LockerAvailabilitySnapshot = toLockerSnapshot().copy(
+        publicReference = publicReferences?.reference(PublicReferenceKind.LOCKER, id),
+        relayPointReference = publicReferences?.reference(PublicReferenceKind.RELAY, relayPointId),
+    )
+
     @Transactional(readOnly = true)
     fun resolveScan(command: HubScanResolveCommand, now: Instant = Instant.now()): HubScanResolution =
         when (command.credentialType) {
@@ -571,7 +585,7 @@ class HubMobileService(
     ): HubScanResolution =
         HubScanResolution(
             workflowType = HubWorkflowType.CUSTOMER_PICKUP,
-            displayReference = parcel.id,
+            displayReference = publicReferences?.reference(PublicReferenceKind.PARCEL, parcel.id) ?: parcel.id,
             parcelId = parcel.id,
             returnId = parcel.returnId,
             collectionBatchId = null,
@@ -584,6 +598,10 @@ class HubMobileService(
                 !now.isBefore(code.expiresAt) -> "credential_expired"
                 else -> null
             },
+            publicReference = publicReferences?.reference(PublicReferenceKind.PARCEL, parcel.id),
+            parcelReference = publicReferences?.reference(PublicReferenceKind.PARCEL, parcel.id),
+            returnReference = parcel.returnId?.let { publicReferences?.reference(PublicReferenceKind.RETURN, it) },
+            lockerReference = parcel.lockerId?.let { publicReferences?.reference(PublicReferenceKind.LOCKER, it) },
         )
 
     private fun resolvePackageCredential(command: HubScanResolveCommand): HubScanResolution {
@@ -592,7 +610,7 @@ class HubMobileService(
             ?: return unknownCredential()
         return HubScanResolution(
             workflowType = HubWorkflowType.PACKAGE_INTAKE,
-            displayReference = parcel.id,
+            displayReference = publicReferences?.reference(PublicReferenceKind.PARCEL, parcel.id) ?: parcel.id,
             parcelId = parcel.id,
             returnId = parcel.returnId,
             collectionBatchId = null,
@@ -600,6 +618,10 @@ class HubMobileService(
             identityVerificationRequired = false,
             feeDueCfa = 0,
             blockingReason = if (parcel.status == RelayParcelStatus.Created) null else "package_already_intaken",
+            publicReference = publicReferences?.reference(PublicReferenceKind.PARCEL, parcel.id),
+            parcelReference = publicReferences?.reference(PublicReferenceKind.PARCEL, parcel.id),
+            returnReference = parcel.returnId?.let { publicReferences?.reference(PublicReferenceKind.RETURN, it) },
+            lockerReference = parcel.lockerId?.let { publicReferences?.reference(PublicReferenceKind.LOCKER, it) },
         )
     }
 
@@ -750,7 +772,7 @@ class HubMobileService(
     }
 }
 
-private fun RelayLockerRecord.toSnapshot(): LockerAvailabilitySnapshot =
+private fun RelayLockerRecord.toLockerSnapshot(): LockerAvailabilitySnapshot =
     LockerAvailabilitySnapshot(
         lockerId = id,
         relayPointId = relayPointId,

@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
@@ -58,17 +60,18 @@ class GuardedDeliveryAssignmentService(
     private val audit: DeliveryAdminAudit,
     private val policy: PersistedDeliveryAssignmentService,
     private val availability: CourierAvailabilityService,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     fun assign(missionId: String, courierId: String, actor: String, reason: String? = null, key: String? = null, reassign: Boolean = false): DeliveryMissionServiceResult {
         if (courierId.isBlank()) return reject("missing_courier", "Courier id is required.")
         val mission = missions.lockForAction(missionId) ?: return reject("mission_not_found", "Delivery mission was not found.")
         val intent = audit.intent("DELIVERY_MISSION", missionId, if (reassign) "REASSIGN_COURIER" else "ASSIGN_COURIER", actor, courierId, reason, key)
-        if (audit.replay(intent)) return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Recorded action retained.")
+        if (audit.replay(intent)) return DeliveryMissionServiceResult.Success(mission.toSnapshot(references), "Recorded action retained.")
         // Replay never resets a proof/acceptance timestamp or applies today's workforce to an old assignment.
         if (mission.courierId == courierId && mission.assignedAt != null) {
             audit.record(intent, mission.courierId, mission.courierId)
-            return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Existing assignment retained.")
+            return DeliveryMissionServiceResult.Success(mission.toSnapshot(references), "Existing assignment retained.")
         }
         if (reassign && mission.status !in DeliveryMissionService.reassignableStatuses) return reject("mission_not_reassignable", "Only missions before pickup can be reassigned.")
         if (!reassign && (mission.status != DeliveryMissionRecordStatus.CREATED || mission.courierId != null)) return reject("invalid_mission_state", "Use explicit reassignment for a mission already assigned.")
@@ -86,7 +89,7 @@ class GuardedDeliveryAssignmentService(
     fun offer(missionId: String, actor: String, reason: String? = null, key: String? = null): DeliveryMissionServiceResult {
         val mission = missions.lockForAction(missionId) ?: return reject("mission_not_found", "Delivery mission was not found.")
         val intent = audit.intent("DELIVERY_MISSION", missionId, "OFFER_MISSION", actor, "OFFERED_TO_COURIER", reason, key)
-        if (audit.replay(intent)) return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Recorded action retained.")
+        if (audit.replay(intent)) return DeliveryMissionServiceResult.Success(mission.toSnapshot(references), "Recorded action retained.")
         paidOrderRejection(mission)?.let { return it }
         val courierId = mission.courierId ?: return reject("courier_assignment_required", "Assign an eligible courier before offering this mission.")
         eligibility.rejection(couriers.lockForAdministration(courierId), missionId)?.let { return it }
@@ -100,7 +103,7 @@ class GuardedDeliveryAssignmentService(
     fun assignPolicy(missionId: String, actor: String, reason: String?, key: String?): DeliveryMissionServiceResult {
         val mission = missions.lockForAction(missionId) ?: return reject("mission_not_found", "Delivery mission was not found.")
         val intent = audit.intent("DELIVERY_MISSION", missionId, "ASSIGN_POLICY", actor, null, reason, key)
-        if (audit.replay(intent)) return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Recorded action retained.")
+        if (audit.replay(intent)) return DeliveryMissionServiceResult.Success(mission.toSnapshot(references), "Recorded action retained.")
         val before = mission.courierId
         val result = policy.assign(missionId)
         if (result is DeliveryMissionServiceResult.Success) audit.record(intent, before, result.mission.courierId)

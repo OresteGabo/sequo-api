@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import dev.orestegabo.sequo_api.domain.delivery.CreateMerchantSubOrderCommand
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordStatus
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionSnapshot
@@ -231,6 +235,9 @@ data class CustomerOrderSnapshot(
     val returnWindowEndsAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val publicReference: String? = null,
+    val checkoutReference: String? = null,
+    val customerReference: String? = null,
 )
 
 data class CustomerOrderLineSnapshot(
@@ -248,6 +255,9 @@ data class CustomerOrderLineSnapshot(
     val lineTotalCfa: Int,
     val photoEvidenceType: String,
     val lineIndex: Int,
+    val orderReference: String? = null,
+    val productReference: String? = null,
+    val sellerReference: String? = null,
 )
 
 data class CustomerOrderEventSnapshot(
@@ -259,6 +269,9 @@ data class CustomerOrderEventSnapshot(
     val actorUserId: String?,
     val metadata: String?,
     val createdAt: Instant,
+    val orderReference: String? = null,
+    val actorReference: String? = null,
+    val sourceReference: String? = null,
 )
 
 data class CustomerOrderTimelineItem(
@@ -318,6 +331,7 @@ class OrderFulfillmentPersistenceService(
     private val merchantFulfillment: MerchantFulfillmentService,
     private val commissions: MerchantCommissionConfigurationService,
     private val deliveryMissions: DeliveryMissionRepository,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     @Transactional(readOnly = true)
     fun listForCustomer(customerId: String): List<CustomerOrderDetails> {
@@ -367,8 +381,8 @@ class OrderFulfillmentPersistenceService(
         }
 
         return PersistedOrderFulfillment(
-            order = orderRecord.toSnapshot(),
-            lines = lines.findByOrderIdOrderByLineIndexAsc(orderRecord.id).map { it.toSnapshot() },
+            order = orderRecord.toSnapshot(references),
+            lines = lines.findByOrderIdOrderByLineIndexAsc(orderRecord.id).map { it.toSnapshot(references) },
             pricingSnapshot = pricingSnapshots.findById(orderRecord.id).orElse(null)?.toSnapshot(),
             merchantSubOrders = merchantSubOrders,
         )
@@ -376,11 +390,11 @@ class OrderFulfillmentPersistenceService(
 
     private fun toCustomerDetails(order: CustomerOrderRecord): CustomerOrderDetails =
         CustomerOrderDetails(
-            order = order.toSnapshot(),
-            lines = lines.findByOrderIdOrderByLineIndexAsc(order.id).map { it.toSnapshot() },
+            order = order.toSnapshot(references),
+            lines = lines.findByOrderIdOrderByLineIndexAsc(order.id).map { it.toSnapshot(references) },
             pricingSnapshot = pricingSnapshots.findById(order.id).orElse(null)?.toSnapshot(),
             merchantSubOrders = merchantFulfillment.listForOrder(order.id),
-            deliveries = deliveryMissions.findByOrderIdOrderByCreatedAtAsc(order.id).map { it.toTrackingSnapshot() },
+            deliveries = deliveryMissions.findByOrderIdOrderByCreatedAtAsc(order.id).map { it.toTrackingSnapshot(references) },
             timeline = events.findByOrderIdOrderByCreatedAtAsc(order.id).map {
                 CustomerOrderTimelineItem(it.eventType, it.createdAt)
             },
@@ -419,6 +433,7 @@ class OrderDeliveryLifecycleService(
     private val publisher: ApplicationEventPublisher,
     private val missions: DeliveryMissionRepository,
     @org.springframework.beans.factory.annotation.Value("\${sequo.returns.window-hours:72}") private val returnWindowHours: Long = 72,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -433,7 +448,7 @@ class OrderDeliveryLifecycleService(
         if (order.deliveredAt != null || order.orderStatus in setOf(CustomerOrderStatus.DELIVERED,
                 CustomerOrderStatus.RETURN_REQUESTED, CustomerOrderStatus.REFUNDED)) {
             // Mission retries must retain the authoritative handoff and any later return/refund state.
-            return order.toSnapshot()
+            return order.toSnapshot(references)
         }
         if (order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT ||
             order.paymentStatus != PaymentValidationStatus.Validated
@@ -479,13 +494,13 @@ class OrderDeliveryLifecycleService(
         )
         accrueMerchantPayouts(saved, deliveredAt)
         publisher.publishEvent(saved.deliveryNotificationEvent(mission, lines.findByOrderIdOrderByLineIndexAsc(order.id)))
-        return saved.toSnapshot()
+        return saved.toSnapshot(references)
     }
 
     @Transactional(readOnly = true)
     fun listEvents(orderId: String): List<CustomerOrderEventSnapshot> {
         require(orderId.isNotBlank()) { "orderId is required." }
-        return events.findByOrderIdOrderByCreatedAtAsc(orderId).map { it.toSnapshot() }
+        return events.findByOrderIdOrderByCreatedAtAsc(orderId).map { it.toSnapshot(references) }
     }
 
     private fun saveEvent(event: CustomerOrderEventRecord) {
@@ -651,7 +666,7 @@ private fun OrderLineRequest.photoEvidenceType(): String =
         ProductPhotoEvidence.GalleryUpload -> "GALLERY_UPLOAD"
     }
 
-private fun CustomerOrderRecord.toSnapshot() = CustomerOrderSnapshot(
+private fun CustomerOrderRecord.toSnapshot(references: PublicReferenceRegistry? = null) = CustomerOrderSnapshot(
     id = id,
     checkoutId = checkoutId,
     customerId = customerId,
@@ -659,6 +674,9 @@ private fun CustomerOrderRecord.toSnapshot() = CustomerOrderSnapshot(
     route = route,
     fulfillmentPriority = fulfillmentPriority,
     requiresConsolidation = requiresConsolidation,
+    publicReference = references.referenceOrNull(PublicReferenceKind.ORDER, id),
+    checkoutReference = references.referenceOrNull(PublicReferenceKind.CHECKOUT, checkoutId),
+    customerReference = references.referenceOrNull(PublicReferenceKind.USER, customerId),
     customerFacingStatus = effectiveCustomerFacingStatus(),
     itemSubtotalCfa = itemSubtotalCfa,
     deliveryFeeCfa = deliveryFeeCfa,
@@ -674,12 +692,15 @@ private fun CustomerOrderRecord.toSnapshot() = CustomerOrderSnapshot(
     updatedAt = updatedAt,
 )
 
-private fun CustomerOrderLineRecord.toSnapshot() = CustomerOrderLineSnapshot(
+private fun CustomerOrderLineRecord.toSnapshot(references: PublicReferenceRegistry? = null) = CustomerOrderLineSnapshot(
     id = id,
     orderId = orderId,
     productId = productId,
     sellerId = sellerId,
     sellerName = sellerName,
+    orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+    productReference = references.referenceOrNull(PublicReferenceKind.PRODUCT, productId),
+    sellerReference = references.referenceOrNull(PublicReferenceKind.MERCHANT, sellerId),
     productName = productName,
     category = category,
     quantity = quantity,
@@ -720,13 +741,20 @@ private fun OrderPricingSnapshotRecord.toSnapshot() = OrderPricingAuditSnapshot(
     createdAt = createdAt,
 )
 
-private fun CustomerOrderEventRecord.toSnapshot() = CustomerOrderEventSnapshot(
+private fun CustomerOrderEventRecord.toSnapshot(references: PublicReferenceRegistry? = null) = CustomerOrderEventSnapshot(
     id = id,
     orderId = orderId,
     eventType = eventType,
     sourceType = sourceType,
     sourceId = sourceId,
     actorUserId = actorUserId,
+    orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+    actorReference = references.referenceOrNull(PublicReferenceKind.USER, actorUserId),
+    sourceReference = when (sourceType) {
+        "DELIVERY_MISSION" -> references.referenceOrNull(PublicReferenceKind.DELIVERY, sourceId)
+        "CHECKOUT" -> references.referenceOrNull(PublicReferenceKind.CHECKOUT, sourceId)
+        else -> null
+    },
     metadata = metadata,
     createdAt = createdAt,
 )

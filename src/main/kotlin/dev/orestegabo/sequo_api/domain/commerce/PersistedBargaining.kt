@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.*
 import dev.orestegabo.sequo_api.domain.bargaining.BargainingPolicy
@@ -31,6 +33,7 @@ class PersistedBargainingService(
     @Value("\${sequo.bargaining.max-customer-attempts:3}") maxCustomerAttempts: Int,
     @Value("\${sequo.bargaining.max-merchant-attempts:3}") maxMerchantAttempts: Int,
     @Value("\${sequo.bargaining.accepted-price-lock-hours:24}") acceptedPriceLockHours: Long,
+    private val publicReferences: PublicReferenceRegistry? = null,
 ) {
     private val policy = BargainingPolicy(maxCustomerAttempts, maxMerchantAttempts, Duration.ofHours(acceptedPriceLockHours))
     private val mapper = ObjectMapper()
@@ -211,7 +214,11 @@ class PersistedBargainingService(
             thread.lastOfferCfa, thread.acceptedPriceCfa, thread.openedAt,
             history.map { BargainingOfferDto(it.id, it.actorUserId, it.actorType, it.offerType, it.amountCfa, it.message, it.createdAt) },
             product?.name, product?.basePriceCfa, product?.let { it.status == CatalogProductStatus.ACTIVE && it.bargainingEnabled && it.merchantId == thread.merchantId } == true,
-            customerUsed, merchantUsed, policy.maxCustomerAttempts, policy.maxMerchantCounters, thread.closedAt.takeIf { thread.acceptedPriceCfa != null }, thread.expiresAt, next)
+            customerUsed, merchantUsed, policy.maxCustomerAttempts, policy.maxMerchantCounters, thread.closedAt.takeIf { thread.acceptedPriceCfa != null }, thread.expiresAt, next,
+            publicReference = publicReferences?.reference(PublicReferenceKind.BARGAINING, thread.id),
+            customerReference = publicReferences?.reference(PublicReferenceKind.USER, thread.customerId),
+            merchantReference = publicReferences?.reference(PublicReferenceKind.MERCHANT, thread.merchantId),
+            productReference = publicReferences?.reference(PublicReferenceKind.PRODUCT, thread.productId))
     }
 
     private fun scopeThreads(customerId: String, merchantId: String, productId: String) =

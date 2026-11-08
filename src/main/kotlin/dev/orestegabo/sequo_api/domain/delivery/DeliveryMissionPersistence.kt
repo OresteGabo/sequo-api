@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -258,6 +262,13 @@ data class DeliveryMissionSnapshot(
     val assignmentReason: String? = null,
     val pickupSource: String? = null,
     val dropoffName: String? = null,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val merchantSubOrderReference: String? = null,
+    val courierReference: String? = null,
+    val relayReference: String? = null,
+    val pickupProofActorReference: String? = null,
+    val dropoffProofActorReference: String? = null,
 )
 
 data class DeliveryTrackingSnapshot(
@@ -280,6 +291,9 @@ data class DeliveryTrackingSnapshot(
     val subscriberPriority: Boolean = false,
     val assignmentWorkforceType: DeliveryWorkforceType? = null,
     val assignmentReason: String? = null,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val relayReference: String? = null,
 )
 
 data class DeliveryProblemResolutionSnapshot(
@@ -290,6 +304,9 @@ data class DeliveryProblemResolutionSnapshot(
     val replacementCourierId: String?,
     val reason: String,
     val resolvedAt: Instant,
+    val actorReference: String? = null,
+    val missionReference: String? = null,
+    val replacementCourierReference: String? = null,
 )
 
 sealed class DeliveryMissionServiceResult {
@@ -312,6 +329,7 @@ class DeliveryMissionService(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val consolidationManifests: ConsolidationManifestRepository,
     private val administrativeUsers: dev.orestegabo.sequo_api.domain.auth.UserRepository,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -400,14 +418,14 @@ class DeliveryMissionService(
     @Transactional(readOnly = true)
     fun listProblemResolutions(missionId: String): List<DeliveryProblemResolutionSnapshot> {
         require(missionId.isNotBlank()) { "missionId cannot be blank." }
-        return problemResolutions.findByMissionIdOrderByResolvedAtAsc(missionId).map { it.toSnapshot() }
+        return problemResolutions.findByMissionIdOrderByResolvedAtAsc(missionId).map { it.toSnapshot(references) }
     }
 
     @Transactional(readOnly = true)
     fun track(deliveryCode: String, orderId: String): DeliveryTrackingSnapshot? {
         require(deliveryCode.isNotBlank()) { "deliveryCode cannot be blank." }
         require(orderId.isNotBlank()) { "orderId cannot be blank." }
-        return repository.findByDeliveryCodeAndOrderId(deliveryCode, orderId)?.toTrackingSnapshot()
+        return repository.findByDeliveryCodeAndOrderId(deliveryCode, orderId)?.toTrackingSnapshot(references)
     }
 
     @Transactional
@@ -824,7 +842,7 @@ class DeliveryMissionService(
         val finalPackage = mission.merchantSubOrderId == null &&
             mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS &&
             consolidationManifests.findByOrderId(mission.orderId)?.finalPackageId != null
-        return mission.toSnapshot().copy(packageCount = subOrder?.packageCount ?: if (finalPackage) 1 else 0)
+        return mission.toSnapshot(references).copy(packageCount = subOrder?.packageCount ?: if (finalPackage) 1 else 0)
     }
 
     private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(missionSnapshot(mission), message)
@@ -923,10 +941,17 @@ class DeliveryMissionService(
     }
 }
 
-fun DeliveryMission.toSnapshot() =
+fun DeliveryMission.toSnapshot(references: PublicReferenceRegistry? = null) =
     DeliveryMissionSnapshot(
         id = requireNotNull(id),
         deliveryCode = deliveryCode,
+        publicReference = references.referenceOrNull(PublicReferenceKind.DELIVERY, id),
+        orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+        merchantSubOrderReference = references.referenceOrNull(PublicReferenceKind.MERCHANT_ORDER, merchantSubOrderId),
+        courierReference = references.referenceOrNull(PublicReferenceKind.COURIER, courierId),
+        relayReference = references.referenceOrNull(PublicReferenceKind.RELAY, relayPointId),
+        pickupProofActorReference = references.referenceOrNull(PublicReferenceKind.USER, pickupProofActorId),
+        dropoffProofActorReference = references.referenceOrNull(PublicReferenceKind.USER, dropoffProofActorId),
         orderId = orderId,
         merchantSubOrderId = merchantSubOrderId,
         courierId = courierId,
@@ -955,10 +980,13 @@ fun DeliveryMission.toSnapshot() =
         relayDestination = relayDestinationPayload?.let { dev.orestegabo.sequo_api.domain.relay.readRelayDestination(it) },
     )
 
-fun DeliveryProblemResolutionRecord.toSnapshot() =
+fun DeliveryProblemResolutionRecord.toSnapshot(references: PublicReferenceRegistry? = null) =
     DeliveryProblemResolutionSnapshot(
         id = requireNotNull(id),
         missionId = missionId,
+        actorReference = references.referenceOrNull(PublicReferenceKind.USER, actorUserId),
+        missionReference = references.referenceOrNull(PublicReferenceKind.DELIVERY, missionId),
+        replacementCourierReference = references.referenceOrNull(PublicReferenceKind.COURIER, replacementCourierId),
         actorUserId = actorUserId,
         action = action,
         replacementCourierId = replacementCourierId,
@@ -966,9 +994,12 @@ fun DeliveryProblemResolutionRecord.toSnapshot() =
         resolvedAt = resolvedAt,
     )
 
-internal fun DeliveryMission.toTrackingSnapshot() =
+internal fun DeliveryMission.toTrackingSnapshot(references: PublicReferenceRegistry? = null) =
     DeliveryTrackingSnapshot(
         deliveryCode = deliveryCode,
+        publicReference = references.referenceOrNull(PublicReferenceKind.DELIVERY, id),
+        orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+        relayReference = references.referenceOrNull(PublicReferenceKind.RELAY, relayPointId),
         orderId = orderId,
         status = status,
         deliveryMode = deliveryMode,

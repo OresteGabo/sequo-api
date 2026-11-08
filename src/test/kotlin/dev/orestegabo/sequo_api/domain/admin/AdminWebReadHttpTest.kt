@@ -16,6 +16,9 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dev.orestegabo.sequo.reference.HumanReference
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -30,6 +33,7 @@ import org.springframework.boot.test.web.server.LocalServerPort
 class AdminWebReadHttpTest @Autowired constructor(
     private val jwt: JwtService,
     private val returns: ReturnRequestRecordRepository,
+    private val references: PublicReferenceRegistry,
 ) {
     @LocalServerPort
     private var port = 0
@@ -75,7 +79,13 @@ class AdminWebReadHttpTest @Autowired constructor(
         val row = ObjectMapper().readTree(response.body()).single { it.get("id").asText() == "fixture-return" }
         assertEquals("DroppedAtRelay", row.get("status").asText())
         assertEquals(2750, row.get("requestedRefundCfa").asInt())
-        assertEquals(setOf("id", "orderId", "status", "requestedRefundCfa", "relayPointId", "updatedAt"), row.fieldNames().asSequence().toSet())
+        assertTrue(HumanReference.isValid(row.get("publicReference").asText(), PublicReferenceKind.RETURN))
+        assertEquals(references.reference(PublicReferenceKind.RETURN, "fixture-return"), row.get("publicReference").asText())
+        assertEquals(references.reference(PublicReferenceKind.ORDER, "fixture-order"), row.get("orderReference").asText())
+        val repeated = ObjectMapper().readTree(get("/api/admin/web/returns", jwt.generateAccessToken(session(RoleCode.ADMIN))).body())
+            .single { it.get("id").asText() == "fixture-return" }
+        assertEquals(row.get("publicReference"), repeated.get("publicReference"))
+        assertEquals(setOf("id", "orderId", "status", "requestedRefundCfa", "relayPointId", "updatedAt", "publicReference", "orderReference", "relayReference"), row.fieldNames().asSequence().toSet())
     }
 
     private fun session(role: RoleCode) = UserSession("fixture-$role", null, AuthProvider.EMAIL, setOf(role))

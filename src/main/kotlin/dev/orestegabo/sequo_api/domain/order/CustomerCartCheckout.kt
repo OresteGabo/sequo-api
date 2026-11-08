@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.api.ApiErrorResponse
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
@@ -38,6 +42,8 @@ data class CustomerCheckoutSummary(
     val destinationLabel: String?,
     val createdAt: Instant,
     val lines: List<CheckoutLineSummary>,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
 )
 
 data class CheckoutLineSummary(val productName: String, val quantity: Int)
@@ -58,6 +64,7 @@ class CustomerCartCheckoutService(
     private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
     paymentProcessor: PaymentProcessor,
     pricing: DeliveryPricingService,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     private val processor = RegularOrderProcessor(paymentProcessor, pricing)
     private val mapper = ObjectMapper()
@@ -153,6 +160,8 @@ class CustomerCartCheckoutService(
         if (status == PendingPaymentCheckoutStatus.COMPLETED) checkoutId.toOrderId() else null,
         status, amountCfa, paymentProvider, request.relayDestination?.name ?: request.homeDestination?.label, createdAt,
         request.lines.map { CheckoutLineSummary(it.productName, it.quantity) },
+        publicReference = references.referenceOrNull(PublicReferenceKind.CHECKOUT, checkoutId),
+        orderReference = if (status == PendingPaymentCheckoutStatus.COMPLETED) references.referenceOrNull(PublicReferenceKind.ORDER, checkoutId.toOrderId()) else null,
     )
 }
 

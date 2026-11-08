@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.User
@@ -72,6 +76,10 @@ data class ConsolidationTrackingSnapshot(
     val status: ConsolidationStatus,
     val finalPackageId: String?,
     val tracking: DeliveryTrackingSnapshot?,
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val packageReference: String? = null,
+    val customerReference: String? = null,
 )
 
 @Service
@@ -86,6 +94,7 @@ class ConsolidationPersistenceService(
     private val entityManager: jakarta.persistence.EntityManager,
     private val pending: dev.orestegabo.sequo_api.domain.order.PendingPaymentCheckoutRepository,
     private val publisher: org.springframework.context.ApplicationEventPublisher,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     private val objectMapper = ObjectMapper()
     private val transitionService = SequoConsolidationService()
@@ -300,7 +309,7 @@ class ConsolidationPersistenceService(
         val existingMission = missions.findByDeliveryCode(deliveryCode)
         val order = orders.findById(manifest.orderId).orElse(null)
         val checkout = order?.let { pending.findById(it.checkoutId).orElse(null)?.requestPayload }?.let { objectMapper.readPendingRequest(it) }
-        val mission = existingMission?.toSnapshot() ?: deliveryMissionService.create(
+        val mission = existingMission?.toSnapshot(references) ?: deliveryMissionService.create(
             CreateDeliveryMissionCommand(
                 deliveryCode = deliveryCode,
                 orderId = manifest.orderId,
@@ -331,10 +340,14 @@ class ConsolidationPersistenceService(
         val manifest = manifests.findById(manifestId).orElse(null)?.toDomain() ?: return null
         return ConsolidationTrackingSnapshot(
             manifestId = manifest.manifestId,
+            publicReference = references.referenceOrNull(PublicReferenceKind.GROUP, manifest.manifestId),
+            orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, manifest.orderId),
+            packageReference = manifest.finalPackageId?.let { references.referenceOrNull(PublicReferenceKind.PACKAGE, manifest.manifestId) },
             customerId = manifest.customerId,
+            customerReference = references.referenceOrNull(PublicReferenceKind.USER, manifest.customerId),
             status = manifest.status,
             finalPackageId = manifest.finalPackageId,
-            tracking = missions.findByDeliveryCode(finalDeliveryCode(manifest.manifestId))?.toTrackingSnapshot(),
+            tracking = missions.findByDeliveryCode(finalDeliveryCode(manifest.manifestId))?.toTrackingSnapshot(references),
         )
     }
 
@@ -365,11 +378,19 @@ class ConsolidationPersistenceService(
         sequoCustodyAt = sequoCustodyAt,
         approvedByUserId = approvedByUserId,
         cooperativeId = cooperativeId,
-        history = readHistory(historyJson),
+        publicReference = references.referenceOrNull(PublicReferenceKind.GROUP, id),
+        orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, orderId),
+        customerReference = references.referenceOrNull(PublicReferenceKind.USER, customerId),
+        packageReference = finalPackageId?.let { references.referenceOrNull(PublicReferenceKind.PACKAGE, id) },
+        approvedByReference = references.referenceOrNull(PublicReferenceKind.USER, approvedByUserId),
+        cooperativeReference = references.referenceOrNull(PublicReferenceKind.COOPERATIVE, cooperativeId),
+        history = readHistory(historyJson).map { it.copy(actorReference = references.referenceOrNull(PublicReferenceKind.USER, it.actorUserId)) },
     )
 
     private fun JsonNode.toSellerPackage() = ConsolidationSellerPackage(
         subOrderId = requiredText("subOrderId"),
+        merchantOrderReference = references.referenceOrNull(PublicReferenceKind.MERCHANT_ORDER, requiredText("subOrderId")),
+        merchantReference = references.referenceOrNull(PublicReferenceKind.MERCHANT, requiredText("merchantId")),
         merchantId = requiredText("merchantId"),
         packageCount = requiredInt("packageCount"),
         ready = required("ready").asBoolean(),

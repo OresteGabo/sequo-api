@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+
 import dev.orestegabo.sequo_api.domain.auth.*
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
@@ -16,11 +18,12 @@ import org.springframework.web.bind.annotation.*
 class PersistedDeliveryAssignmentService(private val missions: DeliveryMissionRepository,
     private val couriers: SettlementCourierRecordRepository,
     private val delivery: DeliveryMissionService, private val orders: CustomerOrderRecordRepository,
-    private val eligibility: CourierDispatchEligibility) {
+    private val eligibility: CourierDispatchEligibility,
+    private val references: PublicReferenceRegistry? = null) {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     fun assign(missionId: String): DeliveryMissionServiceResult {
         val mission = requireNotNull(missions.lockForAction(missionId)) { "Mission is unavailable." }
-        if (mission.courierId != null) return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Existing assignment retained.")
+        if (mission.courierId != null) return DeliveryMissionServiceResult.Success(mission.toSnapshot(references), "Existing assignment retained.")
         require(mission.status == DeliveryMissionRecordStatus.CREATED) { "Only an unassigned new mission can be assigned by policy." }
         val order = requireNotNull(orders.findById(mission.orderId).orElse(null)) { "Order is unavailable." }
         require(order.paymentStatus == PaymentValidationStatus.Validated && order.orderStatus == CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT) { "Order is not paid and active." }
@@ -39,7 +42,7 @@ class PersistedDeliveryAssignmentService(private val missions: DeliveryMissionRe
         require(saved is DeliveryMissionServiceResult.Success) { "Assignment could not be saved." }
         mission.assignmentWorkforceType = assignment.workforceType; mission.assignmentReason = assignment.reason
         mission.courierFeeCfa = assignment.freelancerPayableCfa; mission.shortfallCfa = assignment.sequoShortfallCfa
-        return DeliveryMissionServiceResult.Success(missions.save(mission).toSnapshot(), assignment.reason)
+        return DeliveryMissionServiceResult.Success(missions.save(mission).toSnapshot(references), assignment.reason)
     }
 }
 

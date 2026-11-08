@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.settlement
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -118,6 +122,7 @@ class SettlementPersistenceService(
     private val payouts: MerchantPayoutAccrualRecordRepository,
     private val ledger: SettlementLedgerEntryRecordRepository,
     private val couriers: SettlementCourierRecordRepository,
+    private val references: PublicReferenceRegistry? = null,
 ) {
     @Transactional
     fun accrueMerchantPayout(command: MerchantPayoutAccrualCommand): SettlementResult {
@@ -213,6 +218,7 @@ class SettlementPersistenceService(
         val held = (-total(RiderLedgerKind.HOLD)).coerceAtLeast(0)
         val unverified = (-total(RiderLedgerKind.TRANSFER)).coerceAtLeast(0)
         return RiderPayoutSummaryResponse(
+            courierReference = references.referenceOrNull(PublicReferenceKind.COURIER, context.courierId),
             riderId = context.courierId, workforceType = context.workforceType, payable = context.payable,
             availableBalanceCfa = money(earned - held - unverified), onHoldCfa = money(held),
             paidOrProcessingCfa = 0, historyCount = rows.size,
@@ -238,7 +244,9 @@ class SettlementPersistenceService(
             }
             RiderPayoutHistoryItemResponse(entry.id, entry.sourceId, entry.account, entry.direction, entry.amountCfa,
                 if (kind in setOf(RiderLedgerKind.EARNING, RiderLedgerKind.HOLD)) entry.amountCfa else 0,
-                status, kind == RiderLedgerKind.EARNING && entry.direction == SettlementLedgerDirection.Credit, entry.description, entry.createdAt, entry.workforceType)
+                status, kind == RiderLedgerKind.EARNING && entry.direction == SettlementLedgerDirection.Credit, entry.description, entry.createdAt, entry.workforceType,
+                publicReference = references.referenceOrNull(PublicReferenceKind.LEDGER, entry.id),
+                missionReference = if (entry.sourceType == SettlementSourceType.DeliveryMission) references.referenceOrNull(PublicReferenceKind.DELIVERY, entry.sourceId) else null)
         }
     }
 
@@ -303,6 +311,7 @@ data class RiderPayoutSummaryResponse(
     val transferStatus: String = "NOT_INTEGRATED",
     val unverifiedTransferCfa: Int = 0,
     val reviewRequiredCfa: Int = 0,
+    val courierReference: String? = null,
 )
 
 enum class RiderPayoutEntryStatus {
@@ -327,6 +336,8 @@ data class RiderPayoutHistoryItemResponse(
     val description: String,
     val createdAt: Instant,
     val workforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
+    val publicReference: String? = null,
+    val missionReference: String? = null,
 )
 
 private data class RiderPayoutContext(

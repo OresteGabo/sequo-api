@@ -65,6 +65,7 @@ class AdminRelayAdministrationService(
     private val operations: RelayAdministrationOperationRepository, private val parcels: RelayParcelRecordRepository,
     private val orders: CustomerOrderRecordRepository, private val missions: DeliveryMissionRepository,
     private val fulfillment: RelayFulfillmentService, private val entityManager: EntityManager,
+    private val references: dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry? = null,
 ) {
     private val json = ObjectMapper()
     @Transactional(readOnly = true)
@@ -174,7 +175,7 @@ class AdminRelayAdministrationService(
     private fun response(record: RelayAdministrationOperationRecord, missionId: String? = null): RelaySetupMutation {
         val after = state(record.afterJson)
         return RelaySetupMutation(requireNotNull(setup(record.relayPointId)), dto(record), after["parcelId"],
-            missionId?.let { missions.findById(it).orElse(null)?.toSnapshot() })
+            missionId?.let { missions.findById(it).orElse(null)?.toSnapshot(references) })
     }
     private fun site(id: String) = points.lockForAdministration(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
     private fun requireActor(id: String) {

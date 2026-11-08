@@ -25,6 +25,8 @@ data class ConsolidationSellerPackage(
     val packageCount: Int,
     val ready: Boolean,
     val collected: Boolean = false,
+    val merchantOrderReference: String? = null,
+    val merchantReference: String? = null,
 ) {
     init {
         require(subOrderId.isNotBlank()) { "subOrderId must not be blank." }
@@ -44,6 +46,12 @@ data class SequoConsolidationManifest(
     val approvedByUserId: String? = null,
     val cooperativeId: String? = null,
     val history: List<OperatorHistoryEntry> = emptyList(),
+    val publicReference: String? = null,
+    val orderReference: String? = null,
+    val customerReference: String? = null,
+    val packageReference: String? = null,
+    val approvedByReference: String? = null,
+    val cooperativeReference: String? = null,
 ) {
     init {
         require(manifestId.isNotBlank()) { "manifestId must not be blank." }
@@ -148,4 +156,6 @@ class SequoConsolidationService {
         ConsolidationTransition(false, manifest, reason)
 }
 
-data class OperatorHistoryEntry(val action: String, val actorUserId: String?, val metadata: String, val createdAt: Instant)
+data class OperatorHistoryEntry(val action: String, val actorUserId: String?, val metadata: String, val createdAt: Instant,
+    val actorReference: String? = null,
+)

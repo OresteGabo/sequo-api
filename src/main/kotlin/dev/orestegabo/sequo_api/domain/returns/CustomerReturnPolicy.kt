@@ -57,6 +57,8 @@ data class CustomerReturnEligibility(
     val dropoffMethod: String,
     val instructions: String,
     val relayPoints: List<RelayDestination> = emptyList(),
+    val orderReference: String? = null,
+    val existingReturnReference: String? = null,
 )
 
 class ReturnWriteConflict : RuntimeException("Return request changed or its ID is already in use. Refresh before retrying.")

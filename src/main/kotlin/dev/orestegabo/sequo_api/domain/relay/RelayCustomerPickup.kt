@@ -1,5 +1,9 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
+
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -22,7 +26,12 @@ import org.springframework.web.bind.annotation.*
 
 data class CustomerRelayPickup(val parcelId: String, val relayPointId: String, val status: RelayParcelStatus,
     val depositedAt: Instant?, val pickedUpAt: Instant?, val expiresAt: Instant?, val credentialState: String,
-    val numericCode: String? = null, val qrNonce: String? = null, val qrModules: List<String> = emptyList())
+    val numericCode: String? = null, val qrNonce: String? = null, val qrModules: List<String> = emptyList(),
+    val publicReference: String? = null,
+    val parcelReference: String? = null,
+    val orderReference: String? = null,
+    val relayReference: String? = null,
+)
 
 data class IssuedRelayCredential(val id: String, val expiresAt: Instant)
 
@@ -30,7 +39,8 @@ data class IssuedRelayCredential(val id: String, val expiresAt: Instant)
 class RelayCustomerPickupService(private val parcels: RelayParcelPersistenceService,
     private val records: RelayParcelRecordRepository, private val codes: RelayPickupCodeRecordRepository,
     private val orders: CustomerOrderRecordRepository, private val domain: RelayParcelService,
-    @Value("\${sequo.notifications.token-encryption-secret}") private val secret: String) {
+    @Value("\${sequo.notifications.token-encryption-secret}") private val secret: String,
+    private val references: PublicReferenceRegistry? = null) {
     init { require(secret.length >= 32) { "Relay credential signing requires the configured protected server secret." } }
     private val hasher = Sha256RelayCredentialHasher()
 
@@ -77,7 +87,11 @@ class RelayCustomerPickupService(private val parcels: RelayParcelPersistenceServ
             val matrix = raw?.let { QRCodeWriter().encode(it.second, BarcodeFormat.QR_CODE, 0, 0, mapOf(EncodeHintType.MARGIN to 4)) }
             CustomerRelayPickup(parcel.id, parcel.relayPointId, parcel.status, parcel.depositedAt, parcel.pickedUpAt,
                 code?.expiresAt, if (state == "READY" && raw == null) "UNAVAILABLE" else state, raw?.first, raw?.second,
-                matrix?.let { m -> (0 until m.height).map { y -> (0 until m.width).joinToString("") { x -> if (m[x,y]) "1" else "0" } } }.orEmpty())
+                matrix?.let { m -> (0 until m.height).map { y -> (0 until m.width).joinToString("") { x -> if (m[x,y]) "1" else "0" } } }.orEmpty(),
+                publicReference = references.referenceOrNull(PublicReferenceKind.PARCEL, parcel.id),
+                parcelReference = references.referenceOrNull(PublicReferenceKind.PARCEL, parcel.id),
+                orderReference = references.referenceOrNull(PublicReferenceKind.ORDER, parcel.orderId),
+                relayReference = references.referenceOrNull(PublicReferenceKind.RELAY, parcel.relayPointId))
         }
     }
     private fun derive(customerId: String, parcelId: String, codeId: String): Pair<String, String> {

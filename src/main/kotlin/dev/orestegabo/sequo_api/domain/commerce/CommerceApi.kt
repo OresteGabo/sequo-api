@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import dev.orestegabo.sequo_api.api.ApiErrorResponse
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.UserRepository
@@ -288,6 +290,7 @@ data class MerchantStorefrontDto(
     val rating: String?,
     val consolidation: String?,
     val products: List<CatalogProductDto> = emptyList(),
+    val publicReference: String? = null,
 )
 
 data class CatalogProductDto(
@@ -310,6 +313,8 @@ data class CatalogProductDto(
     val photoRequired: Boolean = false,
     val imageUrl: String? = null,
     val customizations: List<ProductCustomizationGroupDto> = emptyList(),
+    val publicReference: String? = null,
+    val merchantReference: String? = null,
 )
 
 data class CatalogPromotionDto(
@@ -426,6 +431,10 @@ data class BargainingThreadDto(
     val acceptedAt: Instant? = null,
     val expiresAt: Instant? = null,
     val nextActor: BargainingActorType? = null,
+    val publicReference: String? = null,
+    val customerReference: String? = null,
+    val merchantReference: String? = null,
+    val productReference: String? = null,
 )
 data class BargainingOfferDto(
     val id: String,
@@ -453,7 +462,20 @@ class CommerceService(
     private val platformCommerce: PlatformCommerceService,
     private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     @Value("\${sequo.catalog.approved-generic-image-url:}") private val approvedGenericImageUrl: String,
+    private val publicReferences: PublicReferenceRegistry? = null,
 ) {
+    private fun ProductRecord.toDto(showConfiguredBargaining: Boolean = true): CatalogProductDto =
+        toCatalogDto(showConfiguredBargaining).copy(
+            publicReference = publicReferences?.reference(PublicReferenceKind.PRODUCT, id),
+            merchantReference = merchantId?.let { publicReferences?.reference(PublicReferenceKind.MERCHANT, it) },
+        )
+
+    private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
+        toStorefrontDto(merchantRecord, storeProducts).copy(publicReference = publicReferences?.reference(PublicReferenceKind.MERCHANT, merchantId))
+
+    private fun MerchantRecord.toPublicStorefrontDto(storeProducts: List<CatalogProductDto>, effectiveOpenStatus: String?): MerchantStorefrontDto =
+        toMerchantStorefrontDto(storeProducts, effectiveOpenStatus).copy(publicReference = publicReferences?.reference(PublicReferenceKind.MERCHANT, id))
+
     @Transactional(readOnly = true)
     fun home(category: String? = null, subcategory: String? = null): CommerceHomeDto {
         val activeProducts = products.findByStatusOrderBySortOrderAscCreatedAtDesc(CatalogProductStatus.ACTIVE)
@@ -1177,7 +1199,7 @@ private fun Authentication?.isLoggedIn(): Boolean =
 private fun CatalogCategoryRecord.toDto(): CatalogCategoryDto =
     CatalogCategoryDto(key, title, supportLabel, accentHex)
 
-private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
+private fun MerchantStorefrontRecord.toStorefrontDto(merchantRecord: MerchantRecord, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
     MerchantStorefrontDto(
         id = merchantId,
         name = merchantRecord.name,
@@ -1193,7 +1215,7 @@ private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord, store
         products = storeProducts,
     )
 
-private fun MerchantRecord.toPublicStorefrontDto(storeProducts: List<CatalogProductDto>, effectiveOpenStatus: String?): MerchantStorefrontDto =
+private fun MerchantRecord.toMerchantStorefrontDto(storeProducts: List<CatalogProductDto>, effectiveOpenStatus: String?): MerchantStorefrontDto =
     MerchantStorefrontDto(
         id = id, name = name, status = status,
         area = null, kind = null, distanceKm = null, eta = null, photoStatus = null,
@@ -1203,7 +1225,7 @@ private fun MerchantRecord.toPublicStorefrontDto(storeProducts: List<CatalogProd
 private fun ProductRecord.acceptsBargaining(): Boolean =
     status == CatalogProductStatus.ACTIVE && bargainingEnabled && merchantId != null
 
-private fun ProductRecord.toDto(showConfiguredBargaining: Boolean = true): CatalogProductDto =
+private fun ProductRecord.toCatalogDto(showConfiguredBargaining: Boolean = true): CatalogProductDto =
     CatalogProductDto(
         id = id,
         merchantId = merchantId,

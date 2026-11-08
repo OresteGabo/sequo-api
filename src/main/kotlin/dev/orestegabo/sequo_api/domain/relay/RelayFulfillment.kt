@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.relay
 
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.*
 import dev.orestegabo.sequo_api.domain.delivery.*
@@ -19,7 +21,8 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
     private val availability: RelayAvailabilityService, private val lockers: RelayLockerRepository,
     private val credentials: RelayCustomerPickupService,
     private val parcels: RelayParcelApplicationService, private val parcelRecords: RelayParcelRecordRepository,
-    private val administrativeUsers: dev.orestegabo.sequo_api.domain.auth.UserRepository) {
+    private val administrativeUsers: dev.orestegabo.sequo_api.domain.auth.UserRepository,
+    private val references: PublicReferenceRegistry? = null) {
     private fun requireEligible(orderId: String) {
         val order = orders.findById(orderId).orElseThrow { IllegalArgumentException("Order is unavailable.") }
         require(order.paymentStatus == PaymentValidationStatus.Validated && order.orderStatus == CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT) { "Order is not paid and active." }
@@ -55,7 +58,7 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
                 existing.single().depositCode == depositCode && existing.single().lockerId?.let {
                     lockers.findById(it).orElse(null)?.lockerCode == lockerCode
                 } == true) { "Deposit conflicts with existing custody; reload the mission." }
-            return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Relay deposit already recorded.")
+            return DeliveryMissionServiceResult.Success(mission.toSnapshot(references), "Relay deposit already recorded.")
         }
         require(mission.status == DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER) { "Pickup is required before relay deposit." }
         require(!proof.isNullOrBlank()) { "Relay deposit proof is required." }
@@ -85,7 +88,7 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
             request.idempotencyKey.isNotBlank() && request.idempotencyKey.length <= 128) { "Customer approval, reason and retry key are required." }
         if (mission.relayRerouteKey == request.idempotencyKey) {
             require(mission.relayRerouteActorId == actor && mission.relayPointId == request.relayPointId) { "Reroute retry conflicts with original approval." }
-            return mission.toSnapshot()
+            return mission.toSnapshot(references)
         }
         require(mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS &&
             mission.status == DeliveryMissionRecordStatus.PROBLEM_REPORTED && mission.pickupAt != null && mission.deliveredAt == null) { "Only a failed home handoff after pickup can be rerouted." }
@@ -96,7 +99,7 @@ class RelayFulfillmentService(private val missions: DeliveryMissionRepository, p
         mission.relayRerouteActorId = actor; mission.relayRerouteKey = request.idempotencyKey
         mission.relayRerouteReason = request.reason; mission.relayReroutedAt = Instant.now()
         mission.status = DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER; mission.updatedAt = Instant.now()
-        return missions.save(mission).toSnapshot()
+        return missions.save(mission).toSnapshot(references)
     }
 }
 

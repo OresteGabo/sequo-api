@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.auth
 
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -19,6 +21,7 @@ class AuthController(
     private val authRateLimiter: AuthRateLimiter,
     private val jwtService: JwtService,
     private val adminAuthAuditService: AdminAuthAuditService,
+    private val publicReferences: PublicReferenceRegistry? = null,
 ) {
     data class DeviceRequest(
         val deviceId: String,
@@ -95,6 +98,7 @@ class AuthController(
         val active: Boolean,
         val roles: Set<RoleCode>,
         val merchantScopeIds: Set<String> = emptySet(),
+        val publicReference: String? = null,
     )
 
     data class RateLimitErrorResponse(
@@ -381,6 +385,7 @@ class AuthController(
                 active = user.active,
                 roles = account.roles,
                 merchantScopeIds = account.merchantScopeIds,
+                publicReference = publicReferences?.reference(PublicReferenceKind.USER, requireNotNull(user.id)),
             )
         )
     }

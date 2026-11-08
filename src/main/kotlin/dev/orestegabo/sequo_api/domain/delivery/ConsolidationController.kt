@@ -151,7 +151,7 @@ class ConsolidationController(
         else -> operation(authentication)
     }
 
-    private fun SequoConsolidationManifest.customerView() = copy(approvedByUserId = null, history = emptyList())
+    private fun SequoConsolidationManifest.customerView() = copy(approvedByUserId = null, approvedByReference = null, history = emptyList())
 
     data class ReadyRequest(val merchantId: String, val at: Instant? = null)
     data class CollectedRequest(val at: Instant? = null, val metadata: String = "")
