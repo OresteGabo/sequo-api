@@ -53,4 +53,26 @@ class ApiContentTypeFilterTest {
         assertEquals(200, response.status)
         Mockito.verify(chain).doFilter(Mockito.any(), Mockito.any())
     }
+
+    @Test
+    fun multipartIsLimitedToExactMerchantAndAdminCameraUploadPaths() {
+        val paths = mapOf(
+            "/api/merchant/catalog/products/product-1/photos/camera" to 200,
+            "/api/admin/web/catalog/products/product-1/media/photos/camera" to 200,
+            "/api/admin/web/catalog/products/product-1/media/photos/generic" to 200,
+            "/api/admin/web/catalog/products/product-1/media/photos" to 415,
+            "/api/admin/web/catalog/products/product-1/media/photos/camera/extra" to 415,
+            "/api/orders/process" to 415,
+        )
+        paths.forEach { (path, status) ->
+            val request = MockHttpServletRequest("POST", path).apply {
+                contentType = "multipart/form-data; boundary=fixture"
+                setContent("fixture".toByteArray())
+            }
+            val response = MockHttpServletResponse()
+            filter.doFilter(request, response, chain)
+            assertEquals(status, response.status)
+        }
+        Mockito.verify(chain, Mockito.times(3)).doFilter(Mockito.any(), Mockito.any())
+    }
 }

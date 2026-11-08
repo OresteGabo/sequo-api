@@ -537,10 +537,9 @@ class CommerceService(
     @Transactional
     fun createProduct(request: ManageCatalogProductRequest): CatalogProductDto =
         saveNewProduct(
-            request,
+            request.copy(cameraVerified = null, capturedAtLabel = null),
             UUID.randomUUID().toString(),
-            photoRequired = !request.merchantId.isNullOrBlank() &&
-                (request.kind ?: CatalogProductKind.SellerSpecific) == CatalogProductKind.SellerSpecific,
+            photoRequired = (request.kind ?: CatalogProductKind.SellerSpecific) == CatalogProductKind.SellerSpecific,
         )
 
     private fun saveNewProduct(
@@ -622,8 +621,7 @@ class CommerceService(
             require(it >= 0) { "bargainFloorCfa must be non-negative." }
             product.bargainFloorCfa = it
         }
-        request.cameraVerified?.let { product.cameraVerified = it }
-        request.capturedAtLabel?.let { product.capturedAtLabel = ApiInputPolicy.optionalShortText(it, "capturedAtLabel", 120) }
+        // Capture verification is written only by the validated upload path, never client metadata.
         request.sortOrder?.let { product.sortOrder = it }
         product.updatedAt = Instant.now()
         return catalogDtos(listOf(product), true).single()
@@ -675,6 +673,19 @@ class CommerceService(
             }
         }
 
+        return prepareProductPhoto(product, request)
+    }
+
+    @Transactional
+    fun prepareAdminProductPhoto(productId: String, request: MerchantProductPhotoRequest): MerchantProductPhotoStatusDto {
+        val product = products.findById(ApiInputPolicy.requiredIdentifier(productId, "productId")).orElseThrow {
+            IllegalArgumentException("Product was not found.")
+        }
+        require(request.merchantId == null || request.merchantId == product.merchantId) { "merchantId does not own this product." }
+        return prepareProductPhoto(product, request)
+    }
+
+    private fun prepareProductPhoto(product: ProductRecord, request: MerchantProductPhotoRequest): MerchantProductPhotoStatusDto {
         val now = Instant.now()
         return when (request.source) {
             ProductMediaSource.LiveCamera -> {
@@ -751,7 +762,18 @@ class CommerceService(
         capturedAt: Instant,
         deviceId: String,
     ): CatalogProductDto {
-        val product = merchantProduct(merchantId, productId)
+        return uploadProductCameraPhoto(merchantProduct(merchantId, productId), file, capturedAt, deviceId)
+    }
+
+    @Transactional
+    fun uploadAdminCameraPhoto(productId: String, file: MultipartFile, capturedAt: Instant, deviceId: String): CatalogProductDto {
+        val product = products.findById(ApiInputPolicy.requiredIdentifier(productId, "productId")).orElseThrow {
+            IllegalArgumentException("Product was not found.")
+        }
+        return uploadProductCameraPhoto(product, file, capturedAt, deviceId)
+    }
+
+    private fun uploadProductCameraPhoto(product: ProductRecord, file: MultipartFile, capturedAt: Instant, deviceId: String): CatalogProductDto {
         require(product.kind == CatalogProductKind.SellerSpecific) { "This product uses generic catalog images." }
         require(file.size in 1..(8L * 1024 * 1024)) { "Camera photos must be at most 8 MiB." }
         require(!capturedAt.isBefore(Instant.now().minusSeconds(900))) { "Capture a new photo before uploading." }

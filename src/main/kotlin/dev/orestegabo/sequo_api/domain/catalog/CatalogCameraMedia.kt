@@ -23,6 +23,18 @@ interface CatalogCameraPayloadRepository : JpaRepository<CatalogCameraPayload, S
 
 @Service
 class CatalogCameraMedia(private val payloads: CatalogCameraPayloadRepository) {
+    /** Authorized SEQUO generic approval stores actual pixels without claiming camera evidence. */
+    fun storeApprovedGeneric(product: ProductRecord, fileName: String, contentType: String, bytes: ByteArray): StoredProductMedia {
+        require(product.kind == CatalogProductKind.GenericSealedItem) { "Generic uploads are limited to standard sealed products." }
+        require(contentType == "image/jpeg") { "Generic uploads must be JPEG images." }
+        require(fileName.isNotBlank() && fileName.none { it.isISOControl() || it == '/' || it == '\\' } &&
+            fileName.substringAfterLast('.').lowercase() in setOf("jpg", "jpeg")) { "Use a JPEG file name without paths." }
+        require(bytes.size in 1..8 * 1024 * 1024) { "Generic images must be at most 8 MiB." }
+        require(bytes.size >= 3 && bytes[0] == 0xff.toByte() && bytes[1] == 0xd8.toByte() && bytes[2] == 0xff.toByte()) { "The image is not a JPEG." }
+        payloads.save(CatalogCameraPayload(product.id, normalizeJpeg(bytes)))
+        return StoredProductMedia("products/${product.id}/generic.jpg", "/api/catalog/products/${product.id}/image")
+    }
+
     fun upload(
         product: ProductRecord,
         fileName: String,

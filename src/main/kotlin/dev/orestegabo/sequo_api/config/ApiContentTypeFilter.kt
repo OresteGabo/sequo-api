@@ -24,7 +24,7 @@ class ApiContentTypeFilter : OncePerRequestFilter() {
 
     private fun isCatalogPhotoUpload(request: HttpServletRequest): Boolean =
         request.method == HttpMethod.POST.name() &&
-            CAMERA_UPLOAD_PATH.matches(request.requestURI.removePrefix(request.contextPath)) &&
+            CAMERA_UPLOAD_PATHS.any { it.matches(request.requestURI.removePrefix(request.contextPath)) } &&
             request.contentType?.substringBefore(';')?.trim()?.equals("multipart/form-data", ignoreCase = true) == true
 
     private fun hasBody(request: HttpServletRequest): Boolean =
@@ -37,7 +37,10 @@ class ApiContentTypeFilter : OncePerRequestFilter() {
     }
 
     private companion object {
-        val CAMERA_UPLOAD_PATH = Regex("/api/merchant/catalog/products/[^/]+/photos/camera")
+        val CAMERA_UPLOAD_PATHS = listOf(
+            Regex("/api/merchant/catalog/products/[^/]+/photos/camera"),
+            Regex("/api/admin/web/catalog/products/[^/]+/media/photos/(camera|generic)"),
+        )
         val BODY_METHODS = setOf(
             HttpMethod.POST.name(),
             HttpMethod.PUT.name(),
