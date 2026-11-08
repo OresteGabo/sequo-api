@@ -85,7 +85,15 @@ class CustomerOrderRecord(
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
     @Version @Column(nullable = false) var version: Long = 0,
-)
+) {
+    fun effectiveCustomerFacingStatus(): String = when (orderStatus) {
+        CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT -> customerFacingStatus
+        CustomerOrderStatus.DELIVERED -> "Delivered"
+        CustomerOrderStatus.CANCELLED -> "Cancelled"
+        CustomerOrderStatus.RETURN_REQUESTED -> "Return requested"
+        CustomerOrderStatus.REFUNDED -> "Refunded"
+    }
+}
 
 @Entity
 @Table(name = "order_events")
@@ -651,7 +659,7 @@ private fun CustomerOrderRecord.toSnapshot() = CustomerOrderSnapshot(
     route = route,
     fulfillmentPriority = fulfillmentPriority,
     requiresConsolidation = requiresConsolidation,
-    customerFacingStatus = customerFacingStatus,
+    customerFacingStatus = effectiveCustomerFacingStatus(),
     itemSubtotalCfa = itemSubtotalCfa,
     deliveryFeeCfa = deliveryFeeCfa,
     totalCfa = totalCfa,

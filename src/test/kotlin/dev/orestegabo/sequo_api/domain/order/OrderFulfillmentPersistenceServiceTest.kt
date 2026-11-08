@@ -1,6 +1,7 @@
 package dev.orestegabo.sequo_api.domain.order
 
 import dev.orestegabo.sequo_api.domain.delivery.MerchantSubOrderRepository
+import dev.orestegabo.sequo_api.domain.admin.toAdminDto
 import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionConfigurationService
 import dev.orestegabo.sequo_api.domain.delivery.CreateDeliveryMissionCommand
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionEvent
@@ -52,6 +53,29 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val couriers: SettlementCourierRecordRepository,
     private val merchants: dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository,
 ) {
+    @Test
+    fun `customer and admin status reads follow persisted lifecycle without rewriting checkout copy`() {
+        val request = request(checkoutId = "checkout-lifecycle-status-copy")
+        val persisted = service.persistAcceptedOrder(request, acceptedOrder(request))
+        val record = orders.findById(persisted.order.id).orElseThrow()
+        val originalCopy = record.customerFacingStatus
+        assertEquals(originalCopy, service.getForCustomer(record.id, request.customerId)?.order?.customerFacingStatus)
+        val expected = mapOf(
+            CustomerOrderStatus.DELIVERED to "Delivered",
+            CustomerOrderStatus.CANCELLED to "Cancelled",
+            CustomerOrderStatus.RETURN_REQUESTED to "Return requested",
+            CustomerOrderStatus.REFUNDED to "Refunded",
+        )
+        expected.forEach { (status, label) ->
+            record.orderStatus = status
+            orders.saveAndFlush(record)
+            assertEquals(label, service.getForCustomer(record.id, request.customerId)?.order?.customerFacingStatus)
+            assertEquals(label, service.listForCustomer(request.customerId).single().order.customerFacingStatus)
+            assertEquals(label, record.toAdminDto().customerFacingStatus)
+            assertEquals(originalCopy, orders.findById(record.id).orElseThrow().customerFacingStatus)
+        }
+    }
+
     @Test
     fun `accepted paid order is persisted and split into merchant sub-orders idempotently`() {
         val request = request()
