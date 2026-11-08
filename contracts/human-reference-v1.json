@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "alphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+  "kinds": {
+    "CHECKOUT": "H",
+    "ORDER": "C",
+    "MERCHANT_ORDER": "M",
+    "DELIVERY": "D",
+    "PARCEL": "P",
+    "RETURN": "R",
+    "GROUP": "G",
+    "USER": "A",
+    "MERCHANT": "V",
+    "COURIER": "T",
+    "RELAY": "S",
+    "PRODUCT": "B",
+    "FINANCIAL": "F",
+    "INSTRUCTION": "N",
+    "LOCKER": "K",
+    "BARGAINING": "E",
+    "PACKAGE": "J",
+    "LEDGER": "W",
+    "COOPERATIVE": "Q"
+  },
+  "symbolCount": 9,
+  "payloadSymbols": 6,
+  "format": "XXX-XXX-XXX",
+  "checksum": {
+    "name": "CRC-10/ATM",
+    "width": 10,
+    "polynomial": 563,
+    "init": 0,
+    "xorout": 0,
+    "refin": false,
+    "refout": false,
+    "input": "Type and payload: seven 5-bit symbols, MSB first",
+    "output": "Two 5-bit symbols, MSB first"
+  },
+  "vectors": [
+    {
+      "kind": "CHECKOUT",
+      "payload": "000000",
+      "reference": "H00-000-0TP"
+    },
+    {
+      "kind": "ORDER",
+      "payload": "123456",
+      "reference": "C12-345-6E6"
+    },
+    {
+      "kind": "MERCHANT_ORDER",
+      "payload": "ABCDEF",
+      "reference": "MAB-CDE-FJZ"
+    },
+    {
+      "kind": "DELIVERY",
+      "payload": "Z9X8W7",
+      "reference": "DZ9-X8W-7P3"
+    },
+    {
+      "kind": "PARCEL",
+      "payload": "0011ZZ",
+      "reference": "P00-11Z-Z7J"
+    },
+    {
+      "kind": "RETURN",
+      "payload": "987654",
+      "reference": "R98-765-4Q4"
+    },
+    {
+      "kind": "GROUP",
+      "payload": "000000",
+      "reference": "G00-000-0BH"
+    },
+    {
+      "kind": "USER",
+      "payload": "123456",
+      "reference": "A12-345-6BJ"
+    },
+    {
+      "kind": "MERCHANT",
+      "payload": "ABCDEF",
+      "reference": "VAB-CDE-FVD"
+    },
+    {
+      "kind": "COURIER",
+      "payload": "Z9X8W7",
+      "reference": "TZ9-X8W-791"
+    },
+    {
+      "kind": "RELAY",
+      "payload": "0011ZZ",
+      "reference": "S00-11Z-ZE0"
+    },
+    {
+      "kind": "PRODUCT",
+      "payload": "987654",
+      "reference": "B98-765-4YF"
+    },
+    {
+      "kind": "FINANCIAL",
+      "payload": "000000",
+      "reference": "F00-000-09J"
+    },
+    {
+      "kind": "INSTRUCTION",
+      "payload": "123456",
+      "reference": "N12-345-69H"
+    },
+    {
+      "kind": "LOCKER",
+      "payload": "ABCDEF",
+      "reference": "KAB-CDE-F6C"
+    },
+    {
+      "kind": "BARGAINING",
+      "payload": "Z9X8W7",
+      "reference": "EZ9-X8W-7MS"
+    },
+    {
+      "kind": "PACKAGE",
+      "payload": "0011ZZ",
+      "reference": "J00-11Z-ZHV"
+    },
+    {
+      "kind": "LEDGER",
+      "payload": "123456",
+      "reference": "W12-345-65Q"
+    },
+    {
+      "kind": "COOPERATIVE",
+      "payload": "123456",
+      "reference": "Q12-345-6TC"
+    }
+  ]
+}
