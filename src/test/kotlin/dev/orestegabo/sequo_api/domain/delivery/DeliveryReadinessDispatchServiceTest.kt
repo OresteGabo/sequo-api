@@ -37,6 +37,7 @@ class DeliveryReadinessDispatchServiceTest @Autowired constructor(
     private val dispatchRuns: DeliveryDispatchRunRepository,
     private val subOrders: MerchantSubOrderRepository,
     private val orders: CustomerOrderRecordRepository,
+    private val missionService: DeliveryMissionService,
 ) {
     @Test
     fun unpaidLegacyReadySubOrderCannotCreateDispatchMission() {
@@ -68,6 +69,11 @@ class DeliveryReadinessDispatchServiceTest @Autowired constructor(
         assertEquals(1, first.createdMissions.size)
         assertEquals(DeliveryMissionRecordDestination.CUSTOMER_ADDRESS, first.createdMissions.single().destinationType)
         assertEquals(DeliveryMissionRecordMode.EXPRESS, first.createdMissions.single().deliveryMode)
+        assertEquals(1, first.createdMissions.single().packageCount)
+        assertEquals(1, second.existingMissions.single().packageCount)
+        val missionId = first.createdMissions.single().id
+        assertEquals(1, missionService.get(missionId)?.packageCount)
+        assertEquals(1, missionService.listOperational().single { it.id == missionId }.packageCount)
         assertEquals(0, second.createdMissions.size)
         assertEquals(listOf(first.createdMissions.single().id), second.existingMissions.map { it.id })
         assertEquals(1, missions.findAll().count { it.merchantSubOrderId == subOrder.id })

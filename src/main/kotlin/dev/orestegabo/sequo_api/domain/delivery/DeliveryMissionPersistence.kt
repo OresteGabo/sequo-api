@@ -326,7 +326,7 @@ class DeliveryMissionService(
     @Transactional(readOnly = true)
     fun get(missionId: String): DeliveryMissionSnapshot? {
         require(missionId.isNotBlank()) { "missionId cannot be blank." }
-        return find(missionId)?.toSnapshot()
+        return find(missionId)?.let(::missionSnapshot)
     }
 
     @Transactional(readOnly = true)
@@ -339,7 +339,7 @@ class DeliveryMissionService(
             repository.findByCourierIdOrderByUpdatedAtDesc(courierId)
         } else {
             repository.findByCourierIdAndStatusInOrderByUpdatedAtDesc(courierId, statuses)
-        }.map { it.toSnapshot() }
+        }.map(::missionSnapshot)
     }
 
     @Transactional(readOnly = true)
@@ -347,7 +347,7 @@ class DeliveryMissionService(
         statuses: Set<DeliveryMissionRecordStatus> = activeOperationalStatuses,
     ): List<DeliveryMissionSnapshot> {
         require(statuses.isNotEmpty()) { "At least one mission status is required." }
-        return repository.findByStatusInOrderByUpdatedAtDesc(statuses).map { it.toSnapshot() }
+        return repository.findByStatusInOrderByUpdatedAtDesc(statuses).map(::missionSnapshot)
     }
 
     @Transactional(readOnly = true)
@@ -358,7 +358,7 @@ class DeliveryMissionService(
         val availableOffers = repository
             .findByStatusInOrderByUpdatedAtDesc(setOf(DeliveryMissionRecordStatus.OFFERED_TO_COURIER))
             .filter { it.courierId == null }
-            .map { it.toSnapshot() }
+            .map(::missionSnapshot)
         return (assigned + availableOffers)
             .distinctBy { it.id }
             .sortedByDescending { it.updatedAt }
@@ -376,13 +376,14 @@ class DeliveryMissionService(
         val payload = pendingCheckouts.findById(order.checkoutId).orElse(null)?.requestPayload
         val destination = payload?.let { objectMapper.readPendingRequest(it).homeDestination }
         val subOrder = mission.merchantSubOrderId?.let { merchantSubOrders.findById(it).orElse(null) }
+            ?.takeIf { it.orderId == order.id }
         val seller = subOrder?.let { lines.findByOrderIdAndSellerIdOrderByLineIndexAsc(order.id, it.merchantId).firstOrNull()?.sellerName }
         val finalConsolidation = mission.merchantSubOrderId == null && mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS &&
             consolidationManifests.findByOrderId(order.id)?.finalPackageId != null
         val active = mission.status in setOf(DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER,
             DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER, DeliveryMissionRecordStatus.PROBLEM_REPORTED)
         return mission.copy(
-            packageCount = subOrder?.packageCount ?: if (finalConsolidation) 1 else 0,
+            packageCount = subOrder?.packageCount ?: if (finalConsolidation) 1 else mission.packageCount,
             pickupName = if (finalConsolidation) "SEQUO consolidation" else seller,
             pickupSource = when {
                 finalConsolidation -> "SEQUO_CONSOLIDATION"
@@ -429,7 +430,7 @@ class DeliveryMissionService(
                 createdAt = at,
                 updatedAt = at,
             )
-        ).toSnapshot()
+        ).let(::missionSnapshot)
 
     @Transactional
     fun assignCourier(missionId: String, courierId: String, at: Instant = Instant.now()): DeliveryMissionServiceResult {
@@ -817,7 +818,16 @@ class DeliveryMissionService(
         mission.shortfallCfa = if (mission.assignmentWorkforceType == DeliveryWorkforceType.SequoSalaried) 0 else (estimate - mission.customerDeliveryFeeCfa).coerceAtLeast(0)
     }
 
-    private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(mission.toSnapshot(), message)
+    internal fun missionSnapshot(mission: DeliveryMission): DeliveryMissionSnapshot {
+        val subOrder = mission.merchantSubOrderId?.let { merchantSubOrders.findById(it).orElse(null) }
+            ?.takeIf { it.orderId == mission.orderId }
+        val finalPackage = mission.merchantSubOrderId == null &&
+            mission.destinationType == DeliveryMissionRecordDestination.CUSTOMER_ADDRESS &&
+            consolidationManifests.findByOrderId(mission.orderId)?.finalPackageId != null
+        return mission.toSnapshot().copy(packageCount = subOrder?.packageCount ?: if (finalPackage) 1 else 0)
+    }
+
+    private fun success(mission: DeliveryMission, message: String) = DeliveryMissionServiceResult.Success(missionSnapshot(mission), message)
     private fun rejected(code: String, message: String) = DeliveryMissionServiceResult.Rejected(code, message)
 
     companion object {
@@ -879,7 +889,7 @@ class DeliveryMissionService(
         updatedAt = evaluatedAt
         val saved = repository.save(this)
         publishProblemEvent(saved)
-        return saved.toSnapshot()
+        return missionSnapshot(saved)
     }
 
     private fun publishProblemEvent(mission: DeliveryMission) {

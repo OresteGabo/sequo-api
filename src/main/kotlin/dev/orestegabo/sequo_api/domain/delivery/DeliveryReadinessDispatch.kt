@@ -50,7 +50,7 @@ class DeliveryReadinessDispatchService(
         readySubOrders.forEach { subOrder ->
             val subOrderId = requireNotNull(subOrder.id)
             missions.findByMerchantSubOrderId(subOrderId)?.let {
-                existing += it.toSnapshot()
+                existing += deliveryMissionService.missionSnapshot(it)
                 return@forEach
             }
             val order = orders.lockForCompletion(subOrder.orderId)
@@ -65,7 +65,7 @@ class DeliveryReadinessDispatchService(
                 return@forEach
             }
             missions.findByMerchantSubOrderId(subOrderId)?.let {
-                existing += it.toSnapshot()
+                existing += deliveryMissionService.missionSnapshot(it)
                 return@forEach
             }
             if (order.route == OrderRoute.GroupedSequo || (order.requiresConsolidation && order.route == OrderRoute.FastDelivery)) {
