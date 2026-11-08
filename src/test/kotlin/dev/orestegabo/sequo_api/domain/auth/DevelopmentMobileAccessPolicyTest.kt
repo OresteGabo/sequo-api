@@ -39,7 +39,7 @@ class DevelopmentMobileAccessPolicyTest {
         assertFalse(policy.allows(request().apply { serverName = "10.0.2.2"; remoteAddr = "192.168.1.2" }))
         assertFalse(policy.allows(request().apply { remoteAddr = "192.168.1.2" }))
         assertFalse(policy.allows(request().apply { addHeader("Origin", "https://foreign.invalid") }))
-        for (header in listOf("Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Real-IP")) {
+        for (header in listOf("Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Real-IP", "X-Forwarded-Port", "X-Forwarded-Prefix")) {
             assertFalse(policy.allows(request().apply { addHeader(header, "127.0.0.1") }))
         }
     }

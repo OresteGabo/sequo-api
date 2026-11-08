@@ -32,8 +32,9 @@ class DevelopmentMobileAccessPolicy(
         (DevelopmentAdminAccessChecks.loopbackAddress(request.serverName.orEmpty()) ||
             (request.serverName == "10.0.2.2" && request.getHeader("Origin").isNullOrEmpty())) &&
         (request.getHeader("Origin").isNullOrEmpty() || request.getHeader("Origin") in access.settings.origins) &&
-        listOf("Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Real-IP")
-            .none { request.getHeader(it) != null }
+        request.headerNames.asSequence().none {
+            it.equals("Forwarded", true) || it.startsWith("X-Forwarded-", true) || it.equals("X-Real-IP", true)
+        }
 }
 
 private data class MobileFixtureAccount(val family: String, val key: String, val suffix: String, val appSource: AppSource,
