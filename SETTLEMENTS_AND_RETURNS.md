@@ -2,7 +2,9 @@
 
 This document contains planning notes for returns, refunds, custody and settlement. Some extended states and automation below are proposals for later work, not the current runtime. The signed PDF defines scope. See [Task 19 evidence](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK19_CUSTOMER_RETURNS.md) for the implemented customer request/status API and pending decisions.
 
-Current customer return states are Requested, AwaitingRelayDropoff, DroppedAtRelay, CollectedBySequo, ReceivedBySequo, RefundPending and Rejected. Task 20 adds explicit collection, physical receipt, condition inspection and one authorized refund instruction; see [Task 20 evidence](docs/TASK20_RETURN_CUSTODY.md). RefundPending means an instruction is recorded, with provider payment NOT_SUBMITTED. Legacy pending refunds require reconciliation before further instruction. A request or relay deposit does not itself authorize or complete a refund. Whole-order requests, server-owned deadlines and scoped history are implemented; item-level selection and later provider execution are separate work.
+Current customer return states are Requested, AwaitingRelayDropoff, DroppedAtRelay, CollectedBySequo, ReceivedBySequo, RefundPending and Rejected. Task 20 adds explicit collection, physical receipt, condition inspection and one authorized refund instruction; see [Task 20 evidence](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK20_RETURN_CUSTODY.md). A durable refundInstruction plus REQUESTED state records an instruction, with provider payment NOT_SUBMITTED. RefundPending alone is insufficient proof; legacy pending/key records require reconciliation even if their other status is Requested or ReceivedBySequo. A request or relay deposit does not itself authorize or complete a refund. Whole-order requests, server-owned deadlines and scoped history are implemented; item-level selection and later provider execution are separate work.
+
+Task26 status: electronic refunds and rider payouts remain NOT_CONNECTED because approved capabilities/specifications and authorized sandbox access are unavailable. See [Task26 evidence and provider limitations](/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/docs/TASK26_REFUNDS_RIDER_PAYOUTS.md). No outgoing operation reference, successful transfer or automatic refund is inferred from an instruction, ledger entry, raw Paid label or adapter Pending result.
 
 ## Authoritative Rules
 
@@ -102,7 +104,7 @@ Refunds:
 
 - Use original payment provider where possible.
 - Otherwise use customer wallet rail allowed by policy.
-- Are idempotent by return ID plus refund attempt number.
+- Must bind the existing durable refund-instruction UUID to the provider's approved idempotency mechanism. A transport retry must not increment an attempt number or create a fresh money instruction; ambiguous outcomes require authoritative reconciliation first.
 - Store provider reference, amount, status, request payload hash, and callback result.
 - Emit audit and settlement ledger events.
 
@@ -117,6 +119,8 @@ Refund states:
 | `FAILED_FINAL` | Manual intervention required |
 
 ## Merchant Payout Lifecycle
+
+These are planned workflow meanings. Current stored status labels are records, not independent evidence that an operator accepted or transferred funds. Approved provider references, status/reconciliation proof and financial posting are still required for live execution.
 
 | State | Meaning |
 | --- | --- |
