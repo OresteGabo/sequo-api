@@ -391,7 +391,7 @@ class ReturnPersistenceService(
         }
     }
 
-    @Transactional
+    @Transactional(rollbackFor = [Exception::class])
     fun recordRelayDropoff(command: PersistedRelayDropoffCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
             val intent = custodyIntent(command.relayPointId, Sha256ReturnPinHasher().hash(command.rawReturnPin), command.metadata)
@@ -412,7 +412,7 @@ class ReturnPersistenceService(
                 .persist(record, now) { audit(it, "RELAY_DROPOFF", command.operatorId, now, command.idempotencyKey, intent, command.metadata) }
         }
 
-    @Transactional
+    @Transactional(rollbackFor = [Exception::class])
     fun recordCollection(command: PersistedReturnCollectionCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
             val intent = custodyIntent(command.metadata)
@@ -425,7 +425,7 @@ class ReturnPersistenceService(
                 }
         }
 
-    @Transactional
+    @Transactional(rollbackFor = [Exception::class])
     fun recordPhysicalReceipt(command: PersistedPhysicalReceiptCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
             val intent = custodyIntent(command.conditionAssessment, command.responsibility)
@@ -445,7 +445,7 @@ class ReturnPersistenceService(
                 }
         }
 
-    @Transactional
+    @Transactional(rollbackFor = [Exception::class])
     fun recordInspection(command: PersistedReturnInspectionCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
             val intent = custodyIntent(command.decision, command.conditionAssessment, command.responsibility)
@@ -470,7 +470,7 @@ class ReturnPersistenceService(
             accepted(returns.save(record))
         }
 
-    @Transactional
+    @Transactional(rollbackFor = [Exception::class])
     fun triggerRefund(command: PersistedRefundTriggerCommand): PersistedReturnResult =
         withExisting(command.returnId) { record ->
             // The locked return row holds exactly one durable instruction. A fresh retry key cannot create another.
@@ -512,10 +512,12 @@ class ReturnPersistenceService(
 
     private fun audit(record: ReturnRequestRecord, action: String, actorId: String, at: Instant, key: String, intent: String, metadata: String?) {
         require(actorId.isNotBlank() && key.isNotBlank()) { "Custody actor and retry key are required." }
-        val history = storedCustodyHistory(record.custodyHistoryJson) + StoredReturnCustodyEvent(action, at, actorId, metadata, key, intent)
-        record.custodyHistoryJson = objectMapper.writeValueAsString(history.map { mapOf(
-            "action" to it.action, "createdAt" to it.createdAt.toString(), "actorUserId" to it.actorUserId,
-            "metadata" to it.metadata, "idempotencyKey" to it.idempotencyKey, "intentHash" to it.intentHash) })
+        storedCustodyHistory(record.custodyHistoryJson)
+        val history = custodyMapper.readTree(record.custodyHistoryJson) as com.fasterxml.jackson.databind.node.ArrayNode
+        history.add(custodyMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf(
+            "action" to action, "createdAt" to at.toString(), "actorUserId" to actorId,
+            "metadata" to metadata, "idempotencyKey" to key, "intentHash" to intent)))
+        record.custodyHistoryJson = objectMapper.writeValueAsString(history)
     }
 
     private fun custodyIntent(vararg values: Any?): String = Sha256ReturnPinHasher().hash(objectMapper.writeValueAsString(values.toList()))
@@ -547,8 +549,12 @@ class ReturnPersistenceService(
         history = snapshot.history.filter { it.action in setOf("RELAY_DROPOFF", "SEQUO_COLLECTION") }.map { it.copy(metadata = null) })
 
     @Transactional(readOnly = true)
-    fun get(returnId: String): ReturnRequestSnapshot? =
-        returns.findById(returnId).orElse(null)?.toSnapshot()
+    fun get(returnId: String, canRead: (customerId: String, relayPointId: String?) -> Boolean = { _, _ -> true }): ReturnRequestSnapshot? {
+        val record = returns.findById(returnId).orElse(null) ?: return null
+        if (!canRead(record.customerId, record.relayPointId)) throw org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.FORBIDDEN)
+        return record.toSnapshot()
+    }
 
     @Transactional(readOnly = true)
     fun listForCustomer(customerId: String): List<ReturnRequestSnapshot> {
@@ -584,6 +590,11 @@ class ReturnPersistenceService(
         orders.lockForCompletion(orderId)
         val record = returns.lockForAction(returnId)
             ?: return rejected("return_not_found", "Return request was not found.")
+        try {
+            storedCustodyHistory(record.custodyHistoryJson)
+        } catch (_: Exception) {
+            return rejected("return_history_review_required", RETURN_HISTORY_REVIEW_MESSAGE)
+        }
         return operation(record)
     }
 
@@ -795,10 +806,26 @@ private data class StoredReturnCustodyEvent(
     val action: String, val createdAt: Instant, val actorUserId: String,
     val metadata: String?, val idempotencyKey: String, val intentHash: String,
 )
+private const val RETURN_HISTORY_REVIEW_MESSAGE = "Stored return history requires operator review."
 private val custodyMapper = ObjectMapper()
-private fun storedCustodyHistory(json: String): List<StoredReturnCustodyEvent> = custodyMapper.readTree(json).map { node ->
-    StoredReturnCustodyEvent(node["action"].asText(), Instant.parse(node["createdAt"].asText()), node["actorUserId"].asText(),
-        node["metadata"]?.takeUnless { it.isNull }?.asText(), node["idempotencyKey"].asText(), node["intentHash"].asText())
+    .enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+    .enable(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+private fun storedCustodyHistory(json: String): List<StoredReturnCustodyEvent> {
+    try {
+        val root = custodyMapper.readTree(json)
+        require(root != null && root.isArray)
+        return root.map { node ->
+            require(node.isObject)
+            fun text(name: String): String = node[name]?.takeIf { it.isTextual && it.textValue().isNotBlank() }?.textValue()
+                ?: throw IllegalArgumentException()
+            val metadata = node["metadata"]?.takeUnless { it.isNull }?.let { require(it.isTextual); it.textValue() }
+            StoredReturnCustodyEvent(text("action"), Instant.parse(text("createdAt")), text("actorUserId"), metadata,
+                text("idempotencyKey"), text("intentHash"))
+        }
+    } catch (_: Exception) {
+        // Jackson errors can contain the original input. Never expose stored custody data in an API error.
+        throw IllegalArgumentException(RETURN_HISTORY_REVIEW_MESSAGE)
+    }
 }
 
 

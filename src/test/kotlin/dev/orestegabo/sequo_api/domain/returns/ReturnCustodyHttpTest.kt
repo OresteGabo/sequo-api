@@ -9,6 +9,8 @@ import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
 import dev.orestegabo.sequo_api.domain.order.OrderProductCategory
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory
 import dev.orestegabo.sequo_api.domain.relay.RelayPointRepository
+import dev.orestegabo.sequo_api.domain.payment.*
+import dev.orestegabo.sequo_api.domain.settlement.SettlementLedgerEntryRecordRepository
 import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Instant
@@ -22,6 +24,9 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.ApplicationContext
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+import org.springframework.test.util.AopTestUtils
+import org.springframework.test.util.ReflectionTestUtils
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -51,6 +56,8 @@ class ReturnCustodyHttpTest @Autowired constructor(
     }
 
     @MockitoBean(name = "returnClock") private lateinit var returnClock: Clock
+    @MockitoSpyBean(name = "yasTogoPaymentProviderAdapter") private lateinit var yasAdapter: YasTogoPaymentProviderAdapter
+    @MockitoSpyBean(name = "moovAfricaPaymentProviderAdapter") private lateinit var moovAdapter: MoovAfricaPaymentProviderAdapter
     @LocalServerPort private var port = 0
     private val json = ObjectMapper()
     private val now = Instant.parse("2026-09-02T10:00:00Z")
@@ -247,6 +254,142 @@ class ReturnCustodyHttpTest @Autowired constructor(
     }
 
     @Test
+    fun unreadableHistoryBlocksEveryCustodyMutationAndReadsWithoutDisclosureOrPartialInstruction() {
+        val admin = ReturnCustodyFixtures.actor(context, RoleCode.ADMIN)
+        val support = ReturnCustodyFixtures.actor(context, RoleCode.SUPPORT_AGENT)
+        val relay = ReturnJourneyFixtures.relayWithOperator(context)
+        val foreignCustomer = ReturnCustodyFixtures.actor(context, RoleCode.CUSTOMER)
+        val sentinel = "PRIVATE_STORED_RETURN_HISTORY"
+        val duplicateKeyHistory = """[{"action":"LEGACY_CUSTODY_NOTE","createdAt":"2026-09-02T09:57:00Z","actorUserId":"${admin.id}","metadata":"$sentinel","metadata":"last value","idempotencyKey":"legacy-note","intentHash":"legacy-intent"}]"""
+        for (history in listOf("{\"$sentinel\":", "{\"$sentinel\":true}", "[] {\"$sentinel\":true}", "[{\"action\":\"$sentinel\"}]", duplicateKeyHistory)) {
+            val fixture = ReturnJourneyFixtures.order(context, now.minusSeconds(3600))
+            val id = "unreadable-history-${UUID.randomUUID()}"
+            eligibleLegacyReturn(fixture, id, admin.id).also { it.custodyHistoryJson = history; returns.saveAndFlush(it) }
+            try {
+                val actions = listOf(
+                    Triple("relay-dropoff", relay.operator.token, ReturnCustodyFixtures.dropoffBody(relay.id, "123456", "dropoff-$id")),
+                    Triple("collection", support.token, ReturnCustodyFixtures.collectionBody("collection-$id")),
+                    Triple("physical-receipt", support.token, ReturnCustodyFixtures.receiptBody("receipt-$id")),
+                    Triple("inspection", support.token, ReturnCustodyFixtures.inspectionBody("inspection-$id")),
+                    Triple("refund", admin.token, ReturnCustodyFixtures.refundBody(3000, "refund-$id")),
+                )
+                for ((action, token, body) in actions) {
+                    val response = call("POST", "/api/returns/$id/$action", token, body)
+                    assertEquals(400, response.statusCode(), response.body())
+                    assertEquals("return_history_review_required", json.readTree(response.body())["code"].asText())
+                    assertFalse(response.body().contains(sentinel))
+                }
+                for (token in listOf(admin.token, fixture.owner.token)) {
+                    val response = call("GET", "/api/returns/$id", token)
+                    assertEquals(400, response.statusCode(), response.body())
+                    assertTrue(response.body().contains("operator review"))
+                    assertFalse(response.body().contains(sentinel))
+                }
+                for (token in listOf(foreignCustomer.token, relay.operator.token)) {
+                    val response = call("GET", "/api/returns/$id", token)
+                    assertEquals(403, response.statusCode(), response.body())
+                    assertFalse(response.body().contains(sentinel))
+                    assertFalse(response.body().contains("operator review"))
+                }
+                val unchanged = returns.findById(id).orElseThrow()
+                assertEquals(ReturnStatus.ReceivedBySequo, unchanged.status)
+                assertEquals(history, unchanged.custodyHistoryJson)
+                assertEquals(ReturnInspectionDecision.ACCEPTED, unchanged.inspectionDecision)
+                assertEquals(now.minusSeconds(30), unchanged.inspectedAt)
+                assertNull(unchanged.collectedBySequoAt)
+                assertNull(unchanged.refundInstructionId)
+                assertNull(unchanged.refundIdempotencyKey)
+                assertNull(unchanged.refundAmountCfa)
+            } finally {
+                returns.findById(id).orElseThrow().also {
+                    it.custodyHistoryJson = "[]"; returns.saveAndFlush(it)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun checkedAuditWriteFailureRollsBackRefundIntentAndInstructionFields() {
+        val fixture = ReturnJourneyFixtures.order(context, now.minusSeconds(3600))
+        val admin = ReturnCustodyFixtures.actor(context, RoleCode.ADMIN)
+        val id = "checked-audit-failure-${UUID.randomUUID()}"
+        eligibleLegacyReturn(fixture, id, admin.id)
+        val service = context.getBean(ReturnPersistenceService::class.java)
+        val target = AopTestUtils.getUltimateTargetObject<ReturnPersistenceService>(service)
+        val original = ReflectionTestUtils.getField(target, "objectMapper") as ObjectMapper
+        val failing = Mockito.spy(original)
+        val failure = object : com.fasterxml.jackson.core.JsonProcessingException("PRIVATE_AUDIT_WRITE_FAILURE") {}
+        Mockito.doThrow(failure).`when`(failing).writeValueAsString(Mockito.any<Any>())
+        ReflectionTestUtils.setField(target, "objectMapper", failing)
+        try {
+            assertFailsWith<com.fasterxml.jackson.core.JsonProcessingException> {
+                service.triggerRefund(PersistedRefundTriggerCommand(id, 3000, "refund-$id", admin.id))
+            }
+        } finally {
+            ReflectionTestUtils.setField(target, "objectMapper", original)
+        }
+        val retained = returns.findById(id).orElseThrow()
+        assertEquals(ReturnStatus.ReceivedBySequo, retained.status)
+        assertEquals("[]", retained.custodyHistoryJson)
+        assertNull(retained.refundIdempotencyKey)
+        assertNull(retained.refundAmountCfa)
+        assertNull(retained.refundInstructionId)
+        assertNull(retained.refundInstructedAt)
+        assertNull(retained.refundInstructingOperatorId)
+    }
+
+    @Test
+    fun concurrentEligibleLegacyReturnsAuthorizeOneInternalInstructionAndNeverSendMoney() {
+        val fixture = ReturnJourneyFixtures.order(context, now.minusSeconds(3600))
+        val firstAdmin = ReturnCustodyFixtures.actor(context, RoleCode.ADMIN)
+        val secondAdmin = ReturnCustodyFixtures.actor(context, RoleCode.ADMIN)
+        val ids = listOf("legacy-concurrent-${UUID.randomUUID()}", "legacy-concurrent-${UUID.randomUUID()}")
+        val originalNode = json.readTree("""{"action":"LEGACY_CUSTODY_NOTE","createdAt":"2026-09-02T09:57:00+00:00","actorUserId":"${firstAdmin.id}","metadata":"Original receipt note","idempotencyKey":"legacy-note","intentHash":"legacy-intent","legacyEvidenceLabel":"preserve-me"}""")
+        val originalHistory = "[$originalNode]"
+        ids.forEach { id -> eligibleLegacyReturn(fixture, id, firstAdmin.id).also {
+            it.custodyHistoryJson = originalHistory; returns.saveAndFlush(it)
+        } }
+        val ledger = context.getBean(SettlementLedgerEntryRecordRepository::class.java)
+        val beforeLedger = ledger.count()
+        val responses = ids.zip(listOf(firstAdmin, secondAdmin)).map { (id, actor) -> CompletableFuture.supplyAsync {
+            call("POST", "/api/returns/$id/refund", actor.token, ReturnCustodyFixtures.refundBody(3000, "refund-$id"))
+        } }.map { it.join() }
+        assertEquals(1, responses.count { it.statusCode() == 200 })
+        assertEquals(1, responses.count { it.statusCode() == 400 })
+        val denied = responses.single { it.statusCode() == 400 }
+        assertEquals("order_refund_review_required", json.readTree(denied.body())["code"].asText())
+        val records = ids.map { returns.findById(it).orElseThrow() }
+        val winner = records.single { it.refundInstructionId != null }
+        val loser = records.single { it.refundInstructionId == null }
+        assertEquals(ReturnStatus.RefundPending, winner.status)
+        assertEquals(ReturnStatus.ReceivedBySequo, loser.status)
+        assertEquals(originalHistory, loser.custodyHistoryJson)
+        assertEquals(originalNode, json.readTree(winner.custodyHistoryJson).first())
+        val canonical = get("/api/returns/${winner.id}", firstAdmin.token)
+        assertEquals("REQUESTED", canonical["refundInstruction"]["status"].asText())
+        assertEquals("NOT_SUBMITTED", canonical["refundInstruction"]["paymentStatus"].asText())
+        val uuid = canonical["refundInstruction"]["id"].asText()
+        val count = canonical["history"].size()
+        for (key in listOf("refund-${winner.id}", "new-key-${winner.id}")) {
+            val retry = post("/api/returns/${winner.id}/refund", firstAdmin.token, ReturnCustodyFixtures.refundBody(3000, key))
+            assertEquals(uuid, retry["refundInstruction"]["id"].asText())
+            assertEquals(count, retry["history"].size())
+        }
+        assertEquals(400, call("POST", "/api/returns/${winner.id}/refund", firstAdmin.token,
+            ReturnCustodyFixtures.refundBody(2500, "changed-${winner.id}")).statusCode())
+        assertEquals(400, call("POST", "/api/returns/${loser.id}/refund", firstAdmin.token,
+            ReturnCustodyFixtures.refundBody(3000, "retry-${loser.id}")).statusCode())
+        assertEquals(uuid, returns.findById(winner.id).orElseThrow().refundInstructionId)
+        assertEquals(CustomerOrderStatus.RETURN_REQUESTED, orders.findById(fixture.orderId).orElseThrow().orderStatus)
+        assertEquals(beforeLedger, ledger.count())
+        for (adapter in listOf<PaymentProviderAdapter>(yasAdapter, moovAdapter)) {
+            assertTrue(Mockito.mockingDetails(adapter).invocations.none {
+                it.method.name in setOf("issueRefundInstruction", "issuePayoutInstruction")
+            })
+        }
+    }
+
+    @Test
     fun staffReadPrecedenceIsPreservedForAccountsThatAlsoHaveTheCustomerRole() {
         val first = ReturnJourneyFixtures.order(context, now.minusSeconds(3600))
         val second = ReturnJourneyFixtures.order(context, now.minusSeconds(3600))
@@ -278,6 +421,13 @@ class ReturnCustodyHttpTest @Autowired constructor(
             conditionAssessment = "Legacy receipt and condition note.", responsibility = RefundResponsibility.Merchant,
             receiptIdempotencyKey = "legacy-receipt-$id", createdAt = now.minusSeconds(180), updatedAt = now.minusSeconds(60))
     }
+
+    private fun eligibleLegacyReturn(fixture: ReturnJourneyOrder, id: String, operator: String): ReturnRequestRecord =
+        legacyReturn(fixture, id, operator).also {
+            it.inspectionDecision = ReturnInspectionDecision.ACCEPTED
+            it.inspectedAt = now.minusSeconds(30); it.inspectingOperatorId = operator
+            returns.saveAndFlush(it)
+        }
 
     private fun audit(state: JsonNode, actor: String, at: Instant, count: Int) {
         assertEquals(count, state["history"].size())

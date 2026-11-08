@@ -121,12 +121,13 @@ class ReturnController(
         @AuthenticationPrincipal userId: String?,
         @PathVariable returnId: String,
     ): ResponseEntity<Any> = roleRequired(authentication, setOf(RoleCode.CUSTOMER) + RoleGroups.AdminOperations + RoleGroups.RelayOperators) { authenticated ->
-        val item = service.get(ApiInputPolicy.requiredIdentifier(returnId, "returnId")) ?: return@roleRequired ResponseEntity.notFound().build()
         val actorId = userId ?: authenticated.name
         val staff = authenticated.hasAnyRole(RoleGroups.AdminOperations)
+        val item = service.get(ApiInputPolicy.requiredIdentifier(returnId, "returnId")) { customerId, relayPointId ->
+            staff || (authenticated.hasRole(RoleCode.CUSTOMER) && customerId == actorId) ||
+                (relayPointId?.let { relayAccess.permits(authenticated, it) } == true)
+        } ?: return@roleRequired ResponseEntity.notFound().build()
         val customerOwner = authenticated.hasRole(RoleCode.CUSTOMER) && item.customerId == actorId
-        val assignedOperator = item.relayPointId?.let { relayAccess.permits(authenticated, it) } == true
-        if (!staff && !customerOwner && !assignedOperator) return@roleRequired ResponseEntity.status(403).build()
         ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
             if (staff) item else if (customerOwner) service.customerView(actorId, item) else service.relayView(item))
     }
