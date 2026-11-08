@@ -19,7 +19,7 @@ fun readDeliveryModeOffer(payload: String): DeliveryModeOffer {
 }
 
 @Service
-class DeliveryOptionsService(private val environment: Environment, private val subscriptions: CustomerSubscriptionRepository) {
+class DeliveryOptionsService(private val environment: Environment, private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService) {
     fun offers(distanceKm: Double, deliveryFeeCfa: Int): List<DeliveryModeOffer> {
         val zone = environment.getProperty("sequo.delivery.zone-id").orEmpty().trim()
         val limit = environment.getProperty("sequo.delivery.max-distance-km")?.toDoubleOrNull()
@@ -40,9 +40,5 @@ class DeliveryOptionsService(private val environment: Environment, private val s
         if (choice == null) offers.firstOrNull { it.id == DeliveryModeChoice.EXPRESS }
         else requireNotNull(offers.firstOrNull { it.id.name == choice }) { "Delivery option is unavailable. Review a new quote." }
 
-    fun subscriberPriority(customerId: String, now: Instant = Instant.now()): Boolean {
-        val subscription = subscriptions.findTopByUserIdOrderByCreatedAtDesc(customerId) ?: return false
-        return subscription.status == CustomerSubscriptionStatus.ACTIVE && subscription.plan?.active == true &&
-            !subscription.startedAt.isAfter(now) && now.isBefore(subscription.currentPeriodEndsAt)
-    }
+    fun subscriberPriority(customerId: String, now: Instant = Instant.now()): Boolean = benefits.subscriberPriority(customerId)
 }

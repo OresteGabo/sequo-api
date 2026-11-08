@@ -929,9 +929,10 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     private fun paidPickedUp(relayId: String? = null, category: String? = null, deliveryMode: String? = null, subscriber: Boolean = false, autoPickup: Boolean = true): RelayJourney {
         val fixture = fixture()
         if (subscriber) {
-            val plan = subscriptionPlans.save(dev.orestegabo.sequo_api.domain.platform.SubscriptionPlanRecord("fixture-plan-${fixture.userId}", "Fixture paid plan", 1000, 0))
+            val plan = subscriptionPlans.save(dev.orestegabo.sequo_api.domain.platform.SubscriptionPlanRecord("fixture-plan-${fixture.userId}", "Fixture paid plan", 1000, 0, approvalReference = "LOCAL_FIXTURE_ONLY"))
             subscriptions.save(dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionRecord("fixture-sub-${fixture.userId}", fixture.userId, plan.id,
-                status = dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionStatus.ACTIVE, startedAt = Instant.now().minusSeconds(86400), currentPeriodEndsAt = Instant.now().plusSeconds(30L * 86400)))
+                status = dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionStatus.ACTIVE, startedAt = Instant.now().minusSeconds(86400), currentPeriodEndsAt = Instant.now().plusSeconds(30L * 86400),
+                currentPeriodStartsAt = Instant.now().minusSeconds(86400), activationReference = "LOCAL_FIXTURE_ONLY"))
         }
         if (category != null) products.findById(fixture.productId).orElseThrow().also {
             it.category = category

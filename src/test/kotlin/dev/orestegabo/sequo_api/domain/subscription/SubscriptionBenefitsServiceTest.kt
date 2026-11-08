@@ -59,7 +59,6 @@ class SubscriptionBenefitsServiceTest {
             benefitRequest(subscription = subscription(), customerId = "customer-2"),
             benefitRequest(subscription = subscription(), deliveryMode = SubscriptionDeliveryMode.PointDeRelai),
             benefitRequest(subscription = subscription(tier = tier(isActive = false))),
-            benefitRequest(subscription = subscription(cancelAtPeriodEnd = true)),
         )
 
         requests.forEach { request ->
@@ -120,6 +119,22 @@ class SubscriptionBenefitsServiceTest {
     }
 
     @Test
+    fun approvedLoyaltyAndSubscriptionTogetherRespectTheMonthlyCap() {
+        val snapshot = service.calculate(SubscriptionBenefitRequest(
+            subscription = subscription(tier = tier(maxDiscountCfaPerMonth = 100).copy(perKmDiscountPercent = 20),
+                startedAt = now.minusSeconds(800L * 86400)),
+            customerId = "customer-1", deliveryMode = SubscriptionDeliveryMode.FastDelivery,
+            eligiblePerKmFeeCfa = 400, quotedAt = now,
+            loyaltyRules = listOf(LoyaltyMultiplierRule(12, BigDecimal("0.80"))),
+        ))
+        assertEquals(80, snapshot.subscriptionDiscountCfa)
+        assertEquals(20, snapshot.loyaltyDiscountCfa)
+        assertEquals(100, snapshot.totalDiscountCfa)
+        assertEquals(300, snapshot.feeAfterBenefitsCfa)
+        assertEquals(0, snapshot.remainingMonthlyDiscountCapCfa)
+    }
+
+    @Test
     fun renewalRestartsPaidPeriodAndMonthlyDiscountUsage() {
         val pastDue = subscription(
             status = CustomerSubscriptionStatus.PastDue,
@@ -136,6 +151,30 @@ class SubscriptionBenefitsServiceTest {
         assertEquals(now.plusSeconds(30 * 24 * 60 * 60), renewed.currentPeriodEndsAt)
         assertEquals(now.plusSeconds(30 * 24 * 60 * 60), renewed.paidThroughAt)
         assertEquals(0, renewed.discountUsedThisPeriodCfa)
+    }
+
+    @Test
+    fun approvedFullLoyaltyReductionRemainsBoundedByTheMonthlyCap() {
+        val snapshot = service.calculate(SubscriptionBenefitRequest(
+            subscription = subscription(tier = tier(maxDiscountCfaPerMonth = 200)),
+            customerId = "customer-1", deliveryMode = SubscriptionDeliveryMode.FastDelivery,
+            eligiblePerKmFeeCfa = 1_000, quotedAt = now,
+            loyaltyRules = listOf(LoyaltyMultiplierRule(0, BigDecimal.ZERO)),
+        ))
+        assertEquals(150, snapshot.subscriptionDiscountCfa)
+        assertEquals(50, snapshot.loyaltyDiscountCfa)
+        assertEquals(200, snapshot.totalDiscountCfa)
+        assertEquals(800, snapshot.feeAfterBenefitsCfa)
+        assertEquals(0, snapshot.remainingMonthlyDiscountCapCfa)
+    }
+
+    @Test
+    fun endOfPeriodCancellationPreservesPaidBenefitsUntilThePeriodEnds() {
+        val pendingCancellation = subscription(cancelAtPeriodEnd = true)
+        assertEquals(150, service.calculate(benefitRequest(pendingCancellation)).subscriptionDiscountCfa)
+        val atEnd = service.calculate(benefitRequest(pendingCancellation).copy(quotedAt = pendingCancellation.currentPeriodEndsAt))
+        assertFalse(atEnd.subscriptionActive)
+        assertEquals(0, atEnd.totalDiscountCfa)
     }
 
     private fun benefitRequest(

@@ -23,6 +23,9 @@ import kotlin.test.Test
         "spring.datasource.url=jdbc:h2:mem:platform_commerce_service;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.flyway.enabled=false",
+        "sequo.referrals.credit-cfa=500",
+        "sequo.referrals.approval-reference=LOCAL_FIXTURE_ONLY",
+        "sequo.referrals.expiry-days=30",
     ]
 )
 @Transactional
@@ -38,7 +41,7 @@ class PlatformCommerceServiceTest @Autowired constructor(
     fun customerProfileAddressSubscriptionAndReferralUseDatabaseRecords() {
         val userId = createUser("platform-customer@sequo.test")
         val referredUserId = createUser("platform-referred@sequo.test")
-        plans.save(SubscriptionPlanRecord("plan-basic", "Basic", 2500, 10, 3000, 6, 5))
+        plans.save(SubscriptionPlanRecord("plan-basic", "Basic", 2500, 10, 3000, 6, 5, approvalReference = "LOCAL_FIXTURE_ONLY"))
 
         val profile = service.upsertProfile(
             userId,
@@ -64,8 +67,10 @@ class PlatformCommerceServiceTest @Autowired constructor(
 
         assertEquals("platform-customer@sequo.test", profile.receiptEmail)
         assertEquals("Tokoin", address.area)
-        assertEquals(CustomerSubscriptionStatus.ACTIVE, subscription.status)
+        assertEquals(CustomerSubscriptionStatus.PAUSED, subscription.status)
+        assertEquals(subscription.startedAt, subscription.currentPeriodEndsAt)
         assertEquals(500, referral.creditCfa)
+        assertEquals(ReferralCreditStatus.RESERVED, referral.status)
         assertEquals(1, service.referralCredits(userId).size)
     }
 

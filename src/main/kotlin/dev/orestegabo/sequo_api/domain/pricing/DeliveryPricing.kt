@@ -22,6 +22,7 @@ data class DeliveryPricingBreakdown(
     val subscriptionDiscountCfa: Int,
     val referralCreditAppliedCfa: Int,
     val finalDeliveryFeeCfa: Int,
+    val loyaltyDiscountCfa: Int = 0,
 )
 
 @Entity
@@ -59,6 +60,7 @@ class DeliveryPricingSettingsRecord(
 
 interface DeliveryPricingSettingsRepository : JpaRepository<DeliveryPricingSettingsRecord, String> {
     fun findFirstByActiveTrueOrderByEffectiveFromDescCreatedAtDesc(): DeliveryPricingSettingsRecord?
+    fun findFirstByActiveTrueAndEffectiveFromLessThanEqualOrderByEffectiveFromDescCreatedAtDesc(at: Instant): DeliveryPricingSettingsRecord?
 }
 
 data class DeliveryPricingSettings(
@@ -75,22 +77,22 @@ data class DeliveryPricingSettings(
 
 class DeliveryPricingService(
     private val settingsRepository: DeliveryPricingSettingsRepository? = null,
+    private val clock: java.time.Clock = java.time.Clock.systemUTC(),
 ) {
     fun calculate(input: DeliveryPricingInput): DeliveryPricingBreakdown {
-        require(input.distanceKm >= 0.0) { "distanceKm must be non-negative" }
+        require(input.distanceKm.isFinite() && input.distanceKm >= 0.0) { "distanceKm must be non-negative" }
         require(input.subscriptionDiscountPercent in 0..100) {
             "subscriptionDiscountPercent must be between 0 and 100"
         }
         require(input.referralCreditCfa >= 0) { "referralCreditCfa must be non-negative" }
 
-        val settings = activeSettings()
+        val settings = effectiveSettings()
         val billableKm = ceil(input.distanceKm).toInt()
-        val baseFeeCfa = if (billableKm <= settings.includedKm) {
-            settings.minimumDeliveryFeeCfa
-        } else {
-            settings.minimumDeliveryFeeCfa + ((billableKm - settings.includedKm) * settings.extraKmFeeCfa)
-        }
-        val subscriptionDiscountCfa = (baseFeeCfa * input.subscriptionDiscountPercent) / 100
+        val rawFee = settings.minimumDeliveryFeeCfa.toLong() +
+            (billableKm - settings.includedKm).coerceAtLeast(0).toLong() * settings.extraKmFeeCfa
+        require(rawFee <= Int.MAX_VALUE) { "Delivery fee is too large." }
+        val baseFeeCfa = rawFee.toInt()
+        val subscriptionDiscountCfa = (baseFeeCfa.toLong() * input.subscriptionDiscountPercent / 100).toInt()
         val feeAfterSubscription = baseFeeCfa - subscriptionDiscountCfa
         val referralCreditAppliedCfa = input.referralCreditCfa.coerceAtMost(feeAfterSubscription)
 
@@ -103,11 +105,10 @@ class DeliveryPricingService(
         )
     }
 
-    private fun activeSettings(): DeliveryPricingSettings =
-        settingsRepository
-            ?.findFirstByActiveTrueOrderByEffectiveFromDescCreatedAtDesc()
-            ?.toSettings()
-            ?: DefaultSettings
+    fun effectiveRecord(): DeliveryPricingSettingsRecord? = settingsRepository
+        ?.findFirstByActiveTrueAndEffectiveFromLessThanEqualOrderByEffectiveFromDescCreatedAtDesc(clock.instant())
+
+    fun effectiveSettings(): DeliveryPricingSettings = effectiveRecord()?.toSettings() ?: DefaultSettings
 
     companion object {
         val DefaultSettings = DeliveryPricingSettings(

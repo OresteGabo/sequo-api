@@ -20,6 +20,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.Authentication
 import dev.orestegabo.sequo_api.domain.auth.RoleGroups
+import dev.orestegabo.sequo_api.domain.auth.RoleCode
+import dev.orestegabo.sequo_api.domain.auth.UserRepository
 import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus
 import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationGroup
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
+import java.time.Clock
 import java.util.UUID
 
 enum class CustomerAddressKind { HOME, WORK, RELAY, OTHER }
@@ -96,6 +99,7 @@ class SubscriptionPlanRecord(
     @Column(name = "loyalty_discount_percent", nullable = false) var loyaltyDiscountPercent: Int = 0,
     @Column(nullable = false) var active: Boolean = true,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+    @Column(name = "approval_reference") var approvalReference: String? = null,
 )
 
 @Entity
@@ -114,6 +118,9 @@ class CustomerSubscriptionRecord(
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = createdAt,
     @Version @Column(nullable = false) var version: Long = 0,
+    @Column(name = "current_period_starts_at") var currentPeriodStartsAt: Instant? = null,
+    @Column(name = "activation_reference") var activationReference: String? = null,
+    @Column(name = "loyalty_tenure_verified", nullable = false) var loyaltyTenureVerified: Boolean = false,
 )
 
 @Entity
@@ -127,6 +134,8 @@ class ReferralDeliveryCreditRecord(
     @Column(name = "source_code", length = 64) val sourceCode: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "expires_at") val expiresAt: Instant? = null,
+    @Column(name = "remaining_cfa", nullable = false) var remainingCfa: Int = creditCfa,
+    @Column(name = "approval_reference") var approvalReference: String? = null,
 )
 
 @Entity
@@ -223,6 +232,7 @@ interface CustomerSubscriptionRepository : JpaRepository<CustomerSubscriptionRec
 
 interface ReferralDeliveryCreditRepository : JpaRepository<ReferralDeliveryCreditRecord, String> {
     fun findByReferrerUserIdOrReferredUserIdOrderByCreatedAtDesc(referrerUserId: String, referredUserId: String): List<ReferralDeliveryCreditRecord>
+    fun findFirstByReferrerUserIdAndReferredUserIdOrderByCreatedAtAsc(referrerUserId: String, referredUserId: String): ReferralDeliveryCreditRecord?
 }
 
 interface PaymentProviderConfigurationRepository : JpaRepository<PaymentProviderConfigurationRecord, String> {
@@ -346,6 +356,7 @@ data class ReferralCreditDto(
     val sourceCode: String?,
     val createdAt: Instant,
     val expiresAt: Instant?,
+    val remainingCfa: Int? = creditCfa,
 )
 data class PaymentProviderConfigurationDto(
     val providerId: String,
@@ -406,6 +417,9 @@ class PlatformCommerceService(
     private val cooperatives: MerchantCooperativeRepository,
     private val cooperativeMembers: MerchantCooperativeMemberRepository,
     private val merchants: CommerceMerchantRepository,
+    private val users: UserRepository,
+    private val referralAwardPolicy: dev.orestegabo.sequo_api.domain.subscription.ReferralAwardPolicy,
+    @org.springframework.beans.factory.annotation.Qualifier("benefitsClock") private val benefitsClock: Clock,
 ) {
     @Transactional(readOnly = true)
     fun profile(userId: String): CustomerProfileDto? = profiles.findByUserId(userId)?.toDto()
@@ -473,7 +487,7 @@ class PlatformCommerceService(
 
     @Transactional(readOnly = true)
     fun subscriptionPlans(): List<SubscriptionPlanDto> =
-        plans.findByActiveTrueOrderByMonthlyPriceCfaAsc().map { it.toDto() }
+        plans.findByActiveTrueOrderByMonthlyPriceCfaAsc().filter { !it.approvalReference.isNullOrBlank() }.map { it.toDto() }
 
     @Transactional(readOnly = true)
     fun currentSubscription(userId: String): CustomerSubscriptionDto? =
@@ -481,17 +495,23 @@ class PlatformCommerceService(
 
     @Transactional
     fun startSubscription(userId: String, request: StartSubscriptionRequest): CustomerSubscriptionDto {
+        requireCustomerAccount(userId)
         val planId = ApiInputPolicy.requiredIdentifier(request.planId, "planId")
-        require(plans.existsById(planId)) { "planId does not reference an active subscription plan." }
-        val now = Instant.now()
+        val plan = plans.findById(planId).orElse(null)
+        require(plan?.active == true && !plan.approvalReference.isNullOrBlank()) { "Subscription plan is unavailable or awaiting SEQUO approval." }
+        subscriptions.findTopByUserIdOrderByCreatedAtDesc(userId)?.let { existing ->
+            if (existing.planId == planId) return existing.toDto()
+            require(existing.status != CustomerSubscriptionStatus.ACTIVE) { "Changing an active subscription requires SEQUO review." }
+        }
+        val now = benefitsClock.instant()
         return subscriptions.save(
             CustomerSubscriptionRecord(
                 id = UUID.randomUUID().toString(),
                 userId = userId,
                 planId = planId,
-                status = CustomerSubscriptionStatus.ACTIVE,
+                status = CustomerSubscriptionStatus.PAUSED,
                 startedAt = now,
-                currentPeriodEndsAt = now.plusSeconds(30L * 24L * 60L * 60L),
+                currentPeriodEndsAt = now,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -500,25 +520,36 @@ class PlatformCommerceService(
 
     @Transactional(readOnly = true)
     fun referralCredits(userId: String): List<ReferralCreditDto> =
-        referralCredits.findByReferrerUserIdOrReferredUserIdOrderByCreatedAtDesc(userId, userId).map { it.toDto() }
+        referralCredits.findByReferrerUserIdOrReferredUserIdOrderByCreatedAtDesc(userId, userId).map {
+            it.toDto().let { dto -> if (it.referrerUserId == userId) dto else dto.copy(remainingCfa = null) }
+        }
 
     @Transactional
     fun createReferralCredit(userId: String, request: CreateReferralCreditRequest): ReferralCreditDto {
+        requireCustomerAccount(userId)
         val referredUserId = ApiInputPolicy.requiredIdentifier(request.referredUserId, "referredUserId")
         require(referredUserId != userId) { "A user cannot refer themselves." }
-        val now = Instant.now()
+        require(users.findById(referredUserId).orElse(null)?.active == true) { "Referred account is unavailable." }
+        referralCredits.findFirstByReferrerUserIdAndReferredUserIdOrderByCreatedAtAsc(userId, referredUserId)?.let { return it.toDto() }
+        require(referralAwardPolicy.enabled) { "Referral awards are awaiting an approved SEQUO policy." }
+        val now = benefitsClock.instant()
         return referralCredits.save(
             ReferralDeliveryCreditRecord(
                 id = UUID.randomUUID().toString(),
                 referrerUserId = userId,
                 referredUserId = referredUserId,
-                creditCfa = 500,
+                creditCfa = referralAwardPolicy.creditCfa,
                 status = ReferralCreditStatus.RESERVED,
                 sourceCode = ApiInputPolicy.optionalShortText(request.sourceCode, "sourceCode", 64),
                 createdAt = now,
-                expiresAt = now.plusSeconds(90L * 24L * 60L * 60L),
+                expiresAt = referralAwardPolicy.expiryDays.takeIf { it > 0 }?.let { now.plusSeconds(Math.multiplyExact(it, 86400L)) },
             )
         ).toDto()
+    }
+
+    private fun requireCustomerAccount(userId: String) {
+        val user = users.lockCheckoutOwner(userId)
+        require(user?.active == true && RoleCode.CUSTOMER in user.roles) { "An active customer account is required." }
     }
 
     @Transactional(readOnly = true)
@@ -769,8 +800,8 @@ class SubscriptionController(private val service: PlatformCommerceService) {
         platformAuthenticated(userId) { service.currentSubscription(it) ?: emptyMap<String, String>() }
 
     @PostMapping
-    fun start(@AuthenticationPrincipal userId: String?, @RequestBody request: StartSubscriptionRequest): ResponseEntity<Any> =
-        platformAuthenticated(userId) { service.startSubscription(it, request) }
+    fun start(authentication: Authentication?, @RequestBody request: StartSubscriptionRequest): ResponseEntity<Any> =
+        platformCustomer(authentication) { service.startSubscription(it, request) }
 }
 
 @RestController
@@ -781,8 +812,8 @@ class ReferralController(private val service: PlatformCommerceService) {
         platformAuthenticated(userId) { service.referralCredits(it) }
 
     @PostMapping
-    fun create(@AuthenticationPrincipal userId: String?, @RequestBody request: CreateReferralCreditRequest): ResponseEntity<Any> =
-        platformAuthenticated(userId) { service.createReferralCredit(it, request) }
+    fun create(authentication: Authentication?, @RequestBody request: CreateReferralCreditRequest): ResponseEntity<Any> =
+        platformCustomer(authentication) { service.createReferralCredit(it, request) }
 }
 
 @RestController
@@ -834,6 +865,11 @@ class CooperativeController(private val service: PlatformCommerceService) {
 
 private fun platformSafe(block: () -> Any): ResponseEntity<Any> = ResponseEntity.ok(block())
 
+private fun platformCustomer(authentication: Authentication?, block: (String) -> Any): ResponseEntity<Any> =
+    if (authentication == null || !authentication.isAuthenticated) ResponseEntity.status(401).build()
+    else if (!authentication.hasAnyRole(setOf(RoleCode.CUSTOMER))) ResponseEntity.status(403).build()
+    else platformSafe { block(authentication.name) }
+
 private fun platformAuthenticated(userId: String?, block: (String) -> Any): ResponseEntity<Any> {
     if (userId == null) return ResponseEntity.status(401).build()
     return platformSafe { block(userId) }
@@ -852,7 +888,7 @@ private fun CustomerSubscriptionRecord.toDto(): CustomerSubscriptionDto =
     CustomerSubscriptionDto(id, userId, planId, status, startedAt, currentPeriodEndsAt, cancelAtPeriodEnd)
 
 private fun ReferralDeliveryCreditRecord.toDto(): ReferralCreditDto =
-    ReferralCreditDto(id, referrerUserId, referredUserId, creditCfa, status, sourceCode, createdAt, expiresAt)
+    ReferralCreditDto(id, referrerUserId, referredUserId, creditCfa, status, sourceCode, createdAt, expiresAt, remainingCfa)
 
 private fun PaymentProviderConfigurationRecord.toDto(): PaymentProviderConfigurationDto =
     PaymentProviderConfigurationDto(

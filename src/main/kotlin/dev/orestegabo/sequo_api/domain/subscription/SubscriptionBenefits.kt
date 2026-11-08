@@ -70,8 +70,8 @@ data class LoyaltyMultiplierRule(
 ) {
     init {
         require(minMonthsActive >= 0) { "minMonthsActive cannot be negative." }
-        require(multiplier > BigDecimal.ZERO && multiplier <= BigDecimal.ONE) {
-            "multiplier must be greater than 0 and no more than 1."
+        require(multiplier >= BigDecimal.ZERO && multiplier <= BigDecimal.ONE) {
+            "multiplier must be between 0 and 1."
         }
         require(maxDiscountCfaPerOrder == null || maxDiscountCfaPerOrder >= 0) {
             "maxDiscountCfaPerOrder cannot be negative."
@@ -113,7 +113,7 @@ class SubscriptionBenefitsService {
         }
 
         val remainingCap = subscription.remainingMonthlyCap()
-        val rawSubscriptionDiscount = (request.eligiblePerKmFeeCfa * subscription.tier.perKmDiscountPercent) / 100
+        val rawSubscriptionDiscount = (request.eligiblePerKmFeeCfa.toLong() * subscription.tier.perKmDiscountPercent / 100).toInt()
         val subscriptionDiscount = if (remainingCap == null) {
             rawSubscriptionDiscount
         } else {
@@ -132,8 +132,10 @@ class SubscriptionBenefitsService {
             .setScale(0, RoundingMode.HALF_UP)
             .toInt()
         val rawLoyaltyDiscount = feeAfterSubscription - uncappedFeeAfterLoyalty
-        val loyaltyDiscount = loyaltyRule?.maxDiscountCfaPerOrder?.let(rawLoyaltyDiscount::coerceAtMost)
+        val perOrderLoyaltyDiscount = loyaltyRule?.maxDiscountCfaPerOrder?.let(rawLoyaltyDiscount::coerceAtMost)
             ?: rawLoyaltyDiscount
+        val loyaltyDiscount = remainingCap?.let { perOrderLoyaltyDiscount.coerceAtMost((it - subscriptionDiscount).coerceAtLeast(0)) }
+            ?: perOrderLoyaltyDiscount
 
         return SubscriptionBenefitSnapshot(
             tierCode = subscription.tier.tierCode,
@@ -145,7 +147,7 @@ class SubscriptionBenefitsService {
             loyaltyDiscountCfa = loyaltyDiscount,
             totalDiscountCfa = subscriptionDiscount + loyaltyDiscount,
             feeAfterBenefitsCfa = feeAfterSubscription - loyaltyDiscount,
-            remainingMonthlyDiscountCapCfa = remainingCap?.minus(subscriptionDiscount),
+            remainingMonthlyDiscountCapCfa = remainingCap?.minus(subscriptionDiscount + loyaltyDiscount),
             loyaltyMultiplier = multiplier,
         )
     }
@@ -174,7 +176,7 @@ class SubscriptionBenefitsService {
             request.deliveryMode in subscription.tier.eligibleDeliveryModes &&
             !request.quotedAt.isBefore(subscription.currentPeriodStartsAt) &&
             request.quotedAt.isBefore(subscription.paidThroughAt) &&
-            !subscription.cancelAtPeriodEnd
+            request.quotedAt.isBefore(subscription.currentPeriodEndsAt)
 
     private fun CustomerSubscription.remainingMonthlyCap(): Int? =
         tier.maxDiscountCfaPerMonth?.minus(discountUsedThisPeriodCfa)?.coerceAtLeast(0)
