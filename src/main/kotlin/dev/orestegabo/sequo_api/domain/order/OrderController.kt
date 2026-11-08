@@ -40,6 +40,9 @@ class OrderController(
         require(request.lines.none { catalogProducts.existsById(it.productId) }) {
             "Use the basket quote and checkout endpoints for catalog products."
         }
+        require(request.referralCreditCfa == 0 && !request.serviceLevel.isPrime) {
+            "Use the authenticated basket quote and checkout endpoints for delivery benefits."
+        }
         val secureRequest = request.copy(customerId = userId, subscriberPriority = false)
         
         val processor = factory.processorFor(secureRequest.serviceLevel)

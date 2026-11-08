@@ -37,6 +37,10 @@ data class CartDeliveryQuote(
     val fulfillmentMode: String = "HOME",
     val deliveryOption: dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer? = null,
     val availableDeliveryModes: List<dev.orestegabo.sequo_api.domain.delivery.DeliveryModeOffer> = emptyList(),
+    val deliveryBaseFeeCfa: Int = deliveryFeeCfa,
+    val subscriptionDiscountCfa: Int = 0,
+    val loyaltyDiscountCfa: Int = 0,
+    val referralCreditAppliedCfa: Int = 0,
 )
 
 internal data class ReviewedCart(
@@ -45,6 +49,7 @@ internal data class ReviewedCart(
     val destination: HomeDeliveryDestination,
     val pricing: OrderPricingSnapshot,
     val relayDestination: dev.orestegabo.sequo_api.domain.relay.RelayDestination? = null,
+    val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitReview,
 )
 
 @Service
@@ -54,6 +59,7 @@ class CartDeliveryQuoteService(
     private val pricing: DeliveryPricingService,
     private val options: dev.orestegabo.sequo_api.domain.delivery.DeliveryOptionsService,
     private val relays: dev.orestegabo.sequo_api.domain.relay.RelayAvailabilityService,
+    private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
     @Value("\${sequo.cart.straight-line-dispatch-origin:}") configuredOrigin: String,
 ) {
     private val origin = configuredOrigin.takeIf { it.isNotBlank() }?.let {
@@ -85,7 +91,10 @@ class CartDeliveryQuoteService(
             relays.requireAvailable(ApiInputPolicy.requiredIdentifier(it, "relayPointId"))
         }
         val meters = distanceProvider.estimate(RoutingDistanceRequest(dispatchOrigin, GeoPoint(relay?.latitude ?: latitude, relay?.longitude ?: longitude)))
-        val delivery = pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0))
+        val benefitReview = benefits.review(userId, pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0)),
+            if (relay == null) dev.orestegabo.sequo_api.domain.subscription.SubscriptionDeliveryMode.FastDelivery
+            else dev.orestegabo.sequo_api.domain.subscription.SubscriptionDeliveryMode.PointDeRelai)
+        val delivery = benefitReview.delivery
         val offers = options.offers(meters / 1000.0, delivery.finalDeliveryFeeCfa)
         val selectedOption = options.select(deliveryMode, offers)
         val total = cart.subtotalCfa.toLong() + delivery.finalDeliveryFeeCfa
@@ -96,7 +105,7 @@ class CartDeliveryQuoteService(
         )
         val orderPricing = OrderPricingSnapshot(cart.subtotalCfa, delivery, total.toInt())
         val snapshot = listOf(
-            destination, relay, selectedOption, orderPricing, meters,
+            destination, relay, selectedOption, orderPricing, meters, benefitReview.revisionContext,
             cart.items.sortedBy { it.id }.map {
                 listOf(it.id, it.product, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections,
                     it.bargainingThreadId, it.negotiatedPriceExpiresAt?.toString())
@@ -118,8 +127,12 @@ class CartDeliveryQuoteService(
             fulfillmentMode = if (relay == null) "HOME" else "RELAY",
             deliveryOption = selectedOption,
             availableDeliveryModes = offers,
+            deliveryBaseFeeCfa = delivery.baseFeeCfa,
+            subscriptionDiscountCfa = delivery.subscriptionDiscountCfa,
+            loyaltyDiscountCfa = delivery.loyaltyDiscountCfa,
+            referralCreditAppliedCfa = delivery.referralCreditAppliedCfa,
         )
-        return ReviewedCart(cart, quote, destination, orderPricing, relay)
+        return ReviewedCart(cart, quote, destination, orderPricing, relay, benefitReview)
     }
 
     private val mapper = ObjectMapper()

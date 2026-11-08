@@ -54,6 +54,7 @@ class CustomerCartCheckoutService(
     private val fulfillment: OrderFulfillmentPersistenceService,
     private val merchants: CommerceMerchantRepository,
     private val commerce: CommerceService,
+    private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
     paymentProcessor: PaymentProcessor,
     pricing: DeliveryPricingService,
 ) {
@@ -118,7 +119,7 @@ class CustomerCartCheckoutService(
             checkoutId, customerId, OrderServiceLevel.Regular, if (reviewed.relayDestination == null) OrderRoute.FastDelivery else OrderRoute.PointDeRelai,
             lines, reviewed.quote.distanceMeters / 1000.0,
             paymentProvider = provider, paymentReference = checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
-            deliveryOption = reviewed.quote.deliveryOption, subscriberPriority = options.subscriberPriority(customerId),
+            deliveryOption = reviewed.quote.deliveryOption, subscriberPriority = benefits.subscriberPriority(customerId),
         )
         val result = processor.process(order, reviewed.pricing)
         val status = when (result) {
@@ -127,7 +128,9 @@ class CustomerCartCheckoutService(
             is OrderProcessingResult.Rejected -> PendingPaymentCheckoutStatus.FAILED
         }
         val saved = pending.recordCartCheckout(order, reviewed.pricing, status)
+        if (status != PendingPaymentCheckoutStatus.FAILED) benefits.reserve(checkoutId, customerId, reviewed.benefits)
         if (result is OrderProcessingResult.AcceptedForFulfillment) {
+            benefits.complete(checkoutId, customerId)
             fulfillment.persistAcceptedOrder(order, result)
         }
         if (status != PendingPaymentCheckoutStatus.FAILED) commerce.clearCart(customerId)

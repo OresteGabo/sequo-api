@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.domain.order.readPricingSnapshot
+
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository
 import dev.orestegabo.sequo_api.domain.order.CustomerOrderStatus
 import dev.orestegabo.sequo_api.domain.payment.PaymentValidationStatus
@@ -82,7 +84,12 @@ class DeliveryReadinessDispatchService(
                 skipped += subOrder.skipped("customer_pickup_does_not_need_courier_mission")
                 return@forEach
             }
-            val request = pending.findById(order.checkoutId).orElse(null)?.requestPayload?.let { com.fasterxml.jackson.databind.ObjectMapper().readPendingRequest(it) }
+            val checkout = pending.findById(order.checkoutId).orElse(null)
+            val request = checkout?.requestPayload?.let { com.fasterxml.jackson.databind.ObjectMapper().readPendingRequest(it) }
+            // Preserve the existing undiscounted delivery estimate for courier assignment;
+            // customer benefits are borne by SEQUO, not deducted from independent courier pay.
+            val courierEstimate = checkout?.pricingPayload?.let { com.fasterxml.jackson.databind.ObjectMapper().readPricingSnapshot(it).delivery.baseFeeCfa }
+                ?: order.deliveryFeeCfa
             created += deliveryMissionService.create(
                 CreateDeliveryMissionCommand(
                     deliveryCode = subOrder.deliveryCode(subOrderId),
@@ -94,8 +101,8 @@ class DeliveryReadinessDispatchService(
                     destinationType = plan.destination,
                     relayDestination = request?.relayDestination,
                     customerDeliveryFeeCfa = order.deliveryFeeCfa,
-                    courierFeeCfa = order.deliveryFeeCfa,
-                    shortfallCfa = 0,
+                    courierFeeCfa = courierEstimate,
+                    shortfallCfa = (courierEstimate - order.deliveryFeeCfa).coerceAtLeast(0),
                 ),
                 at = at,
             )

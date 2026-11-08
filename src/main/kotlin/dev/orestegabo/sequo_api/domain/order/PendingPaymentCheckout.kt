@@ -75,6 +75,7 @@ sealed class PaymentReconciliationResult {
 class PendingPaymentCheckoutService(
     private val pendingCheckouts: PendingPaymentCheckoutRepository,
     private val fulfillmentPersistence: OrderFulfillmentPersistenceService,
+    private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -158,6 +159,7 @@ class PendingPaymentCheckoutService(
                 pending.updatedAt = now
                 pending.completedAt = now
                 pending.providerReference = event.providerReference
+                benefits.release(pending.checkoutId, pending.customerId)
                 pendingCheckouts.save(pending)
                 return PaymentReconciliationResult.Ignored("payment_${event.status.name.lowercase()}")
             }
@@ -167,6 +169,7 @@ class PendingPaymentCheckoutService(
         val request = objectMapper.readPendingRequest(pending.requestPayload)
         val pricing = objectMapper.readPricingSnapshot(pending.pricingPayload)
         val accepted = request.toAcceptedForFulfillment(pricing, event.providerReference ?: event.paymentReference)
+        benefits.complete(pending.checkoutId, pending.customerId)
         val fulfilled = fulfillmentPersistence.persistAcceptedOrder(request, accepted, event.occurredAt)
 
         pending.status = PendingPaymentCheckoutStatus.COMPLETED
@@ -346,7 +349,7 @@ internal fun ObjectMapper.readPendingRequest(payload: String): OrderProcessingRe
     )
 }
 
-private fun ObjectMapper.readPricingSnapshot(payload: String): OrderPricingSnapshot {
+internal fun ObjectMapper.readPricingSnapshot(payload: String): OrderPricingSnapshot {
     val root = readTree(payload)
     val delivery = root.requiredObject("delivery")
     return OrderPricingSnapshot(
@@ -357,6 +360,7 @@ private fun ObjectMapper.readPricingSnapshot(payload: String): OrderPricingSnaps
             subscriptionDiscountCfa = delivery.requiredInt("subscriptionDiscountCfa"),
             referralCreditAppliedCfa = delivery.requiredInt("referralCreditAppliedCfa"),
             finalDeliveryFeeCfa = delivery.requiredInt("finalDeliveryFeeCfa"),
+            loyaltyDiscountCfa = delivery.path("loyaltyDiscountCfa").asInt(0),
         ),
         totalCfa = root.requiredInt("totalCfa"),
     )
