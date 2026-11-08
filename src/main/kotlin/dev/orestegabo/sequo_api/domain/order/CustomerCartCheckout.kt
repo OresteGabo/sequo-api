@@ -54,6 +54,7 @@ class CustomerCartCheckoutService(
     private val fulfillment: OrderFulfillmentPersistenceService,
     private val merchants: CommerceMerchantRepository,
     private val commerce: CommerceService,
+    private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
     paymentProcessor: PaymentProcessor,
     pricing: DeliveryPricingService,
@@ -84,6 +85,7 @@ class CustomerCartCheckoutService(
         }
 
         val reviewed = try {
+            merchantStores.lockForNewCheckout(commerce.cart(customerId).items.mapNotNull { it.product.merchantId })
             quotes.review(customerId, addressId, request.relayPointId, request.deliveryMode)
         } catch (_: IllegalArgumentException) {
             throw CheckoutQuoteChanged()

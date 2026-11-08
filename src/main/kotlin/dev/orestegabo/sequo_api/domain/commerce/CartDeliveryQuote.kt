@@ -60,6 +60,7 @@ class CartDeliveryQuoteService(
     private val options: dev.orestegabo.sequo_api.domain.delivery.DeliveryOptionsService,
     private val relays: dev.orestegabo.sequo_api.domain.relay.RelayAvailabilityService,
     private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
+    private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     @Value("\${sequo.cart.straight-line-dispatch-origin:}") configuredOrigin: String,
 ) {
     private val origin = configuredOrigin.takeIf { it.isNotBlank() }?.let {
@@ -84,6 +85,7 @@ class CartDeliveryQuoteService(
         val cart = commerce.cart(userId)
         require(cart.items.isNotEmpty()) { "Cart is empty." }
         require(cart.items.all { it.available }) { "Remove or replace unavailable cart items." }
+        val storeRevisions = merchantStores.quoteRevisions(cart.items.mapNotNull { it.product.merchantId })
         val relay = relayPointId?.let {
             require(dev.orestegabo.sequo_api.domain.relay.relayCategoriesAllowed(cart.items.map { item ->
                 dev.orestegabo.sequo_api.domain.relay.catalogRelayCategory(item.product.category)
@@ -105,7 +107,7 @@ class CartDeliveryQuoteService(
         )
         val orderPricing = OrderPricingSnapshot(cart.subtotalCfa, delivery, total.toInt())
         val snapshot = listOf(
-            destination, relay, selectedOption, orderPricing, meters, benefitReview.revisionContext,
+            destination, relay, selectedOption, orderPricing, meters, benefitReview.revisionContext, storeRevisions,
             cart.items.sortedBy { it.id }.map {
                 listOf(it.id, it.product, it.quantity, it.productTotalCfa, it.optionTotalCfa, it.selections,
                     it.bargainingThreadId, it.negotiatedPriceExpiresAt?.toString())

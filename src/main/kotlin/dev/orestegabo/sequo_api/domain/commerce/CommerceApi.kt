@@ -451,6 +451,7 @@ class CommerceService(
     private val bargaining: PersistedBargainingService,
     private val cameraMedia: CatalogCameraMedia,
     private val platformCommerce: PlatformCommerceService,
+    private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     @Value("\${sequo.catalog.approved-generic-image-url:}") private val approvedGenericImageUrl: String,
 ) {
     @Transactional(readOnly = true)
@@ -465,10 +466,13 @@ class CommerceService(
             emptyList()
         } else {
             val merchantsById = merchants.findAllById(merchantIds).associateBy { it.id }
+            val storeOpenStatuses = merchantStores.publicOpenStatuses(merchantIds)
             storefronts.findByMerchantIdIn(merchantIds)
                 .filter { it.active }
                 .sortedBy { it.sortOrder }
-                .map { storefront -> storefront.toDto(merchantsById[storefront.merchantId], productsByMerchant[storefront.merchantId].orEmpty()) }
+                .map { storefront -> storefront.toDto(merchantsById[storefront.merchantId], productsByMerchant[storefront.merchantId].orEmpty()).let { dto ->
+                    dto.copy(openStatus = storeOpenStatuses[storefront.merchantId] ?: dto.openStatus)
+                } }
         }
 
         return CommerceHomeDto(
