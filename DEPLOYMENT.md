@@ -61,6 +61,7 @@ Important values:
 | `POSTGRES_PASSWORD` | Use a unique random password. |
 | `JWT_SECRET` | At least 32 random characters. |
 | `NOTIFICATION_TOKEN_ENCRYPTION_SECRET` | At least 32 random characters. |
+| `ADMIN_CODE_ENCRYPTION_SECRET` | Required explicit admin-login code encryption key, at least 32 non-default characters, distinct from JWT and notification secrets. Retain the environment's existing approved key; see continuity below. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated explicit HTTPS origins, no wildcards. |
 | `SEQUO_ALLOW_DEV_DEFAULTS` | Keep `false` for the Task 28 staging profile and production. Legacy development-only overrides are not staging acceptance evidence. |
 | `API_MEMORY_LIMIT` | Defaults to `1536m`. |
@@ -68,11 +69,19 @@ Important values:
 | `JAVA_TOOL_OPTIONS` | Defaults to `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom`. |
 | `JAVA_OPTS` | Optional extra JVM flags appended by the image entrypoint. |
 
-Generate strong secrets on the VPS:
+For a new environment with no dependent records, provision approved strong secrets through the custodian's protected process. Do not generate replacement keys for an existing environment merely to pass startup. A local provisioning example (not executed by this document) is:
 
 ```bash
 openssl rand -base64 48
 ```
+
+### Admin-login encryption key continuity
+
+`ADMIN_CODE_ENCRYPTION_SECRET` binds `sequo.admin-auth.code-encryption-secret`. Strict startup checks now reject an absent, short, tracked development/default/placeholder key or one reused from JWT/notification encryption. Existing profile selection and the explicit development-default allowance are unchanged; keep that allowance disabled on online staging/production. Local fallback behavior is retained.
+
+This closes the source/configuration-coverage part of [Task29 O-SEC](docs/TASK29_OPEN_ITEMS.md#o-sec) in a new build; the frozen Task28/29 candidate is unchanged. Remote values, pending encrypted-code continuity and normal staff-login acceptance remain unverified. Before activation the appointed maintainer and security custodian must privately inventory the **effective existing admin-code key** and pending encrypted codes. If the key is already approved and meets the checks, supply the same value explicitly; do not replace it. If it is missing, unsafe or shared, keep activation blocked until an approved cutover/recovery plan resolves pending codes and verifies normal staff login on a disposable restore. Record only nonsecret evidence references in the deployment record.
+
+No encryption version, AES key derivation, stored ciphertext, runtime key or remote configuration is changed by the guard. JWT and notification keys have their own consumers; the notification key also protects FCM tokens and derives relay/return credentials. Do not rotate those to make keys distinct without their separate continuity plan. See [the existing handoff key inventory](docs/TASK29_OPERATIONS_HANDOFF.md#key-continuity-and-open-security-item).
 
 ## Reverse Proxy
 

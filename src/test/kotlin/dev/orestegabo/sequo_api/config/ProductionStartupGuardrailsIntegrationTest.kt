@@ -108,6 +108,7 @@ class ProductionStartupGuardrailsIntegrationTest {
             "spring.profiles.active=prod",
             "sequo.auth.jwt.secret=realistic_prod_jwt_secret_2026_value_64_chars_minimum",
             "sequo.notifications.token-encryption-secret=realistic_notification_secret_2026_value_64_chars_minimum",
+            "sequo.admin-auth.code-encryption-secret=realistic_admin_code_secret_2026_distinct_value_64_chars_minimum",
             "sequo.auth.google.client-id=7643198250-prod.apps.googleusercontent.com",
             "sequo.auth.facebook.app-id=581049273650184",
             "sequo.auth.apple.client-id=com.sequo.service.signin.production",
@@ -130,6 +131,7 @@ class ProductionStartupGuardrailsIntegrationTest {
             "spring.profiles.active=prod",
             "sequo.auth.jwt.secret=realistic_prod_jwt_secret_2026_value_64_chars_minimum",
             "sequo.notifications.token-encryption-secret=realistic_notification_secret_2026_value_64_chars_minimum",
+            "sequo.admin-auth.code-encryption-secret=realistic_admin_code_secret_2026_distinct_value_64_chars_minimum",
             "sequo.auth.google.client-id=google_dev_client_id",
             "sequo.auth.facebook.app-id=facebook_dev_app_id",
             "sequo.auth.apple.client-id=apple_dev_client_id",
@@ -163,6 +165,32 @@ class ProductionStartupGuardrailsIntegrationTest {
             ).close()
         }
         assertTrue(failure.fullMessage().contains("tracked placeholder"))
+    }
+
+    @Test
+    fun adminEncryptionConfigurationFailsClosedUntilDistinctExplicitKeyIsProvided() {
+        val jwt = "realistic_prod_jwt_secret_2026_value_64_chars_minimum"
+        val notifications = "realistic_notification_secret_2026_value_64_chars_minimum"
+        val secure = arrayOf(
+            "spring.profiles.active=prod", "sequo.security.allow-dev-defaults=false",
+            "sequo.auth.jwt.secret=$jwt", "sequo.notifications.token-encryption-secret=$notifications",
+            "sequo.security.cors.allowed-origins=https://admin.sequo.tg",
+            "spring.datasource.url=jdbc:postgresql://postgres:5432/sequo",
+            "spring.datasource.username=sequo_app", "spring.datasource.password=distinct_database_material_2026_not_shared",
+            "spring.jpa.hibernate.ddl-auto=validate", "spring.h2.console.enabled=false",
+        )
+        for (key in listOf("", "short", "sequo_admin_auth_code_secret_2026_change_before_prod", jwt, notifications,
+                "replace_with_a_distinct_admin_encryption_secret")) {
+            val failure = assertFailsWith<IllegalStateException> {
+                startGuardrailContext(*secure, "sequo.admin-auth.code-encryption-secret=$key")
+            }
+            assertTrue(failure.fullMessage().contains("sequo.admin-auth.code-encryption-secret"))
+            if (key.isNotBlank()) assertTrue(!failure.fullMessage().contains(key), "Guard diagnostics must not disclose configured keys")
+        }
+        // Verify the deployment environment slot reaches the same existing property/key consumer.
+        startGuardrailContext(*secure,
+            "ADMIN_CODE_ENCRYPTION_SECRET=realistic_admin_code_secret_2026_distinct_value_64_chars_minimum",
+        ).close()
     }
 
     private fun startGuardrailContext(vararg properties: String): ConfigurableApplicationContext =

@@ -17,6 +17,7 @@ data class StartupSecuritySettings(
     val datasourcePassword: String?,
     val hibernateDdlAuto: String?,
     val h2ConsoleEnabled: Boolean,
+    val adminCodeEncryptionSecret: String? = null,
 )
 
 object StartupSecurityChecks {
@@ -36,6 +37,17 @@ object StartupSecurityChecks {
             knownUnsafeValues = KNOWN_UNSAFE_NOTIFICATION_SECRETS,
             findings = findings,
         )
+        requireSecret(
+            propertyName = "sequo.admin-auth.code-encryption-secret",
+            value = settings.adminCodeEncryptionSecret,
+            knownUnsafeValues = KNOWN_UNSAFE_ADMIN_CODE_SECRETS + KNOWN_UNSAFE_JWT_SECRETS + KNOWN_UNSAFE_NOTIFICATION_SECRETS,
+            findings = findings,
+        )
+        val adminSecret = settings.adminCodeEncryptionSecret.orEmpty().trim()
+        if (adminSecret.isNotEmpty() && listOf(settings.jwtSecret, settings.notificationTokenEncryptionSecret)
+                .any { it?.trim() == adminSecret }) {
+            findings += "sequo.admin-auth.code-encryption-secret must be distinct from the JWT and notification encryption secrets."
+        }
         requireSafeCorsSettings(settings.corsAllowedOrigins, findings)
         requireSafeDatabaseSettings(settings, findings)
         requireNoTrackedPlaceholders(settings, findings)
@@ -89,6 +101,7 @@ object StartupSecurityChecks {
         mapOf(
             "sequo.auth.jwt.secret" to listOf(settings.jwtSecret),
             "sequo.notifications.token-encryption-secret" to listOf(settings.notificationTokenEncryptionSecret),
+            "sequo.admin-auth.code-encryption-secret" to listOf(settings.adminCodeEncryptionSecret),
             "sequo.security.cors.allowed-origins" to settings.corsAllowedOrigins,
             "spring.datasource.url" to listOf(settings.datasourceUrl),
             "spring.datasource.username" to listOf(settings.datasourceUsername),
@@ -136,6 +149,9 @@ object StartupSecurityChecks {
         "sequo_compose_notification_token_secret_2026_change_before_prod",
         "ci_only_sequo_notification_secret_2026_change_me",
     )
+    private val KNOWN_UNSAFE_ADMIN_CODE_SECRETS = setOf(
+        "sequo_admin_auth_code_secret_2026_change_before_prod",
+    )
     private val TRACKED_PLACEHOLDER_MARKERS = setOf(
         ".example",
         ".test",
@@ -177,6 +193,8 @@ class ProductionStartupGuardrails(
     private val hibernateDdlAuto: String?,
     @Value("\${spring.h2.console.enabled:false}")
     private val h2ConsoleEnabled: Boolean,
+    @Value("\${sequo.admin-auth.code-encryption-secret:}")
+    private val adminCodeEncryptionSecret: String?,
 ) : ApplicationRunner {
     override fun run(args: ApplicationArguments) {
         val findings = StartupSecurityChecks.unsafeProductionFindings(
@@ -191,6 +209,7 @@ class ProductionStartupGuardrails(
                 datasourcePassword = datasourcePassword,
                 hibernateDdlAuto = hibernateDdlAuto,
                 h2ConsoleEnabled = h2ConsoleEnabled,
+                adminCodeEncryptionSecret = adminCodeEncryptionSecret,
             )
         )
 

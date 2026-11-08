@@ -200,11 +200,49 @@ class StartupSecurityChecksTest {
         assertFalse(findings.isNotEmpty())
     }
 
+    @Test
+    fun strictProfilesRejectMissingShortDevelopmentAndPlaceholderAdminCodeKeys() {
+        val badKeys = listOf(null, "", "short", "sequo_admin_auth_code_secret_2026_change_before_prod",
+            "replace_with_a_distinct_admin_encryption_secret", "sequo_auth_dev_secret_key_2026_v1")
+        for (profile in listOf("prod", "production", "docker", "stage", "staging")) {
+            for (key in badKeys) {
+                val findings = StartupSecurityChecks.unsafeProductionFindings(secureSettings(
+                    activeProfiles = setOf(profile), adminCodeEncryptionSecret = key,
+                ))
+                assertTrue(findings.any { it.startsWith("sequo.admin-auth.code-encryption-secret") }, "$profile must refuse an unsafe admin-code key")
+                if (!key.isNullOrBlank()) assertTrue(findings.none { it.contains(key) }, "Diagnostics must not reveal key material")
+            }
+        }
+    }
+
+    @Test
+    fun adminCodeKeyMustBeDistinctFromJwtAndNotificationKeys() {
+        val safe = secureSettings()
+        for (key in listOf(safe.jwtSecret, safe.notificationTokenEncryptionSecret)) {
+            val findings = StartupSecurityChecks.unsafeProductionFindings(safe.copy(adminCodeEncryptionSecret = key))
+            assertTrue(findings.any { it.contains("must be distinct") })
+            assertTrue(findings.none { it.contains(requireNotNull(key)) })
+        }
+        assertTrue(StartupSecurityChecks.unsafeProductionFindings(safe).isEmpty())
+    }
+
+    @Test
+    fun localAndExplicitDevelopmentAllowancePreserveExistingAdminCodeFallbackBehavior() {
+        assertTrue(StartupSecurityChecks.unsafeProductionFindings(secureSettings(
+            activeProfiles = setOf("local"), adminCodeEncryptionSecret = null,
+        )).isEmpty())
+        assertTrue(StartupSecurityChecks.unsafeProductionFindings(secureSettings(
+            activeProfiles = setOf("prod"), allowDevDefaults = true,
+            adminCodeEncryptionSecret = "sequo_admin_auth_code_secret_2026_change_before_prod",
+        )).isEmpty())
+    }
+
     private fun secureSettings(
         activeProfiles: Set<String> = setOf("prod"),
         allowDevDefaults: Boolean = false,
         jwtSecret: String? = "realistic_prod_jwt_secret_2026_value_64_chars_minimum",
         notificationTokenEncryptionSecret: String? = "realistic_notification_secret_2026_value_64_chars_minimum",
+        adminCodeEncryptionSecret: String? = "realistic_admin_code_secret_2026_distinct_value_64_chars_minimum",
         googleClientId: String? = "7643198250-prod.apps.googleusercontent.com",
         facebookAppId: String? = "581049273650184",
         appleClientId: String? = "com.sequo.service.signin.production",
@@ -224,6 +262,7 @@ class StartupSecurityChecksTest {
             allowDevDefaults = allowDevDefaults,
             jwtSecret = jwtSecret,
             notificationTokenEncryptionSecret = notificationTokenEncryptionSecret,
+            adminCodeEncryptionSecret = adminCodeEncryptionSecret,
             corsAllowedOrigins = corsAllowedOrigins,
             datasourceUrl = datasourceUrl,
             datasourceUsername = datasourceUsername,
