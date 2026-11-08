@@ -62,6 +62,8 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/login-requests/*/exchange").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/email-codes").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/email-codes/verify").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/admin-auth/development-access").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/admin-auth/development-session").permitAll()
                     .requestMatchers("/api/admin-auth/mobile/**").authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/payments/webhooks/yas_togo", "/api/payments/webhooks/moov_africa").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/catalog/products/*/customizations/quote").permitAll()

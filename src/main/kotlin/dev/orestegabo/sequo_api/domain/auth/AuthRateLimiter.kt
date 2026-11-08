@@ -184,6 +184,10 @@ class AuthRateLimiter(
         )
     }
 
+    fun checkAdminDevelopmentSession() {
+        enforce(rateLimiter.consume("auth.admin-development.ip", clientSubject(), ADMIN_LOGIN_REQUEST_BY_IP))
+    }
+
     fun checkAdminLoginExchange(requestId: String) {
         enforce(
             rateLimiter.consume("auth.admin-login.exchange.ip", clientSubject(), ADMIN_LOGIN_EXCHANGE_BY_IP),

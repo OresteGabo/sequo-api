@@ -14,6 +14,7 @@ enum class AdminAuthAuditEventType {
     EMAIL_OTP_VERIFIED,
     SOCIAL_LOGIN_SUCCEEDED,
     SOCIAL_LOGIN_FAILED,
+    LOCAL_DEVELOPMENT_SESSION_CREATED,
 }
 
 data class AdminAuthAuditEvent(
