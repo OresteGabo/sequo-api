@@ -29,6 +29,8 @@ class PaymentWebhookController(
         require(rawPayload.toByteArray(Charsets.UTF_8).size <= maxWebhookPayloadBytes) {
             "Payment webhook payload cannot exceed $maxWebhookPayloadBytes bytes."
         }
+        // Retained normalized intake contract. Production adapters currently reject it until
+        // actual provider verification and payload mapping have been implemented and approved.
         val root = objectMapper.readTree(rawPayload)
         val result = service.accept(
             PaymentWebhookCommand(

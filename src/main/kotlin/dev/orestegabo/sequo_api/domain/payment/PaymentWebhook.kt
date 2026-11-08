@@ -11,20 +11,17 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 enum class PaymentWebhookProviderStatus { PENDING, VALIDATED, FAILED, CANCELLED }
 
+/** An internal normalized event; production acceptance requires the provider adapter's verification. */
 data class PaymentWebhookCommand(
     val provider: PaymentProviderId,
     val eventId: String,
@@ -92,23 +89,28 @@ interface PaymentWebhookEventRepository : JpaRepository<PaymentWebhookEventRecor
     fun findByProviderAndEventId(provider: String, eventId: String): PaymentWebhookEventRecord?
 }
 
+fun interface PaymentWebhookVerifier {
+    fun verify(request: ProviderCallbackVerificationRequest): ProviderCallbackVerificationResult
+}
+
 @Service
 class PaymentWebhookService(
     private val events: PaymentWebhookEventRepository,
     private val publisher: ApplicationEventPublisher,
-    @Value("\${sequo.wallets.yas-togo.webhook-secret:}") private val yasTogoSecret: String,
-    @Value("\${sequo.wallets.moov-africa.webhook-secret:}") private val moovAfricaSecret: String,
+    private val verifier: PaymentWebhookVerifier,
 ) {
     private val replayWindow = Duration.ofMinutes(5)
 
     @Transactional
     fun accept(command: PaymentWebhookCommand): PaymentWebhookResult {
         require(command.currency == "XOF") { "Payment currency must be XOF." }
-        val secret = secretFor(command.provider)
-            ?: throw IllegalArgumentException("Payment webhook provider is not configured.")
         val age = Duration.between(command.signatureTimestamp, command.receivedAt).abs()
         require(age <= replayWindow) { "Payment webhook signature timestamp is outside the replay window." }
-        require(verifySignature(command, secret)) { "Invalid payment webhook signature." }
+        when (val verification = verifier.verify(ProviderCallbackVerificationRequest(command.provider,
+            command.signatureTimestamp, command.signature, command.rawPayload))) {
+            ProviderCallbackVerificationResult.Accepted -> Unit
+            is ProviderCallbackVerificationResult.Rejected -> throw IllegalArgumentException(verification.message)
+        }
 
         val payloadHash = sha256(command.rawPayload)
         val existing = events.findByProviderAndEventId(command.provider.value, command.eventId)
@@ -136,21 +138,6 @@ class PaymentWebhookService(
         publisher.publishEvent(saved.toAcceptedEvent(command.provider))
         return PaymentWebhookResult(command.eventId, command.provider, duplicate = false, accepted = true)
     }
-
-    private fun secretFor(provider: PaymentProviderId): String? = when (provider) {
-        SequoPaymentProviders.YasTogo -> yasTogoSecret.takeIf { it.isProductionValue() }
-        SequoPaymentProviders.MoovAfrica -> moovAfricaSecret.takeIf { it.isProductionValue() }
-        else -> null
-    }
-
-    private fun verifySignature(command: PaymentWebhookCommand, secret: String): Boolean {
-        val expected = hmacSha256(secret, "${command.signatureTimestamp.epochSecond}.${command.rawPayload}")
-        val supplied = command.signature.removePrefix("sha256=").lowercase()
-        return supplied.length == expected.length && MessageDigest.isEqual(
-            supplied.toByteArray(StandardCharsets.US_ASCII),
-            expected.toByteArray(StandardCharsets.US_ASCII),
-        )
-    }
 }
 
 private fun PaymentWebhookEventRecord.toAcceptedEvent(providerId: PaymentProviderId): PaymentWebhookAcceptedEvent =
@@ -166,12 +153,6 @@ private fun PaymentWebhookEventRecord.toAcceptedEvent(providerId: PaymentProvide
         receivedAt = receivedAt,
     )
 
-private fun hmacSha256(secret: String, value: String): String {
-    val mac = Mac.getInstance("HmacSHA256")
-    mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
-    return mac.doFinal(value.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
-}
-
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
-    .digest(value.toByteArray(StandardCharsets.UTF_8))
+    .digest(value.toByteArray(Charsets.UTF_8))
     .joinToString("") { "%02x".format(it) }

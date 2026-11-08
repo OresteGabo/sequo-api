@@ -36,6 +36,7 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import dev.orestegabo.sequo_api.domain.platform.CustomerSubscriptionStatus as StoredSubscriptionStatus
 
+@org.springframework.context.annotation.Import(dev.orestegabo.sequo_api.domain.payment.PaymentWebhookFixtureConfiguration::class)
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [

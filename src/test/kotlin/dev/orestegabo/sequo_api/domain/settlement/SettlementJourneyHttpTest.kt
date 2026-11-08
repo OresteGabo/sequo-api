@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 
+@org.springframework.context.annotation.Import(dev.orestegabo.sequo_api.domain.payment.PaymentWebhookFixtureConfiguration::class)
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [

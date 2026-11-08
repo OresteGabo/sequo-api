@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.payment
 
+import dev.orestegabo.sequo_api.domain.DomainConfig
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import javax.crypto.Mac
@@ -13,7 +14,8 @@ import org.mockito.Mockito
 class PaymentWebhookServiceTest {
     private val repository = Mockito.mock(PaymentWebhookEventRepository::class.java)
     private val publisher = Mockito.mock(ApplicationEventPublisher::class.java)
-    private val service = PaymentWebhookService(repository, publisher, "yas-secret", "moov-secret")
+    private val fixtureSecrets = mapOf(SequoPaymentProviders.YasTogo to "yas-secret", SequoPaymentProviders.MoovAfrica to "moov-secret")
+    private val service = PaymentWebhookService(repository, publisher, NormalizedPaymentWebhookFixtureVerifier(fixtureSecrets))
     private val receivedAt = Instant.parse("2026-09-09T10:05:00Z")
 
     @Test
@@ -74,28 +76,60 @@ class PaymentWebhookServiceTest {
             ))
 
         assertFailsWith<IllegalArgumentException> {
-            service.accept(original.copy(rawPayload = "{\"amountCfa\":9999}"))
+            service.accept(command(rawPayload = "{\"amountCfa\":9999}"))
         }
     }
 
     @Test
     fun rejectsTrackedDevelopmentWebhookCredentialsAndWrongCurrency() {
-        val developmentService = PaymentWebhookService(
-            repository, publisher, "yas_togo_dev_webhook_secret_2026_change_before_prod", "",
-        )
+        val developmentService = PaymentWebhookService(repository, publisher, DomainConfig().paymentWebhookVerifier(listOf(
+            YasTogoPaymentProviderAdapter(PaymentProviderAdapterConfiguration(webhookSecret = "yas_togo_dev_webhook_secret_2026_change_before_prod")),
+            MoovAfricaPaymentProviderAdapter(PaymentProviderAdapterConfiguration()),
+        )))
         assertFailsWith<IllegalArgumentException> { developmentService.accept(command()) }
         assertFailsWith<IllegalArgumentException> { service.accept(command().copy(currency = "USD")) }
         Mockito.verifyNoInteractions(repository, publisher)
+    }
+
+    @Test
+    fun productionAdapterGateRejectsBothProvidersRegardlessOfCredentialCompleteness() {
+        val configurations = listOf(
+            PaymentProviderAdapterConfiguration(),
+            PaymentProviderAdapterConfiguration("not-a-url", "placeholder", " ", "placeholder"),
+            PaymentProviderAdapterConfiguration("https://wallet-fixture.sequo.tg", "synthetic-real-looking-key", "fixture-merchant", "yas-secret"),
+        )
+        for (configuration in configurations) {
+            val production = PaymentWebhookService(repository, publisher, DomainConfig().paymentWebhookVerifier(listOf(
+                YasTogoPaymentProviderAdapter(configuration), MoovAfricaPaymentProviderAdapter(configuration.copy(webhookSecret = "moov-secret")),
+            )))
+            for (provider in fixtureSecrets.keys) {
+                assertFailsWith<IllegalArgumentException> { production.accept(command(provider = provider)) }
+            }
+        }
+        Mockito.verifyNoInteractions(repository, publisher)
+    }
+
+    @Test
+    fun explicitInternalVerifierAcceptsBothProviderFixturesWithoutChangingProductionAdapters() {
+        Mockito.`when`(repository.save(Mockito.any(PaymentWebhookEventRecord::class.java))).thenAnswer { it.arguments[0] }
+        for (provider in fixtureSecrets.keys) {
+            val result = service.accept(command(provider = provider))
+            assertEquals(provider, result.provider)
+            assertEquals(true, result.accepted)
+        }
+        Mockito.verify(repository, Mockito.times(2)).save(Mockito.any(PaymentWebhookEventRecord::class.java))
+        Mockito.verify(publisher, Mockito.times(2)).publishEvent(Mockito.any(PaymentWebhookAcceptedEvent::class.java))
     }
 
     private fun command(
         signatureTimestamp: Instant = receivedAt,
         signature: String? = null,
         rawPayload: String = "{\"eventId\":\"event-1\",\"amountCfa\":4000}",
+        provider: PaymentProviderId = SequoPaymentProviders.YasTogo,
     ): PaymentWebhookCommand {
-        val signatureValue = signature ?: "sha256=${hmac("yas-secret", "${signatureTimestamp.epochSecond}.$rawPayload")}"
+        val signatureValue = signature ?: "sha256=${hmac(requireNotNull(fixtureSecrets[provider]), "${signatureTimestamp.epochSecond}.$rawPayload")}"
         return PaymentWebhookCommand(
-            provider = SequoPaymentProviders.YasTogo,
+            provider = provider,
             eventId = "event-1",
             checkoutId = "checkout-1",
             paymentReference = "payment-1",

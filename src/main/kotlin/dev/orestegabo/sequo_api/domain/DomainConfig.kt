@@ -44,34 +44,34 @@ class DomainConfig {
     }
 
     @Bean
-    fun paymentProcessor(
+    fun yasTogoPaymentProviderAdapter(
         @Value("\${sequo.wallets.yas-togo.api-base-url:}") yasTogoApiBaseUrl: String,
         @Value("\${sequo.wallets.yas-togo.api-key:}") yasTogoApiKey: String,
         @Value("\${sequo.wallets.yas-togo.merchant-account-id:}") yasTogoMerchantAccountId: String,
         @Value("\${sequo.wallets.yas-togo.webhook-secret:}") yasTogoWebhookSecret: String,
+    ) = YasTogoPaymentProviderAdapter(PaymentProviderAdapterConfiguration(
+        apiBaseUrl = yasTogoApiBaseUrl, apiKey = yasTogoApiKey,
+        merchantAccountId = yasTogoMerchantAccountId, webhookSecret = yasTogoWebhookSecret,
+    ))
+
+    @Bean
+    fun moovAfricaPaymentProviderAdapter(
         @Value("\${sequo.wallets.moov-africa.api-base-url:}") moovAfricaApiBaseUrl: String,
         @Value("\${sequo.wallets.moov-africa.api-key:}") moovAfricaApiKey: String,
         @Value("\${sequo.wallets.moov-africa.merchant-account-id:}") moovAfricaMerchantAccountId: String,
         @Value("\${sequo.wallets.moov-africa.webhook-secret:}") moovAfricaWebhookSecret: String,
-    ): PaymentProcessor =
-        PaymentProcessor(
-            listOf(
-                YasTogoPaymentProviderAdapter(
-                    PaymentProviderAdapterConfiguration(
-                        apiBaseUrl = yasTogoApiBaseUrl,
-                        apiKey = yasTogoApiKey,
-                        merchantAccountId = yasTogoMerchantAccountId,
-                        webhookSecret = yasTogoWebhookSecret,
-                    )
-                ).asPaymentMethod(),
-                MoovAfricaPaymentProviderAdapter(
-                    PaymentProviderAdapterConfiguration(
-                        apiBaseUrl = moovAfricaApiBaseUrl,
-                        apiKey = moovAfricaApiKey,
-                        merchantAccountId = moovAfricaMerchantAccountId,
-                        webhookSecret = moovAfricaWebhookSecret,
-                    )
-                ).asPaymentMethod(),
-            )
-        )
+    ) = MoovAfricaPaymentProviderAdapter(PaymentProviderAdapterConfiguration(
+        apiBaseUrl = moovAfricaApiBaseUrl, apiKey = moovAfricaApiKey,
+        merchantAccountId = moovAfricaMerchantAccountId, webhookSecret = moovAfricaWebhookSecret,
+    ))
+
+    @Bean
+    fun paymentProcessor(adapters: List<PaymentProviderAdapter>) =
+        PaymentProcessor(adapters.map { it.asPaymentMethod() })
+
+    @Bean
+    fun paymentWebhookVerifier(adapters: List<PaymentProviderAdapter>) = PaymentWebhookVerifier { request ->
+        adapters.singleOrNull { it.provider == request.provider }?.verifyCallback(request)
+            ?: ProviderCallbackVerificationResult.Rejected("Payment callback verification is unavailable for this provider.")
+    }
 }

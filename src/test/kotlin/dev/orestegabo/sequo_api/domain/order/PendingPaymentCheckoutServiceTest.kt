@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpStatus
 
+@org.springframework.context.annotation.Import(dev.orestegabo.sequo_api.domain.payment.PaymentWebhookFixtureConfiguration::class)
 @SpringBootTest(
     properties = [
         "sequo.wallets.yas-togo.webhook-secret=yas-secret",

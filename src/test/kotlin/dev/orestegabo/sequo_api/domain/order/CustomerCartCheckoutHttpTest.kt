@@ -38,13 +38,14 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@org.springframework.context.annotation.Import(dev.orestegabo.sequo_api.domain.payment.PaymentWebhookFixtureConfiguration::class)
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
         "spring.datasource.url=jdbc:h2:mem:cart_checkout_http;DB_CLOSE_DELAY=-1",
         "sequo.cart.straight-line-dispatch-origin=0,0",
         "sequo.wallets.yas-togo.webhook-secret=isolated-fixture-webhook-secret",
-        "sequo.wallets.yas-togo.api-base-url=https://fixture.invalid",
+        "sequo.wallets.yas-togo.api-base-url=https://wallet-fixture.sequo.tg",
         "sequo.wallets.yas-togo.api-key=isolated-fixture-key",
         "sequo.wallets.yas-togo.merchant-account-id=isolated-fixture-account",
     ],
