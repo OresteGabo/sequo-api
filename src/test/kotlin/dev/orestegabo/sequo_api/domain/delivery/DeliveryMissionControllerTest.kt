@@ -34,6 +34,8 @@ class DeliveryMissionControllerTest @Autowired constructor(
     private val dispatchService: DeliveryReadinessDispatchService,
     private val pinRepository: DeliveryPinRepository,
     private val orders: CustomerOrderRecordRepository,
+    private val couriers: dev.orestegabo.sequo_api.domain.settlement.SettlementCourierRecordRepository,
+    private val jdbc: org.springframework.jdbc.core.JdbcTemplate,
 ) {
     @Test
     fun courierListAndDetailAreLimitedToAssignedMissions() {
@@ -68,6 +70,8 @@ class DeliveryMissionControllerTest @Autowired constructor(
     fun riderMobileEndpointsClaimAvailableMissionAndCompleteDirectDelivery() {
         val admin = auth("admin-rider-mobile", RoleCode.ADMIN)
         val rider = auth("courier-rider-mobile", RoleCode.COURIER)
+        saveCustomerOrder("order-rider-mobile-direct", "customer-rider-mobile")
+        saveAssignableCourier("courier-rider-mobile")
         val mission = service.create(
             CreateDeliveryMissionCommand(
                 deliveryCode = "RIDER-MOBILE-DIRECT",
@@ -76,6 +80,7 @@ class DeliveryMissionControllerTest @Autowired constructor(
                 destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
             )
         )
+        controller.assign(admin, mission.id, DeliveryMissionController.AssignCourierRequest("courier-rider-mobile"))
         controller.offer(admin, mission.id)
 
         val listBeforeAccept = riderController.list(rider, "courier-rider-mobile")
@@ -249,6 +254,7 @@ class DeliveryMissionControllerTest @Autowired constructor(
 
     @Test
     fun adminCanReassignCancelAndForceProblemBeforePickup() {
+        saveAssignableCourier("courier-dispatch-new")
         val admin = auth("admin-dispatch", RoleCode.ADMIN)
         val oldCourier = auth("courier-dispatch-old", RoleCode.COURIER)
         val mission = createAssignedAndOfferedMission(
@@ -317,6 +323,7 @@ class DeliveryMissionControllerTest @Autowired constructor(
 
     @Test
     fun adminCanResolveProblemMissionAndReadResolutionHistory() {
+        saveAssignableCourier("courier-resolve-problem-new")
         val admin = auth("admin-resolve-problem", RoleCode.ADMIN)
         val mission = createAssignedAndOfferedMission(
             deliveryCode = "CTRL-RESOLVE-PROBLEM",
@@ -355,6 +362,8 @@ class DeliveryMissionControllerTest @Autowired constructor(
 
     @Test
     fun adminCanPauseAndUnpauseCourierAssignments() {
+        saveCustomerOrder("order-pause-courier", "customer-pause-courier")
+        saveAssignableCourier("courier-paused-controller")
         val admin = auth("admin-pause-courier", RoleCode.ADMIN)
         val mission = service.create(
             CreateDeliveryMissionCommand(
@@ -602,6 +611,8 @@ class DeliveryMissionControllerTest @Autowired constructor(
     }
 
     private fun saveCustomerOrder(orderId: String, customerId: String) {
+        if (orders.existsById(orderId)) return
+        saveControllerUser(customerId, RoleCode.CUSTOMER)
         val createdAt = Instant.parse("2026-09-09T09:00:00Z")
         orders.save(
             CustomerOrderRecord(
@@ -633,6 +644,8 @@ class DeliveryMissionControllerTest @Autowired constructor(
         courierId: String,
         admin: Authentication,
     ): DeliveryMissionSnapshot {
+        saveCustomerOrder(orderId, "controller-fixture-customer")
+        saveAssignableCourier(courierId)
         val mission = service.create(
             CreateDeliveryMissionCommand(
                 deliveryCode = deliveryCode,
@@ -644,6 +657,20 @@ class DeliveryMissionControllerTest @Autowired constructor(
         controller.assign(admin, mission.id, DeliveryMissionController.AssignCourierRequest(courierId))
         controller.offer(admin, mission.id)
         return requireNotNull(service.get(mission.id))
+    }
+
+    private fun saveAssignableCourier(id: String) {
+        if (couriers.existsById(id)) return
+        saveControllerUser(id, RoleCode.COURIER)
+        couriers.save(dev.orestegabo.sequo_api.domain.party.CourierRecord(id, userId = id, workforceType = "FREELANCER", vehicleType = "Moto"))
+    }
+
+    private fun saveControllerUser(id: String, role: RoleCode) {
+        if (jdbc.queryForObject("select count(*) from users where id=?", Long::class.java, id) != 0L) return
+        val at = java.sql.Timestamp.from(Instant.now())
+        jdbc.update("insert into users (id,email,display_name,is_active,provider,status,created_at,updated_at,record_version) values (?,?,?,?,?,?,?,?,?)",
+            id, "$id@fixture.invalid", id, true, "EMAIL", "ACTIVE", at, at, 0)
+        jdbc.update("insert into user_roles (user_id,role_code) values (?,?)", id, role.name)
     }
 
     private fun auth(userId: String, role: RoleCode): Authentication =

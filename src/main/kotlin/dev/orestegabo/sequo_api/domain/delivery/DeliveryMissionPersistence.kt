@@ -160,6 +160,7 @@ class DeliveryProblemResolutionRecord(
 }
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
+    fun countByCourierIdAndStatusInAndIdNot(courierId: String, status: Collection<DeliveryMissionRecordStatus>, id: String): Long
     fun countByCourierIdAndStatusIn(courierId: String, status: Collection<DeliveryMissionRecordStatus>): Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from DeliveryMission m where m.id = :id")
@@ -575,6 +576,8 @@ class DeliveryMissionService(
                 if (mission.pickupAt != null || mission.relayDepositedAt != null || mission.deliveredAt != null) {
                     return rejected("mission_already_in_custody", "Picked-up missions cannot be returned to dispatch without a support investigation.")
                 }
+                if (replacementCourierId != null) refreshWorkforce(mission, replacementCourierId)
+                else { mission.assignmentWorkforceType = null; mission.assignmentReason = null }
                 mission.status = DeliveryMissionRecordStatus.CREATED
                 mission.courierId = replacementCourierId
                 mission.assignedAt = replacementCourierId?.let { at }

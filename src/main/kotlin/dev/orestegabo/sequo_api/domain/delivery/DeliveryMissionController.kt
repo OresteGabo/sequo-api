@@ -30,8 +30,10 @@ class DeliveryMissionController(
     private val relayFulfillment: dev.orestegabo.sequo_api.domain.relay.RelayFulfillmentService,
     private val relayAccess: dev.orestegabo.sequo_api.domain.relay.RelayOperatorAccess,
     private val relayParcels: dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository,
+    private val assignments: GuardedDeliveryAssignmentService,
+    private val administrativeAudit: DeliveryAdminAudit,
 ) {
-    data class AssignCourierRequest(val courierId: String)
+    data class AssignCourierRequest(val courierId: String, val reason: String? = null, val idempotencyKey: String? = null)
     data class ProofRequest(val proofMetadata: String? = null, val deliveryPin: String? = null, val idempotencyKey: String? = null, val relayPointId: String? = null, val lockerCode: String? = null)
     data class RelayReleaseRequest(val pickupCodeValidated: Boolean, val identityValidated: Boolean, val proofMetadata: String? = null, val idempotencyKey: String? = null)
     data class ProblemRequest(val reason: String, val idempotencyKey: String? = null)
@@ -41,7 +43,7 @@ class DeliveryMissionController(
         val reason: String,
         val pausedUntil: Instant? = null,
     )
-    data class UnpauseCourierRequest(val courierId: String)
+    data class UnpauseCourierRequest(val courierId: String, val reason: String? = null, val idempotencyKey: String? = null)
     data class ResolveProblemRequest(
         val action: DeliveryProblemResolutionAction,
         val reason: String,
@@ -106,7 +108,7 @@ class DeliveryMissionController(
         authentication: Authentication?,
         @RequestBody request: UnpauseCourierRequest,
     ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
-        ResponseEntity.ok(courierAvailability.unpause(request.courierId, authenticated.name))
+        ResponseEntity.ok(assignments.unpause(request.courierId, authenticated.name, request.reason, request.idempotencyKey))
     }
 
     @GetMapping("/couriers/{courierId}/availability")
@@ -151,8 +153,8 @@ class DeliveryMissionController(
         authentication: Authentication?,
         @PathVariable missionId: String,
         @RequestBody request: AssignCourierRequest,
-    ): ResponseEntity<Any> = adminOnly(authentication) {
-        service.assignCourier(missionId, request.courierId).toResponse()
+    ): ResponseEntity<Any> = adminOnly(authentication) { actor ->
+        assignments.assign(missionId, request.courierId, actor.name, request.reason, request.idempotencyKey).toResponse()
     }
 
     @PostMapping("/{missionId}/reassign")
@@ -160,16 +162,27 @@ class DeliveryMissionController(
         authentication: Authentication?,
         @PathVariable missionId: String,
         @RequestBody request: AssignCourierRequest,
-    ): ResponseEntity<Any> = adminOnly(authentication) {
-        service.reassignCourier(missionId, request.courierId).toResponse()
+    ): ResponseEntity<Any> = adminOnly(authentication) { actor ->
+        assignments.assign(missionId, request.courierId, actor.name, request.reason, request.idempotencyKey, reassign = true).toResponse()
     }
 
     @PostMapping("/{missionId}/offer")
     fun offer(
         authentication: Authentication?,
         @PathVariable missionId: String,
+        @RequestBody(required = false) request: DeliveryAdminReasonRequest? = null,
     ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
-        service.transition(missionId, authenticated.name, DeliveryMissionEvent.OfferToCourier).toResponse()
+        assignments.offer(missionId, authenticated.name, request?.reason, request?.idempotencyKey).toResponse()
+    }
+
+    @GetMapping("/{missionId}/admin-actions")
+    fun administrativeHistory(authentication: Authentication?, @PathVariable missionId: String): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(administrativeAudit.history("DELIVERY_MISSION", missionId))
+    }
+
+    @GetMapping("/couriers/{courierId}/admin-actions")
+    fun courierAdministrativeHistory(authentication: Authentication?, @PathVariable courierId: String): ResponseEntity<Any> = adminOnly(authentication) {
+        ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(administrativeAudit.history("COURIER_AVAILABILITY", courierId))
     }
 
     @PostMapping("/{missionId}/delivery-pin")
@@ -222,12 +235,12 @@ class DeliveryMissionController(
         @PathVariable missionId: String,
         @RequestBody request: ResolveProblemRequest,
     ): ResponseEntity<Any> = adminOnly(authentication) { authenticated ->
-        service.resolveProblem(
+        assignments.resolve(
             missionId = missionId,
-            actorId = authenticated.name,
+            actor = authenticated.name,
             action = request.action,
             reason = request.reason,
-            replacementCourierId = request.replacementCourierId,
+            replacement = request.replacementCourierId,
         ).toResponse()
     }
 

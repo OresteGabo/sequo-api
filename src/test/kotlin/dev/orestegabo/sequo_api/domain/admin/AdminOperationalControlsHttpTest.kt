@@ -212,6 +212,116 @@ class AdminOperationalControlsHttpTest @Autowired constructor(
         assertEquals(404, get("relay-sites/guessed-site/slots").statusCode())
     }
 
+    @Test
+    fun manualDispatchRequiresPaidParentAndRealEligibleCourierAndKeepsLegacyReadable() {
+        val legacy = mission("legacy-manual", "unverified-order")
+        val body = """{"courierId":"actual-courier"}"""
+        val deniedLegacy = missionRequest("${legacy.id}/assign", body)
+        assertEquals(400, deniedLegacy.statusCode(), deniedLegacy.body())
+        assertEquals("order_unverified_for_assignment", tree(deniedLegacy)["code"].asText())
+        assertEquals(200, missionRequest("${legacy.id}", null, method = "GET").statusCode())
+        val valid = mission("paid-manual")
+        jdbc.update("update customer_orders set payment_status='Pending' where id='actual-order'")
+        assertEquals("order_not_paid_active", tree(missionRequest("${valid.id}/assign", body))["code"].asText())
+        assertEquals(400, missionRequest("${valid.id}/offer", null).statusCode())
+        jdbc.update("update customer_orders set payment_status='Validated' where id='actual-order'")
+        assertEquals("courier_assignment_required", tree(missionRequest("${valid.id}/offer", null))["code"].asText())
+        assertEquals("courier_not_found", tree(missionRequest("${valid.id}/assign", """{"courierId":"guessed-courier"}"""))["code"].asText())
+        jdbc.update("update users set is_active=false where id=?", rider.id)
+        assertEquals("courier_unavailable", tree(missionRequest("${valid.id}/assign", body))["code"].asText())
+        jdbc.update("update users set is_active=true where id=?", rider.id)
+        jdbc.update("update couriers set vehicle_type='UNKNOWN' where id='actual-courier'")
+        assertEquals("courier_vehicle_unknown", tree(missionRequest("${valid.id}/assign", body))["code"].asText())
+        jdbc.update("update couriers set vehicle_type='Moto' where id='actual-courier'")
+        assertEquals(403, missionRequest("${valid.id}/assign", body, token(customer)).statusCode())
+        assertEquals(200, missionRequest("${valid.id}/assign", body).statusCode())
+    }
+
+    @Test
+    fun assignmentReplayDoesNotApplyNewWorkforceOrResetAcceptedTimestamp() {
+        val mission = mission("manual-replay")
+        val body = """{"courierId":"actual-courier","reason":"Reviewed courier assignment","idempotencyKey":"reviewed-manual-assignment"}"""
+        val first = missionRequest("${mission.id}/assign", body)
+        assertEquals(200, first.statusCode(), first.body())
+        val assignedAt = tree(first)["assignedAt"].asText()
+        jdbc.update("update couriers set workforce_type='SEQUO_SALARIED' where id='actual-courier'")
+        jdbc.update("update delivery_missions set status='ACCEPTED_BY_COURIER',accepted_at=? where id=?", java.sql.Timestamp.from(at), mission.id)
+        val repeat = missionRequest("${mission.id}/assign", body)
+        assertEquals(200, repeat.statusCode(), repeat.body())
+        assertEquals(assignedAt, tree(repeat)["assignedAt"].asText())
+        assertEquals("Freelancer", tree(repeat)["assignmentWorkforceType"].asText())
+        assertEquals(400, tree(repeat)["courierFeeCfa"].asInt())
+        assertEquals(at, missions.findById(mission.id!!).orElseThrow().acceptedAt)
+        // A different action cannot reuse the same key, even when the courier ID matches.
+        assertEquals(409, missionRequest("${mission.id}/reassign", body).statusCode())
+        assertEquals(at, missions.findById(mission.id!!).orElseThrow().acceptedAt)
+        val history = tree(missionRequest("${mission.id}/admin-actions", null, method = "GET"))
+        assertEquals(1, history.size())
+        assertEquals(admin.id, history[0]["actorUserId"].asText())
+        assertEquals("Reviewed courier assignment", history[0]["reason"].asText())
+        assertEquals(409, missionRequest("${mission.id}/assign", body.replace("Reviewed courier assignment", "Changed reason")).statusCode())
+        assertEquals(409, missionRequest("${mission.id}/assign", body, token(secondAdmin)).statusCode())
+    }
+
+    @Test
+    fun unpauseCapturesRealActorReasonAndOneCanonicalRetryWithoutInventingLegacyReasons() {
+        assertEquals(200, missionRequest("couriers/pause", """{"courierId":"actual-courier","reason":"Review availability"}""").statusCode())
+        val payload = """{"courierId":"actual-courier","reason":"Availability reviewed","idempotencyKey":"reviewed-unpause"}"""
+        val response = missionRequest("couriers/unpause", payload)
+        assertEquals(200, response.statusCode(), response.body())
+        val replay = missionRequest("couriers/unpause", payload)
+        assertEquals(200, replay.statusCode())
+        assertEquals(tree(response)["updatedAt"], tree(replay)["updatedAt"])
+        val history = tree(missionRequest("couriers/actual-courier/admin-actions", null, method = "GET"))
+        assertEquals(1, history.size())
+        assertEquals(admin.id, history[0]["actorUserId"].asText())
+        assertEquals("Availability reviewed", history[0]["reason"].asText())
+        assertEquals(403, missionRequest("couriers/actual-courier/admin-actions", null, token(customer), method = "GET").statusCode())
+        assertEquals(409, missionRequest("couriers/unpause", payload.replace("Availability reviewed", "Other reason")).statusCode())
+    }
+
+    @Test
+    fun replacementResolutionUsesTheNewCouriersWorkforceAndCannotUseBusyCourier() {
+        val other = users.save(User(email = "replacement@fixture.invalid", roles = mutableSetOf(RoleCode.COURIER)))
+        couriers.save(CourierRecord("replacement-courier", userId = other.id, workforceType = "SEQUO_SALARIED", vehicleType = "Moto"))
+        val original = mission("manual-resolution")
+        assertEquals(200, missionRequest("${original.id}/assign", """{"courierId":"actual-courier"}""").statusCode())
+        assertEquals(200, missionRequest("${original.id}/offer", null).statusCode())
+        assertEquals(200, missionRequest("${original.id}/force-problem", """{"reason":"Reassign before collection"}""").statusCode())
+        val replacement = missionRequest("${original.id}/resolve-problem", """{"action":"REQUEUE_FOR_DISPATCH","reason":"Use replacement","replacementCourierId":"replacement-courier"}""")
+        assertEquals(200, replacement.statusCode(), replacement.body())
+        assertEquals("SequoSalaried", tree(replacement)["assignmentWorkforceType"].asText())
+        assertEquals(0, tree(replacement)["courierFeeCfa"].asInt())
+        assertEquals(0, tree(replacement)["shortfallCfa"].asInt())
+        val second = mission("manual-busy")
+        assertEquals("courier_capacity_exhausted", tree(missionRequest("${second.id}/assign", """{"courierId":"replacement-courier"}"""))["code"].asText())
+    }
+
+    @Test
+    fun manualAndPolicyAssignmentsCannotBothConsumeTheSameLastCapacity() {
+        val first = mission("manual-concurrent")
+        val second = mission("policy-concurrent")
+        val pool = Executors.newFixedThreadPool(2)
+        val start = CountDownLatch(1)
+        try {
+            val a = pool.submit(Callable { start.await(); missionRequest("${first.id}/assign", """{"courierId":"actual-courier"}""").statusCode() })
+            val b = pool.submit(Callable { start.await(); missionRequest("${second.id}/assign-policy", null).statusCode() })
+            start.countDown()
+            assertEquals(1, listOf(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS)).count { it == 200 })
+            assertEquals(1, listOf(first.id, second.id).count { missions.findById(it!!).orElseThrow().courierId == "actual-courier" })
+        } finally { pool.shutdownNow() }
+    }
+
+    private fun mission(code: String, orderId: String = "actual-order") = missions.save(DeliveryMission(deliveryCode = code,
+        orderId = orderId, deliveryMode = DeliveryMissionRecordMode.STANDARD, destinationType = DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
+        customerDeliveryFeeCfa = 320, courierFeeCfa = 400, shortfallCfa = 80, freelancerFeeEstimateCfa = 400))
+
+    private fun missionRequest(path: String, body: String?, bearer: String = token(), method: String = "POST"): HttpResponse<String> {
+        val request = HttpRequest.newBuilder(URI("http://localhost:$port/api/delivery/missions/$path")).header("Authorization", "Bearer $bearer")
+        body?.let { request.header("Content-Type", "application/json") }
+        return client.send(request.method(method, body?.let(HttpRequest.BodyPublishers::ofString) ?: HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString())
+    }
+
     private fun seedOrder() {
         val payload = """{"checkoutId":"actual-checkout","customerId":"${customer.id}","serviceLevel":"Regular","route":"FastDelivery","lines":[{"productId":"snapshot-product","sellerId":"snapshot-seller","sellerName":"Original seller","productName":"Original product","category":"GeneralGoods","quantity":2,"unitPriceCfa":1500,"photoEvidenceType":"GENERIC_CATALOG_IMAGE","selections":[{"groupId":"size","optionIds":["large"]}],"optionLabel":"Size: large"}],"deliveryDistanceKm":4,"referralCreditCfa":0,"paymentProvider":"yas_togo","paymentReference":"private-payment-reference","countryCode":"TG","homeDestination":{"addressId":"snapshot-address","label":"Home","recipientName":"customer","phoneNumber":"000000000","city":"Fixture city","latitude":6.1,"longitude":1.2},"raw":"raw-secret-payload"}"""
         checkouts.save(PendingPaymentCheckoutRecord("actual-checkout", customer.id!!, paymentProvider = "yas_togo", paymentReference = "private-payment-reference",

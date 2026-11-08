@@ -9,33 +9,23 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.web.bind.annotation.*
 
 @Service
 class PersistedDeliveryAssignmentService(private val missions: DeliveryMissionRepository,
-    private val couriers: SettlementCourierRecordRepository, private val availability: CourierAvailabilityService,
-    private val delivery: DeliveryMissionService, private val orders: CustomerOrderRecordRepository) {
-    @Transactional
+    private val couriers: SettlementCourierRecordRepository,
+    private val delivery: DeliveryMissionService, private val orders: CustomerOrderRecordRepository,
+    private val eligibility: CourierDispatchEligibility) {
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     fun assign(missionId: String): DeliveryMissionServiceResult {
         val mission = requireNotNull(missions.lockForAction(missionId)) { "Mission is unavailable." }
         if (mission.courierId != null) return DeliveryMissionServiceResult.Success(mission.toSnapshot(), "Existing assignment retained.")
         require(mission.status == DeliveryMissionRecordStatus.CREATED) { "Only an unassigned new mission can be assigned by policy." }
         val order = requireNotNull(orders.findById(mission.orderId).orElse(null)) { "Order is unavailable." }
         require(order.paymentStatus == PaymentValidationStatus.Validated && order.orderStatus == CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT) { "Order is not paid and active." }
-        val busy = setOf(DeliveryMissionRecordStatus.CREATED, DeliveryMissionRecordStatus.OFFERED_TO_COURIER,
-            DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER, DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER, DeliveryMissionRecordStatus.PROBLEM_REPORTED)
         // Lock the authoritative candidates in a stable order; two missions cannot consume the same last capacity.
-        val candidates = couriers.lockActiveForDispatch().mapNotNull { courier ->
-            if (courier.user?.let { it.active && RoleCode.COURIER in it.roles } != true || availability.isPaused(courier.id) ||
-                missions.countByCourierIdAndStatusIn(courier.id, busy) != 0L) return@mapNotNull null
-            val workforce = when (courier.workforceType?.uppercase()) {
-                "SEQUO_SALARIED", "SEQUOSALARIED", "SALARIED" -> DeliveryWorkforceType.SequoSalaried
-                "FREELANCER", "INDEPENDENT" -> DeliveryWorkforceType.Freelancer
-                else -> return@mapNotNull null
-            }
-            val vehicle = DeliveryVehicleType.entries.firstOrNull { it.name.equals(courier.vehicleType, true) } ?: return@mapNotNull null
-            AvailableCourier(courier.id, workforce, vehicle, 1)
-        }
+        val candidates = couriers.lockActiveForDispatch().mapNotNull { eligibility.candidate(it, missionId) }
         val result = DeliveryAssignmentPolicy().assign(DeliveryAssignmentRequest(
             channel = when (mission.deliveryMode) {
                 DeliveryMissionRecordMode.EXPRESS -> DeliveryAssignmentChannel.Express
@@ -54,12 +44,13 @@ class PersistedDeliveryAssignmentService(private val missions: DeliveryMissionRe
 }
 
 @RestController
-class PersistedDeliveryAssignmentController(private val service: PersistedDeliveryAssignmentService) {
+class PersistedDeliveryAssignmentController(private val service: GuardedDeliveryAssignmentService) {
     @PostMapping("/api/delivery/missions/{missionId}/assign-policy")
-    fun assign(authentication: Authentication?, @PathVariable missionId: String): ResponseEntity<Any> =
+    fun assign(authentication: Authentication?, @PathVariable missionId: String,
+        @RequestBody(required = false) request: DeliveryAdminReasonRequest? = null): ResponseEntity<Any> =
         if (authentication == null) ResponseEntity.status(401).build()
         else if (!authentication.hasAnyRole(RoleGroups.AdminOnly)) ResponseEntity.status(403).build()
-        else when (val result = service.assign(missionId)) {
+        else when (val result = service.assignPolicy(missionId, authentication.name, request?.reason, request?.idempotencyKey)) {
             is DeliveryMissionServiceResult.Success -> ResponseEntity.ok(result.mission)
             is DeliveryMissionServiceResult.Rejected -> ResponseEntity.status(409).body(result)
         }

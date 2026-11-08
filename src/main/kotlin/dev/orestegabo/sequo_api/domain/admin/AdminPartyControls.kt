@@ -235,7 +235,7 @@ class AdminPartyControlController(private val service: AdminPartyControlService)
 
 class AdminPartyConflict(val code: String, override val message: String) : RuntimeException(message)
 
-@RestControllerAdvice(assignableTypes = [AdminPartyControlController::class])
+@RestControllerAdvice(assignableTypes = [AdminPartyControlController::class, DeliveryMissionController::class, PersistedDeliveryAssignmentController::class])
 class AdminPartyControlErrors {
     @ExceptionHandler(AdminPartyConflict::class)
     fun conflict(error: AdminPartyConflict): ResponseEntity<dev.orestegabo.sequo_api.api.ApiErrorResponse> =
