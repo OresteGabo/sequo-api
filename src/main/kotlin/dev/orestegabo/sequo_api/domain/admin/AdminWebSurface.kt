@@ -388,6 +388,7 @@ class AdminWebReadService(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val merchantPayouts: MerchantPayoutAccrualRecordRepository,
     private val commissionOverrides: MerchantCommissionOverrideRepository,
+    private val effectiveCommissions: dev.orestegabo.sequo_api.domain.commission.MerchantCommissionConfigurationService,
     private val pricing: DeliveryPricingService,
     private val parameterInventory: AdminBusinessParameterInventory,
     private val relayParcels: RelayParcelRecordRepository,
@@ -433,7 +434,9 @@ class AdminWebReadService(
 
     @Transactional(readOnly = true)
     override fun merchants(limit: Int): List<AdminMerchantDto> =
-        merchants.findAll(page(limit)).content.map(MerchantRecord::toAdminDto)
+        merchants.findAll(page(limit)).content.map { merchant ->
+            merchant.toAdminDto().copy(commissionRateBps = effectiveCommissions.resolveRateBps(merchant.id))
+        }
 
     @Transactional(readOnly = true)
     override fun orders(limit: Int): List<AdminOrderDto> =

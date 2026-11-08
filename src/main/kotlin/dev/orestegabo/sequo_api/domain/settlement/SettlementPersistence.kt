@@ -194,41 +194,91 @@ class SettlementPersistenceService(
 
     @Transactional(readOnly = true)
     fun riderPayoutSummary(userId: String): RiderPayoutSummaryResponse {
-        require(userId.isNotBlank()) { "userId is required." }
         val context = riderPayoutContext(userId)
-        val records = ledger.findByCourierIdOrderByCreatedAtDesc(context.courierId)
-        val entries = records.map { it.toDomain().toRiderPayoutHistoryItem(context) }
+        val rows = ledger.findByCourierIdOrderByCreatedAtDesc(context.courierId).map { it.toDomain() }
+        val classified = classifyRiderEntries(context, rows)
+        fun signed(entry: SettlementLedgerEntry): Long = entry.amountCfa.toLong() * if (entry.direction == SettlementLedgerDirection.Credit) 1 else -1
+        fun total(kind: RiderLedgerKind): Long = classified.filter { it.second == kind }.sumOf { signed(it.first) }
+        fun money(value: Long): Int {
+            require(value <= Int.MAX_VALUE) { "Recorded payout balance requires financial review." }
+            return value.coerceAtLeast(0).toInt()
+        }
+        val earned = total(RiderLedgerKind.EARNING)
+        val held = (-total(RiderLedgerKind.HOLD)).coerceAtLeast(0)
+        val unverified = (-total(RiderLedgerKind.TRANSFER)).coerceAtLeast(0)
         return RiderPayoutSummaryResponse(
-            riderId = context.courierId,
-            workforceType = context.workforceType,
-            payable = context.payable,
-            availableBalanceCfa = entries.filter { it.status == RiderPayoutEntryStatus.AVAILABLE }.sumOf { it.payableAmountCfa },
-            onHoldCfa = entries.filter { it.status == RiderPayoutEntryStatus.ON_HOLD }.sumOf { it.payableAmountCfa },
-            paidOrProcessingCfa = entries.filter { it.status == RiderPayoutEntryStatus.PAID || it.status == RiderPayoutEntryStatus.PROCESSING }.sumOf { it.payableAmountCfa },
-            historyCount = entries.size,
-            message = if (context.payable) {
-                "Freelancer payout visibility is available."
-            } else {
-                "Internal salaried couriers do not receive per-order freelancer payouts."
-            },
+            riderId = context.courierId, workforceType = context.workforceType, payable = context.payable,
+            availableBalanceCfa = money(earned - held - unverified), onHoldCfa = money(held),
+            paidOrProcessingCfa = 0, historyCount = rows.size,
+            message = "Recorded accruals only; provider transfers are not integrated. Salaried missions do not accrue independent pay. Historical freelance liabilities remain recorded.",
+            earnedTotalCfa = money(earned),
+            settledMissionCount = classified.filter { it.second == RiderLedgerKind.EARNING && it.first.account == SettlementLedgerAccount.CourierPayable &&
+                it.first.sourceType == SettlementSourceType.DeliveryMission && it.first.direction == SettlementLedgerDirection.Credit }.map { it.first.sourceId }.distinct().size,
+            unverifiedTransferCfa = money(unverified),
+            reviewRequiredCfa = money(classified.filter { it.second == RiderLedgerKind.REVIEW }.sumOf { it.first.amountCfa.toLong() }),
         )
     }
 
     @Transactional(readOnly = true)
     fun riderPayoutHistory(userId: String): List<RiderPayoutHistoryItemResponse> {
-        require(userId.isNotBlank()) { "userId is required." }
         val context = riderPayoutContext(userId)
-        return ledger.findByCourierIdOrderByCreatedAtDesc(context.courierId)
-            .map { it.toDomain().toRiderPayoutHistoryItem(context) }
+        val rows = ledger.findByCourierIdOrderByCreatedAtDesc(context.courierId).map { it.toDomain() }
+        return classifyRiderEntries(context, rows).map { (entry, kind) ->
+            val status = when (kind) {
+                RiderLedgerKind.EARNING -> if (entry.account == SettlementLedgerAccount.Adjustment || entry.direction == SettlementLedgerDirection.Debit) RiderPayoutEntryStatus.CORRECTED else RiderPayoutEntryStatus.AVAILABLE
+                RiderLedgerKind.HOLD -> RiderPayoutEntryStatus.ON_HOLD
+                RiderLedgerKind.TRANSFER, RiderLedgerKind.REVIEW -> RiderPayoutEntryStatus.REVIEW_REQUIRED
+                RiderLedgerKind.OTHER -> RiderPayoutEntryStatus.NOT_APPLICABLE
+            }
+            RiderPayoutHistoryItemResponse(entry.id, entry.sourceId, entry.account, entry.direction, entry.amountCfa,
+                if (kind in setOf(RiderLedgerKind.EARNING, RiderLedgerKind.HOLD)) entry.amountCfa else 0,
+                status, kind == RiderLedgerKind.EARNING && entry.direction == SettlementLedgerDirection.Credit, entry.description, entry.createdAt, entry.workforceType)
+        }
+    }
+
+    private fun classifyRiderEntries(context: RiderPayoutContext, rows: List<SettlementLedgerEntry>): List<Pair<SettlementLedgerEntry, RiderLedgerKind>> {
+        val byId = rows.associateBy { it.id }
+        fun historicalFreelance(entry: SettlementLedgerEntry): Boolean = entry.workforceType == dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType.Freelancer ||
+            (entry.workforceType == null && (context.payable || rows.any { it.sourceType == entry.sourceType && it.sourceId == entry.sourceId &&
+                it.account == SettlementLedgerAccount.CourierPayable && it.workforceType == dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType.Freelancer }))
+        fun original(entry: SettlementLedgerEntry): SettlementLedgerEntry? {
+            var current = entry
+            val seen = mutableSetOf<String>()
+            while (current.account == SettlementLedgerAccount.Adjustment) {
+                if (!seen.add(current.id) || seen.size > 32) return null
+                current = byId[current.sourceId] ?: ledger.findById(current.sourceId).orElse(null)?.toDomain() ?: return null
+                if (current.courierId != context.courierId) return null
+            }
+            return current
+        }
+        return rows.map { entry ->
+            val kind = when {
+                entry.sourceType == SettlementSourceType.Payout && entry.account == SettlementLedgerAccount.CourierPayable -> RiderLedgerKind.TRANSFER
+                entry.account == SettlementLedgerAccount.CourierPayable -> when {
+                    historicalFreelance(entry) -> RiderLedgerKind.EARNING
+                    entry.workforceType == dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType.SequoSalaried -> RiderLedgerKind.OTHER
+                    else -> RiderLedgerKind.REVIEW
+                }
+                entry.account == SettlementLedgerAccount.Hold -> if (historicalFreelance(entry)) RiderLedgerKind.HOLD else RiderLedgerKind.REVIEW
+                entry.account == SettlementLedgerAccount.Adjustment -> original(entry)?.let { source ->
+                    if (source.account != SettlementLedgerAccount.CourierPayable) RiderLedgerKind.OTHER
+                    else if (source.sourceType == SettlementSourceType.Payout) RiderLedgerKind.TRANSFER
+                    else if (historicalFreelance(source)) RiderLedgerKind.EARNING else RiderLedgerKind.REVIEW
+                } ?: RiderLedgerKind.REVIEW
+                else -> RiderLedgerKind.OTHER
+            }
+            entry to kind
+        }
     }
 
     private fun riderPayoutContext(userId: String): RiderPayoutContext {
-        val courier = couriers.findByUserId(userId) ?: couriers.findById(userId).orElse(null)
-        val courierId = courier?.id ?: userId
-        val workforceType = courier?.workforceType?.takeIf { it.isNotBlank() } ?: "UNKNOWN"
-        val payable = workforceType.equals("FREELANCER", ignoreCase = true)
-        return RiderPayoutContext(courierId, workforceType, payable)
+        require(userId.isNotBlank()) { "userId is required." }
+        val courier = couriers.findByUserId(userId) ?: throw org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "A linked rider account is required for payout reads.")
+        return RiderPayoutContext(courier.id, courier.workforceType?.takeIf { it.isNotBlank() } ?: "UNKNOWN",
+            courierWorkforce(courier.workforceType) == dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType.Freelancer)
     }
+
 }
 
 data class RiderPayoutSummaryResponse(
@@ -240,6 +290,13 @@ data class RiderPayoutSummaryResponse(
     val paidOrProcessingCfa: Int,
     val historyCount: Int,
     val message: String,
+    val earnedTotalCfa: Int = 0,
+    val settledMissionCount: Int = 0,
+    val paidCfa: Int = 0,
+    val processingCfa: Int = 0,
+    val transferStatus: String = "NOT_INTEGRATED",
+    val unverifiedTransferCfa: Int = 0,
+    val reviewRequiredCfa: Int = 0,
 )
 
 enum class RiderPayoutEntryStatus {
@@ -249,6 +306,7 @@ enum class RiderPayoutEntryStatus {
     PROCESSING,
     PAID,
     CORRECTED,
+    REVIEW_REQUIRED,
 }
 
 data class RiderPayoutHistoryItemResponse(
@@ -262,6 +320,7 @@ data class RiderPayoutHistoryItemResponse(
     val payableToRider: Boolean,
     val description: String,
     val createdAt: Instant,
+    val workforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
 )
 
 private data class RiderPayoutContext(
@@ -270,42 +329,7 @@ private data class RiderPayoutContext(
     val payable: Boolean,
 )
 
-private fun SettlementLedgerEntry.toRiderPayoutHistoryItem(context: RiderPayoutContext): RiderPayoutHistoryItemResponse {
-    val status = riderPayoutStatus(context.payable)
-    val payableAmount = if (
-        context.payable &&
-        account == SettlementLedgerAccount.CourierPayable &&
-        direction == SettlementLedgerDirection.Credit &&
-        status == RiderPayoutEntryStatus.AVAILABLE
-    ) amountCfa else 0
-    return RiderPayoutHistoryItemResponse(
-        id = id,
-        missionId = sourceId,
-        account = account,
-        direction = direction,
-        amountCfa = amountCfa,
-        payableAmountCfa = payableAmount,
-        status = status,
-        payableToRider = payableAmount > 0,
-        description = description,
-        createdAt = createdAt,
-    )
-}
-
-private fun SettlementLedgerEntry.riderPayoutStatus(payableRider: Boolean): RiderPayoutEntryStatus {
-    if (!payableRider) return RiderPayoutEntryStatus.NOT_APPLICABLE
-    return when {
-        account == SettlementLedgerAccount.CourierPayable && direction == SettlementLedgerDirection.Credit ->
-            RiderPayoutEntryStatus.AVAILABLE
-        account == SettlementLedgerAccount.Hold ->
-            RiderPayoutEntryStatus.ON_HOLD
-        account == SettlementLedgerAccount.Adjustment ->
-            RiderPayoutEntryStatus.CORRECTED
-        sourceType == SettlementSourceType.Payout && direction == SettlementLedgerDirection.Debit ->
-            RiderPayoutEntryStatus.PAID
-        else -> RiderPayoutEntryStatus.NOT_APPLICABLE
-    }
-}
+private enum class RiderLedgerKind { EARNING, HOLD, TRANSFER, REVIEW, OTHER }
 
 private fun MerchantPayoutAccrual.toRecord() = MerchantPayoutAccrualRecord(
     id = id,

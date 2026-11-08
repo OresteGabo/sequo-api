@@ -94,6 +94,7 @@ data class SettlementLedgerEntryResponse(
     val sourceId: String,
     val description: String,
     val createdAt: Instant,
+    val workforceType: dev.orestegabo.sequo_api.domain.delivery.DeliveryWorkforceType? = null,
 )
 
 private fun MerchantPayoutAccrual.toResponse() = MerchantPayoutResponse(
@@ -126,4 +127,5 @@ private fun SettlementLedgerEntry.toResponse() = SettlementLedgerEntryResponse(
     sourceId = sourceId,
     description = description,
     createdAt = createdAt,
+    workforceType = workforceType,
 )

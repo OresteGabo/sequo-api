@@ -19,7 +19,7 @@ class RiderPayoutController(
         authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
     ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderUserId ->
-        ResponseEntity.ok(service.riderPayoutSummary(riderUserId))
+        ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(service.riderPayoutSummary(riderUserId))
     }
 
     @GetMapping("/history")
@@ -27,7 +27,7 @@ class RiderPayoutController(
         authentication: Authentication?,
         @AuthenticationPrincipal userId: String?,
     ): ResponseEntity<Any> = riderOnly(authentication, userId) { riderUserId ->
-        ResponseEntity.ok(service.riderPayoutHistory(riderUserId))
+        ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(service.riderPayoutHistory(riderUserId))
     }
 
     private fun riderOnly(
