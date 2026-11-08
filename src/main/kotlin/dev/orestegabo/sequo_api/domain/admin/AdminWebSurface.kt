@@ -10,6 +10,15 @@ import dev.orestegabo.sequo_api.domain.auth.hasAnyRole
 import dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository
 import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionOverrideRecord
 import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionOverrideRepository
+import dev.orestegabo.sequo_api.domain.commission.MerchantCommissionPolicy
+import dev.orestegabo.sequo_api.domain.platform.SubscriptionPlanRepository
+import dev.orestegabo.sequo_api.domain.relay.RelayParcelCategory
+import dev.orestegabo.sequo_api.domain.relay.RelayParcelPolicy
+import dev.orestegabo.sequo_api.domain.relay.RelayParcelPolicyConfig
+import dev.orestegabo.sequo_api.domain.returns.CustomerReturnPolicy
+import dev.orestegabo.sequo_api.domain.subscription.ReferralAwardPolicy
+import org.springframework.core.env.Environment
+import java.time.Duration
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMission
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordDestination
 import dev.orestegabo.sequo_api.domain.delivery.DeliveryMissionRecordMode
@@ -29,7 +38,6 @@ import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookEventRepository
 import dev.orestegabo.sequo_api.domain.payment.PaymentWebhookProviderStatus
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingService
 import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingSettingsRecord
-import dev.orestegabo.sequo_api.domain.pricing.DeliveryPricingSettingsRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecord
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelRecordRepository
 import dev.orestegabo.sequo_api.domain.relay.RelayParcelStatus
@@ -248,7 +256,128 @@ data class AdminBusinessParametersDto(
     val relayStorageFeeAssessmentCount: Long,
     val relayExcludedProductPolicySource: String,
     val returnWindowPolicySource: String,
+    val generatedAt: Instant = Instant.now(),
+    val parameters: List<AdminBusinessParameterDto> = emptyList(),
 )
+
+enum class AdminParameterState { CONTRACT_DEFAULT, CONFIGURED, PENDING_APPROVAL, PENDING_DECISION, PREPARED_ONLY }
+
+data class AdminBusinessParameterDto(
+    val reference: Int,
+    val key: String,
+    val label: String,
+    val state: AdminParameterState,
+    val effectiveValues: Map<String, String>,
+    val source: String,
+    val changeAuthority: String,
+    val changeProcedure: String,
+    val verification: String,
+    val pendingDecision: String? = null,
+)
+
+/** Named, non-secret reads only: this is an inventory of live policy, not an environment dump. */
+@Service
+class AdminBusinessParameterInventory(
+    private val plans: SubscriptionPlanRepository,
+    private val referralPolicy: ReferralAwardPolicy,
+    private val returnPolicy: CustomerReturnPolicy,
+    private val relayPolicy: RelayParcelPolicy,
+    private val environment: Environment,
+) {
+    fun parameters(pricing: AdminDeliveryPricingSettingsDto, overrideCount: Long): List<AdminBusinessParameterDto> {
+        val commission = MerchantCommissionPolicy()
+        val customerAttempts = environment.getProperty("sequo.bargaining.max-customer-attempts", Int::class.java, 3)
+        val merchantAttempts = environment.getProperty("sequo.bargaining.max-merchant-attempts", Int::class.java, 3)
+        val lockHours = environment.getProperty("sequo.bargaining.accepted-price-lock-hours", Long::class.java, 24L)
+        val feeAfter = Duration.between(Instant.EPOCH, relayPolicy.storageFeeStartsAt(Instant.EPOCH))
+        val reviewAfter = environment.getProperty("sequo.relay.review-after")?.takeIf { it.isNotBlank() }?.let(Duration::parse)
+            ?: RelayParcelPolicyConfig().returnToSellerReviewAfter
+        val configuredPlans = plans.findAll().sortedBy { it.id }
+        val approvedPlans = configuredPlans.filter { it.active && !it.approvalReference.isNullOrBlank() }
+        val unapprovedPlans = configuredPlans.count { it.active && it.approvalReference.isNullOrBlank() }
+        val subscriptionValues = linkedMapOf(
+            "Approved active plans" to approvedPlans.size.toString(),
+            "Active plans awaiting approval" to unapprovedPlans.toString(),
+            "Customer eligibility" to "Verified paid activation, active approved plan and current subscription period; legacy ACTIVE alone grants no discount.",
+        )
+        configuredPlans.forEach { plan ->
+            val state = when { !plan.active -> "INACTIVE"; plan.approvalReference.isNullOrBlank() -> "PENDING_APPROVAL"; else -> "APPROVED_ACTIVE" }
+            subscriptionValues["Plan ${plan.id}"] = "$state; configured discount ${plan.deliveryDiscountPercent}%; monthly price ${plan.monthlyPriceCfa} CFA; monthly discount cap ${plan.monthlyDiscountCapCfa?.let { "$it CFA" } ?: "none"}; loyalty ${plan.loyaltyDiscountPercent}% after ${plan.loyaltyMonthsThreshold} months (verified continuous paid tenure required; startedAt alone is insufficient)."
+        }
+        if (configuredPlans.isEmpty()) subscriptionValues["Plan configuration"] = "No plans configured; no subscription discount applies."
+        val deployment = "SEQUO policy owner approves; authorized deployment operator applies the server configuration."
+        val pricingSource = "DeliveryPricingService.effectiveRecord(): active delivery_pricing_settings effective at server time; otherwise DeliveryPricingService.DefaultSettings."
+        val pricingChange = "SEQUO authorizes a controlled delivery_pricing_settings change (profile, minimum_delivery_fee_cfa, extra_km_fee_cfa, included_km, effective_from, active). Future profiles do not apply early. Refresh the effective read and verify quotes before rollout."
+        return listOf(
+            AdminBusinessParameterDto(131, "minimum-delivery-price", "Minimum delivery price",
+                if (pricing.minimumDeliveryFeeCfa == 400 && pricing.includedKm == 5) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
+                linkedMapOf("Minimum delivery charge" to "${pricing.minimumDeliveryFeeCfa} CFA", "Included distance" to "${pricing.includedKm} km", "Active profile" to pricing.profile,
+                    "Effective from" to (pricing.effectiveFrom?.toString() ?: "Built-in fallback")), pricingSource, deployment, pricingChange,
+                "GET /api/admin/web/delivery-pricing and authenticated /api/cart/quote; test below, at and above the included distance."),
+            AdminBusinessParameterDto(132, "extra-kilometer-price", "Price per additional kilometer",
+                if (pricing.extraKmFeeCfa == 100 && pricing.includedKm == 5) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
+                linkedMapOf("Additional kilometer charge" to "${pricing.extraKmFeeCfa} CFA", "Rounding" to "Distance rounds up to the next whole kilometer; extra charge starts above ${pricing.includedKm} km."),
+                pricingSource, deployment, pricingChange, "Compare authoritative quotes immediately below, at and above the distance boundary; client totals and distance are not policy inputs."),
+            AdminBusinessParameterDto(133, "merchant-commissions", "Merchant commission percentages", AdminParameterState.CONFIGURED,
+                linkedMapOf("Runtime default" to "${commission.defaultRateBps} basis points", "Allowed range" to "${commission.minRateBps}–${commission.maxRateBps} basis points", "Persisted overrides" to overrideCount.toString(), "Precedence" to "Merchant override, otherwise MerchantCommissionPolicy default; order snapshots retain their agreed rate."),
+                "MerchantCommissionConfigurationService.resolveRateBps; merchant_commission_overrides; MerchantCommissionPolicy.",
+                "SEQUO ADMIN or SUPER_ADMIN for merchant overrides; reviewed deployment for the default/range.",
+                "PUT /api/commissions/merchant-overrides/{merchantId} with commissionRateBps and reason; DELETE restores the runtime default. Change the global policy only through an approved deployment.",
+                "GET /api/commissions/merchant-overrides/{merchantId}; verify a new merchant sub-order snapshot and preserve existing order history."),
+            AdminBusinessParameterDto(134, "subscriber-discounts", "Subscriber discount rates",
+                if (approvedPlans.isNotEmpty()) AdminParameterState.CONFIGURED else if (configuredPlans.isEmpty()) AdminParameterState.PREPARED_ONLY else AdminParameterState.PENDING_APPROVAL,
+                subscriptionValues, "subscription_plans approval/active/rate/cap/loyalty fields and DeliveryBenefitsService; paid customer activation is independently verified.", deployment,
+                "SEQUO approves the complete plan; authorized operations updates the persisted plan and approval reference. Activate a customer only after verified payment evidence. Zero loyalty rate or threshold disables loyalty. Loyalty requires an approved written rule and verified continuous paid tenure; startedAt alone does not enable it.",
+                "GET /api/subscriptions/plans, authenticated /api/subscriptions/benefits and /api/cart/quote; verify unpaid/unapproved records give no benefit, then cap and paid-checkout consumption.",
+                if (unapprovedPlans > 0 || configuredPlans.isEmpty()) "No plan or legacy seed is approved merely because it is active. Obtain SEQUO written approval for pending rates/caps/loyalty before activation." else null),
+            AdminBusinessParameterDto(135, "referral-credits", "Referral credits",
+                if (referralPolicy.enabled) AdminParameterState.CONFIGURED else AdminParameterState.PENDING_APPROVAL,
+                linkedMapOf("Configured new award" to "${referralPolicy.creditCfa} CFA", "New award policy enabled" to referralPolicy.enabled.toString(),
+                    "Effective new award" to "${if (referralPolicy.enabled) referralPolicy.creditCfa else 0} CFA", "Award expiry" to if (referralPolicy.expiryDays == 0L) "No policy expiry configured" else "${referralPolicy.expiryDays} days",
+                    "Existing credits" to "Persisted amount, approval, beneficiary, remaining balance and expiry apply; RESERVED or unapproved credits cannot reduce delivery fees.",
+                    "Usage" to "Delivery fee only; reserve at checkout and consume once after verified payment."),
+                "ReferralAwardPolicy; referral_delivery_credits; DeliveryBenefitsService and persisted delivery_benefit_applications.", deployment,
+                "Set sequo.referrals.credit-cfa, approval-reference and expiry-days only after SEQUO approval. Issued RESERVED credits require operator-verified approval before becoming usable; no automatic cash transfer is implied.",
+                "Refresh this inventory and authenticated delivery benefits/quote; verify pending credits, exhausted balance, expiry and repeated paid checkout.",
+                if (!referralPolicy.enabled) "A positive award and written approval reference are required. No tariff or credit amount is inferred from seed data." else null),
+            AdminBusinessParameterDto(136, "bargaining-attempts", "Bargaining attempt limits",
+                if (customerAttempts == 3 && merchantAttempts == 3) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
+                linkedMapOf("Customer attempts" to customerAttempts.toString(), "Merchant counteroffers" to merchantAttempts.toString(), "Scope" to "Persisted same-customer, same-merchant and same-product history; opening another thread does not reset the budget."),
+                "PersistedBargainingService BargainingPolicy; sequo.bargaining.max-customer-attempts and sequo.bargaining.max-merchant-attempts.", deployment,
+                "Change BARGAINING_MAX_CUSTOMER_ATTEMPTS and BARGAINING_MAX_MERCHANT_ATTEMPTS in authorized deployment configuration and restart. Review existing-party budgets before changing limits.",
+                "GET an authorized /api/bargaining/threads/{id}; compare maxCustomerAttempts/maxMerchantAttempts and test the final allowed and first rejected attempts."),
+            AdminBusinessParameterDto(137, "bargaining-price-lock", "Negotiated price lock duration",
+                if (lockHours == 24L) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
+                linkedMapOf("New accepted-price lock" to "$lockHours hours", "Validity boundary" to "Usable strictly before the persisted expiresAt; unavailable at expiry.", "Existing agreements" to "Keep their stored acceptance and expiry; a deployment change does not rewrite history."),
+                "PersistedBargainingService; sequo.bargaining.accepted-price-lock-hours; bargaining_threads accepted price/expiry.", deployment,
+                "Change BARGAINING_ACCEPTED_PRICE_LOCK_HOURS in authorized deployment configuration and restart; approve any separate migration of existing agreements.",
+                "Read acceptedAt/expiresAt from an authorized bargaining thread and verify basket/checkout immediately before and at expiry."),
+            AdminBusinessParameterDto(138, "return-window", "Return request window",
+                if (returnPolicy.window == Duration.ofHours(72)) AdminParameterState.CONTRACT_DEFAULT else AdminParameterState.CONFIGURED,
+                linkedMapOf("Current request window" to "${returnPolicy.window.toHours()} hours", "Boundary" to "From authoritative persisted handoff; a request at the deadline is accepted, one after is rejected.", "Clock" to "Server returnClock; client requestedAt is ignored."),
+                "CustomerReturnPolicy.window; sequo.returns.window-hours; ReturnPersistenceService.customerEligibility/requestForCustomer.", deployment,
+                "Change RETURN_WINDOW_HOURS in authorized deployment configuration and restart. SEQUO must decide how an altered current eligibility window applies to already delivered orders; do not rewrite handoff timestamps.",
+                "GET /api/returns/orders/{orderId}/eligibility as owner; verify immediately before, at and after the returned deadline."),
+            AdminBusinessParameterDto(139, "relay-custody", "Relay custody deadlines and storage fees", AdminParameterState.PENDING_APPROVAL,
+                linkedMapOf("New deposit fee threshold" to "Strictly after $feeAfter from deposit", "Review threshold" to "At $reviewAfter from deposit", "Daily tariff" to "No global tariff; authorized manual assessment supplies an approved dailyFeeCfa. Existing assessment rate is retained.",
+                    "Review scheduler enabled" to environment.getProperty("sequo.relay.delayed-parcel-scheduler.enabled", "false").equals("true", ignoreCase = true).toString(), "Disposition" to "Explicit authorized operator decision; review never automatically disposes of a parcel.", "Legacy fee starts" to "Missing feeStartsAt is not backfilled or charged without an approved active-parcel policy."),
+                "DomainConfig relayParcelPolicy; sequo.relay.storage-fee-after/review-after; sequo.relay.delayed-parcel-scheduler.enabled; persisted parcel feeStartsAt and storage-fee assessments.",
+                "SEQUO approves any tariff/active-parcel policy; authorized deployment operator changes deadlines and AdminOperations assesses approved fees.",
+                "Deploy approved ISO-8601 duration properties for new policy. Use POST /api/relay/parcels/storage-fees/assess only with an approved dailyFeeCfa; preserve old assessments. RELAY_DELAYED_PARCEL_SCHEDULER_ENABLED controls review scheduling only. No automatic tariff is configured by this inventory.",
+                "Read parcel deadlines and /api/relay/parcels/storage-fees; test before/at/after fee and review boundaries and repeat assessment without duplicate ledger increments.",
+                "SEQUO tariff and legacy active-parcel migration decisions remain explicit; no fee amount is invented."),
+            AdminBusinessParameterDto(140, "excluded-product-categories", "Products excluded from relay or return handling", AdminParameterState.CONFIGURED,
+                linkedMapOf("Relay exclusions" to RelayParcelCategory.entries.filterNot(relayPolicy::relayPickupAllowed).joinToString { it.name },
+                    "Additional configured return exclusions" to returnPolicy.excludedCategories.sortedBy { it.name }.joinToString { it.name }.ifBlank { "None configured; no blanket food-return ban inferred." },
+                    "Click and collect return routing" to returnPolicy.clickAndCollectMode.name,
+                    "Category resolution" to "Persisted checkout relay category, then supported legacy catalog/order fallback; eligibility is checked server-side."),
+                "RelayParcelPolicy, RelayOrderEligibilityService/catalogRelayCategory and CustomerReturnPolicy.excludedCategories.", deployment,
+                "Change RETURN_EXCLUDED_CATEGORIES only under approved SEQUO policy. Relay exclusions are centralized typed server rules prepared for a reviewed policy/config extension; verify checkout, reroute and returns together.",
+                "Verify food/grocery, perishable, sensitive/pharmacy and general goods against cart relay points, checkout/reroute and owner return eligibility; keep supported legacy records.",
+                if (returnPolicy.clickAndCollectMode.name == "PENDING") "Click and collect routing awaits SEQUO confirmation; it does not authorize an invented drop-off location." else null),
+        )
+    }
+}
 
 @Service
 class AdminWebReadService(
@@ -259,13 +388,14 @@ class AdminWebReadService(
     private val merchantSubOrders: MerchantSubOrderRepository,
     private val merchantPayouts: MerchantPayoutAccrualRecordRepository,
     private val commissionOverrides: MerchantCommissionOverrideRepository,
-    private val pricingSettings: DeliveryPricingSettingsRepository,
+    private val pricing: DeliveryPricingService,
+    private val parameterInventory: AdminBusinessParameterInventory,
     private val relayParcels: RelayParcelRecordRepository,
     private val relayStorageFees: RelayStorageFeeAssessmentRecordRepository,
     private val paymentWebhooks: PaymentWebhookEventRepository,
     private val returns: ReturnRequestRecordRepository,
 ) : AdminWebReadPort {
-    private val defaultCommissionRateBps = 1500
+    private val defaultCommissionRateBps = MerchantCommissionPolicy().defaultRateBps
 
     @Transactional(readOnly = true)
     override fun overview(limit: Int): AdminWebOverviewDto =
@@ -335,7 +465,7 @@ class AdminWebReadService(
     @Transactional(readOnly = true)
     override fun deliveryPricing(): AdminDeliveryPricingDto =
         AdminDeliveryPricingDto(
-            active = pricingSettings.findFirstByActiveTrueOrderByEffectiveFromDescCreatedAtDesc()?.toAdminDto()
+            active = pricing.effectiveRecord()?.toAdminDto()
                 ?: DeliveryPricingService.DefaultSettings.toAdminDto(),
         )
 
@@ -363,7 +493,8 @@ class AdminWebReadService(
             commissionOverrideCount = commissionOverrides.count(),
             relayStorageFeeAssessmentCount = relayStorageFees.count(),
             relayExcludedProductPolicySource = "RelayParcelPolicy",
-            returnWindowPolicySource = "ReturnProcessing",
+            returnWindowPolicySource = "CustomerReturnPolicy",
+            parameters = parameterInventory.parameters(pricing, commissionOverrides.count()),
         )
     }
 
