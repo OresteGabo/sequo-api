@@ -2,6 +2,8 @@ package dev.orestegabo.sequo_api.domain.commission
 
 import dev.orestegabo.sequo_api.domain.auth.RoleCode
 import dev.orestegabo.sequo_api.domain.auth.toGrantedAuthority
+import dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -16,7 +18,11 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class MerchantCommissionControllerTest @Autowired constructor(
     private val controller: MerchantCommissionController,
+    private val merchants: CommerceMerchantRepository,
 ) {
+    @org.junit.jupiter.api.BeforeEach
+    fun existingMerchant() { merchants.save(MerchantRecord("merchant-commission-controller", name = "Fixture commission merchant")) }
+
     @Test
     fun adminCanManageMerchantCommissionOverrides() {
         val admin = auth("admin-commission-controller", RoleCode.ADMIN)

@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.commission
 
 import java.time.Instant
+import dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository
+import dev.orestegabo.sequo_api.domain.party.MerchantRecord
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -13,7 +15,14 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class MerchantCommissionConfigurationServiceTest @Autowired constructor(
     private val service: MerchantCommissionConfigurationService,
+    private val merchants: CommerceMerchantRepository,
 ) {
+    @org.junit.jupiter.api.BeforeEach
+    fun existingMerchants() {
+        for (id in listOf("merchant-commission-config", "merchant-commission-clear", "merchant-commission-invalid"))
+            merchants.save(MerchantRecord(id, name = "Fixture commission merchant"))
+    }
+
     @Test
     fun merchantOverrideIsPersistedAndUsedForCalculation() {
         val updatedAt = Instant.parse("2026-09-09T10:00:00Z")

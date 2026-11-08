@@ -21,12 +21,22 @@ class MerchantCommissionController(
     data class UpsertMerchantCommissionRequest(
         val commissionRateBps: Int,
         val reason: String? = null,
+        val expectedRevision: String? = null,
+        val idempotencyKey: String? = null,
     )
+
+    data class ClearMerchantCommissionRequest(val reason: String? = null, val expectedRevision: String? = null, val idempotencyKey: String? = null)
 
     data class MerchantCommissionRateResponse(
         val merchantId: String,
         val commissionRateBps: Int,
         val override: MerchantCommissionOverrideSnapshot?,
+        val defaultRateBps: Int = 1500,
+        val minRateBps: Int = 500,
+        val maxRateBps: Int = 1500,
+        val revision: String? = null,
+        val operationId: String? = null,
+        val history: List<MerchantCommissionAuditSnapshot> = emptyList(),
     )
 
     @GetMapping("/{merchantId}")
@@ -35,11 +45,14 @@ class MerchantCommissionController(
         @PathVariable merchantId: String,
     ): ResponseEntity<Any> = adminOnly(authentication) {
         val safeMerchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId")
-        ResponseEntity.ok(
+        val state = service.policyState(safeMerchantId)
+        ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
             MerchantCommissionRateResponse(
                 merchantId = safeMerchantId,
-                commissionRateBps = service.resolveRateBps(safeMerchantId),
-                override = service.getOverride(safeMerchantId),
+                commissionRateBps = state.commissionRateBps,
+                override = state.override,
+                defaultRateBps = state.defaultRateBps, minRateBps = state.minRateBps, maxRateBps = state.maxRateBps,
+                revision = state.revision, operationId = state.operationId, history = state.history,
             )
         )
     }
@@ -55,7 +68,9 @@ class MerchantCommissionController(
                 merchantId = ApiInputPolicy.requiredIdentifier(merchantId, "merchantId"),
                 commissionRateBps = request.commissionRateBps,
                 updatedByUserId = authenticated.name,
-                reason = ApiInputPolicy.optionalShortText(request.reason, "reason"),
+                reason = ApiInputPolicy.optionalShortText(request.reason, "reason", 500),
+                expectedRevision = request.expectedRevision,
+                idempotencyKey = request.idempotencyKey?.let { ApiInputPolicy.requiredIdempotencyKey(it) },
             )
         )
     }
@@ -64,9 +79,12 @@ class MerchantCommissionController(
     fun clear(
         authentication: Authentication?,
         @PathVariable merchantId: String,
-    ): ResponseEntity<Any> = adminOnly(authentication) {
-        service.clearOverride(ApiInputPolicy.requiredIdentifier(merchantId, "merchantId"))
-        ResponseEntity.noContent().build()
+        @RequestBody(required = false) request: ClearMerchantCommissionRequest? = null,
+    ): ResponseEntity<Any> = adminOnly(authentication) { actor ->
+        val operation = service.clearOverride(ApiInputPolicy.requiredIdentifier(merchantId, "merchantId"),
+            updatedByUserId = actor.name, reason = ApiInputPolicy.optionalShortText(request?.reason, "reason", 500),
+            expectedRevision = request?.expectedRevision, idempotencyKey = request?.idempotencyKey?.let { ApiInputPolicy.requiredIdempotencyKey(it) })
+        ResponseEntity.noContent().header("X-Sequo-Commission-Operation-Id", operation.id).build()
     }
 
     private fun adminOnly(
@@ -77,5 +95,9 @@ class MerchantCommissionController(
             ResponseEntity.status(401).build()
         } else if (!authentication.hasAnyRole(RoleGroups.AdminOnly)) {
             ResponseEntity.status(403).build()
-        } else operation(authentication)
+        } else try {
+            operation(authentication)
+        } catch (conflict: MerchantCommissionConflict) {
+            ResponseEntity.status(409).body(dev.orestegabo.sequo_api.api.ApiErrorResponse(conflict.code, requireNotNull(conflict.message)))
+        }
 }

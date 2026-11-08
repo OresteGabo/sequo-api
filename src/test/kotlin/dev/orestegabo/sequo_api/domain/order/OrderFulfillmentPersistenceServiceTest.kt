@@ -50,6 +50,7 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
     private val orderController: OrderController,
     private val users: UserRepository,
     private val couriers: SettlementCourierRecordRepository,
+    private val merchants: dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository,
 ) {
     @Test
     fun `accepted paid order is persisted and split into merchant sub-orders idempotently`() {
@@ -97,6 +98,7 @@ class OrderFulfillmentPersistenceServiceTest @Autowired constructor(
 
     @Test
     fun `accepted paid order snapshots configured merchant commission rate`() {
+        merchants.save(dev.orestegabo.sequo_api.domain.party.MerchantRecord("merchant-food", name = "Fixture merchant food"))
         commissions.upsertOverride(
             merchantId = "merchant-food",
             commissionRateBps = 500,
