@@ -318,6 +318,7 @@ Create return body:
 | Method | Endpoint | Auth | Role |
 | --- | --- | --- | --- |
 | `POST` | `/api/consolidations` | Yes | Support/admin |
+| `GET` | `/api/consolidations` | Yes | Support/admin |
 | `GET` | `/api/consolidations/{manifestId}` | Yes | Customer/support/admin |
 | `GET` | `/api/consolidations/order/{{order_id}}` | Yes | Customer/support/admin |
 | `GET` | `/api/consolidations/{manifestId}/tracking` | Yes | Customer/support/admin |
@@ -325,6 +326,26 @@ Create return body:
 | `POST` | `/api/consolidations/{manifestId}/seller-packages/{subOrderId}/collected` | Yes | Support/admin |
 | `POST` | `/api/consolidations/{manifestId}/transitions` | Yes | Support/admin |
 | `POST` | `/api/consolidations/{manifestId}/dispatch-final-package` | Yes | Support/admin |
+
+Task 17: operator grouping uses `{ "manifestId": "<stable-retry-id>", "orderId": "<paid-order-id>", "cooperativeId": "<optional-approved-cooperative>" }`.
+Customer ID, merchant IDs, package counts and ready flags come from persisted paid merchant sub-orders, all packed and ready. Legacy request fields cannot override them. Group before any courier dispatch. A retry returns the existing order's manifest ID, which can differ from the proposed ID; a different cooperative on retry is rejected.
+
+Multi-merchant home orders wait for grouping approval before readiness dispatch. Existing direct missions remain on their original route. Dispatch collection missions through the existing `POST /api/delivery/missions/dispatch-ready?limit=200`, then assign/offer and use the ordinary Rider acceptance/pickup paths. Courier pickup records an actor event but does not confirm SEQUO custody.
+
+The operator confirms each physical receipt with `POST .../seller-packages/{subOrderId}/collected` and `{ "metadata": "<physical receipt reference>" }`. Assigned courier pickup must already be persisted. Receipts finish those collection missions as `HANDED_TO_SEQUO`; they do not deliver the customer order. Once all receipts exist, seal with `POST .../transitions` and `{ "event": "SequoCreatesFinalPackage", "finalPackageId": "<sealed-package-id>" }`, then `POST .../dispatch-final-package` with `{}`. Existing optional courier-fee input remains available; no new tariff is defined here. The final customer fee and selected mode/ETA/priority come from the paid checkout. Repeat/concurrent dispatch returns one final mission. Server timestamps and authenticated actor IDs are recorded in history; request timestamps do not backdate operations.
+
+Merchant ready replay returns only the caller's package acknowledgement. Full manifests/history are staff-only; a customer can read their own manifest/tracking with internal actor history omitted.
+
+## Cooperative approval
+
+| Method | Endpoint | Auth | Role |
+| --- | --- | --- | --- |
+| `GET` | `/api/admin/cooperatives` | Yes | Admin/super admin |
+| `POST` | `/api/admin/cooperatives` | Yes | Admin/super admin |
+| `POST` | `/api/admin/cooperatives/{cooperativeId}/members` | Yes | Admin/super admin |
+| `POST` | `/api/admin/cooperatives/{cooperativeId}/review` | Yes | Admin/super admin |
+
+The existing `/api/cooperatives` routes remain aliases; ordinary authenticated readers see approved cooperatives without internal review history. Staff can create a proposal with `{ "code": "<unique-code>", "name": "<name>", "city": "<city>", "ownerMerchantId": "<existing-merchant-id>" }`, add another merchant with `{ "merchantId": "<merchant-id>" }`, then review with `{ "status": "APPROVED", "reason": "<SEQUO decision>" }`. Explicit outcomes also include REJECTED and SUSPENDED. The reviewer comes from authentication. Adding a member invalidates current approval and retains prior review history. Admin Deliveries exposes cooperative approval/rejection and the grouping/receipt/seal/dispatch history flow.
 
 ## Settlements
 
