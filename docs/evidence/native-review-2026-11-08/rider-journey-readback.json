@@ -1,0 +1,492 @@
+{
+  "environment": "LOCAL_FIXTURE",
+  "verifiedAt": "2026-11-08T22:37:57.816886+00:00",
+  "checks": [
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/admin/local-fixtures",
+      "httpStatus": 200
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 200
+    },
+    {
+      "check": "Persisted mission delivered",
+      "pass": true
+    },
+    {
+      "check": "Raw admin mission uses canonical package count",
+      "pass": true
+    },
+    {
+      "check": "Assigned independent pay snapshot retained",
+      "pass": true
+    },
+    {
+      "check": "Pickup proof actor recorded",
+      "pass": true
+    },
+    {
+      "check": "Delivery actor recorded",
+      "pass": true
+    },
+    {
+      "check": "Pickup proof recorded",
+      "pass": true
+    },
+    {
+      "check": "Accept pickup delivery timestamps present and ordered",
+      "pass": true
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 200
+    },
+    {
+      "check": "Refresh retains canonical mission state and handoff",
+      "pass": true
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7/admin-actions",
+      "httpStatus": 200
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/admin/web/orders/SQ-local-ops-v1-merchant-preparing",
+      "httpStatus": 200
+    },
+    {
+      "check": "Admin order delivered and validated",
+      "pass": true
+    },
+    {
+      "check": "Audited DELIVERED",
+      "pass": true
+    },
+    {
+      "check": "Audited RETURN_WINDOW_OPENED",
+      "pass": true
+    },
+    {
+      "check": "Ama authenticated GET",
+      "pass": true,
+      "route": "/api/auth/development-access?appSource=SEQUO_APP",
+      "httpStatus": 200
+    },
+    {
+      "check": "Ama authenticated GET",
+      "pass": true,
+      "route": "/api/auth/me",
+      "httpStatus": 200
+    },
+    {
+      "check": "Fixed customer ownership",
+      "pass": true
+    },
+    {
+      "check": "Ama authenticated GET",
+      "pass": true,
+      "route": "/api/orders/SQ-local-ops-v1-merchant-preparing",
+      "httpStatus": 200
+    },
+    {
+      "check": "Single package retained in canonical merchant part",
+      "pass": true
+    },
+    {
+      "check": "Admin and customer terminal display status corrected",
+      "pass": true
+    },
+    {
+      "check": "Customer sees own delivered paid order",
+      "pass": true
+    },
+    {
+      "check": "Customer and admin totals unchanged",
+      "pass": true
+    },
+    {
+      "check": "Ama authenticated GET",
+      "pass": true,
+      "route": "/api/delivery/tracking/DLV-7960df07a5cc50cfb322525b?orderId=SQ-local-ops-v1-merchant-preparing",
+      "httpStatus": 200
+    },
+    {
+      "check": "Customer tracking matches final mission",
+      "pass": true
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/admin/web/payments/checkouts/local-ops-v1-merchant-preparing",
+      "httpStatus": 200
+    },
+    {
+      "check": "Existing payment remains completed",
+      "pass": true
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/settlements/ledger?sourceType=DeliveryMission&sourceId=58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 200
+    },
+    {
+      "check": "Ledger rows belong only to target mission",
+      "pass": true
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/admin/web/couriers/local-ops-v1-courier-senam",
+      "httpStatus": 200
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200
+    },
+    {
+      "check": "Admin authenticated GET",
+      "pass": true,
+      "route": "/api/settlements/ledger?sourceType=OrderItem&sourceId=525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "httpStatus": 200
+    },
+    {
+      "check": "Normal temporary session logout",
+      "pass": true,
+      "httpStatus": 204
+    },
+    {
+      "check": "Normal temporary session logout",
+      "pass": true,
+      "httpStatus": 204
+    }
+  ],
+  "businessWritesExecuted": false,
+  "providerActionsExecuted": false,
+  "mission": {
+    "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+    "deliveryCode": "DLV-7960df07a5cc50cfb322525b",
+    "orderId": "SQ-local-ops-v1-merchant-preparing",
+    "merchantSubOrderId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+    "courierId": "local-ops-v1-courier-senam",
+    "deliveryMode": "EXPRESS",
+    "status": "DELIVERED_TO_CUSTOMER",
+    "destinationType": "CUSTOMER_ADDRESS",
+    "assignmentWorkforceType": "Freelancer",
+    "packageCount": 1,
+    "customerDeliveryFeeCfa": 400,
+    "courierFeeCfa": 400,
+    "shortfallCfa": 0,
+    "createdAt": "2026-11-08T22:06:40.058676Z",
+    "assignedAt": "2026-11-08T22:06:40.169811Z",
+    "acceptedAt": "2026-11-08T22:26:10.369468Z",
+    "pickupAt": "2026-11-08T22:27:00.087217Z",
+    "deliveredAt": "2026-11-08T22:27:18.720873Z",
+    "updatedAt": "2026-11-08T22:27:18.720873Z",
+    "pickupProofActorId": "local-ops-v1-rider-senam",
+    "dropoffProofActorId": "local-ops-v1-rider-senam",
+    "pickupProofRecorded": true,
+    "dropoffProofRecorded": false
+  },
+  "administrativeHistory": [
+    {
+      "id": "420f7b5a-d8f4-4ff9-8d5a-151bbac07646",
+      "domain": null,
+      "entityId": null,
+      "action": "OFFER_MISSION",
+      "actorUserId": "5ae10368-fd93-4d5f-9c72-cd62d81c313a",
+      "createdAt": "2026-11-08T22:06:40.212565Z"
+    },
+    {
+      "id": "92caf561-443c-451b-9dea-d692c6eb25af",
+      "domain": null,
+      "entityId": null,
+      "action": "ASSIGN_COURIER",
+      "actorUserId": "5ae10368-fd93-4d5f-9c72-cd62d81c313a",
+      "createdAt": "2026-11-08T22:06:40.172880Z"
+    }
+  ],
+  "adminOrder": {
+    "id": "SQ-local-ops-v1-merchant-preparing",
+    "customerId": "local-ops-v1-customer-ama",
+    "orderStatus": "DELIVERED",
+    "customerFacingStatus": "Delivered",
+    "paymentStatus": "Validated",
+    "paymentProvider": "yas_togo",
+    "itemSubtotalCfa": 9600,
+    "deliveryFeeCfa": 400,
+    "totalCfa": 10000,
+    "createdAt": "2026-11-08T11:00:27.397816Z",
+    "updatedAt": "2026-11-08T22:27:18.720873Z"
+  },
+  "orderHistory": [
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:accepted",
+      "eventType": "ACCEPTED_FOR_FULFILLMENT",
+      "sourceType": "CHECKOUT",
+      "sourceId": "local-ops-v1-merchant-preparing",
+      "actorUserId": "local-ops-v1-customer-ama",
+      "createdAt": "2026-11-08T11:00:27.397816Z"
+    },
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:delivered:58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "eventType": "DELIVERED",
+      "sourceType": "DELIVERY_MISSION",
+      "sourceId": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "actorUserId": "local-ops-v1-rider-senam",
+      "createdAt": "2026-11-08T22:27:18.720873Z"
+    },
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:return-window:58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "eventType": "RETURN_WINDOW_OPENED",
+      "sourceType": "DELIVERY_MISSION",
+      "sourceId": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "actorUserId": "local-ops-v1-rider-senam",
+      "createdAt": "2026-11-08T22:27:18.720873Z"
+    }
+  ],
+  "lines": [
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:line:0",
+      "productId": "local-ops-v1-product-general",
+      "sellerId": "local-ops-v1-merchant-maison",
+      "category": "GenericSealedItem",
+      "quantity": 2,
+      "unitPriceCfa": 4800,
+      "effectiveUnitPriceCfa": 4800,
+      "lineTotalCfa": 9600
+    }
+  ],
+  "customerOrder": {
+    "id": "SQ-local-ops-v1-merchant-preparing",
+    "checkoutId": "local-ops-v1-merchant-preparing",
+    "customerId": "local-ops-v1-customer-ama",
+    "orderStatus": "DELIVERED",
+    "customerFacingStatus": "Delivered",
+    "paymentStatus": "Validated",
+    "itemSubtotalCfa": 9600,
+    "deliveryFeeCfa": 400,
+    "totalCfa": 10000,
+    "deliveredAt": "2026-11-08T22:27:18.720873Z",
+    "returnWindowEndsAt": "2026-11-11T22:27:18.720873Z",
+    "updatedAt": "2026-11-08T22:27:18.720873Z"
+  },
+  "targetMerchantParts": [
+    {
+      "id": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "orderId": "SQ-local-ops-v1-merchant-preparing",
+      "merchantId": "local-ops-v1-merchant-maison",
+      "status": "PACKED_READY",
+      "packageCount": 1,
+      "packedReadyAt": "2026-11-08T22:00:38.802982Z",
+      "handedOffAt": null,
+      "updatedAt": "2026-11-08T22:00:38.802982Z"
+    }
+  ],
+  "priorProjectionObservation": [
+    {
+      "field": "raw mission packageCount",
+      "actual": 0,
+      "authoritativeMerchantPartPackageCount": 1
+    },
+    {
+      "field": "customerFacingStatus",
+      "actual": "Paid, waiting for seller preparation",
+      "authoritativeOrderStatus": "DELIVERED"
+    }
+  ],
+  "readProjectionVerification": [
+    {
+      "field": "raw mission packageCount",
+      "actual": 1,
+      "authoritativeMerchantPartPackageCount": 1
+    },
+    {
+      "field": "customerFacingStatus",
+      "actual": "Delivered",
+      "authoritativeOrderStatus": "DELIVERED"
+    }
+  ],
+  "customerTimeline": [
+    {
+      "eventType": "ACCEPTED_FOR_FULFILLMENT",
+      "type": null,
+      "title": null,
+      "createdAt": "2026-11-08T11:00:27.397816Z",
+      "sourceType": null,
+      "sourceId": null,
+      "actorUserId": null
+    },
+    {
+      "eventType": "DELIVERED",
+      "type": null,
+      "title": null,
+      "createdAt": "2026-11-08T22:27:18.720873Z",
+      "sourceType": null,
+      "sourceId": null,
+      "actorUserId": null
+    },
+    {
+      "eventType": "RETURN_WINDOW_OPENED",
+      "type": null,
+      "title": null,
+      "createdAt": "2026-11-08T22:27:18.720873Z",
+      "sourceType": null,
+      "sourceId": null,
+      "actorUserId": null
+    }
+  ],
+  "customerTracking": {
+    "deliveryCode": "DLV-7960df07a5cc50cfb322525b",
+    "orderId": "SQ-local-ops-v1-merchant-preparing",
+    "status": "DELIVERED_TO_CUSTOMER",
+    "deliveryMode": "EXPRESS",
+    "destinationType": "CUSTOMER_ADDRESS",
+    "courierAssigned": true,
+    "currentStep": "Delivered",
+    "nextStep": null,
+    "terminal": true,
+    "acceptedAt": "2026-11-08T22:26:10.369468Z",
+    "pickupAt": "2026-11-08T22:27:00.087217Z",
+    "deliveredAt": "2026-11-08T22:27:18.720873Z",
+    "updatedAt": "2026-11-08T22:27:18.720873Z"
+  },
+  "paymentCheckout": {
+    "checkoutId": "local-ops-v1-merchant-preparing",
+    "paymentProvider": "yas_togo",
+    "amountCfa": 10000,
+    "currency": "XOF",
+    "status": "COMPLETED",
+    "createdAt": "2026-11-08T11:00:27.397816Z",
+    "updatedAt": "2026-11-08T11:00:27.397816Z",
+    "completedAt": "2026-11-08T11:00:27.397816Z",
+    "orderId": "SQ-local-ops-v1-merchant-preparing",
+    "orderStatus": "DELIVERED"
+  },
+  "paymentEvents": [
+    {
+      "id": "yas_togo:LOCAL_FIXTURE:local-ops-v1-merchant-preparing",
+      "provider": "yas_togo",
+      "status": "VALIDATED",
+      "amountCfa": 10000,
+      "reconciliationStatus": "FULFILLED",
+      "reconciliationReason": "fulfilled",
+      "receivedAt": "2026-11-08T11:00:27.397816Z",
+      "reconciledAt": "2026-11-08T11:00:27.768817Z"
+    }
+  ],
+  "deliveryLedger": [
+    {
+      "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7:courier-payable",
+      "account": "CourierPayable",
+      "direction": "Credit",
+      "amountCfa": 400,
+      "courierId": "local-ops-v1-courier-senam",
+      "sourceType": "DeliveryMission",
+      "sourceId": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "createdAt": "2026-11-08T22:27:18.720873Z",
+      "workforceType": "Freelancer"
+    }
+  ],
+  "deliveryLedgerSummary": {
+    "count": 1,
+    "courierPayableCreditCfa": 400,
+    "shortfallDebitCfa": 0
+  },
+  "riderPayOverview": {
+    "riderId": "local-ops-v1-courier-senam",
+    "workforceType": "Freelancer",
+    "payable": true,
+    "availableBalanceCfa": 4000,
+    "onHoldCfa": 0,
+    "paidOrProcessingCfa": 0,
+    "historyCount": 10,
+    "earnedTotalCfa": 4000,
+    "settledMissionCount": 10,
+    "unverifiedTransferCfa": 0,
+    "reviewRequiredCfa": 0,
+    "transferStatus": "NOT_INTEGRATED"
+  },
+  "merchantPayouts": [
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:merchant-payout:525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "merchantId": "local-ops-v1-merchant-maison",
+      "orderId": "SQ-local-ops-v1-merchant-preparing",
+      "sourceOrderItemId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "merchantNetCfa": 8160,
+      "commissionCfa": 1440,
+      "platformMarginCfa": 0,
+      "status": "HeldReturnWindow",
+      "workflowType": "DeliveryConfirmed",
+      "activeReturnHold": true,
+      "activeDisputeHold": false,
+      "packageReceivedAt": "2026-11-08T22:27:18.720873Z",
+      "payoutEligibleAt": "2026-11-11T22:27:18.720873Z",
+      "payoutDueBy": "2026-11-15T22:27:18.720873Z"
+    }
+  ],
+  "merchantLedger": [
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:merchant-payout:525417ed-38ef-439d-bd37-2944cbeca7c2:merchant-payable",
+      "account": "MerchantPayable",
+      "direction": "Credit",
+      "amountCfa": 8160,
+      "merchantId": "local-ops-v1-merchant-maison",
+      "sourceType": "OrderItem",
+      "sourceId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "createdAt": "2026-11-08T22:27:18.720873Z"
+    },
+    {
+      "id": "SQ-local-ops-v1-merchant-preparing:merchant-payout:525417ed-38ef-439d-bd37-2944cbeca7c2:commission",
+      "account": "SequoCommissionRevenue",
+      "direction": "Credit",
+      "amountCfa": 1440,
+      "merchantId": "local-ops-v1-merchant-maison",
+      "sourceType": "OrderItem",
+      "sourceId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "createdAt": "2026-11-08T22:27:18.720873Z"
+    }
+  ],
+  "settlementObservation": "Normal synchronous completion event has posted one 400 CFA CourierPayable credit; staff summary is now4000 CFA/10settled missions/0provider paid. Prior Rider screen3600/9 was a stale snapshot until explicit refresh, not a disabled scheduler. No settlement operation was run.",
+  "proofLimits": [
+    "UI wrong-PIN and blank-pickup rejections are parent observations; these GETs do not replay mutations.",
+    "No settlement evaluation, repair, payout, provider transfer or other business write was performed.",
+    "Provider confirmation is not inferred from recorded liabilities or paid fixture status.",
+    "Canonical refresh was verified; no app/API restart was performed by this script."
+  ],
+  "passedChecks": 35,
+  "failedChecks": 0,
+  "projectionResolutions": [
+    {
+      "field": "raw mission packageCount",
+      "before": 0,
+      "after": 1,
+      "authoritativeMerchantPartPackageCount": 1,
+      "resolved": true,
+      "fixCommit": "6c2d2e1"
+    },
+    {
+      "field": "customerFacingStatus",
+      "before": "Paid, waiting for seller preparation",
+      "afterCustomer": "Delivered",
+      "afterAdmin": "Delivered",
+      "resolved": true,
+      "fixCommit": "fb9ac50"
+    }
+  ],
+  "runtimeSourceReportedByParent": "6c2d2e1",
+  "priorUiProofSource": "SequoRider59b3478",
+  "currentRiderSource": "a078aa6"
+}

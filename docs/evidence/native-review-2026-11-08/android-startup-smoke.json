@@ -1,0 +1,46 @@
+[
+  {
+    "app": "Sequo",
+    "sourceHead": "dc53ca6837a3919a26976fd504e2d66463916660",
+    "sha256": "2f4188d301b9826efe6ef131babd39a29b9a16f7734c5275a12fb9a816b01cf3",
+    "applicationId": "dev.orestegabo.sequo.fixture",
+    "component": "dev.orestegabo.sequo.fixture/dev.orestegabo.sequo.MainActivity",
+    "processRunning": true,
+    "fatalLog": "",
+    "launch": "Starting: Intent { cmp=dev.orestegabo.sequo.fixture/dev.orestegabo.sequo.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: dev.orestegabo.sequo.fixture/dev.orestegabo.sequo.MainActivity\nTotalTime: 3026\nWaitTime: 3044\nComplete",
+    "uiVerified": false
+  },
+  {
+    "app": "SequoVendor",
+    "sourceHead": "54db35b647b70d9bcafc5e3684497f3c84d18c50",
+    "sha256": "b0bde62a41f0410306e3bf9d7dab5c43a436c86759113bd67bd6c3827bfa4f70",
+    "applicationId": "dev.orestegabo.sequovendor.fixture",
+    "component": "dev.orestegabo.sequovendor.fixture/dev.orestegabo.sequovendor.MainActivity",
+    "processRunning": true,
+    "fatalLog": "",
+    "launch": "Starting: Intent { cmp=dev.orestegabo.sequovendor.fixture/dev.orestegabo.sequovendor.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: dev.orestegabo.sequovendor.fixture/dev.orestegabo.sequovendor.MainActivity\nTotalTime: 1909\nWaitTime: 1912\nComplete",
+    "uiVerified": false
+  },
+  {
+    "app": "SequoHub",
+    "sourceHead": "422545e760b49af149bc2e49a72e113c2551ec2c",
+    "sha256": "02dca080c8364047cce8bdfcae9192f4e85a1ddf3462caf5fb87457609f40178",
+    "applicationId": "dev.orestegabo.sequohub.fixture",
+    "component": "dev.orestegabo.sequohub.fixture/dev.orestegabo.sequohub.MainActivity",
+    "processRunning": true,
+    "fatalLog": "",
+    "launch": "Starting: Intent { cmp=dev.orestegabo.sequohub.fixture/dev.orestegabo.sequohub.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: dev.orestegabo.sequohub.fixture/dev.orestegabo.sequohub.MainActivity\nTotalTime: 3132\nWaitTime: 3134\nComplete",
+    "uiVerified": false
+  },
+  {
+    "app": "SequoRider",
+    "sourceHead": "a078aa6a14ba307fd59acf85c758feae9c9abc21",
+    "sha256": "298c50f4e2fe82eab7a70b1dc5f6c424d3938cf5d9787e6ca185878e9a1be549",
+    "applicationId": "dev.orestegabo.sequorider.fixture",
+    "component": "dev.orestegabo.sequorider.fixture/dev.orestegabo.sequorider.MainActivity",
+    "processRunning": true,
+    "fatalLog": "",
+    "launch": "Starting: Intent { cmp=dev.orestegabo.sequorider.fixture/dev.orestegabo.sequorider.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: dev.orestegabo.sequorider.fixture/dev.orestegabo.sequorider.MainActivity\nTotalTime: 1327\nWaitTime: 1334\nComplete",
+    "uiVerified": false
+  }
+]

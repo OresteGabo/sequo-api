@@ -1,0 +1,1568 @@
+{
+  "environment": "LOCAL_FIXTURE",
+  "checkedAt": "2026-11-08T22:06:38.419828+00:00",
+  "checks": [
+    {
+      "check": "configured_local_admin_session",
+      "role": "ADMIN",
+      "method": "POST",
+      "route": "/api/admin-auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "installed_local_manifest",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/admin/local-fixtures",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_HUB:dede",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-operator-dede"
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_HUB:esso",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-operator-esso"
+    },
+    {
+      "check": "hub_own_assignment",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels/sites",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 1,
+      "fixtureIds": [
+        "local-ops-v1-relay-tokoin"
+      ]
+    },
+    {
+      "check": "hub_own_slots",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/hub/lockers?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 3
+    },
+    {
+      "check": "hub_own_parcels",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0,
+      "fixtureIds": []
+    },
+    {
+      "check": "hub_own_return_history",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/returns/relay?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 5
+    },
+    {
+      "check": "hub_own_control_history",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/hub/control-state/history?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_foreign_slots_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/hub/lockers?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_foreign_parcels_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_foreign_returns_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/returns/relay?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_guessed_parcel",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-not-recorded",
+      "httpStatus": 404,
+      "expectedStatus": [
+        403,
+        404
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_own_assignment",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/sites",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 1,
+      "fixtureIds": [
+        "local-ops-v1-relay-adidogome"
+      ]
+    },
+    {
+      "check": "hub_own_slots",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/hub/lockers?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 3
+    },
+    {
+      "check": "hub_own_parcels",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 3,
+      "fixtureIds": [
+        "local-ops-v1-parcel-after-eight-days",
+        "local-ops-v1-parcel-after-thirty-days",
+        "local-ops-v1-parcel-fresh"
+      ]
+    },
+    {
+      "check": "hub_own_return_history",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/returns/relay?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "hub_own_control_history",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/hub/control-state/history?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_foreign_slots_denied",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/hub/lockers?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_foreign_parcels_denied",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_foreign_returns_denied",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/returns/relay?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_guessed_parcel",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-not-recorded",
+      "httpStatus": 404,
+      "expectedStatus": [
+        403,
+        404
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_own_detail_history",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-after-eight-days?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "historyCount": 2
+    },
+    {
+      "check": "hub_forged_detail_site_denied",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-after-eight-days?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_own_detail_history",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-after-thirty-days?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "historyCount": 2
+    },
+    {
+      "check": "hub_forged_detail_site_denied",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-after-thirty-days?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_own_detail_history",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-fresh?relayPointId=local-ops-v1-relay-adidogome",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "historyCount": 1
+    },
+    {
+      "check": "hub_forged_detail_site_denied",
+      "role": "SEQUO_HUB:esso",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-fresh?relayPointId=local-ops-v1-relay-tokoin",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_other_operator_existing_detail_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-after-eight-days",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_other_operator_existing_detail_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-after-thirty-days",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_other_operator_existing_detail_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "GET",
+      "route": "/api/relay/parcels/local-ops-v1-parcel-fresh",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "hub_other_site_credential_unknown",
+      "role": "SEQUO_HUB:dede",
+      "method": "POST",
+      "route": "/api/hub/scan/resolve",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200,
+        403,
+        404
+      ],
+      "pass": true,
+      "workflowStatus": "UNKNOWN"
+    },
+    {
+      "check": "hub_forged_scan_site_denied",
+      "role": "SEQUO_HUB:dede",
+      "method": "POST",
+      "route": "/api/hub/scan/resolve",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-owner-yawa"
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-owner-mawuli"
+    },
+    {
+      "check": "merchant_own_catalog",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/catalog/products?includeArchived=true&merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 3
+    },
+    {
+      "check": "merchant_foreign_public_catalog_only",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/catalog/products?includeArchived=true&merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 1
+    },
+    {
+      "check": "merchant_own_suborders",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 19
+    },
+    {
+      "check": "merchant_foreign_suborders_denied",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_returns",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/returns/merchant?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 7
+    },
+    {
+      "check": "merchant_foreign_returns_denied",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/returns/merchant?merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_payouts",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 9
+    },
+    {
+      "check": "merchant_foreign_payouts_denied",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_store",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/merchant/store?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_foreign_store_denied",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "GET",
+      "route": "/api/merchant/store?merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_catalog",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/catalog/products?includeArchived=true&merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 1
+    },
+    {
+      "check": "merchant_foreign_public_catalog_only",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/catalog/products?includeArchived=true&merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 1
+    },
+    {
+      "check": "merchant_own_suborders",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 2
+    },
+    {
+      "check": "merchant_foreign_suborders_denied",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_returns",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/returns/merchant?merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "merchant_foreign_returns_denied",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/returns/merchant?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_payouts",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "merchant_foreign_payouts_denied",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_own_store",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/merchant/store?merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "merchant_foreign_store_denied",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "GET",
+      "route": "/api/merchant/store?merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_APP:ama",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_APP:ama",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_APP:ama",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-customer-ama"
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_APP:koffi",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_APP:koffi",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_APP:koffi",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-customer-koffi"
+    },
+    {
+      "check": "customer_own_order_list",
+      "role": "SEQUO_APP:ama",
+      "method": "GET",
+      "route": "/api/orders",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 19,
+      "fixtureIds": [
+        "SQ-local-ops-v1-return-refund",
+        "SQ-local-ops-v1-return-accepted",
+        "SQ-local-ops-v1-return-received",
+        "SQ-local-ops-v1-return-collected",
+        "SQ-local-ops-v1-return-dropoff",
+        "SQ-local-ops-v1-return-awaiting-dropoff",
+        "SQ-local-ops-v1-return-request",
+        "SQ-local-ops-v1-dispatch-busy",
+        "SQ-local-ops-v1-group-final",
+        "SQ-local-ops-v1-group-ready",
+        "SQ-local-ops-v1-finance-salaried",
+        "SQ-local-ops-v1-finance-independent",
+        "SQ-local-ops-v1-dispatch-unassigned",
+        "SQ-local-ops-v1-merchant-ready",
+        "SQ-local-ops-v1-merchant-preparing",
+        "SQ-local-ops-v1-merchant-new",
+        "SQ-local-ops-v1-relay-order-fresh",
+        "SQ-local-ops-v1-relay-order-after-eight-days",
+        "SQ-local-ops-v1-relay-order-after-thirty-days"
+      ]
+    },
+    {
+      "check": "customer_own_order_detail",
+      "role": "SEQUO_APP:ama",
+      "method": "GET",
+      "route": "/api/orders/SQ-local-ops-v1-return-refund",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "customer_own_order_list",
+      "role": "SEQUO_APP:koffi",
+      "method": "GET",
+      "route": "/api/orders",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0,
+      "fixtureIds": []
+    },
+    {
+      "check": "customer_foreign_order_denied",
+      "role": "SEQUO_APP:koffi",
+      "method": "GET",
+      "route": "/api/orders/SQ-local-ops-v1-return-refund",
+      "httpStatus": 404,
+      "expectedStatus": [
+        403,
+        404
+      ],
+      "pass": true
+    },
+    {
+      "check": "preparing_order_paid_readback",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/admin/web/orders/SQ-local-ops-v1-merchant-preparing",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "dispatch_queue_merchants_read",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/admin/web/merchants",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 8
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=merchant-chez-ramatou",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=merchant-grand-marche-assigame",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=merchant-hedzranawoe-electronics",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=merchant-pharmacie-du-golfe",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=merchant-tokoin-urban-wear",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=merchant-ablogame-grocery",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 5
+    },
+    {
+      "check": "preparing_part_canonical_readback",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&merchantId=local-ops-v1-merchant-maison",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 19
+    },
+    {
+      "check": "ready_suborder_preflight",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/merchant/sub-orders?history=true&status=PACKED_READY&merchantId=local-ops-v1-merchant-atelier",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 1
+    },
+    {
+      "check": "normal_ready_dispatch",
+      "role": "ADMIN",
+      "method": "POST",
+      "route": "/api/delivery/missions/dispatch-ready?limit=6",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "target_mission_before_assignment",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_senam_assign",
+      "role": "ADMIN",
+      "method": "POST",
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7/assign",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_senam_offer",
+      "role": "ADMIN",
+      "method": "POST",
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7/offer",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "target_mission_readback",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "assignment_actor_history",
+      "role": "ADMIN",
+      "method": "GET",
+      "route": "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7/admin-actions",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 2
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_RIDER:senam",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-rider-senam"
+    },
+    {
+      "check": "fixture_capability",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/auth/development-access",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "fixture_session",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "POST",
+      "route": "/api/auth/development-session",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "authenticated_self",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/auth/me",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-rider-komlan"
+    },
+    {
+      "check": "rider_own_missions",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/rider/missions",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 10
+    },
+    {
+      "check": "rider_own_payout",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/rider/payouts/summary",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-courier-senam"
+    },
+    {
+      "check": "rider_own_payout_history",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/rider/payouts/history",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 9
+    },
+    {
+      "check": "rider_forged_payout_query_stays_self",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/rider/payouts/summary?courierId=local-ops-v1-courier-komlan",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-courier-senam"
+    },
+    {
+      "check": "rider_foreign_operations_missions_denied",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/delivery/missions?courierId=local-ops-v1-courier-komlan",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_foreign_staff_profile_denied",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/admin/web/couriers/local-ops-v1-courier-komlan",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_own_mission_detail",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/rider/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_own_missions",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/rider/missions",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 2
+    },
+    {
+      "check": "rider_own_payout",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/rider/payouts/summary",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-courier-komlan"
+    },
+    {
+      "check": "rider_own_payout_history",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/rider/payouts/history",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "count": 0
+    },
+    {
+      "check": "rider_forged_payout_query_stays_self",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/rider/payouts/summary?courierId=local-ops-v1-courier-senam",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true,
+      "fixtureId": "local-ops-v1-courier-komlan"
+    },
+    {
+      "check": "rider_foreign_operations_missions_denied",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/delivery/missions?courierId=local-ops-v1-courier-senam",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_foreign_staff_profile_denied",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/admin/web/couriers/local-ops-v1-courier-senam",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_own_mission_detail",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/rider/missions/5970331d-50c2-4ff5-b1be-22d200301610",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_other_existing_mission_denied",
+      "role": "SEQUO_RIDER:senam",
+      "method": "GET",
+      "route": "/api/rider/missions/5970331d-50c2-4ff5-b1be-22d200301610",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "rider_other_existing_mission_denied",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "GET",
+      "route": "/api/rider/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "httpStatus": 403,
+      "expectedStatus": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_RIDER:komlan",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_RIDER:senam",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_APP:koffi",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_APP:ama",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_VENDOR:mawuli",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_VENDOR:yawa",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_HUB:esso",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "SEQUO_HUB:dede",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "normal_session_logout",
+      "role": "ADMIN",
+      "method": "POST",
+      "route": "/api/auth/logout",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    },
+    {
+      "check": "history_followup_session",
+      "role": "SEQUO_HUB:dede",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "history_followup_read",
+      "role": "SEQUO_HUB:dede",
+      "httpStatus": 200,
+      "expectedStatus": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "check": "history_followup_logout",
+      "role": "SEQUO_HUB:dede",
+      "httpStatus": 204,
+      "expectedStatus": [
+        204
+      ],
+      "pass": true
+    }
+  ],
+  "notes": [
+    "Catalog GET is public: forged includeArchived cannot reveal inactive rows or bargaining floors. Private merchant suborders/store/returns/payout routes require own scope and deny foreign IDs.",
+    "koffi has no persisted own order; positive order-detail read could not be demonstrated without creating one.",
+    "Rider payout routes are self-only and have no courier-selector parameter; a forged query was ignored and returned the same own courier ID, while existing foreign-courier mission/staff routes denied access."
+  ],
+  "relayAllocation": {
+    "dede": {
+      "relayPointId": "local-ops-v1-relay-tokoin",
+      "slotCount": 3,
+      "slotStatusCounts": {
+        "AVAILABLE": 3
+      },
+      "parcelCount": 0,
+      "parcelIds": [],
+      "parcelStatusCounts": {},
+      "returnCount": 5,
+      "parcelListHistoryCount": 0,
+      "parcelDetailHistoryCount": 0,
+      "returnHistoryEventCount": 9
+    },
+    "esso": {
+      "relayPointId": "local-ops-v1-relay-adidogome",
+      "slotCount": 3,
+      "slotStatusCounts": {
+        "OCCUPIED": 3
+      },
+      "parcelCount": 3,
+      "parcelIds": [
+        "local-ops-v1-parcel-after-eight-days",
+        "local-ops-v1-parcel-after-thirty-days",
+        "local-ops-v1-parcel-fresh"
+      ],
+      "parcelStatusCounts": {
+        "Delayed": 1,
+        "ReturnToSellerReview": 1,
+        "Deposited": 1
+      },
+      "returnCount": 0,
+      "parcelListHistoryCount": 0,
+      "parcelDetailHistoryCount": 5
+    }
+  },
+  "dispatch": {
+    "orderId": "SQ-local-ops-v1-merchant-preparing",
+    "beforeOrderStatus": "ACCEPTED_FOR_FULFILLMENT",
+    "paymentStatus": "Validated",
+    "merchantParts": [
+      {
+        "id": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+        "orderId": "SQ-local-ops-v1-merchant-preparing",
+        "merchantId": "local-ops-v1-merchant-maison",
+        "status": "PACKED_READY",
+        "packageCount": 1,
+        "packedReadyAt": "2026-11-08T22:00:38.802982Z",
+        "updatedAt": "2026-11-08T22:00:38.802982Z"
+      }
+    ],
+    "merchantActorPersistence": "NOT_EXPOSED_BY_EXISTING_SUBORDER_DTO",
+    "readyQueueCount": 6,
+    "normalAdminWrites": [
+      "/api/delivery/missions/dispatch-ready?limit=6",
+      "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7/assign",
+      "/api/delivery/missions/58dc4a13-780a-4b50-a463-f27d0d3dccc7/offer"
+    ],
+    "dispatchRunId": "6051bf6d-4252-4376-84c2-48e22c449d62",
+    "createdMissions": [
+      {
+        "id": "f4b4d150-5e09-4846-a1fd-075843db164d",
+        "orderId": "SQ-local-ops-v1-merchant-ready",
+        "merchantSubOrderId": "77ee2715-1f1c-4a80-99d2-c5e4ed1aa2c0",
+        "status": "CREATED"
+      },
+      {
+        "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+        "orderId": "SQ-local-ops-v1-merchant-preparing",
+        "merchantSubOrderId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+        "status": "CREATED"
+      }
+    ],
+    "existingMissionCount": 4,
+    "skippedSubOrders": [],
+    "mission": {
+      "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "orderId": "SQ-local-ops-v1-merchant-preparing",
+      "merchantSubOrderId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "courierId": "local-ops-v1-courier-senam",
+      "status": "OFFERED_TO_COURIER"
+    },
+    "adminActionHistory": [
+      {
+        "id": "420f7b5a-d8f4-4ff9-8d5a-151bbac07646",
+        "action": "OFFER_MISSION",
+        "actorUserId": "5ae10368-fd93-4d5f-9c72-cd62d81c313a",
+        "createdAt": "2026-11-08T22:06:40.212565Z",
+        "idempotencyKey": "native-review-58dc4a13-780a-4b50-a463-f27d0d3dccc7-offer-senam-v1"
+      },
+      {
+        "id": "92caf561-443c-451b-9dea-d692c6eb25af",
+        "action": "ASSIGN_COURIER",
+        "actorUserId": "5ae10368-fd93-4d5f-9c72-cd62d81c313a",
+        "createdAt": "2026-11-08T22:06:40.172880Z",
+        "idempotencyKey": "native-review-58dc4a13-780a-4b50-a463-f27d0d3dccc7-assign-senam-v1"
+      }
+    ],
+    "senamMobileReadback": {
+      "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "orderId": "SQ-local-ops-v1-merchant-preparing",
+      "courierId": "local-ops-v1-courier-senam",
+      "status": "OFFERED_TO_COURIER"
+    }
+  },
+  "prohibitedActionsExecuted": false,
+  "passedChecks": 124,
+  "failedChecks": 0
+}
