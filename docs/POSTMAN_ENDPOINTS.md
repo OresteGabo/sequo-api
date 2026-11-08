@@ -568,3 +568,9 @@ See [Task 14 contract, acceptance and deployment evidence](TASK14_RELAY_FULFILLM
 Customer-owned `GET /api/orders/{orderId}/relay-pickups` returns the actual managed numeric/QR credential with no-store caching; explicit renewal uses `POST /api/orders/{orderId}/relay-pickups/{parcelId}/credential`. Operator managed issuance exposes metadata only. The existing parcel release route now atomically completes linked delivery/order fulfillment after credential and identity validation. Scoped overdue/evaluation/review actions and staff seller return are available in `/relay-operator.html`.
 
 See [Task 15 evidence and reproduction](TASK15_RELAY_PICKUP.md) for V43, all boundary/security/retry checks, local PostgreSQL evidence, customer compilation and unverified device/staging steps. Fee amounts and retroactive legacy policy still require SEQUO approval; no automated charge/disposition was added.
+
+## Task 16 — Configured modes and workforce policy assignment
+
+Cart quote/checkout now accept optional `deliveryMode` (EXPRESS/CLASSIC/DEFERRED). Quote returns configured available choices and the selected ETA/price/zone snapshot; payment and dispatch retain it. New choices are disabled until approved coverage/ETA configuration is supplied; unspecified legacy checkout remains supported without invented ETA values. Staff `POST /api/delivery/missions/{id}/assign-policy` reuses persisted workforce/subscriber/capacity policy and is available from admin Deliveries.
+
+See [Task 16 evidence and configuration](TASK16_DELIVERY_MODES.md) for V44, all commands/results, four PostgreSQL exercises, mode fulfillment/priority/fallback/stale-choice checks, changed files and exact unverified staging steps. A separate root-level business-decision note is intentionally uncommitted at the user's request.
