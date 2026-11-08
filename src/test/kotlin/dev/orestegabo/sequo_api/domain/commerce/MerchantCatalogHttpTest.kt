@@ -80,7 +80,7 @@ class MerchantCatalogHttpTest @Autowired constructor(
     fun merchantPublishesEditsAndTogglesCustomerVisibility() {
         val merchant = "catalog-http-owner"
         merchants.save(MerchantRecord(id = merchant, name = "Catalog HTTP owner", status = "ACTIVE"))
-        storefronts.save(MerchantStorefrontRecord(merchantId = merchant))
+        // Supported newly registered/legacy merchants need not have an optional curated storefront row.
         val owner = token(merchant)
         val other = token("catalog-http-other")
         val customer = token("catalog-http-customer", RoleCode.CUSTOMER)

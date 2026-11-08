@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.AuthProvider
 import dev.orestegabo.sequo_api.domain.auth.User
 import dev.orestegabo.sequo_api.domain.auth.UserRepository
@@ -20,6 +21,8 @@ import dev.orestegabo.sequo_api.domain.platform.ProductCustomizationOptionReques
 import dev.orestegabo.sequo_api.domain.platform.ReplaceProductCustomizationsRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
@@ -49,6 +52,49 @@ class CommerceServiceTest @Autowired constructor(
     private val quotes: CartDeliveryQuoteService,
     private val platformCommerce: PlatformCommerceService,
 ) {
+    @Test
+    fun publicCatalogUsesRealActiveMerchantWithoutStorefrontAndRetainsExplicitVisibility() {
+        val owner = users.save(User(email = "private-catalog-owner@fixture.invalid", phoneNumber = "+22890000123"))
+        val plain = "catalog-public-unconfigured"
+        val curated = "catalog-public-curated"
+        val hidden = "catalog-public-hidden"
+        val inactive = "catalog-public-inactive"
+        merchants.saveAll(listOf(
+            MerchantRecord(plain, ownerUserId = owner.id, name = "Real merchant", walletProvider = "PRIVATE_WALLET", walletAccountRef = "PRIVATE_ACCOUNT"),
+            MerchantRecord(curated, name = "Curated merchant"),
+            MerchantRecord(hidden, name = "Hidden merchant"),
+            MerchantRecord(inactive, name = "Inactive merchant", status = "INACTIVE"),
+        ))
+        storefronts.saveAll(listOf(
+            MerchantStorefrontRecord(curated, area = "Configured area", distanceKm = 2.5, eta = "Configured ETA", rating = "4.5"),
+            MerchantStorefrontRecord(hidden, active = false),
+        ))
+        listOf(plain, curated, hidden, inactive).forEach { id ->
+            products.save(ProductRecord("$id-product", merchantId = id, name = "Published product", category = "public-fixture", basePriceCfa = 1250))
+        }
+        products.save(ProductRecord("$plain-draft", merchantId = plain, name = "Unpublished draft", category = "public-fixture", basePriceCfa = 1000, status = CatalogProductStatus.INACTIVE))
+
+        val home = service.home("public-fixture")
+        assertEquals(setOf(plain, curated), home.merchants.map { it.id }.toSet())
+        val merchant = home.merchants.single { it.id == plain }
+        assertEquals("Real merchant", merchant.name)
+        assertEquals("ACTIVE", merchant.status)
+        assertEquals(listOf("$plain-product"), merchant.products.map { it.id })
+        assertNull(merchant.area); assertNull(merchant.distanceKm); assertNull(merchant.eta)
+        assertNull(merchant.rating); assertNull(merchant.openStatus); assertNull(merchant.consolidation)
+        val configured = home.merchants.single { it.id == curated }
+        assertEquals("Configured area", configured.area); assertEquals(2.5, configured.distanceKm)
+        assertEquals("Configured ETA", configured.eta); assertEquals("4.5", configured.rating)
+        assertFalse(home.products.any { it.id == "$plain-draft" })
+        assertEquals(home.products.single { it.id == "$plain-product" }, merchant.products.single())
+        assertTrue(service.listMerchants("public-fixture", null, null, null).any { it.id == plain })
+        val publicJson = ObjectMapper().writeValueAsString(home)
+        listOf(requireNotNull(owner.id), requireNotNull(owner.email), requireNotNull(owner.phoneNumber), "PRIVATE_ACCOUNT", "PRIVATE_WALLET", "ownerUserId", "walletAccountRef").forEach {
+            assertFalse(publicJson.contains(it))
+        }
+        assertFalse(storefronts.existsById(plain)) // Reads do not repair or overwrite optional metadata.
+    }
+
     @Test
     fun homeReturnsGeneralCatalogDataFromDatabase() {
         seedCatalog()

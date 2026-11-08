@@ -467,12 +467,19 @@ class CommerceService(
         } else {
             val merchantsById = merchants.findAllById(merchantIds).associateBy { it.id }
             val storeOpenStatuses = merchantStores.publicOpenStatuses(merchantIds)
-            storefronts.findByMerchantIdIn(merchantIds)
-                .filter { it.active }
+            val configuredStorefronts = storefronts.findByMerchantIdIn(merchantIds).associateBy { it.merchantId }
+            val configured = configuredStorefronts.values
+                .filter { it.active && merchantsById[it.merchantId]?.status == "ACTIVE" }
                 .sortedBy { it.sortOrder }
-                .map { storefront -> storefront.toDto(merchantsById[storefront.merchantId], productsByMerchant[storefront.merchantId].orEmpty()).let { dto ->
+                .map { storefront -> storefront.toDto(requireNotNull(merchantsById[storefront.merchantId]), productsByMerchant[storefront.merchantId].orEmpty()).let { dto ->
                     dto.copy(openStatus = storeOpenStatuses[storefront.merchantId] ?: dto.openStatus)
                 } }
+            // A storefront is optional display metadata, not publication/ownership authority.
+            // Retain an explicit inactive storefront decision; never invent a missing merchant.
+            val withoutStorefront = merchantIds.filterNot(configuredStorefronts::containsKey)
+                .mapNotNull(merchantsById::get).filter { it.status == "ACTIVE" }
+                .map { merchant -> merchant.toPublicStorefrontDto(productsByMerchant[merchant.id].orEmpty(), storeOpenStatuses[merchant.id]) }
+            configured + withoutStorefront
         }
 
         return CommerceHomeDto(
@@ -1170,11 +1177,11 @@ private fun Authentication?.isLoggedIn(): Boolean =
 private fun CatalogCategoryRecord.toDto(): CatalogCategoryDto =
     CatalogCategoryDto(key, title, supportLabel, accentHex)
 
-private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord?, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
+private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
     MerchantStorefrontDto(
         id = merchantId,
-        name = merchantRecord?.name ?: merchantId,
-        status = merchantRecord?.status ?: "UNKNOWN",
+        name = merchantRecord.name,
+        status = merchantRecord.status,
         area = area,
         kind = kind,
         distanceKm = distanceKm,
@@ -1184,6 +1191,13 @@ private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord?, stor
         rating = rating,
         consolidation = consolidation,
         products = storeProducts,
+    )
+
+private fun MerchantRecord.toPublicStorefrontDto(storeProducts: List<CatalogProductDto>, effectiveOpenStatus: String?): MerchantStorefrontDto =
+    MerchantStorefrontDto(
+        id = id, name = name, status = status,
+        area = null, kind = null, distanceKm = null, eta = null, photoStatus = null,
+        openStatus = effectiveOpenStatus, rating = null, consolidation = null, products = storeProducts,
     )
 
 private fun ProductRecord.acceptsBargaining(): Boolean =
