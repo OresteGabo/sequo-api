@@ -29,7 +29,8 @@ class DevelopmentMobileAccessPolicy(
     }
     fun allows(request: HttpServletRequest): Boolean = enabled &&
         DevelopmentAdminAccessChecks.loopbackAddress(request.remoteAddr.orEmpty()) &&
-        DevelopmentAdminAccessChecks.loopbackAddress(request.serverName.orEmpty()) &&
+        (DevelopmentAdminAccessChecks.loopbackAddress(request.serverName.orEmpty()) ||
+            (request.serverName == "10.0.2.2" && request.getHeader("Origin").isNullOrEmpty())) &&
         (request.getHeader("Origin").isNullOrEmpty() || request.getHeader("Origin") in access.settings.origins) &&
         listOf("Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Real-IP")
             .none { request.getHeader(it) != null }

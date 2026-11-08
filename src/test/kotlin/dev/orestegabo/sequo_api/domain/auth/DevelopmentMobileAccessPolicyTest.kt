@@ -33,7 +33,10 @@ class DevelopmentMobileAccessPolicyTest {
         assertTrue(policy.allows(request()))
         assertTrue(policy.allows(request().apply { addHeader("Origin", "http://127.0.0.1:5173") }))
         assertFalse(policy.allows(request().apply { serverName = "localhost" }))
-        assertFalse(policy.allows(request().apply { serverName = "10.0.2.2" }))
+        // Android's emulator alias reaches the same bound loopback socket; never grant it to browser origins.
+        assertTrue(policy.allows(request().apply { serverName = "10.0.2.2" }))
+        assertFalse(policy.allows(request().apply { serverName = "10.0.2.2"; addHeader("Origin", "http://127.0.0.1:5173") }))
+        assertFalse(policy.allows(request().apply { serverName = "10.0.2.2"; remoteAddr = "192.168.1.2" }))
         assertFalse(policy.allows(request().apply { remoteAddr = "192.168.1.2" }))
         assertFalse(policy.allows(request().apply { addHeader("Origin", "https://foreign.invalid") }))
         for (header in listOf("Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Real-IP")) {
