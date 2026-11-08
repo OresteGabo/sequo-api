@@ -313,6 +313,26 @@ Create return body:
 }
 ```
 
+## Bargaining
+
+| Method | Endpoint | Auth | Scope |
+| --- | --- | --- | --- |
+| `GET` | `/api/bargaining/threads` | Yes | Current customer |
+| `GET` | `/api/bargaining/threads?merchantId={{merchant_id}}` | Yes | Authorized merchant owner/staff |
+| `GET` | `/api/bargaining/threads/{threadId}` | Yes | Thread customer or authorized merchant |
+| `POST` | `/api/bargaining/threads` | Yes | Customer; merchant comes from product |
+| `POST` | `/api/bargaining/threads/{threadId}/offers` | Yes | Thread customer or authorized merchant |
+
+Create: `{ "productId": "<product-id>", "amountCfa": 1400, "idempotencyKey": "<stable-intent-key>" }`. Offers must be positive and strictly below the current catalog base price, and satisfy the seller's configured private floor. The product and seller must be active and bargaining enabled. Reopening a thread does not reset the same customer/merchant/product attempt budget.
+
+Merchant counter: `{ "offerType": "COUNTER_OFFER", "amountCfa": 1600, "expectedOfferId": "<pending-customer-offer-id>", "idempotencyKey": "<stable-intent-key>" }`. Either recipient accepts/rejects with `{ "offerType": "ACCEPT", "expectedOfferId": "<pending-opposite-offer-id>", "idempotencyKey": "<stable-intent-key>" }` or REJECT. Decisions use the server's pending amount and cannot supply a replacement price. Customer follow-up uses OFFER after rejection; MESSAGE requires text and no amount. Keep an intent's key/body unchanged when retrying.
+
+Thread DTOs include `customerAttemptsUsed`, `merchantAttemptsUsed`, both `max...Attempts`, `nextActor`, product name/price/eligibility, `acceptedAt`, `expiresAt` and server history. Defaults are three customer proposals, three seller counters and a 24-hour accepted-price lock. An exhausted rejected negotiation is LOCKED_ATTEMPTS_EXHAUSTED; new IDs or reloading cannot reset it. No automatic cooldown/reset is defined.
+
+To use acceptance, PUT `/api/cart/items` with product/quantity/selections plus `bargainingThreadId`. Do not send negotiated totals. The server validates customer/merchant/product and expiry, replaces the base amount only, and keeps option supplements authoritative. Cart items return the reference, negotiated unit price and expiry. Preserve the reference on quantity edits. Catalog and negotiated lines have distinct configuration identities. Expired/invalid agreement lines become unavailable; remove the line, re-add without a reference and review a new quote. Checkout uses existing `/api/cart/quote` and `/api/orders/checkouts`; stale quotes return 409. An already-created pending checkout retains its frozen valid price on retry after expiry. Legacy `/api/orders/process` rejects negotiated fields and real catalog products; use basket checkout for those new orders. Historical records/pending reconciliation remain readable.
+
+Runtime configuration: BARGAINING_MAX_CUSTOMER_ATTEMPTS=3, BARGAINING_MAX_MERCHANT_ATTEMPTS=3, BARGAINING_ACCEPTED_PRICE_LOCK_HOURS=24 by default. New writes serialize on the customer and use scoped retry receipts. Historical-minimum display remains excluded pending SEQUO approval under clause 55.
+
 ## Consolidations
 
 | Method | Endpoint | Auth | Role |
