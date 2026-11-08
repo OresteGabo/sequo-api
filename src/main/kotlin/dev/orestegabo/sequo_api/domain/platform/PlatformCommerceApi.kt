@@ -34,6 +34,8 @@ import dev.orestegabo.sequo_api.domain.catalog.FoodCustomizationService
 import org.springframework.transaction.annotation.Isolation
 import org.springframework.stereotype.Service
 import dev.orestegabo.sequo_api.domain.payment.PaymentConfigurationStatus
+import dev.orestegabo.sequo_api.domain.payment.PaymentConfigurationIssue
+import dev.orestegabo.sequo_api.domain.payment.PaymentIntegrationStatus
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -369,6 +371,9 @@ data class PaymentProviderConfigurationDto(
     val notes: String?,
     val apiConfigured: Boolean = false,
     val checkoutConnected: Boolean = false,
+    val configuredReadiness: PaymentProviderReadiness? = null,
+    val integrationStatus: PaymentIntegrationStatus = PaymentIntegrationStatus.NOT_CONNECTED,
+    val configurationIssues: List<PaymentConfigurationIssue> = emptyList(),
 )
 data class ProductCustomizationGroupDto(
     val id: String,
@@ -554,8 +559,19 @@ class PlatformCommerceService(
 
     @Transactional(readOnly = true)
     fun paymentProviders(): List<PaymentProviderConfigurationDto> =
-        paymentProviders.findAllByOrderByDisplayNameAsc().map {
-            it.toDto().copy(apiConfigured = paymentConfiguration.apiConfigured(it.providerId))
+        paymentProviders.findAllByOrderByDisplayNameAsc().map { provider ->
+            // Stored preparation flags cannot enable the current, unimplemented provider transports.
+            provider.toDto().copy(
+                readiness = if (provider.readiness == PaymentProviderReadiness.DISABLED) PaymentProviderReadiness.DISABLED else PaymentProviderReadiness.PLANNED,
+                customerCheckoutEnabled = false,
+                refundEnabled = false,
+                courierPayoutEnabled = false,
+                apiConfigured = paymentConfiguration.apiConfigured(provider.providerId),
+                checkoutConnected = false,
+                configuredReadiness = provider.readiness,
+                integrationStatus = paymentConfiguration.integrationStatus(provider.providerId),
+                configurationIssues = paymentConfiguration.configurationIssues(provider.providerId),
+            )
         }
 
     @Transactional(readOnly = true)

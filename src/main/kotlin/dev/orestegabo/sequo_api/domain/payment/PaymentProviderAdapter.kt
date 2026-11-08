@@ -1,6 +1,18 @@
 package dev.orestegabo.sequo_api.domain.payment
 
 import java.time.Instant
+import java.net.URI
+
+enum class PaymentConfigurationIssue {
+    API_BASE_URL_MISSING,
+    API_BASE_URL_INVALID,
+    API_BASE_URL_PLACEHOLDER,
+    API_KEY_MISSING,
+    API_KEY_PLACEHOLDER,
+    MERCHANT_ACCOUNT_ID_MISSING,
+    MERCHANT_ACCOUNT_ID_PLACEHOLDER,
+    UNSUPPORTED_PROVIDER,
+}
 
 data class PaymentProviderAdapterConfiguration(
     val apiBaseUrl: String = "",
@@ -8,10 +20,24 @@ data class PaymentProviderAdapterConfiguration(
     val merchantAccountId: String = "",
     val webhookSecret: String = "",
 ) {
-    fun hasPaymentApiConfiguration(): Boolean =
-        apiBaseUrl.isProductionValue() &&
-            apiKey.isProductionValue() &&
-            merchantAccountId.isProductionValue()
+    fun hasPaymentApiConfiguration(): Boolean = paymentApiConfigurationIssues().isEmpty()
+
+    fun paymentApiConfigurationIssues(): List<PaymentConfigurationIssue> = buildList {
+        when {
+            apiBaseUrl.isBlank() -> add(PaymentConfigurationIssue.API_BASE_URL_MISSING)
+            !apiBaseUrl.isProductionValue() -> add(PaymentConfigurationIssue.API_BASE_URL_PLACEHOLDER)
+            !apiBaseUrl.isPaymentApiUrl() -> add(PaymentConfigurationIssue.API_BASE_URL_INVALID)
+            apiBaseUrl.isPlaceholderEndpoint() -> add(PaymentConfigurationIssue.API_BASE_URL_PLACEHOLDER)
+        }
+        when {
+            apiKey.isBlank() -> add(PaymentConfigurationIssue.API_KEY_MISSING)
+            !apiKey.isProductionValue() -> add(PaymentConfigurationIssue.API_KEY_PLACEHOLDER)
+        }
+        when {
+            merchantAccountId.isBlank() -> add(PaymentConfigurationIssue.MERCHANT_ACCOUNT_ID_MISSING)
+            !merchantAccountId.isProductionValue() -> add(PaymentConfigurationIssue.MERCHANT_ACCOUNT_ID_PLACEHOLDER)
+        }
+    }
 
     fun hasWebhookConfiguration(): Boolean =
         webhookSecret.isProductionValue()
@@ -181,9 +207,36 @@ fun PaymentProviderAdapter.asPaymentMethod(): SequoPaymentMethod {
 }
 
 internal fun String.isProductionValue(): Boolean {
-    val normalized = trim()
+    val normalized = trim().lowercase()
     return normalized.isNotEmpty() &&
-        !normalized.contains("change_before_prod", ignoreCase = true) &&
-        !normalized.contains("dev_", ignoreCase = true) &&
-        !normalized.equals("placeholder", ignoreCase = true)
+        !normalized.contains("change_before_prod") &&
+        !normalized.contains("dev_") &&
+        !normalized.contains("placeholder") &&
+        !normalized.contains("replace_me") &&
+        !normalized.contains("replace-me") &&
+        !normalized.contains("replace_with") &&
+        !normalized.contains("replace-with") &&
+        !normalized.contains("change_me") &&
+        !normalized.contains("change-me") &&
+        !normalized.contains("changeme") &&
+        !normalized.startsWith("your_") &&
+        !normalized.startsWith("your-") &&
+        !normalized.startsWith("\${") &&
+        normalized !in setOf("example", "dummy", "test") &&
+        !normalized.any { it.isISOControl() }
+}
+
+private fun String.isPaymentApiUrl(): Boolean = runCatching {
+    val url = URI(trim())
+    url.scheme.equals("https", ignoreCase = true) && !url.host.isNullOrBlank() &&
+        url.rawUserInfo == null && url.rawQuery == null && url.rawFragment == null &&
+        (url.port == -1 || url.port in 1..65535)
+}.getOrDefault(false)
+
+private fun String.isPlaceholderEndpoint(): Boolean {
+    val host = URI(trim()).host.lowercase().trimEnd('.')
+    return host == "localhost" || host.endsWith(".localhost") || host == "localhost.localdomain" ||
+        host == "0.0.0.0" || host.startsWith("127.") || host in setOf("[::1]", "::1") ||
+        listOf("invalid", "example", "test").any { host == it || host.endsWith(".$it") } ||
+        listOf("example.com", "example.org", "example.net").any { host == it || host.endsWith(".$it") }
 }

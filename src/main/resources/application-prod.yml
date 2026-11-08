@@ -95,10 +95,14 @@ sequo:
       fixed-delay-ms: ${NOTIFICATION_DEVICE_TOKEN_PRUNING_FIXED_DELAY_MS:86400000}
   wallets:
     yas-togo:
+      api-base-url: ${YAS_TOGO_API_BASE_URL:}
       api-key: ${YAS_TOGO_API_KEY:}
+      merchant-account-id: ${YAS_TOGO_MERCHANT_ACCOUNT_ID:}
       webhook-secret: ${YAS_TOGO_WEBHOOK_SECRET:}
     moov-africa:
+      api-base-url: ${MOOV_AFRICA_API_BASE_URL:}
       api-key: ${MOOV_AFRICA_API_KEY:}
+      merchant-account-id: ${MOOV_AFRICA_MERCHANT_ACCOUNT_ID:}
       webhook-secret: ${MOOV_AFRICA_WEBHOOK_SECRET:}
   relay:
     delayed-parcel-scheduler:
