@@ -248,6 +248,7 @@ interface CustomerCartItemRepository : JpaRepository<CustomerCartItemRecord, Str
 }
 
 interface BargainingThreadRepository : JpaRepository<BargainingThreadRecord, String> {
+    fun findByMerchantId(merchantId: String, pageable: Pageable): org.springframework.data.domain.Page<BargainingThreadRecord>
     fun findByCustomerIdOrderByOpenedAtDesc(customerId: String): List<BargainingThreadRecord>
     fun findByIdAndCustomerId(id: String, customerId: String): BargainingThreadRecord?
     fun findByMerchantIdOrderByOpenedAtDesc(merchantId: String): List<BargainingThreadRecord>

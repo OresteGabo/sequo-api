@@ -35,6 +35,11 @@ class PersistedBargainingService(
     private val policy = BargainingPolicy(maxCustomerAttempts, maxMerchantAttempts, Duration.ofHours(acceptedPriceLockHours))
     private val mapper = ObjectMapper()
 
+    /** Explicit staff projection source; HTTP authorization and redaction live in the admin surface. */
+    @Transactional(readOnly = true)
+    internal fun administrativeSnapshot(threadId: String): BargainingThreadDto? =
+        threads.findById(threadId).orElse(null)?.let(::snapshot)
+
     @Transactional(readOnly = true)
     fun list(authentication: Authentication, merchantId: String?): List<BargainingThreadDto> {
         val records = if (merchantId != null) {
