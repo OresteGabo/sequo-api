@@ -74,7 +74,8 @@ class AdminAuthControllerEmailCodeTest @Autowired constructor(
         assertEquals(200, response.statusCode.value())
         assertEquals("SENT_IF_ELIGIBLE", body.status)
         assertEquals(0, emailCodeRepository.count())
-        Mockito.verifyNoInteractions(emailCodeSender)
+        Mockito.verify(emailCodeSender).checkAvailability()
+        Mockito.verifyNoMoreInteractions(emailCodeSender)
     }
 
     @Test
@@ -147,7 +148,34 @@ class AdminAuthControllerEmailCodeTest @Autowired constructor(
 
         assertEquals(200, response.statusCode.value())
         assertEquals(0, emailCodeRepository.count())
-        Mockito.verifyNoInteractions(emailCodeSender)
+        Mockito.verify(emailCodeSender).checkAvailability()
+        Mockito.verifyNoMoreInteractions(emailCodeSender)
+    }
+
+    @Test
+    fun disabledDeliveryReturnsSameUnavailableResponseForEveryAccount() {
+        userRepository.save(User(email = "unavailable-admin@sequo.test", roles = mutableSetOf(RoleCode.ADMIN)))
+        Mockito.doThrow(AdminEmailDeliveryUnavailableException()).`when`(emailCodeSender).checkAvailability()
+        for (email in listOf("unavailable-admin@sequo.test", "unknown@sequo.test")) {
+            val response = controller.requestEmailCode(AdminAuthController.EmailCodeRequest(email))
+            assertEquals(503, response.statusCode.value())
+            assertEquals("admin_email_unavailable", (response.body as AdminAuthController.AdminAuthErrorResponse).code)
+        }
+        assertEquals(0, emailCodeRepository.count())
+    }
+
+    @Test
+    fun rejectedProviderDeliveryPersistsNoCodeAndDoesNotRevealAccountEligibility() {
+        userRepository.save(User(email = "provider-fail@sequo.test", roles = mutableSetOf(RoleCode.ADMIN)))
+        Mockito.doThrow(AdminEmailDeliveryException()).`when`(emailCodeSender).send(
+            Mockito.anyString(), Mockito.anyString(), Mockito.any(Instant::class.java) ?: Instant.EPOCH,
+        )
+        val eligible = controller.requestEmailCode(AdminAuthController.EmailCodeRequest("provider-fail@sequo.test"))
+        val unknown = controller.requestEmailCode(AdminAuthController.EmailCodeRequest("unknown@sequo.test"))
+        assertEquals(200, eligible.statusCode.value())
+        assertEquals(eligible.body, unknown.body)
+        assertEquals(0, emailCodeRepository.count())
+        assertEquals(401, controller.verifyEmailCode(AdminAuthController.EmailCodeVerifyRequest("provider-fail@sequo.test", "ABC-DEF", "failed-email-device")).statusCode.value())
     }
 
     private fun capturedSentCode(): String {

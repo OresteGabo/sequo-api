@@ -58,20 +58,26 @@ class AdminAuthService(
 ) {
     @Transactional
     fun requestEmailCode(email: String, now: Instant = Instant.now()): AdminEmailCodeRequestResult {
+        emailCodeSender.checkAvailability()
         val normalizedEmail = ApiInputPolicy.normalizedIdentityEmail(email)
         val user = eligibleAdminByEmail(normalizedEmail)
         if (user != null) {
             val generatedCode = codeService.generate(now = now, ttl = EmailCodeTtl)
-            adminEmailCodeRepository.save(
-                AdminEmailCode(
-                    emailNormalized = normalizedEmail,
-                    codeHash = generatedCode.codeHash,
-                    requestedAt = now,
-                    expiresAt = generatedCode.expiresAt,
-                    userId = requireNotNull(user.id),
+            try {
+                emailCodeSender.send(normalizedEmail, generatedCode.code, generatedCode.expiresAt)
+                adminEmailCodeRepository.save(
+                    AdminEmailCode(
+                        emailNormalized = normalizedEmail,
+                        codeHash = generatedCode.codeHash,
+                        requestedAt = now,
+                        expiresAt = generatedCode.expiresAt,
+                        userId = requireNotNull(user.id),
+                    )
                 )
-            )
-            emailCodeSender.send(normalizedEmail, generatedCode.code, generatedCode.expiresAt)
+            } catch (_: AdminEmailDeliveryException) {
+                // Keep the same generic response as an unknown/non-admin address. No usable new code is saved.
+                auditService.record(AdminAuthAuditEvent(type = AdminAuthAuditEventType.EMAIL_OTP_DELIVERY_FAILED, occurredAt = now, userId = user.id))
+            }
         }
         auditService.record(
             AdminAuthAuditEvent(

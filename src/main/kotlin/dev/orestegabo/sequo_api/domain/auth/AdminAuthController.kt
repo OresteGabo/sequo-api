@@ -134,6 +134,8 @@ class AdminAuthController(
                     retryAfterSeconds = result.retryAfterSeconds,
                 )
             )
+        } catch (_: AdminEmailDeliveryUnavailableException) {
+            ResponseEntity.status(503).body(AdminAuthErrorResponse("admin_email_unavailable", "Email sign-in is temporarily unavailable. Please contact SEQUO support."))
         } catch (e: RateLimitExceededException) {
             rateLimitedResponse(e)
         } catch (e: IllegalArgumentException) {

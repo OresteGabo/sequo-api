@@ -57,6 +57,7 @@ interface AdminLoginRequestRepository : JpaRepository<AdminLoginRequest, String>
 }
 
 interface AdminEmailCodeRepository : JpaRepository<AdminEmailCode, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findFirstByEmailNormalizedAndStatusOrderByRequestedAtDesc(
         emailNormalized: String,
         status: AdminEmailCodeStatus,
