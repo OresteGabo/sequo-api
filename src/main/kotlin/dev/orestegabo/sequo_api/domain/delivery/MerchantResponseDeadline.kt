@@ -28,12 +28,12 @@ import java.time.Instant
 @Component
 class MerchantResponseDeadlinePolicy(environment: Environment) {
     val enabled = environment.getProperty("sequo.merchant-fulfillment.response-deadline.enabled", Boolean::class.java, true)
-    val responseWindow: Duration = Duration.parse(environment.getProperty("sequo.merchant-fulfillment.response-deadline.response-window", "PT10M"))
-    val alertWindow: Duration = Duration.parse(environment.getProperty("sequo.merchant-fulfillment.response-deadline.alert-window", "PT45S"))
+    val responseWindow: Duration = Duration.parse(environment.getProperty("sequo.merchant-fulfillment.response-deadline.response-window", "PT15M"))
+    val alertWindow: Duration = Duration.parse(environment.getProperty("sequo.merchant-fulfillment.response-deadline.alert-window", "PT60S"))
     init {
         require(!responseWindow.isZero && !responseWindow.isNegative) { "Merchant response window must be positive." }
-        require(!alertWindow.isZero && !alertWindow.isNegative && alertWindow <= Duration.ofSeconds(45) && alertWindow <= responseWindow) {
-            "Incoming alert window must be positive, at most 45 seconds, and no longer than the response window."
+        require(!alertWindow.isZero && !alertWindow.isNegative && alertWindow <= Duration.ofSeconds(60) && alertWindow <= responseWindow) {
+            "Incoming alert window must be positive, at most 60 seconds, and no longer than the response window."
         }
     }
 }

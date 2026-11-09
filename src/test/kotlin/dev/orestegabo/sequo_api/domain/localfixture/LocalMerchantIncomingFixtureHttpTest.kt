@@ -109,8 +109,8 @@ class LocalMerchantIncomingFixtureHttpTest @Autowired constructor(
         assertEquals("MERCHANT_PENDING", part["status"].asText())
         assertEquals("PENDING", part["responseState"].asText())
         assertEquals("Validated", part["orderPaymentStatus"].asText())
-        assertEquals(Duration.ofSeconds(45), Duration.between(Instant.parse(part["createdAt"].asText()), Instant.parse(part["alertUntilAt"].asText())))
-        assertEquals(Duration.ofMinutes(10), Duration.between(Instant.parse(part["createdAt"].asText()), Instant.parse(part["responseDeadlineAt"].asText())))
+        assertEquals(Duration.ofSeconds(60), Duration.between(Instant.parse(part["createdAt"].asText()), Instant.parse(part["alertUntilAt"].asText())))
+        assertEquals(Duration.ofMinutes(15), Duration.between(Instant.parse(part["createdAt"].asText()), Instant.parse(part["responseDeadlineAt"].asText())))
         assertNotNull(part["serverNow"])
         val checkoutId = first["checkoutId"].asText()
         val receipt = receipts.findByProviderAndEventId("yas_togo", "LOCAL_FIXTURE:$checkoutId")!!

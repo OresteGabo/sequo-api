@@ -9,8 +9,8 @@ class MerchantResponseDeadlinePolicyTest {
     @Test fun authorizedDefaultsKeepShortAlertSeparateFromTheWholeResponseWindow() {
         val policy = MerchantResponseDeadlinePolicy(MockEnvironment())
         assertTrue(policy.enabled)
-        assertEquals(Duration.ofSeconds(45), policy.alertWindow)
-        assertEquals(Duration.ofMinutes(10), policy.responseWindow)
+        assertEquals(Duration.ofSeconds(60), policy.alertWindow)
+        assertEquals(Duration.ofMinutes(15), policy.responseWindow)
     }
     @Test fun configuredWindowsAreValidatedAndMayDisableNewSnapshots() {
         val policy = MerchantResponseDeadlinePolicy(MockEnvironment()
@@ -22,8 +22,8 @@ class MerchantResponseDeadlinePolicyTest {
         assertEquals(Duration.ofSeconds(30), policy.alertWindow)
     }
     @Test fun invalidOrLongerThanResponseAlertWindowsFailAtConfiguration() {
-        // A single nanosecond above the shared native hard cap must fail; exactly 45s remains valid above.
-        listOf("PT0S", "PT-1S", "PT11M", "PT45.000000001S").forEach { value ->
+        // A single nanosecond above the shared native hard cap must fail; exactly 60s remains valid above.
+        listOf("PT0S", "PT-1S", "PT11M", "PT60.000000001S").forEach { value ->
             assertFailsWith<IllegalArgumentException> { MerchantResponseDeadlinePolicy(MockEnvironment()
                 .withProperty("sequo.merchant-fulfillment.response-deadline.alert-window", value)) }
         }

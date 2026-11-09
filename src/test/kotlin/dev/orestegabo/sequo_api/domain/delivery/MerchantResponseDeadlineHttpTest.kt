@@ -59,8 +59,8 @@ class MerchantResponseDeadlineHttpTest @Autowired constructor(
     @Test fun newPaidPartsSnapshotWindowsAndAcceptanceBeforeDeadlineSurvivesLaterScans() {
         val fixture = paidOrder()
         val row = fixture.parts.single()
-        assertEquals(Duration.ofMinutes(10), Duration.between(row.createdAt, row.responseDeadlineAt))
-        assertEquals(Duration.ofSeconds(45), Duration.between(row.createdAt, row.alertUntilAt))
+        assertEquals(Duration.ofMinutes(15), Duration.between(row.createdAt, row.responseDeadlineAt))
+        assertEquals(Duration.ofSeconds(60), Duration.between(row.createdAt, row.alertUntilAt))
         assertEquals(row.responseDeadlineAt, row.sellerResponseDueAt)
         assertEquals("PENDING", row.responseState)
         assertNotNull(row.serverNow)
@@ -70,6 +70,32 @@ class MerchantResponseDeadlineHttpTest @Autowired constructor(
         assertEquals(MerchantSubOrderStatus.ACCEPTED, service.get(row.id)?.status)
         assertEquals(CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT, orders.findById(fixture.orderId).orElseThrow().orderStatus)
         assertNull(service.get(row.id)?.responseExpiredAt)
+    }
+
+    @Test fun storedFortyFiveSecondTenMinuteSnapshotsKeepTheirOriginalDeadlineAfterDefaultChange() {
+        val fixture = paidOrder()
+        val row = fixture.parts.single()
+        val createdAt = requireNotNull(row.createdAt).truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+        val originalAlert = createdAt.plusSeconds(45)
+        val originalDeadline = createdAt.plus(Duration.ofMinutes(10))
+        // Isolated test record representing an already-stored earlier-policy snapshot, not a runtime backfill.
+        jdbc.update("update merchant_sub_orders set alert_until_at=?, response_deadline_at=?, seller_response_due_at=? where id=?",
+            java.sql.Timestamp.from(originalAlert), java.sql.Timestamp.from(originalDeadline), java.sql.Timestamp.from(originalDeadline), row.id)
+        val beforeVersion = parts.findById(row.id).orElseThrow().version
+        val first = read("/api/merchant/sub-orders/${row.id}?merchantId=${row.merchantId}", fixture.owners.single())
+        val repeated = service.get(row.id)!!
+        assertEquals(originalAlert, Instant.parse(first["alertUntilAt"].asText()))
+        assertEquals(originalDeadline, Instant.parse(first["responseDeadlineAt"].asText()))
+        assertEquals(originalAlert, repeated.alertUntilAt)
+        assertEquals(originalDeadline, repeated.responseDeadlineAt)
+        assertEquals(originalDeadline, repeated.sellerResponseDueAt)
+        assertEquals(beforeVersion, parts.findById(row.id).orElseThrow().version)
+        // The new 15-minute default must not extend the existing 10-minute acceptance boundary.
+        val expired = assertIs<MerchantFulfillmentServiceResult.Rejected>(service.accept(row.id, row.merchantId, originalDeadline))
+        assertEquals("merchant_response_deadline_expired", expired.code)
+        assertEquals(originalDeadline, service.get(row.id)?.responseExpiredAt)
+        assertEquals(originalAlert, service.get(row.id)?.alertUntilAt)
+        assertEquals(originalDeadline, service.get(row.id)?.responseDeadlineAt)
     }
 
     @Test fun acceptanceAtDeadlineExpiresOnceAndCustomerSeesCancellationWithoutARefund() {
