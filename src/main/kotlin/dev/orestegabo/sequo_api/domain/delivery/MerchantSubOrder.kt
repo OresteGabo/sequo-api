@@ -89,6 +89,18 @@ class MerchantSubOrder(
     @Column(name = "seller_response_due_at")
     val sellerResponseDueAt: Instant? = null,
 
+    @Column(name = "alert_until_at")
+    val alertUntilAt: Instant? = null,
+
+    @Column(name = "response_deadline_at")
+    val responseDeadlineAt: Instant? = null,
+
+    @Column(name = "response_expired_at")
+    var responseExpiredAt: Instant? = null,
+
+    @Column(name = "response_disposition", length = 64)
+    var responseDisposition: String? = null,
+
     @Column(name = "packing_due_at")
     val packingDueAt: Instant? = null,
 

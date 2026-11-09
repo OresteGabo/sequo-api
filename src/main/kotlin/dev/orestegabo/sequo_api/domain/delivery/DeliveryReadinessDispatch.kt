@@ -68,6 +68,10 @@ class DeliveryReadinessDispatchService(
                 existing += deliveryMissionService.missionSnapshot(it)
                 return@forEach
             }
+            if (subOrders.existsByOrderIdAndResponseDisposition(order.id, MerchantResponseDeadlineService.OPERATIONS_REVIEW_REQUIRED)) {
+                skipped += subOrder.skipped("merchant_response_expired_operations_review_required")
+                return@forEach
+            }
             if (order.route == OrderRoute.GroupedSequo || (order.requiresConsolidation && order.route == OrderRoute.FastDelivery)) {
                 val manifest = manifests.findByOrderId(order.id)
                 // Keep already-dispatched legacy home legs on their original route.

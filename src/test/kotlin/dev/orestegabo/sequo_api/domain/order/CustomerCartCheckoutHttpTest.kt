@@ -292,10 +292,12 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(403, call("POST", "$actionPath/accept", otherMerchant, """{"merchantId":"$merchantId"}""").statusCode())
         assertEquals(400, call("POST", "$actionPath/accept", otherMerchant, """{"merchantId":"$otherMerchantId"}""").statusCode())
 
+        // Read-time server clock is intentionally fresh; all canonical business fields remain strict.
+        fun canonicalMerchant(row: JsonNode) = row.deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>().also { it.remove("serverNow") }
         fun replayAction(action: String, body: String): JsonNode {
             val results = (1..2).map { CompletableFuture.supplyAsync { call("POST", "$actionPath/$action", merchant, body) } }.map { it.join() }
             results.forEach { assertEquals(200, it.statusCode(), it.body()) }
-            assertEquals(json.readTree(results.first().body()), json.readTree(results.last().body()))
+            assertEquals(canonicalMerchant(json.readTree(results.first().body())), canonicalMerchant(json.readTree(results.last().body())))
             return json.readTree(results.first().body())
         }
         assertEquals("ACCEPTED", replayAction("accept", """{"merchantId":"$merchantId"}""")["status"].asText())
@@ -307,7 +309,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         val sla = read("GET", "$actionPath/sla?merchantId=$merchantId", merchant)
         assertEquals(queued["packingDueAt"], sla["packingDueAt"])
         val admin = jwt.generateAccessToken(UserSession("fixture-operations", null, AuthProvider.EMAIL, setOf(RoleCode.ADMIN)))
-        assertEquals(ready, read("GET", actionPath, admin))
+        assertEquals(canonicalMerchant(ready), canonicalMerchant(read("GET", actionPath, admin)))
         assertEquals(403, call("POST", "/api/delivery/missions/dispatch-ready", merchant).statusCode())
         val dispatched = call("POST", "/api/delivery/missions/dispatch-ready", admin)
         assertEquals(200, dispatched.statusCode(), dispatched.body())

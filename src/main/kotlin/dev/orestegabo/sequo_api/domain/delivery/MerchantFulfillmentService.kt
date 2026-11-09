@@ -66,6 +66,14 @@ data class MerchantSubOrderSnapshot(
     val publicReference: String? = null,
     val orderReference: String? = null,
     val merchantReference: String? = null,
+    val createdAt: Instant? = null,
+    val alertUntilAt: Instant? = null,
+    val responseDeadlineAt: Instant? = null,
+    val responseExpiredAt: Instant? = null,
+    val responseState: String? = null,
+    val responseExpiryDisposition: String? = null,
+    val responseDisposition: String? = null,
+    val serverNow: Instant? = null,
 )
 
 data class MerchantOrderLineSnapshot(
@@ -118,6 +126,9 @@ class MerchantFulfillmentService(
     private val sellerResponseSla: Duration = Duration.ofHours(24),
     private val packingSla: Duration = Duration.ofHours(48),
     private val references: PublicReferenceRegistry? = null,
+    private val responsePolicy: MerchantResponseDeadlinePolicy? = null,
+    private val responseDeadlines: MerchantResponseDeadlineService? = null,
+    private val notificationRecipients: MerchantOrderNotificationRecipients? = null,
 ) {
     private val objectMapper = ObjectMapper()
 
@@ -130,8 +141,12 @@ class MerchantFulfillmentService(
     fun create(
         command: CreateMerchantSubOrderCommand,
         createdAt: Instant = Instant.now(),
+        responseDeadlineEligible: Boolean = false,
     ): MerchantSubOrderSnapshot {
         val now = createdAt
+        val parent = orders.findById(command.orderId).orElse(null)
+        val timed = responseDeadlineEligible && responsePolicy?.enabled == true && parent?.paymentStatus == PaymentValidationStatus.Validated &&
+            parent.orderStatus == CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT
         val subOrder = MerchantSubOrder(
             subOrderCode = command.subOrderCode,
             orderId = command.orderId,
@@ -140,13 +155,18 @@ class MerchantFulfillmentService(
             commissionRateBps = command.commissionRateBps,
             commissionCfa = command.commissionCfa,
             merchantNetCfa = command.merchantNetCfa,
-            sellerResponseDueAt = now.plus(sellerResponseSla),
+            sellerResponseDueAt = now.plus(if (timed) requireNotNull(responsePolicy).responseWindow else sellerResponseSla),
+            alertUntilAt = if (timed) now.plus(requireNotNull(responsePolicy).alertWindow) else null,
+            responseDeadlineAt = if (timed) now.plus(requireNotNull(responsePolicy).responseWindow) else null,
             packingDueAt = now.plus(packingSla),
             createdAt = now,
             updatedAt = now,
         )
 
-        return snapshot(repository.save(subOrder))
+        val saved = repository.save(subOrder)
+        if (responseDeadlineEligible && parent?.paymentStatus == PaymentValidationStatus.Validated && parent.orderStatus == CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT)
+            publishIncomingPaidOrder(saved)
+        return snapshot(saved)
     }
 
     @Transactional(readOnly = true)
@@ -244,7 +264,7 @@ class MerchantFulfillmentService(
     fun accept(
         subOrderId: String,
         merchantId: String,
-        occurredAt: Instant = Instant.now(),
+        occurredAt: Instant? = null,
     ): MerchantFulfillmentServiceResult =
         transition(
             subOrderId = subOrderId,
@@ -257,7 +277,7 @@ class MerchantFulfillmentService(
     fun startPreparation(
         subOrderId: String,
         merchantId: String,
-        occurredAt: Instant = Instant.now(),
+        occurredAt: Instant? = null,
     ): MerchantFulfillmentServiceResult =
         transition(
             subOrderId = subOrderId,
@@ -271,7 +291,7 @@ class MerchantFulfillmentService(
         subOrderId: String,
         merchantId: String,
         packageCount: Int,
-        occurredAt: Instant = Instant.now(),
+        occurredAt: Instant? = null,
     ): MerchantFulfillmentServiceResult =
         transition(
             subOrderId = subOrderId,
@@ -285,7 +305,7 @@ class MerchantFulfillmentService(
     fun confirmCourierHandoff(
         subOrderId: String,
         merchantId: String,
-        occurredAt: Instant = Instant.now(),
+        occurredAt: Instant? = null,
     ): MerchantFulfillmentServiceResult =
         transition(
             subOrderId = subOrderId,
@@ -299,7 +319,8 @@ class MerchantFulfillmentService(
         subOrderId: String,
         merchantId: String,
         reason: String,
-        occurredAt: Instant = Instant.now(),
+        occurredAt: Instant? = null,
+        actorUserId: String? = null,
     ): MerchantFulfillmentServiceResult {
         if (reason.isBlank()) {
             return MerchantFulfillmentServiceResult.Rejected(
@@ -313,6 +334,7 @@ class MerchantFulfillmentService(
             event = MerchantFulfillmentEvent.SellerRejects,
             occurredAt = occurredAt,
             rejectionReason = reason,
+            actorUserId = actorUserId,
         )
     }
 
@@ -321,9 +343,15 @@ class MerchantFulfillmentService(
         merchantId: String,
         event: MerchantFulfillmentEvent,
         packageCount: Int = 0,
-        occurredAt: Instant,
+        occurredAt: Instant?,
         rejectionReason: String? = null,
+        actorUserId: String? = null,
     ): MerchantFulfillmentServiceResult {
+        val parentId = repository.findOrderIdForAction(subOrderId)
+            ?: return MerchantFulfillmentServiceResult.Rejected("merchant_sub_order_not_found", "Merchant sub-order was not found.")
+        if (repository.findMerchantIdForAction(subOrderId) != merchantId)
+            return MerchantFulfillmentServiceResult.Rejected("merchant_scope_mismatch", "This merchant cannot update another merchant's sub-order.")
+        val order = orders.lockForCompletion(parentId)
         val subOrder = repository.lockForAction(subOrderId)
             ?: return MerchantFulfillmentServiceResult.Rejected(
                 code = "merchant_sub_order_not_found",
@@ -336,7 +364,12 @@ class MerchantFulfillmentService(
             )
         }
 
-        val order = orders.findById(subOrder.orderId).orElse(null)
+        val effectiveAt = occurredAt ?: Instant.now()
+        if (event == MerchantFulfillmentEvent.SellerRejects && subOrder.responseDeadlineAt != null &&
+            subOrder.status == MerchantSubOrderStatus.REJECTED && subOrder.responseDisposition != null &&
+            subOrder.rejectionReason == rejectionReason) return MerchantFulfillmentServiceResult.Success(snapshot(subOrder), "Merchant refusal was already recorded.")
+        if (subOrder.responseExpiredAt != null) return MerchantFulfillmentServiceResult.Rejected(
+            "merchant_response_deadline_expired", "Merchant confirmation expired. Refresh the order and contact SEQUO if review is required.")
         if (order?.paymentStatus != PaymentValidationStatus.Validated ||
             order.orderStatus != CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT
         ) {
@@ -345,6 +378,9 @@ class MerchantFulfillmentService(
                 message = "A verified paid and active order is required for merchant preparation.",
             )
         }
+        if (responseDeadlines?.expireLocked(order, subOrder, effectiveAt) != null)
+            return MerchantFulfillmentServiceResult.Rejected("merchant_response_deadline_expired",
+                "Merchant confirmation expired. The verified payment has not been refunded automatically.")
         val alreadyApplied = when (event) {
             MerchantFulfillmentEvent.SellerAccepts -> subOrder.acceptedAt != null &&
                 subOrder.status in setOf(MerchantSubOrderStatus.ACCEPTED, MerchantSubOrderStatus.PREPARING,
@@ -379,11 +415,16 @@ class MerchantFulfillmentService(
             )
         }
 
+        if (event == MerchantFulfillmentEvent.SellerRejects && subOrder.responseDeadlineAt != null &&
+            responseDeadlines?.rejectLocked(order, subOrder, requireNotNull(rejectionReason), effectiveAt, actorUserId) == true) {
+            publishFulfillmentEvent(subOrder, event)
+            return MerchantFulfillmentServiceResult.Success(snapshot(subOrder), "Merchant refusal was recorded. The verified payment has not been refunded automatically.")
+        }
         subOrder.applyTransition(
             nextStatus = transition.nextStatus.toRecordStatus(),
             event = event,
             packageCount = packageCount,
-            occurredAt = occurredAt,
+            occurredAt = effectiveAt,
             rejectionReason = rejectionReason,
         )
 
@@ -418,6 +459,24 @@ class MerchantFulfillmentService(
         )
     }
 
+    private fun publishIncomingPaidOrder(subOrder: MerchantSubOrder) {
+        val recipients = notificationRecipients?.users(subOrder.merchantId).orEmpty()
+        val id = requireNotNull(subOrder.id)
+        // Bound each payload without dropping authorized recipients or exceeding the existing outbox limit.
+        recipients.toList().chunked(8).forEachIndexed { batch, users ->
+            publisher.publishEvent(NotificationWorkflowEvent(
+                eventId = "$id:incoming-paid:$batch", eventType = NotificationEventType.ORDER_CREATED,
+                aggregateType = "MERCHANT_SUB_ORDER", aggregateId = id,
+                payload = objectMapper.writeValueAsString(mapOf(
+                    "merchantUserIds" to users, "title" to "New paid order awaiting confirmation",
+                    "body" to "Review the paid order and accept or refuse before the response deadline.",
+                    "actionUrl" to "sequo://merchant/sub-orders/$id", "severity" to NotificationSeverity.ACTION_REQUIRED.name,
+                    "messagePayload" to mapOf("subOrderId" to id, "orderId" to subOrder.orderId,
+                        "merchantId" to subOrder.merchantId, "alertUntilAt" to subOrder.alertUntilAt?.toString(),
+                        "responseDeadlineAt" to subOrder.responseDeadlineAt?.toString())))))
+        }
+    }
+
     private fun publishFulfillmentEvent(
         subOrder: MerchantSubOrder,
         event: MerchantFulfillmentEvent,
@@ -441,10 +500,11 @@ class MerchantFulfillmentService(
                 payload = objectMapper.writeValueAsString(
                     mapOf(
                         "customerUserId" to order.customerId,
-                        "merchantUserIds" to listOf(subOrder.merchantId),
+                        "merchantUserIds" to notificationRecipients?.users(subOrder.merchantId).orEmpty(),
                         "title" to eventType.merchantFulfillmentTitle(),
-                        "body" to eventType.merchantFulfillmentBody(),
-                        "actionUrl" to "/merchant/sub-orders/$subOrderId",
+                        "body" to if (event == MerchantFulfillmentEvent.SellerRejects && subOrder.responseDisposition != null)
+                            order.customerFacingStatus else eventType.merchantFulfillmentBody(),
+                        "actionUrl" to "sequo://merchant/sub-orders/$subOrderId",
                         "severity" to if (eventType == NotificationEventType.ORDER_READY_FOR_PICKUP) {
                             NotificationSeverity.ACTION_REQUIRED.name
                         } else {
@@ -457,6 +517,7 @@ class MerchantFulfillmentService(
                             "merchantId" to subOrder.merchantId,
                             "status" to subOrder.status.name,
                             "rejectionReason" to subOrder.rejectionReason,
+                            "responseDisposition" to subOrder.responseDisposition,
                         ),
                     )
                 ),
@@ -480,10 +541,10 @@ class MerchantFulfillmentService(
                 payload = objectMapper.writeValueAsString(
                     mapOf(
                         "customerUserId" to order.customerId,
-                        "merchantUserIds" to listOf(subOrder.merchantId),
+                        "merchantUserIds" to notificationRecipients?.users(subOrder.merchantId).orEmpty(),
                         "title" to "Seller delay warning",
                         "body" to overdueReason.warningBody(),
-                        "actionUrl" to "/merchant/sub-orders/$subOrderId",
+                        "actionUrl" to "sequo://merchant/sub-orders/$subOrderId",
                         "severity" to NotificationSeverity.ACTION_REQUIRED.name,
                         "messagePayload" to mapOf(
                             "subOrderId" to subOrderId,
@@ -540,7 +601,7 @@ class MerchantFulfillmentService(
 
 private fun MerchantSubOrder.toSlaSnapshot(at: Instant): MerchantFulfillmentSlaSnapshot {
     val responseOverdue = status == MerchantSubOrderStatus.MERCHANT_PENDING &&
-        sellerResponseDueAt?.isBefore(at) == true
+        (responseDeadlineAt ?: sellerResponseDueAt)?.isBefore(at) == true
     val packingOverdue = status in setOf(
         MerchantSubOrderStatus.ACCEPTED,
         MerchantSubOrderStatus.PREPARING,
@@ -548,7 +609,7 @@ private fun MerchantSubOrder.toSlaSnapshot(at: Instant): MerchantFulfillmentSlaS
     return MerchantFulfillmentSlaSnapshot(
         subOrderId = requireNotNull(id),
         status = status,
-        sellerResponseDueAt = sellerResponseDueAt,
+        sellerResponseDueAt = responseDeadlineAt ?: sellerResponseDueAt,
         packingDueAt = packingDueAt,
         overdue = responseOverdue || packingOverdue,
         overdueReason = when {
@@ -640,9 +701,23 @@ private fun MerchantSubOrder.toSnapshot(references: PublicReferenceRegistry? = n
         packedReadyAt = packedReadyAt,
         handedToCourierAt = handedToCourierAt,
         rejectionReason = rejectionReason,
-        sellerResponseDueAt = sellerResponseDueAt,
+        sellerResponseDueAt = responseDeadlineAt ?: sellerResponseDueAt,
         packingDueAt = packingDueAt,
         updatedAt = updatedAt,
+        createdAt = createdAt,
+        alertUntilAt = alertUntilAt,
+        responseDeadlineAt = responseDeadlineAt,
+        responseExpiredAt = responseExpiredAt,
+        responseDisposition = responseDisposition,
+        responseExpiryDisposition = responseDisposition.takeIf { responseExpiredAt != null },
+        responseState = when {
+            responseExpiredAt != null -> "EXPIRED"
+            status == MerchantSubOrderStatus.MERCHANT_PENDING -> if (responseDeadlineAt == null) "LEGACY_UNTIMED" else "PENDING"
+            status == MerchantSubOrderStatus.REJECTED -> "REJECTED"
+            status == MerchantSubOrderStatus.CANCELLED -> "CANCELLED"
+            else -> "ACCEPTED"
+        },
+        serverNow = Instant.now(),
     )
 
 private fun MerchantSubOrderStatus.toWorkflowStatus(): MerchantFulfillmentStatus =

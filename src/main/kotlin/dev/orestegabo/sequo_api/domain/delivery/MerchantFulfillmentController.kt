@@ -187,6 +187,7 @@ class MerchantFulfillmentController(
             safeSubOrderId,
             safeMerchantId,
             ApiInputPolicy.requiredShortText(request.reason, "reason"),
+            actorUserId = authenticated.name,
         ).toResponse()
     }
 

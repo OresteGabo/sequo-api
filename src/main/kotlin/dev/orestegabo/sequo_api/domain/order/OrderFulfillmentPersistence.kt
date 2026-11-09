@@ -55,6 +55,8 @@ enum class CustomerOrderStatus {
 
 enum class CustomerOrderEventType {
     ACCEPTED_FOR_FULFILLMENT,
+    MERCHANT_RESPONSE_EXPIRED,
+    MERCHANT_RESPONSE_REJECTED,
     DELIVERED,
     RETURN_WINDOW_OPENED,
 }
@@ -93,7 +95,8 @@ class CustomerOrderRecord(
     fun effectiveCustomerFacingStatus(): String = when (orderStatus) {
         CustomerOrderStatus.ACCEPTED_FOR_FULFILLMENT -> customerFacingStatus
         CustomerOrderStatus.DELIVERED -> "Delivered"
-        CustomerOrderStatus.CANCELLED -> "Cancelled"
+        CustomerOrderStatus.CANCELLED -> if (customerFacingStatus in setOf(dev.orestegabo.sequo_api.domain.delivery.MerchantResponseDeadlineService.CANCELLED_MESSAGE,
+            dev.orestegabo.sequo_api.domain.delivery.MerchantResponseDeadlineService.REJECTED_CANCELLED_MESSAGE)) customerFacingStatus else "Cancelled"
         CustomerOrderStatus.RETURN_REQUESTED -> "Return requested"
         CustomerOrderStatus.REFUNDED -> "Refunded"
     }
@@ -418,7 +421,8 @@ class OrderFulfillmentPersistenceService(
                             merchantId = merchantId,
                             subOrderCode = subOrderCode,
                             commissions = commissions,
-                        )
+                        ),
+                        responseDeadlineEligible = true,
                     )
     }
 }
@@ -752,6 +756,7 @@ private fun CustomerOrderEventRecord.toSnapshot(references: PublicReferenceRegis
     actorReference = references.referenceOrNull(PublicReferenceKind.USER, actorUserId),
     sourceReference = when (sourceType) {
         "DELIVERY_MISSION" -> references.referenceOrNull(PublicReferenceKind.DELIVERY, sourceId)
+        "MERCHANT_SUB_ORDER" -> references.referenceOrNull(PublicReferenceKind.MERCHANT_ORDER, sourceId)
         "CHECKOUT" -> references.referenceOrNull(PublicReferenceKind.CHECKOUT, sourceId)
         else -> null
     },
