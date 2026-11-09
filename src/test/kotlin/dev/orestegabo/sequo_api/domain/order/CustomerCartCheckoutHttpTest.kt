@@ -231,6 +231,40 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
     }
 
     @Test
+    fun measuredAmountSurvivesPaymentCheckoutAndOrderSnapshots() {
+        val fixture = fixture()
+        val product = products.findById(fixture.productId).orElseThrow()
+        val merchantId = requireNotNull(product.merchantId)
+        val merchant = jwt.generateAccessToken(UserSession("measure-seller-${fixture.userId}", null,
+            AuthProvider.EMAIL, setOf(RoleCode.MERCHANT_OWNER), setOf(merchantId)))
+        val response = call("PUT", "/api/merchant/catalog/products/${product.id}/customizations?merchantId=$merchantId", merchant,
+            """{"groups":[{"name":"Weight","type":"MEASURE","unit":"KG","minChoices":1,"maxChoices":1,"options":[{"name":"0.5 kg","measureAmount":"0.5"}]}]}""")
+        assertEquals(200, response.statusCode(), response.body())
+        val group = json.readTree(response.body()).single()
+        val selection = """[{"groupId":"${group["id"].asText()}","optionIds":["${group["options"].single()["id"].asText()}"]}]"""
+        val cart = call("PUT", "/api/cart/items", fixture.token,
+            """{"productId":"${product.id}","quantity":2,"selections":$selection}""")
+        assertEquals(200, cart.statusCode(), cart.body())
+        // Remove the original unconfigured line, which is now correctly unavailable.
+        json.readTree(cart.body())["items"].filter { !it["available"].asBoolean() }.forEach {
+            assertEquals(200, call("DELETE", "/api/cart/items/${it["id"].asText()}", fixture.token).statusCode())
+        }
+        val priced = quote(fixture)
+        assertEquals(requireNotNull(product.basePriceCfa), priced["productTotalCfa"].asInt())
+        val submitted = call("POST", "/api/orders/checkouts", fixture.token, submitBody(fixture, priced))
+        assertEquals(202, submitted.statusCode(), submitted.body())
+        val checkout = json.readTree(submitted.body())
+        val checkoutId = checkout["checkoutId"].asText()
+        assertEquals("0.5 kg", checkout["lines"].single()["optionLabel"].asText())
+        val event = """{"eventId":"measured-paid-$checkoutId","checkoutId":"$checkoutId","paymentReference":"$checkoutId","amountCfa":${checkout["totalCfa"].asInt()},"currency":"XOF","status":"VALIDATED","occurredAt":"2026-11-07T00:00:00Z"}"""
+        assertEquals(202, webhook(event).statusCode())
+        val orderId = requireNotNull(orders.findByCheckoutId(checkoutId)).id
+        val actual = read("GET", "/api/orders/$orderId", fixture.token)["lines"].single()
+        assertEquals("0.5 kg", actual["optionLabel"].asText())
+        assertEquals(requireNotNull(product.basePriceCfa) / 2, actual["effectiveUnitPriceCfa"].asInt())
+    }
+
+    @Test
     fun providerReadinessExposesConfigurationWithoutCredentialsOrClaimingConnection() {
         providerConfigurations.save(PaymentProviderConfigurationRecord(
             "yas_togo", "Mixx by Yas", "TG", PaymentProviderReadiness.LIVE_READY,

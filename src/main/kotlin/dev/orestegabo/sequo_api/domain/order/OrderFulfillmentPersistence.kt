@@ -148,6 +148,7 @@ class CustomerOrderLineRecord(
     @Column(name = "photo_evidence_type", nullable = false) val photoEvidenceType: String,
     @Column(name = "line_index", nullable = false) val lineIndex: Int,
     @Column(name = "created_at", nullable = false) val createdAt: Instant,
+    @Column(name = "option_label", columnDefinition = "text") val optionLabel: String? = null,
 )
 
 @Entity
@@ -261,6 +262,7 @@ data class CustomerOrderLineSnapshot(
     val orderReference: String? = null,
     val productReference: String? = null,
     val sellerReference: String? = null,
+    val optionLabel: String? = null,
 )
 
 data class CustomerOrderEventSnapshot(
@@ -636,6 +638,7 @@ private fun OrderLineRequest.toLineRecord(orderId: String, index: Int, createdAt
         photoEvidenceType = photoEvidenceType(),
         lineIndex = index,
         createdAt = createdAt,
+        optionLabel = optionLabel,
     )
 }
 
@@ -714,6 +717,7 @@ private fun CustomerOrderLineRecord.toSnapshot(references: PublicReferenceRegist
     lineTotalCfa = lineTotalCfa,
     photoEvidenceType = photoEvidenceType,
     lineIndex = lineIndex,
+    optionLabel = optionLabel,
 )
 
 private fun OrderPricingSnapshotRecord.toSnapshot() = OrderPricingAuditSnapshot(

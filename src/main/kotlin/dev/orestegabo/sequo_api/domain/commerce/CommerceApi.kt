@@ -866,7 +866,9 @@ class CommerceService(
                 catch (error: IllegalArgumentException) { unavailableReason = error.message; null }
             }
             val available = price != null && (item.bargainingThreadId == null || negotiated != null)
-            val basePrice = negotiated?.unitPriceCfa ?: price?.basePriceCfa
+            val basePrice = if (negotiated != null && price != null)
+                dev.orestegabo.sequo_api.domain.platform.priceForProductMeasure(negotiated.unitPriceCfa, price.measurementAmount)
+                else price?.basePriceCfa
             val unitPrice = price?.let { requireNotNull(basePrice) + it.optionPriceCfa }
             CommerceCartItemDto(
                 id = item.id,

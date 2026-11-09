@@ -399,6 +399,55 @@ class MerchantCatalogHttpTest @Autowired constructor(
         assertEquals(2700, remaining.path("subtotalCfa").asInt())
     }
 
+    @Test
+    fun nonFoodSizesAreRequiredAndMeasuredAmountsArePricedByTheServer() {
+        val merchant = "selling-options-owner"
+        merchants.save(MerchantRecord(id = merchant, name = "Selling options merchant"))
+        storefronts.save(MerchantStorefrontRecord(merchantId = merchant))
+        val owner = token(merchant)
+        val shirt = "selling-options-shirt"
+        val beans = "selling-options-beans"
+        products.save(ProductRecord(id = shirt, merchantId = merchant, name = "Shirt", category = "fashion", basePriceCfa = 5000))
+        products.save(ProductRecord(id = beans, merchantId = merchant, name = "Beans", category = "grocery", basePriceCfa = 1000))
+        val sizes = request("PUT", "$endpoint/$shirt/customizations?merchantId=$merchant", owner,
+            """{"groups":[{"name":"Size","type":"SIZE","minChoices":1,"maxChoices":1,"options":[{"name":"M"},{"name":"L","active":false}]}]}""")
+        assertEquals(200, sizes.statusCode(), sizes.body())
+        val sizeGroup = json.readTree(sizes.body()).single()
+        fun selected(group: JsonNode, name: String) = """[{"groupId":"${group["id"].asText()}","optionIds":["${group["options"].single { it["name"].asText() == name }["id"].asText()}"]}]"""
+        fun quote(id: String, selections: String) = request("POST", "/api/catalog/products/$id/customizations/quote", body = """{"selections":$selections,"unitPriceCfa":1}""")
+        assertEquals(400, quote(shirt, "[]").statusCode())
+        assertEquals(400, quote(shirt, selected(sizeGroup, "L")).statusCode())
+        assertEquals(5000, json.readTree(quote(shirt, selected(sizeGroup, "M")).body())["unitPriceCfa"].asInt())
+        val path = "$endpoint/$beans/customizations?merchantId=$merchant"
+        val measuredBody = """{"groups":[{"name":"Weight","type":"MEASURE","unit":"KG","minChoices":1,"maxChoices":1,"options":[{"name":"0.5 kg","measureAmount":"0.5"},{"name":"2 kg","measureAmount":"2"}]}]}"""
+        val measured = request("PUT", path, owner, measuredBody)
+        assertEquals(200, measured.statusCode(), measured.body())
+        val weight = json.readTree(measured.body()).single()
+        assertEquals("MEASURE", weight["type"].asText())
+        assertEquals(500, json.readTree(quote(beans, selected(weight, "0.5 kg")).body())["unitPriceCfa"].asInt())
+        assertEquals(2000, json.readTree(quote(beans, selected(weight, "2 kg")).body())["unitPriceCfa"].asInt())
+        for (invalid in listOf(
+            measuredBody.replace("\"0.5\"", "\"0\""),
+            measuredBody.replace("\"0.5\"", "\"0.0001\""),
+            measuredBody.replace("\"KG\"", "\"UNKNOWN\""),
+            measuredBody.replace("\"minChoices\":1", "\"minChoices\":0"),
+        )) assertEquals(400, request("PUT", path, owner, invalid).statusCode())
+        val user = users.save(User(email = "measured-cart@sequo.test", provider = AuthProvider.EMAIL, status = UserStatus.ACTIVE))
+        val customer = jwt.generateAccessToken(UserSession(requireNotNull(user.id), user.email, AuthProvider.EMAIL))
+        val saved = request("PUT", "/api/cart/items", customer,
+            """{"productId":"$beans","quantity":3,"selections":${selected(weight, "0.5 kg")},"unitPriceCfa":1}""")
+        assertEquals(200, saved.statusCode(), saved.body())
+        val line = json.readTree(saved.body())["items"].single()
+        assertEquals(1500, line["lineTotalCfa"].asInt())
+        assertEquals(1500, line["productTotalCfa"].asInt())
+        assertEquals(0, line["optionTotalCfa"].asInt())
+        // Old editors can round-trip choices without erasing newly added typed metadata.
+        val legacy = measuredBody.replace("\"type\":\"MEASURE\",", "").replace("\"unit\":\"KG\",", "")
+            .replace(",\"measureAmount\":\"0.5\"", "").replace(",\"measureAmount\":\"2\"", "")
+        assertEquals(200, request("PUT", path, owner, legacy).statusCode())
+        assertEquals(500, json.readTree(quote(beans, selected(weight, "0.5 kg")).body())["unitPriceCfa"].asInt())
+    }
+
     private fun upload(id: String, merchant: String, token: String, bytes: ByteArray, mime: String): HttpResponse<String> {
         val boundary = "sequo-photo-fixture"
         val body = "--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"camera.jpg\"\r\nContent-Type: $mime\r\n\r\n".toByteArray() +

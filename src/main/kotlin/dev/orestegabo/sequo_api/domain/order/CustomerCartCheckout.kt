@@ -5,6 +5,7 @@ import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import dev.orestegabo.sequo_api.domain.reference.referenceOrNull
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo_api.domain.platform.optionLabel
 import dev.orestegabo.sequo_api.api.ApiErrorResponse
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.UserRepository
@@ -46,7 +47,7 @@ data class CustomerCheckoutSummary(
     val orderReference: String? = null,
 )
 
-data class CheckoutLineSummary(val productName: String, val quantity: Int)
+data class CheckoutLineSummary(val productName: String, val quantity: Int, val optionLabel: String? = null)
 
 internal class CheckoutQuoteChanged : RuntimeException()
 
@@ -114,13 +115,15 @@ class CustomerCartCheckoutService(
             }
             OrderLineRequest(
                 product.id, seller.id, seller.name, product.name, category, item.quantity,
-                requireNotNull(product.priceCfa) + requireNotNull(item.optionTotalCfa) / item.quantity,
+                dev.orestegabo.sequo_api.domain.platform.priceForProductMeasure(requireNotNull(product.priceCfa),
+                    dev.orestegabo.sequo_api.domain.platform.selectedProductMeasurement(product.customizations, item.selections)?.first) +
+                    requireNotNull(item.optionTotalCfa) / item.quantity,
                 negotiatedUnitPriceCfa = item.negotiatedUnitPriceCfa,
                 bargainingLockId = item.bargainingThreadId, photoEvidence = photo, selections = item.selections,
                 relayCategory = dev.orestegabo.sequo_api.domain.relay.catalogRelayCategory(product.category),
                 optionLabel = item.selections.flatMap { selection ->
-                    product.customizations.firstOrNull { it.id == selection.groupId }?.options.orEmpty()
-                        .filter { it.id in selection.optionIds }.map { it.name }
+                    val group = product.customizations.firstOrNull { it.id == selection.groupId }
+                    group?.options.orEmpty().filter { it.id in selection.optionIds }.map { requireNotNull(group).optionLabel(it) }
                 }.takeIf { it.isNotEmpty() }?.joinToString(", "),
             )
         }
@@ -159,7 +162,7 @@ class CustomerCartCheckoutService(
         checkoutId,
         if (status == PendingPaymentCheckoutStatus.COMPLETED) checkoutId.toOrderId() else null,
         status, amountCfa, paymentProvider, request.relayDestination?.name ?: request.homeDestination?.label, createdAt,
-        request.lines.map { CheckoutLineSummary(it.productName, it.quantity) },
+        request.lines.map { CheckoutLineSummary(it.productName, it.quantity, it.optionLabel) },
         publicReference = references.referenceOrNull(PublicReferenceKind.CHECKOUT, checkoutId),
         orderReference = if (status == PendingPaymentCheckoutStatus.COMPLETED) references.referenceOrNull(PublicReferenceKind.ORDER, checkoutId.toOrderId()) else null,
     )

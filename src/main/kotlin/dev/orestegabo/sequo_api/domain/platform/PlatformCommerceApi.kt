@@ -172,6 +172,10 @@ class ProductCustomizationGroupRecord(
     @Column(name = "max_choices", nullable = false) var maxChoices: Int = 1,
     @Column(name = "sort_order", nullable = false) var sortOrder: Int = 0,
     @Column(nullable = false) var active: Boolean = true,
+    @Enumerated(EnumType.STRING) @Column(name = "option_type", nullable = false, length = 32)
+    var type: ProductOptionType = ProductOptionType.PREPARATION,
+    @Enumerated(EnumType.STRING) @Column(name = "measure_unit", length = 16)
+    var unit: ProductMeasureUnit? = null,
 )
 
 @Entity
@@ -186,6 +190,7 @@ class ProductCustomizationOptionRecord(
     @Column(name = "price_delta_cfa", nullable = false) var priceDeltaCfa: Int = 0,
     @Column(name = "sort_order", nullable = false) var sortOrder: Int = 0,
     @Column(nullable = false) var active: Boolean = true,
+    @Column(name = "measure_amount", precision = 12, scale = 3) var measureAmount: java.math.BigDecimal? = null,
 )
 
 @Entity
@@ -296,6 +301,7 @@ data class ProductCustomizationOptionRequest(
     val sortOrder: Int? = null,
     val active: Boolean? = null,
     val id: String? = null,
+    val measureAmount: String? = null,
 )
 
 data class ProductCustomizationGroupRequest(
@@ -306,11 +312,14 @@ data class ProductCustomizationGroupRequest(
     val active: Boolean? = null,
     val options: List<ProductCustomizationOptionRequest> = emptyList(),
     val id: String? = null,
+    val type: ProductOptionType? = null,
+    val unit: ProductMeasureUnit? = null,
 )
 
 data class ReplaceProductCustomizationsRequest(val groups: List<ProductCustomizationGroupRequest>)
 data class QuoteProductCustomizationsRequest(val selections: List<FoodCustomizationSelection> = emptyList())
-data class ProductCustomizationQuote(val productId: String, val basePriceCfa: Int, val optionPriceCfa: Int, val unitPriceCfa: Int)
+data class ProductCustomizationQuote(val productId: String, val basePriceCfa: Int, val optionPriceCfa: Int, val unitPriceCfa: Int,
+    val measurementAmount: String? = null, val measurementUnit: ProductMeasureUnit? = null)
 data class CreateCooperativeRequest(val code: String, val name: String, val city: String, val area: String? = null, val ownerMerchantId: String)
 data class AddCooperativeMemberRequest(val merchantId: String, val role: CooperativeMemberRole? = null)
 data class ReviewCooperativeRequest(val status: CooperativeApprovalStatus, val reason: String? = null)
@@ -388,6 +397,8 @@ data class ProductCustomizationGroupDto(
     val sortOrder: Int,
     val active: Boolean,
     val options: List<ProductCustomizationOptionDto>,
+    val type: ProductOptionType = ProductOptionType.PREPARATION,
+    val unit: ProductMeasureUnit? = null,
 )
 data class ProductCustomizationOptionDto(
     val id: String,
@@ -395,6 +406,7 @@ data class ProductCustomizationOptionDto(
     val priceDeltaCfa: Int,
     val sortOrder: Int,
     val active: Boolean,
+    val measureAmount: String? = null,
 )
 data class CooperativeDto(
     val id: String,
@@ -618,7 +630,8 @@ class PlatformCommerceService(
             ApiInputPolicy.requiredIdentifier(productId, "productId"), CatalogProductStatus.ACTIVE,
         )) { "Product is unavailable." }
         val base = requireNotNull(product.basePriceCfa) { "Product has no listed price." }
-        val groups = customizations(product.id).filter { it.active }.mapNotNull { group ->
+        val configuredGroups = customizations(product.id).filter { it.active }
+        val groups = configuredGroups.mapNotNull { group ->
             require(group.minChoices <= group.options.size) { "Required options are unavailable." }
             if (group.options.isEmpty()) return@mapNotNull null
             FoodCustomizationGroup(
@@ -632,8 +645,11 @@ class PlatformCommerceService(
             (result as FoodCustomizationResult.Rejected).errors.joinToString(" ") { it.message }
         }
         val options = result.snapshot.groups.sumOf { group -> group.selectedOptions.sumOf { it.priceDeltaCfa.toLong() } }
-        require(base + options <= Int.MAX_VALUE) { "Customized product price is too large." }
-        return ProductCustomizationQuote(product.id, base, options.toInt(), (base + options).toInt())
+        val measurement = selectedProductMeasurement(configuredGroups, request.selections)
+        val measuredBase = priceForProductMeasure(base, measurement?.first)
+        require(measuredBase.toLong() + options <= Int.MAX_VALUE) { "Customized product price is too large." }
+        return ProductCustomizationQuote(product.id, measuredBase, options.toInt(), (measuredBase + options).toInt(),
+            measurement?.first, measurement?.second)
     }
 
     @Transactional
@@ -646,25 +662,35 @@ class PlatformCommerceService(
         val product = requireNotNull(products.lockForCustomization(safeId)) { "Product does not exist." }
         require(merchantId == null || product.merchantId == merchantId) { "Product does not belong to the authenticated merchant." }
         val existing = customizationGroups.findByProductIdInOrderBySortOrderAsc(listOf(safeId))
-        require(request.groups.isEmpty() || existing.isNotEmpty() ||
-            product.category?.lowercase() in setOf("food", "perishable")) { "Options are available for food products." }
         require(request.groups.size <= 20) { "Too many option groups." }
         val existingOptions = if (existing.isEmpty()) emptyMap() else customizationOptions
             .findByGroupIdInOrderBySortOrderAsc(existing.map { it.id }).groupBy { it.groupId }
         val retainedGroups = mutableSetOf<String>()
         val newGroupNames = mutableSetOf<String>()
+        var activeMeasurements = 0
         request.groups.forEach { input ->
             val name = ApiInputPolicy.requiredShortText(input.name, "group.name", 120)
             require(input.id != null || newGroupNames.add(name)) { "Duplicate new option group name." }
-            val min = input.minChoices ?: 0
-            val max = input.maxChoices ?: 1
-            require(input.options.size in 1..50 && min in 0..minOf(max, input.options.size) && max <= 50) {
-                "Invalid option group constraints."
-            }
             val group = (if (input.id != null) {
                 requireNotNull(existing.find { it.id == input.id }) { "Unknown option group." }
             } else existing.singleOrNull { it.name == name })
                 ?: ProductCustomizationGroupRecord(UUID.randomUUID().toString(), safeId, name = name)
+            val type = input.type ?: group.type
+            val singleVariant = type in setOf(ProductOptionType.SIZE, ProductOptionType.COLOR, ProductOptionType.MEASURE)
+            val min = input.minChoices ?: if (singleVariant) 1 else 0
+            val max = input.maxChoices ?: 1
+            require(input.options.size in 1..50 && min in 0..minOf(max, input.options.size) && max <= 50) {
+                "Invalid option group constraints."
+            }
+            if (singleVariant) require(min == 1 && max == 1) { "Choose exactly one size, color or measurement." }
+            val unit = if (type == ProductOptionType.MEASURE) input.unit ?: group.unit else null
+            require(type != ProductOptionType.MEASURE || unit != null) { "Measured products require a pricing unit." }
+            if (type == ProductOptionType.MEASURE && (input.active ?: true)) {
+                activeMeasurements++
+                require(activeMeasurements <= 1) { "A product can have only one active measurement group." }
+            }
+            group.type = type
+            group.unit = unit
             require(retainedGroups.add(group.id)) { "Duplicate option group." }
             group.name = name
             group.minChoices = min
@@ -686,6 +712,13 @@ class PlatformCommerceService(
                 } else oldOptions.singleOrNull { it.name == optionName })
                     ?: ProductCustomizationOptionRecord(UUID.randomUUID().toString(), group.id, name = optionName)
                 require(retainedOptions.add(option.id)) { "Duplicate option." }
+                option.measureAmount = if (type == ProductOptionType.MEASURE) {
+                    require(delta == 0) { "Measured amounts use the product price per unit, not a price supplement." }
+                    parseProductMeasureAmount(inputOption.measureAmount ?: option.measureAmount?.toPlainString())
+                } else {
+                    require(inputOption.measureAmount == null) { "Only measurement options can specify an amount." }
+                    null
+                }
                 option.name = optionName
                 option.priceDeltaCfa = delta
                 option.sortOrder = inputOption.sortOrder ?: 0
@@ -951,10 +984,12 @@ private fun ProductCustomizationGroupRecord.toDto(options: List<ProductCustomiza
         sortOrder,
         active,
         options.map { it.toDto() },
+        type,
+        unit,
     )
 
 private fun ProductCustomizationOptionRecord.toDto(): ProductCustomizationOptionDto =
-    ProductCustomizationOptionDto(id, name, priceDeltaCfa, sortOrder, active)
+    ProductCustomizationOptionDto(id, name, priceDeltaCfa, sortOrder, active, measureAmount?.stripTrailingZeros()?.toPlainString())
 
 private fun MerchantCooperativeRecord.toCooperativeDto(members: List<MerchantCooperativeMemberRecord>): CooperativeDto =
     CooperativeDto(id, code, name, city, area, status, members.map { it.toDto() }, reviewedByUserId, reviewedAt, reviewReason, dev.orestegabo.sequo_api.domain.delivery.readHistory(reviewHistoryJson))
