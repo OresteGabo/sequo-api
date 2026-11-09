@@ -62,4 +62,4 @@ Canonical Kotlin codec: `src/main/kotlin/dev/orestegabo/sequo/reference/HumanRef
 
 Run `python3 scripts/human-references.py` from the API repository to detect drift across all five consumers. Keep cross-language vectors and negative input tests when editing the protocol. There is no client-side reference allocator.
 
-Validation results and the exact commands used for this change will be recorded in the implementation evidence before handoff. No provider connectivity or real financial execution is part of this change.
+Validation results, exact reproduction commands, source revisions and limits are recorded in [the implementation review](HUMAN_REFERENCE_REVIEW_2026-11-09.md). No provider connectivity or real financial execution is part of this change.

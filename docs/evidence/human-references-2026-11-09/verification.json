@@ -1,0 +1,242 @@
+{
+  "repositories": {
+    "sequo-api": {
+      "baseline": "749f0ab",
+      "sourceRevision": "6033c5ebc1df71d00318d89c039abc15355f6c80",
+      "commits": [
+        "6033c5ebc1df71d00318d89c039abc15355f6c80 build: bound compiler memory for clean local API startup",
+        "b180a793e1eb3d51e99814dd1ab5fd4ab744388d feat: expose scoped human references across operational APIs",
+        "a7d31011687dd678b8a5ffd0683caa90dfadd833 feat: add durable checksummed display references"
+      ],
+      "changedFiles": [
+        "contracts/HumanReference.ts",
+        "contracts/human-reference-v1.json",
+        "docs/HUMAN_REFERENCES.md",
+        "gradle.properties",
+        "scripts/human-references.py",
+        "src/main/kotlin/dev/orestegabo/sequo/reference/HumanReference.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/admin/AdminPublicReferences.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/admin/AdminRelayAdministration.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/auth/AuthController.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/commerce/CommerceApi.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/commerce/PersistedBargaining.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/ConsolidationController.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/ConsolidationPersistence.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/DeliveryMissionPersistence.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/GuardedDeliveryAssignment.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantFulfillmentService.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/PersistedDeliveryAssignment.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/SequoConsolidation.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/hub/HubMobileService.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/localfixture/LocalOperationalFixtures.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/order/CustomerCartCheckout.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/order/OrderFulfillmentPersistence.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/platform/PlatformCommerceApi.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/reference/PublicReferenceController.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/reference/PublicReferenceRegistry.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/relay/RelayCustomerPickup.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/relay/RelayFulfillment.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/relay/RelayParcelController.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/returns/CustomerReturnPolicy.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/returns/ReturnPersistence.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/settlement/SettlementController.kt",
+        "src/main/kotlin/dev/orestegabo/sequo_api/domain/settlement/SettlementPersistence.kt",
+        "src/main/resources/db/migration/V61__durable_public_entity_references.sql",
+        "src/test/kotlin/dev/orestegabo/sequo/reference/HumanReferenceTest.kt",
+        "src/test/kotlin/dev/orestegabo/sequo_api/domain/admin/AdminPublicReferenceProjectionTest.kt",
+        "src/test/kotlin/dev/orestegabo/sequo_api/domain/admin/AdminWebReadHttpTest.kt",
+        "src/test/kotlin/dev/orestegabo/sequo_api/domain/reference/CooperativeReferencePrivacyTest.kt",
+        "src/test/kotlin/dev/orestegabo/sequo_api/domain/reference/CorePublicReferenceProjectionHttpTest.kt",
+        "src/test/kotlin/dev/orestegabo/sequo_api/domain/reference/PublicReferenceControllerTest.kt",
+        "src/test/kotlin/dev/orestegabo/sequo_api/domain/reference/PublicReferenceRegistryTest.kt"
+      ],
+      "verificationFiles": [
+        "scripts/check-human-references-local.py",
+        "docs/HUMAN_REFERENCE_REVIEW_2026-11-09.md",
+        "docs/HUMAN_REFERENCES.md",
+        "docs/evidence/human-references-2026-11-09/admin-invalid-reference.jpg",
+        "docs/evidence/human-references-2026-11-09/after-restart.json",
+        "docs/evidence/human-references-2026-11-09/api-tests.json",
+        "docs/evidence/human-references-2026-11-09/before-restart.json",
+        "docs/evidence/human-references-2026-11-09/verification.json"
+      ]
+    },
+    "sequo-admin": {
+      "baseline": "9891c3d",
+      "sourceRevision": "00e42f25cb710d6f080981177e9b83f870abf675",
+      "commits": [
+        "00e42f25cb710d6f080981177e9b83f870abf675 fix(admin): hide internal audit keys from human details",
+        "cdb33d801780dc1adeab04f7fd34e8c8fa6e59f4 feat(admin): show human references across operational workflows",
+        "c74100447e3258e95c6f4bc93b699c52a7d83557 feat(admin): resolve verified human references to canonical records"
+      ],
+      "changedFiles": [
+        "scripts/human-reference-browser-check.cjs",
+        "src/AdminEnrollmentPanel.vue",
+        "src/AdminProductMediaPanel.vue",
+        "src/AdminReferenceInput.vue",
+        "src/App.vue",
+        "src/CommissionOverridePanel.vue",
+        "src/ConsolidationPanel.vue",
+        "src/FinanceLedgerPanel.vue",
+        "src/LocalFixtureGuide.vue",
+        "src/MerchantStoreEditor.vue",
+        "src/OperationsControlPanel.vue",
+        "src/PaymentInvestigationPanel.vue",
+        "src/RelayAdministrationPanel.vue",
+        "src/ReturnOperationsPanel.vue",
+        "src/adminControls.ts",
+        "src/adminEnrollment.ts",
+        "src/adminReads.ts",
+        "src/adminReferences.ts",
+        "src/humanReference.ts",
+        "src/localFixtures.ts",
+        "src/merchantStore.ts",
+        "tests/adminControls.test.mjs",
+        "tests/adminReferences.test.mjs",
+        "tests/deliveryReads.test.mjs",
+        "tests/financeReads.test.mjs",
+        "tests/fixtures/human-reference-v1.json",
+        "tests/humanReference.test.mjs",
+        "tests/localFixtures.test.mjs"
+      ]
+    },
+    "Sequo": {
+      "baseline": "fecf2b9",
+      "sourceRevision": "52263d6e4f7adbea63fb57a3237d6bb5898747ba",
+      "commits": [
+        "52263d6e4f7adbea63fb57a3237d6bb5898747ba feat(customer): display durable human references"
+      ],
+      "changedFiles": [
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequo/CheckoutHistoryClientTest.kt",
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequo/ReturnClientTest.kt",
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequo/reference/HumanReferenceTest.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/core/auth/AuthApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/core/catalog/CartApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/reference/HumanReference.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/orders/CustomerReturnContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/orders/OrdersContent.kt"
+      ]
+    },
+    "SequoVendor": {
+      "baseline": "ce28a4c",
+      "sourceRevision": "a013450aa08ad1795608463a9eb29a1213ab3d74",
+      "commits": [
+        "a013450aa08ad1795608463a9eb29a1213ab3d74 feat(vendor): show short order and activity references"
+      ],
+      "changedFiles": [
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequo/reference/HumanReferenceTest.kt",
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequovendor/VendorActivityClientTest.kt",
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequovendor/VendorFulfillmentClientTest.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/reference/HumanReference.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/activity/MerchantActivityApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/auth/AuthApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/fulfillment/MerchantFulfillmentDtos.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/model/VendorModels.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/dashboard/DashboardContent.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/dashboard/MerchantActivityPanel.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/orders/OrdersContent.kt"
+      ]
+    },
+    "SequoRider": {
+      "baseline": "1c91c00",
+      "sourceRevision": "ad28b084e7a7b7a96ededff2aa6e94d1639328fa",
+      "commits": [
+        "ad28b084e7a7b7a96ededff2aa6e94d1639328fa fix(rider): distinguish ledger references from missions",
+        "62fba138140ca2f297c3691a38ad90e7848874df feat(rider): show short mission and source references"
+      ],
+      "changedFiles": [
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequo/reference/HumanReferenceTest.kt",
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequorider/RiderMissionClientTest.kt",
+        "shared/src/androidHostTest/kotlin/dev/orestegabo/sequorider/RiderPayoutClientTest.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/reference/HumanReference.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/core/auth/AuthApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/core/missions/RiderMissionApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/core/payout/RiderPayoutApiClient.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/settings/AccountSettingsScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/settings/AppText.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/model/RiderModels.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/app/SequoRiderShell.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/history/HistoryScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/missions/MissionsScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/payout/PayoutScreen.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/ui/route/ActiveRouteScreen.kt"
+      ]
+    },
+    "SequoHub": {
+      "baseline": "e800c64",
+      "sourceRevision": "1d5297814a2cfcf18f189d134ea0f63cac19db29",
+      "commits": [
+        "1d5297814a2cfcf18f189d134ea0f63cac19db29 feat(hub): resolve checked return references before intake"
+      ],
+      "changedFiles": [
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequo/reference/HumanReference.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/auth/LiveHubSession.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/LiveScopedHubRepository.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/live/HubHistoryPresentation.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/live/LiveHubWorkspace.kt",
+        "shared/src/commonTest/kotlin/dev/orestegabo/sequo/reference/HumanReferenceTest.kt",
+        "shared/src/commonTest/kotlin/dev/orestegabo/sequohub/core/hub/LiveHubRepositoryTest.kt"
+      ]
+    }
+  },
+  "checks": {
+    "api": {
+      "tests": 90,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "mobileHost": {
+      "tests": 168,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "finalCodecRerunTests": 12,
+      "finalRiderPayoutRerunTests": 3,
+      "vectors": 19
+    },
+    "mobileCompilation": {
+      "android": 4,
+      "iosSimulatorArm64": 4,
+      "finalRiderFollowupRecompiled": true,
+      "newNativePackagesInstalled": false
+    },
+    "admin": {
+      "nodeTests": 100,
+      "typeCheck": "PASS",
+      "productionBuild": "PASS",
+      "isolatedBrowserCases": 9
+    },
+    "codecDrift": "PASS",
+    "postgresMigration": "V61 applied",
+    "localBefore": {
+      "passed": 306,
+      "total": 306
+    },
+    "localAfter": {
+      "passed": 307,
+      "total": 307,
+      "stableReferences": 92
+    },
+    "providersExecuted": false
+  },
+  "formatVersion": 1,
+  "codecSha256": "735f92b74bd68e026db11bdd1a6c270ed8b582899873cf2b5871f3b83199eead",
+  "reviewId": "sequo-reference-review-20261109",
+  "runtimeApiBuild": {
+    "build.artifact": "sequo-api",
+    "build.group": "dev.orestegabo",
+    "build.name": "sequo-api",
+    "build.releaseId": "sequo-admin-local-development",
+    "build.revision": "6033c5ebc1df71d00318d89c039abc15355f6c80",
+    "build.time": "2026-11-09T00\\:01\\:39.103508Z",
+    "build.version": "0.0.1-SNAPSHOT"
+  },
+  "evidenceFiles": [
+    "docs/evidence/human-references-2026-11-09/admin-invalid-reference.jpg",
+    "docs/evidence/human-references-2026-11-09/after-restart.json",
+    "docs/evidence/human-references-2026-11-09/api-tests.json",
+    "docs/evidence/human-references-2026-11-09/before-restart.json",
+    "docs/evidence/human-references-2026-11-09/verification.json"
+  ]
+}

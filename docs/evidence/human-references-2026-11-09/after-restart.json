@@ -1,0 +1,1333 @@
+{
+  "environment": "LOCAL_FIXTURE",
+  "checkedAt": "2026-11-09T00:02:15.967985+00:00",
+  "businessWrites": false,
+  "providerOperations": false,
+  "checks": [
+    {
+      "check": "guarded local admin session",
+      "pass": true
+    },
+    {
+      "check": "installed fixture manifest",
+      "pass": true
+    },
+    {
+      "check": "fixed synthetic workspace",
+      "pass": true
+    },
+    {
+      "check": "fixture accounts use references",
+      "pass": true
+    },
+    {
+      "check": "fixture scenarios retain canonical IDs and add references",
+      "pass": true
+    },
+    {
+      "check": "admin order reads",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "admin users",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "admin merchants",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT checksum",
+      "pass": true
+    },
+    {
+      "check": "admin returns",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "admin deliveries",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "delivery order reference agrees",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability ama",
+      "pass": true
+    },
+    {
+      "check": "local session ama",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile ama",
+      "pass": true
+    },
+    {
+      "check": "synthetic account ama",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability koffi",
+      "pass": true
+    },
+    {
+      "check": "local session koffi",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile koffi",
+      "pass": true
+    },
+    {
+      "check": "synthetic account koffi",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "customer persisted orders",
+      "pass": true
+    },
+    {
+      "check": "customer has fixture orders",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "other customer cannot read order",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability yawa",
+      "pass": true
+    },
+    {
+      "check": "local session yawa",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile yawa",
+      "pass": true
+    },
+    {
+      "check": "synthetic account yawa",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "merchant scoped history yawa",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "other merchant queue denied yawa",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability mawuli",
+      "pass": true
+    },
+    {
+      "check": "local session mawuli",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile mawuli",
+      "pass": true
+    },
+    {
+      "check": "synthetic account mawuli",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "merchant scoped history mawuli",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "MERCHANT_ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "merchant parent agrees",
+      "pass": true
+    },
+    {
+      "check": "other merchant queue denied mawuli",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability senam",
+      "pass": true
+    },
+    {
+      "check": "local session senam",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile senam",
+      "pass": true
+    },
+    {
+      "check": "synthetic account senam",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "rider mission read",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY checksum",
+      "pass": true
+    },
+    {
+      "check": "DELIVERY stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability dede",
+      "pass": true
+    },
+    {
+      "check": "local session dede",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile dede",
+      "pass": true
+    },
+    {
+      "check": "synthetic account dede",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "scoped relay parcels dede",
+      "pass": true
+    },
+    {
+      "check": "scoped relay returns dede",
+      "pass": true
+    },
+    {
+      "check": "RETURN checksum",
+      "pass": true
+    },
+    {
+      "check": "RETURN stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "relay customer identity redacted",
+      "pass": true
+    },
+    {
+      "check": "normalized return lookup dede",
+      "pass": true
+    },
+    {
+      "check": "explicit older return lookup dede",
+      "pass": true
+    },
+    {
+      "check": "forged relay denied dede",
+      "pass": true
+    },
+    {
+      "check": "cross site fixture source",
+      "pass": true
+    },
+    {
+      "check": "guarded local native capability esso",
+      "pass": true
+    },
+    {
+      "check": "local session esso",
+      "pass": true
+    },
+    {
+      "check": "authenticated profile esso",
+      "pass": true
+    },
+    {
+      "check": "synthetic account esso",
+      "pass": true
+    },
+    {
+      "check": "USER checksum",
+      "pass": true
+    },
+    {
+      "check": "USER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "scoped relay parcels esso",
+      "pass": true
+    },
+    {
+      "check": "PARCEL checksum",
+      "pass": true
+    },
+    {
+      "check": "PARCEL checksum",
+      "pass": true
+    },
+    {
+      "check": "PARCEL checksum",
+      "pass": true
+    },
+    {
+      "check": "scoped relay returns esso",
+      "pass": true
+    },
+    {
+      "check": "forged relay denied esso",
+      "pass": true
+    },
+    {
+      "check": "cross site fixture source",
+      "pass": true
+    },
+    {
+      "check": "other site return unavailable esso",
+      "pass": true
+    },
+    {
+      "check": "admin exact short lookup retains ID",
+      "pass": true
+    },
+    {
+      "check": "checksum typo rejected",
+      "pass": true
+    },
+    {
+      "check": "customer cannot use operator resolver",
+      "pass": true
+    },
+    {
+      "check": "missing session fails closed",
+      "pass": true
+    },
+    {
+      "check": "repeat admin read",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "ORDER checksum",
+      "pass": true
+    },
+    {
+      "check": "ORDER stable repeated projection",
+      "pass": true
+    },
+    {
+      "check": "all earlier references survive API restart",
+      "pass": true
+    }
+  ],
+  "references": {
+    "ORDER:SQ-local-ops-v1-merchant-new": "CH1-HXS-621",
+    "ORDER:SQ-local-ops-v1-merchant-ready": "CZ9-HKK-1W7",
+    "ORDER:SQ-local-ops-v1-dispatch-unassigned": "CMD-FY5-MQ7",
+    "ORDER:SQ-local-ops-v1-finance-independent": "CVE-HPR-CZN",
+    "ORDER:SQ-local-ops-v1-finance-salaried": "CPX-ENR-QD0",
+    "ORDER:SQ-local-ops-v1-merchant-preparing": "C96-BBG-0DY",
+    "ORDER:SQ-local-ops-v1-relay-order-fresh": "C8Y-PF1-E09",
+    "ORDER:SQ-local-ops-v1-relay-order-after-eight-days": "C64-EVS-0XT",
+    "ORDER:SQ-local-ops-v1-relay-order-after-thirty-days": "CEQ-HCZ-1EF",
+    "ORDER:SQ-local-ops-v1-group-ready": "CWG-4GM-GRT",
+    "ORDER:SQ-local-ops-v1-group-final": "CA5-JXM-S2V",
+    "ORDER:SQ-local-ops-v1-dispatch-busy": "C2F-9Y9-TZ7",
+    "ORDER:SQ-local-ops-v1-return-request": "CVN-HDH-ABN",
+    "ORDER:SQ-local-ops-v1-return-awaiting-dropoff": "C75-6C3-FF7",
+    "ORDER:SQ-local-ops-v1-return-dropoff": "CHR-YXF-087",
+    "ORDER:SQ-local-ops-v1-return-collected": "C4H-YQZ-PW3",
+    "ORDER:SQ-local-ops-v1-return-received": "CG3-A4Y-7JZ",
+    "ORDER:SQ-local-ops-v1-return-accepted": "CY8-FZZ-47G",
+    "ORDER:SQ-local-ops-v1-return-refund": "C2J-8SP-V0R",
+    "USER:5ae10368-fd93-4d5f-9c72-cd62d81c313a": "AMD-KTF-K8W",
+    "USER:local-ops-v1-customer-ama": "AGF-WR4-4B2",
+    "USER:local-ops-v1-customer-koffi": "AJW-X7A-E58",
+    "USER:local-ops-v1-owner-yawa": "A6W-GSH-AYS",
+    "USER:local-ops-v1-owner-mawuli": "AWF-GJM-CSS",
+    "USER:local-ops-v1-staff-eyram": "ABW-F7K-F0X",
+    "USER:local-ops-v1-staff-unassigned": "A2G-H28-46W",
+    "USER:local-ops-v1-rider-senam": "A4Z-XR3-YQY",
+    "USER:local-ops-v1-rider-komlan": "AWH-D1J-7R5",
+    "USER:local-ops-v1-rider-kokou": "A9S-XAB-JJA",
+    "USER:local-ops-v1-rider-akossua": "A59-0ES-8A4",
+    "USER:local-ops-v1-operator-dede": "AF9-P8J-07D",
+    "USER:local-ops-v1-operator-esso": "AFG-ZMZ-B11",
+    "USER:local-ops-v1-operator-backup": "A0E-MT3-TKA",
+    "USER:local-ops-v1-admin-ordinary": "AF9-RZA-JK6",
+    "USER:local-ops-v1-admin-backup": "AAK-88G-K8C",
+    "MERCHANT:merchant-chez-ramatou": "VRZ-T2M-P53",
+    "MERCHANT:merchant-grand-marche-assigame": "VP5-QBE-RR7",
+    "MERCHANT:merchant-hedzranawoe-electronics": "V10-KVY-NVZ",
+    "MERCHANT:merchant-pharmacie-du-golfe": "V2T-PGQ-M8T",
+    "MERCHANT:merchant-tokoin-urban-wear": "V92-ZYG-V52",
+    "MERCHANT:merchant-ablogame-grocery": "VRY-4HM-3XN",
+    "MERCHANT:local-ops-v1-merchant-maison": "VZX-20M-TVB",
+    "MERCHANT:local-ops-v1-merchant-atelier": "VEQ-8GS-X4P",
+    "RETURN:local-ops-v1-return-request-refund": "RWS-DZF-TDX",
+    "RETURN:local-ops-v1-return-request-accepted": "RZX-PYC-SGY",
+    "RETURN:local-ops-v1-return-request-received": "RSN-96G-FQE",
+    "RETURN:local-ops-v1-return-request-collected": "RWA-KZ0-0M8",
+    "RETURN:local-ops-v1-return-request-dropoff": "RCG-SZ9-KFA",
+    "RETURN:local-ops-v1-return-request-awaiting-dropoff": "R2D-W22-814",
+    "RETURN:local-ops-v1-return-request-request": "R5X-3ZH-5WY",
+    "DELIVERY:58dc4a13-780a-4b50-a463-f27d0d3dccc7": "DA3-KTY-93W",
+    "DELIVERY:f4b4d150-5e09-4846-a1fd-075843db164d": "DTP-4PB-QWG",
+    "DELIVERY:f492ce75-03d5-40d4-9644-fa5718d13a16": "D9A-1Q2-W1K",
+    "DELIVERY:563929d4-0e70-4eaf-8b88-6e57be0ee0d7": "DNS-FEA-C69",
+    "DELIVERY:5970331d-50c2-4ff5-b1be-22d200301610": "DT4-PAA-1NC",
+    "DELIVERY:c51cb2ed-1e29-490e-b62d-37c62aed882c": "DN1-6CX-PQA",
+    "DELIVERY:818791fa-7128-4a46-9c67-f2223f792f5a": "DQH-Z0Q-GXD",
+    "DELIVERY:dd783ef9-9b4e-41c3-8a25-3cd577ec35b0": "DF6-1W5-0AT",
+    "DELIVERY:f2e3ad10-366e-41e3-9f0a-206cbfff001f": "D1E-4X6-8NR",
+    "DELIVERY:6961788b-f07c-4d03-a7ac-cd3940bbec14": "DSA-BEA-80G",
+    "DELIVERY:9ba06d45-23ad-4832-a63f-dc6de3947e5f": "DVF-VCG-EY2",
+    "DELIVERY:86d969a3-8447-4266-86fd-2bd4b3e14587": "DT8-8BH-79H",
+    "DELIVERY:336ce08d-7691-4dd0-b6db-fbffa46c0c12": "DBY-PMA-0PH",
+    "DELIVERY:c40ed97e-7108-4e4a-99d0-7ca754b7449f": "D3A-QGT-Y2X",
+    "DELIVERY:a15b30eb-522c-4191-8f49-24be1c9026bf": "DGM-75C-1Z2",
+    "DELIVERY:70451f86-f9e9-4b7b-96ff-c091b078e465": "DSA-NFR-XAK",
+    "DELIVERY:c5e513b1-2aa9-4a74-9ccf-dacb6c103bbd": "DDC-9SZ-0ET",
+    "DELIVERY:48664c7d-31d5-45ee-a60e-5e414211c445": "DR0-Q2E-D8K",
+    "MERCHANT_ORDER:525417ed-38ef-439d-bd37-2944cbeca7c2": "MNS-BX2-A3H",
+    "MERCHANT_ORDER:4dfdea34-84b4-4931-84bf-3a8b2b21d779": "MQY-4A0-92J",
+    "MERCHANT_ORDER:2f8ed6c9-6121-4c1f-bb4f-4f04104faaf1": "M5Z-E4Y-ZWK",
+    "MERCHANT_ORDER:07d3d81a-6a85-4067-8078-4c45e2b34bf3": "MP6-AEK-RCZ",
+    "MERCHANT_ORDER:52a92a70-4507-470e-9b70-822b1ae90a40": "MZG-VFE-GEB",
+    "MERCHANT_ORDER:b6eb9652-7e0c-47bc-ab65-e93113f32345": "MY2-PNS-H82",
+    "MERCHANT_ORDER:1ce1273f-602b-4c3c-ae04-70805698870d": "MRT-N8S-WPR",
+    "MERCHANT_ORDER:723ae46b-0bcb-440c-9c39-7c1d0acf1e20": "MZG-PYP-XVX",
+    "MERCHANT_ORDER:1df280b1-1aa4-4772-b8a8-957dec807aaa": "M0J-PZQ-KM2",
+    "MERCHANT_ORDER:844ecdea-c4f9-473b-b9ee-f691bb74f659": "MQS-53H-94C",
+    "MERCHANT_ORDER:3c3bb06c-3290-460d-9bdb-81aeabaf9adf": "MJ3-4NM-A8W",
+    "MERCHANT_ORDER:9b45945c-9cbc-4731-93d8-23a29ef9861b": "MTB-66E-RS6",
+    "MERCHANT_ORDER:d6edb78d-7935-4530-807b-5264c37143ff": "M7N-0X5-2BF",
+    "MERCHANT_ORDER:a6f2799a-a2ea-4e50-b727-2d2ff1401ff7": "MTG-43Z-1SV",
+    "MERCHANT_ORDER:d0949d46-c201-464e-a9ae-2b12c6efe42d": "MM5-DEJ-HTP",
+    "MERCHANT_ORDER:559b3ac7-b2f0-47e0-857e-7987d7609f5a": "MWP-RYS-R6D",
+    "MERCHANT_ORDER:8671a9b0-0f92-4bb5-a190-1b93a4e9d41a": "MZ4-SFJ-VFZ",
+    "MERCHANT_ORDER:77ee2715-1f1c-4a80-99d2-c5e4ed1aa2c0": "MVP-FSE-VD9",
+    "MERCHANT_ORDER:db3ee47b-1fd5-4898-a8c8-e26d9d8270d4": "MXN-5G7-SE2",
+    "MERCHANT_ORDER:c22769b8-39f9-4ea2-8542-1c871b4c0530": "MAR-YCF-JT4",
+    "MERCHANT_ORDER:9f4d682a-df58-426a-876f-6a752022810d": "M24-51F-14N",
+    "PARCEL:local-ops-v1-parcel-after-eight-days": "PP3-Z4S-J9N",
+    "PARCEL:local-ops-v1-parcel-after-thirty-days": "PRM-E2K-MZ8",
+    "PARCEL:local-ops-v1-parcel-fresh": "PC4-AWP-0WK"
+  },
+  "notes": [
+    "esso: no assigned return fixture; own parcel references and cross-site return denial checked instead."
+  ]
+}

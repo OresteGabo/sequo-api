@@ -1,0 +1,181 @@
+{
+  "suites": [
+    {
+      "name": "dev.orestegabo.sequo_api.domain.commission.MerchantCommissionAdminHttpTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:29.170Z",
+      "time": "1.07"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.delivery.DeliveryFulfillmentWorkflowTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:31.358Z",
+      "time": "0.001"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.delivery.ConsolidationPersistenceServiceTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:30.241Z",
+      "time": "1.116"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.commerce.MerchantBusinessReadsHttpTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:27.821Z",
+      "time": "1.349"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.reference.CorePublicReferenceProjectionHttpTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:41.877Z",
+      "time": "1.9"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.returns.ReturnCustodyHttpTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:46.718Z",
+      "time": "1.589"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.settlement.RiderPayoutVisibilityTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:48.308Z",
+      "time": "0.188"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.admin.AdminWebReadHttpTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:26.476Z",
+      "time": "1.344"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.admin.AdminRelayAdministrationHttpTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:20.606Z",
+      "time": "5.869"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.admin.AdminPublicReferenceProjectionTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:20.588Z",
+      "time": "0.011"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.order.CustomerCartCheckoutHttpTest",
+      "tests": "15",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:32.755Z",
+      "time": "8.985"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.reference.PublicReferenceControllerTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:43.777Z",
+      "time": "0.16"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.support.H2V51FlywayCompatibilityTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:55.442Z",
+      "time": "1.344"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.returns.CustomerReturnHttpTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:45.353Z",
+      "time": "1.364"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistryTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:43.937Z",
+      "time": "0.037"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.relay.RelayOperatorHttpTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:43.975Z",
+      "time": "1.375"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.store.MerchantStoreHttpTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:49.442Z",
+      "time": "5.998"
+    },
+    {
+      "name": "dev.orestegabo.sequo_api.domain.reference.CooperativeReferencePrivacyTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:41.741Z",
+      "time": "0.135"
+    },
+    {
+      "name": "dev.orestegabo.sequo.reference.HumanReferenceTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-08T23:56:20.372Z",
+      "time": "0.215"
+    }
+  ],
+  "totals": {
+    "tests": 90,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}
