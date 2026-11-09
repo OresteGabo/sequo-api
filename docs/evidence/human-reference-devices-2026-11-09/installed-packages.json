@@ -1,0 +1,183 @@
+{
+  "releaseId": "sequo-reference-device-20261109-01",
+  "android": {
+    "serial": "emulator-5554",
+    "avd": "Sequo_References_API_36_1",
+    "os": "16",
+    "api": "36"
+  },
+  "ios": {
+    "udid": "59D90F12-C368-449B-8752-6BD86241E8DB",
+    "device": "Sequo-Task28-iPhone16",
+    "os": "18.6",
+    "kind": "simulator"
+  },
+  "packages": [
+    {
+      "app": "Sequo",
+      "platform": "android",
+      "applicationId": "dev.orestegabo.sequo.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "52263d6e4f7adbea63fb57a3237d6bb5898747ba",
+      "trackedDirtyPaths": [
+        "iosApp/iosApp.xcodeproj/project.pbxproj"
+      ],
+      "preservedLocalEditSha256": {},
+      "device": "emulator-5554",
+      "sha256": "03de52d65d8692306a4c24497b2e68e6b01ea2fadc21213d92becbb82acc61cb",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "Sequo",
+      "platform": "ios",
+      "applicationId": "dev.orestegabo.sequo.Sequo.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "52263d6e4f7adbea63fb57a3237d6bb5898747ba",
+      "trackedDirtyPaths": [
+        "iosApp/iosApp.xcodeproj/project.pbxproj"
+      ],
+      "preservedLocalEditSha256": {},
+      "device": "59D90F12-C368-449B-8752-6BD86241E8DB",
+      "payloadSha256": "6e87bdb1ca2ed46899ffcce0a0bf9394a15b955aaaeac2d4b7ea3c60ad2fb0b0",
+      "payloadFileCount": 348,
+      "debugDylibSha256": {
+        "Sequo.debug.dylib": "896a858fc9fbe85cf823cf0165922ed027eea6979b418336234d47466c705b64"
+      },
+      "executableSha256": "a458cf053cdac4a2d8b75db4bbeca85512d3f0f08433c6ff72913fc8a35df7a8",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "SequoVendor",
+      "platform": "android",
+      "applicationId": "dev.orestegabo.sequovendor.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "a013450aa08ad1795608463a9eb29a1213ab3d74",
+      "trackedDirtyPaths": [
+        "iosApp/iosApp.xcodeproj/project.pbxproj"
+      ],
+      "preservedLocalEditSha256": {
+        "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+      },
+      "device": "emulator-5554",
+      "sha256": "c98964ac8e92c9c0422d14e8d3f74f81ce2ec2b42993611d762c37706bd7e7a6",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "SequoVendor",
+      "platform": "ios",
+      "applicationId": "dev.orestegabo.sequovendor.SequoVendor.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "a013450aa08ad1795608463a9eb29a1213ab3d74",
+      "trackedDirtyPaths": [
+        "iosApp/iosApp.xcodeproj/project.pbxproj"
+      ],
+      "preservedLocalEditSha256": {
+        "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+      },
+      "device": "59D90F12-C368-449B-8752-6BD86241E8DB",
+      "payloadSha256": "57dcfbd831891e1b395fa50ae5df9f367bc904c0ae5111028b1d471eb4802620",
+      "payloadFileCount": 326,
+      "debugDylibSha256": {
+        "SequoVendor.debug.dylib": "7bb2181d7d0807f0e299a50e60a51cf1d9bd3612f7f3ea19b51e5d2fac1676af"
+      },
+      "executableSha256": "ef36cea0ccf976501e2ebc4b9e964ad6858ca482e545f2b3a41de7eb292bf838",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "SequoHub",
+      "platform": "android",
+      "applicationId": "dev.orestegabo.sequohub.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "c050d764504aaf1314208e5a2336cdf022a4b3af",
+      "trackedDirtyPaths": [
+        "README.md",
+        "STORAGE_PENALTIES.md",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt"
+      ],
+      "preservedLocalEditSha256": {
+        "README.md": "9d8cd42e32bbecaaa120e1d88021589953f5ee78cc3bc63ddedf4aad2df9e272",
+        "STORAGE_PENALTIES.md": "e220b6ca8da8f6edaf9da0f9fc88c142e328a809b2c4a169eadec6e62be797b8",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt": "f703ea78a096626b759f8aa23404fb1764c1cdc8d97532b7c2b2a17f5e681625",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt": "35acc135c83c000b3bf67cb96a8599924b480e3f3ef5579bd00de259150575d6",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt": "1294c349c586342ce2a45b6b6f60b3faf85c979a6835cce9e61ad4598483cf4d",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt": "bac97c070c6f5cef96f97e1f880c8c0d19d33ff04bda143e95ac9a94ee158af3"
+      },
+      "device": "emulator-5554",
+      "sha256": "7838944b31159e57865866c1472085d9a072090a2cfa50d283da9fade8b9b010",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "SequoHub",
+      "platform": "ios",
+      "applicationId": "dev.orestegabo.sequohub.SequoHub.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "c050d764504aaf1314208e5a2336cdf022a4b3af",
+      "trackedDirtyPaths": [
+        "README.md",
+        "STORAGE_PENALTIES.md",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt"
+      ],
+      "preservedLocalEditSha256": {
+        "README.md": "9d8cd42e32bbecaaa120e1d88021589953f5ee78cc3bc63ddedf4aad2df9e272",
+        "STORAGE_PENALTIES.md": "e220b6ca8da8f6edaf9da0f9fc88c142e328a809b2c4a169eadec6e62be797b8",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt": "f703ea78a096626b759f8aa23404fb1764c1cdc8d97532b7c2b2a17f5e681625",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt": "35acc135c83c000b3bf67cb96a8599924b480e3f3ef5579bd00de259150575d6",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt": "1294c349c586342ce2a45b6b6f60b3faf85c979a6835cce9e61ad4598483cf4d",
+        "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt": "bac97c070c6f5cef96f97e1f880c8c0d19d33ff04bda143e95ac9a94ee158af3"
+      },
+      "device": "59D90F12-C368-449B-8752-6BD86241E8DB",
+      "payloadSha256": "120fe153c3ef78ff307b21677a4f5c3282c3562d1e4c00de39a64b929fd19a56",
+      "payloadFileCount": 137,
+      "debugDylibSha256": {
+        "SequoHub.debug.dylib": "442f506a91181cdf66d8572d63bd43e9ab10e2247a3aa16a6bcc4c2b468a994a"
+      },
+      "executableSha256": "7012483652f77af52bdc0c4679da6252e4ca57a16c259c6489b4a5fcb211537d",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "SequoRider",
+      "platform": "android",
+      "applicationId": "dev.orestegabo.sequorider.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "ad28b084e7a7b7a96ededff2aa6e94d1639328fa",
+      "trackedDirtyPaths": [],
+      "preservedLocalEditSha256": {},
+      "device": "emulator-5554",
+      "sha256": "03b8f6a7d67cd1f043aebe6f5fe20275e9e9cd1b7555ab3066f4f052f45209e4",
+      "installedArtifactMatchesBuild": true
+    },
+    {
+      "app": "SequoRider",
+      "platform": "ios",
+      "applicationId": "dev.orestegabo.sequorider.SequoRider.fixture",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-reference-device-20261109-01",
+      "sourceHead": "ad28b084e7a7b7a96ededff2aa6e94d1639328fa",
+      "trackedDirtyPaths": [],
+      "preservedLocalEditSha256": {},
+      "device": "59D90F12-C368-449B-8752-6BD86241E8DB",
+      "payloadSha256": "e2024abc9e6cbb4ac77ed49605f9f373a509e1af103286f46b002c551e2344fd",
+      "payloadFileCount": 131,
+      "debugDylibSha256": {
+        "SequoRider.debug.dylib": "eb1d2e3abaff515f969d2e22157e8339a0a01c0703f505596d69ad61b03f1760"
+      },
+      "executableSha256": "bc9d8849e7d5a6e0f9c5ee70b646730fed12514aff016bbbd53f15765867f391",
+      "installedArtifactMatchesBuild": true
+    }
+  ],
+  "initialHubSourceHead": "1d5297814a2cfcf18f189d134ea0f63cac19db29",
+  "hubFixCommit": "c050d764504aaf1314208e5a2336cdf022a4b3af"
+}

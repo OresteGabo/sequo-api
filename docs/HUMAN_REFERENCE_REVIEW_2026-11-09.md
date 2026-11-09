@@ -1,5 +1,7 @@
 # Short reference implementation review — 9 November 2026
 
+Follow-up: the four updated apps have since been installed and checked on Android and iPhone simulators. See the [installed-device review and receipts](HUMAN_REFERENCE_DEVICE_REVIEW_2026-11-09.md), which supersede the mobile installation limitation below.
+
 Implemented nine-character display references, grouped `XXX-XXX-XXX`, with a record-type prefix and two checksum characters. The local order **CH1-HXS-621** is available in the admin Orders page. Lowercase, spaces and omitted hyphens normalize correctly. Changing its last character to `2` produces an immediate input error.
 
 The [format and compatibility specification](HUMAN_REFERENCES.md) describes the alphabet, checksum, prefixes, registry, migration and lookup authorization. This is a display/lookup addition. Database keys, business retry codes, provider identifiers, custody credentials and financial state transitions retain their existing values.

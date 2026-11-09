@@ -1,0 +1,14 @@
+{
+  "unchanged": true,
+  "sha256": {
+    "SequoHub/README.md": "9d8cd42e32bbecaaa120e1d88021589953f5ee78cc3bc63ddedf4aad2df9e272",
+    "SequoHub/STORAGE_PENALTIES.md": "e220b6ca8da8f6edaf9da0f9fc88c142e328a809b2c4a169eadec6e62be797b8",
+    "SequoHub/shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/hub/HubRepository.kt": "f703ea78a096626b759f8aa23404fb1764c1cdc8d97532b7c2b2a17f5e681625",
+    "SequoHub/shared/src/commonMain/kotlin/dev/orestegabo/sequohub/core/localization/SequoStrings.kt": "35acc135c83c000b3bf67cb96a8599924b480e3f3ef5579bd00de259150575d6",
+    "SequoHub/shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/hub/HubDashboard.kt": "1294c349c586342ce2a45b6b6f60b3faf85c979a6835cce9e61ad4598483cf4d",
+    "SequoHub/shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/legal/LegalScreen.kt": "bac97c070c6f5cef96f97e1f880c8c0d19d33ff04bda143e95ac9a94ee158af3",
+    "Sequo/iosApp/iosApp.xcodeproj/project.pbxproj": "d4173c3aa8dfd8070b387ce6678f2da631a882637726d2bb633cf164ee5c7203",
+    "SequoVendor/iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9",
+    "sequo-api/build/releases/sequo-mvp-rc-20261108-01/release-manifest.json": "61398bffd7cfc1cbd0a380b7c835920ba659ac273d33fd998af9825defa7efda"
+  }
+}

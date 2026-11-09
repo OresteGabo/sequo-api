@@ -1,0 +1,2443 @@
+{
+  "environment": "LOCAL_FIXTURE",
+  "baseUrl": "http://127.0.0.1:55840",
+  "checkedAt": "2026-11-09T00:11:08.255640+00:00",
+  "sourceCommit": "e5ad489153d569b29c0b2bb9fd81cb4ee7d2fb2d",
+  "businessWrites": false,
+  "providerOperations": false,
+  "roles": {
+    "ama": {
+      "family": "SEQUO_APP",
+      "user": {
+        "id": "local-ops-v1-customer-ama",
+        "publicReference": "AGF-WR4-4B2"
+      },
+      "orders": [
+        {
+          "id": "SQ-local-ops-v1-return-refund",
+          "checkoutId": "local-ops-v1-return-refund",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.850562Z",
+          "publicReference": "C2J-8SP-V0R",
+          "checkoutReference": "HDZ-DV4-GP5"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-accepted",
+          "checkoutId": "local-ops-v1-return-accepted",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.774123Z",
+          "publicReference": "CY8-FZZ-47G",
+          "checkoutReference": "HY1-GCX-M06"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-received",
+          "checkoutId": "local-ops-v1-return-received",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.698907Z",
+          "publicReference": "CG3-A4Y-7JZ",
+          "checkoutReference": "HFF-C5T-V7V"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-collected",
+          "checkoutId": "local-ops-v1-return-collected",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.623218Z",
+          "publicReference": "C4H-YQZ-PW3",
+          "checkoutReference": "HZJ-B1R-TE1"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-dropoff",
+          "checkoutId": "local-ops-v1-return-dropoff",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.541698Z",
+          "publicReference": "CHR-YXF-087",
+          "checkoutReference": "HHG-E3V-9R0"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "checkoutId": "local-ops-v1-return-awaiting-dropoff",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.448727Z",
+          "publicReference": "C75-6C3-FF7",
+          "checkoutReference": "HTW-B9W-DF1"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-request",
+          "checkoutId": "local-ops-v1-return-request",
+          "customerFacingStatus": "Return requested",
+          "paymentStatus": "Validated",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.357846Z",
+          "publicReference": "CVN-HDH-ABN",
+          "checkoutReference": "HCK-Z8G-B8H"
+        },
+        {
+          "id": "SQ-local-ops-v1-dispatch-busy",
+          "checkoutId": "local-ops-v1-dispatch-busy",
+          "customerFacingStatus": "Paid, waiting for seller preparation",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "C2F-9Y9-TZ7",
+          "checkoutReference": "H7Y-FDC-E1Q"
+        },
+        {
+          "id": "SQ-local-ops-v1-group-final",
+          "checkoutId": "local-ops-v1-group-final",
+          "customerFacingStatus": "Awaiting SEQUO consolidation",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "CA5-JXM-S2V",
+          "checkoutReference": "HD1-NJ3-QVN"
+        },
+        {
+          "id": "SQ-local-ops-v1-group-ready",
+          "checkoutId": "local-ops-v1-group-ready",
+          "customerFacingStatus": "Awaiting SEQUO consolidation",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "CWG-4GM-GRT",
+          "checkoutReference": "H6R-56T-PBB"
+        },
+        {
+          "id": "SQ-local-ops-v1-finance-salaried",
+          "checkoutId": "local-ops-v1-finance-salaried",
+          "customerFacingStatus": "Delivered",
+          "paymentStatus": "Validated",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T11:00:28.245887Z",
+          "publicReference": "CPX-ENR-QD0",
+          "checkoutReference": "HPR-F1P-MXS"
+        },
+        {
+          "id": "SQ-local-ops-v1-finance-independent",
+          "checkoutId": "local-ops-v1-finance-independent",
+          "customerFacingStatus": "Delivered",
+          "paymentStatus": "Validated",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T11:00:28.121657Z",
+          "publicReference": "CVE-HPR-CZN",
+          "checkoutReference": "H1A-BRT-YAW"
+        },
+        {
+          "id": "SQ-local-ops-v1-dispatch-unassigned",
+          "checkoutId": "local-ops-v1-dispatch-unassigned",
+          "customerFacingStatus": "Paid, waiting for seller preparation",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "CMD-FY5-MQ7",
+          "checkoutReference": "HKD-GC2-73K"
+        },
+        {
+          "id": "SQ-local-ops-v1-merchant-ready",
+          "checkoutId": "local-ops-v1-merchant-ready",
+          "customerFacingStatus": "Paid, waiting for seller preparation",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "CZ9-HKK-1W7",
+          "checkoutReference": "HWR-7GC-VS5"
+        },
+        {
+          "id": "SQ-local-ops-v1-merchant-preparing",
+          "checkoutId": "local-ops-v1-merchant-preparing",
+          "customerFacingStatus": "Delivered",
+          "paymentStatus": "Validated",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T22:27:18.720873Z",
+          "publicReference": "C96-BBG-0DY",
+          "checkoutReference": "HVM-GNB-XTF"
+        },
+        {
+          "id": "SQ-local-ops-v1-merchant-new",
+          "checkoutId": "local-ops-v1-merchant-new",
+          "customerFacingStatus": "Paid, waiting for seller preparation",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "CH1-HXS-621",
+          "checkoutReference": "H0J-AVT-8D4"
+        },
+        {
+          "id": "SQ-local-ops-v1-relay-order-fresh",
+          "checkoutId": "local-ops-v1-relay-order-fresh",
+          "customerFacingStatus": "Paid, waiting for Point de Relai routing",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "C8Y-PF1-E09",
+          "checkoutReference": "HRX-4EM-QMH"
+        },
+        {
+          "id": "SQ-local-ops-v1-relay-order-after-eight-days",
+          "checkoutId": "local-ops-v1-relay-order-after-eight-days",
+          "customerFacingStatus": "Paid, waiting for Point de Relai routing",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "C64-EVS-0XT",
+          "checkoutReference": "HNT-4P7-TK1"
+        },
+        {
+          "id": "SQ-local-ops-v1-relay-order-after-thirty-days",
+          "checkoutId": "local-ops-v1-relay-order-after-thirty-days",
+          "customerFacingStatus": "Paid, waiting for Point de Relai routing",
+          "paymentStatus": "Validated",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "CEQ-HCZ-1EF",
+          "checkoutReference": "H0B-TGR-XXE"
+        }
+      ],
+      "returns": [
+        {
+          "id": "local-ops-v1-return-request-refund",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "status": "RefundPending",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RWS-DZF-TDX",
+          "orderReference": "C2J-8SP-V0R",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-accepted",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "status": "ReceivedBySequo",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RZX-PYC-SGY",
+          "orderReference": "CY8-FZZ-47G",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-received",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "status": "ReceivedBySequo",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RSN-96G-FQE",
+          "orderReference": "CG3-A4Y-7JZ",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-collected",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "status": "CollectedBySequo",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RWA-KZ0-0M8",
+          "orderReference": "C4H-YQZ-PW3",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-dropoff",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "status": "DroppedAtRelay",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RCG-SZ9-KFA",
+          "orderReference": "CHR-YXF-087",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-awaiting-dropoff",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "status": "AwaitingRelayDropoff",
+          "publicReference": "R2D-W22-814",
+          "orderReference": "C75-6C3-FF7"
+        },
+        {
+          "id": "local-ops-v1-return-request-request",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "status": "AwaitingRelayDropoff",
+          "publicReference": "R5X-3ZH-5WY",
+          "orderReference": "CVN-HDH-ABN"
+        }
+      ]
+    },
+    "yawa": {
+      "family": "SEQUO_VENDOR",
+      "user": {
+        "id": "local-ops-v1-owner-yawa",
+        "publicReference": "A6W-GSH-AYS"
+      },
+      "merchantId": "local-ops-v1-merchant-maison",
+      "parts": [
+        {
+          "id": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+          "orderId": "SQ-local-ops-v1-merchant-preparing",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "PACKED_READY",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T22:27:18.720873Z",
+          "publicReference": "MNS-BX2-A3H",
+          "orderReference": "C96-BBG-0DY",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "4dfdea34-84b4-4931-84bf-3a8b2b21d779",
+          "orderId": "SQ-local-ops-v1-dispatch-busy",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "PACKED_READY",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MQY-4A0-92J",
+          "orderReference": "C2F-9Y9-TZ7",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "2f8ed6c9-6121-4c1f-bb4f-4f04104faaf1",
+          "orderId": "SQ-local-ops-v1-group-final",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "M5Z-E4Y-ZWK",
+          "orderReference": "CA5-JXM-S2V",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "07d3d81a-6a85-4067-8078-4c45e2b34bf3",
+          "orderId": "SQ-local-ops-v1-group-ready",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "PACKED_READY",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MP6-AEK-RCZ",
+          "orderReference": "CWG-4GM-GRT",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "52a92a70-4507-470e-9b70-822b1ae90a40",
+          "orderId": "SQ-local-ops-v1-relay-order-after-thirty-days",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MZG-VFE-GEB",
+          "orderReference": "CEQ-HCZ-1EF",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "b6eb9652-7e0c-47bc-ab65-e93113f32345",
+          "orderId": "SQ-local-ops-v1-relay-order-after-eight-days",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MY2-PNS-H82",
+          "orderReference": "C64-EVS-0XT",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "1ce1273f-602b-4c3c-ae04-70805698870d",
+          "orderId": "SQ-local-ops-v1-relay-order-fresh",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MRT-N8S-WPR",
+          "orderReference": "C8Y-PF1-E09",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.850562Z",
+          "publicReference": "MZG-PYP-XVX",
+          "orderReference": "C2J-8SP-V0R",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "1df280b1-1aa4-4772-b8a8-957dec807aaa",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.774123Z",
+          "publicReference": "M0J-PZQ-KM2",
+          "orderReference": "CY8-FZZ-47G",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "844ecdea-c4f9-473b-b9ee-f691bb74f659",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.698907Z",
+          "publicReference": "MQS-53H-94C",
+          "orderReference": "CG3-A4Y-7JZ",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.623218Z",
+          "publicReference": "MJ3-4NM-A8W",
+          "orderReference": "C4H-YQZ-PW3",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "9b45945c-9cbc-4731-93d8-23a29ef9861b",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.541698Z",
+          "publicReference": "MTB-66E-RS6",
+          "orderReference": "CHR-YXF-087",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "d6edb78d-7935-4530-807b-5264c37143ff",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.448727Z",
+          "publicReference": "M7N-0X5-2BF",
+          "orderReference": "C75-6C3-FF7",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.357846Z",
+          "publicReference": "MTG-43Z-1SV",
+          "orderReference": "CVN-HDH-ABN",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "d0949d46-c201-464e-a9ae-2b12c6efe42d",
+          "orderId": "SQ-local-ops-v1-finance-salaried",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T11:00:28.245887Z",
+          "publicReference": "MM5-DEJ-HTP",
+          "orderReference": "CPX-ENR-QD0",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+          "orderId": "SQ-local-ops-v1-finance-independent",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T11:00:28.121657Z",
+          "publicReference": "MWP-RYS-R6D",
+          "orderReference": "CVE-HPR-CZN",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "8671a9b0-0f92-4bb5-a190-1b93a4e9d41a",
+          "orderId": "SQ-local-ops-v1-dispatch-unassigned",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "PACKED_READY",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MZ4-SFJ-VFZ",
+          "orderReference": "CMD-FY5-MQ7",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "77ee2715-1f1c-4a80-99d2-c5e4ed1aa2c0",
+          "orderId": "SQ-local-ops-v1-merchant-ready",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "PACKED_READY",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MVP-FSE-VD9",
+          "orderReference": "CZ9-HKK-1W7",
+          "merchantReference": "VZX-20M-TVB"
+        },
+        {
+          "id": "db3ee47b-1fd5-4898-a8c8-e26d9d8270d4",
+          "orderId": "SQ-local-ops-v1-merchant-new",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MXN-5G7-SE2",
+          "orderReference": "CH1-HXS-621",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "returns": [
+        {
+          "id": "local-ops-v1-return-request-request",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "status": "AwaitingRelayDropoff",
+          "publicReference": "R5X-3ZH-5WY",
+          "orderReference": "CVN-HDH-ABN"
+        },
+        {
+          "id": "local-ops-v1-return-request-awaiting-dropoff",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "status": "AwaitingRelayDropoff",
+          "publicReference": "R2D-W22-814",
+          "orderReference": "C75-6C3-FF7"
+        },
+        {
+          "id": "local-ops-v1-return-request-dropoff",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "status": "DroppedAtRelay",
+          "publicReference": "RCG-SZ9-KFA",
+          "orderReference": "CHR-YXF-087"
+        },
+        {
+          "id": "local-ops-v1-return-request-collected",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "status": "CollectedBySequo",
+          "publicReference": "RWA-KZ0-0M8",
+          "orderReference": "C4H-YQZ-PW3"
+        },
+        {
+          "id": "local-ops-v1-return-request-received",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "status": "ReceivedBySequo",
+          "publicReference": "RSN-96G-FQE",
+          "orderReference": "CG3-A4Y-7JZ"
+        },
+        {
+          "id": "local-ops-v1-return-request-accepted",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "status": "ReceivedBySequo",
+          "publicReference": "RZX-PYC-SGY",
+          "orderReference": "CY8-FZZ-47G"
+        },
+        {
+          "id": "local-ops-v1-return-request-refund",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "status": "RefundPending",
+          "publicReference": "RWS-DZF-TDX",
+          "orderReference": "C2J-8SP-V0R"
+        }
+      ],
+      "payouts": [
+        {
+          "id": "SQ-local-ops-v1-merchant-preparing:merchant-payout:525417ed-38ef-439d-bd37-2944cbeca7c2",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-merchant-preparing",
+          "sourceOrderItemId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+          "status": "HeldReturnWindow",
+          "publicReference": "F65-FFB-JFP",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "C96-BBG-0DY",
+          "sourceOrderItemReference": "MNS-BX2-A3H"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-refund:merchant-payout:723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "sourceOrderItemId": "723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+          "status": "HeldReturnWindow",
+          "publicReference": "FV2-TAR-113",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "C2J-8SP-V0R",
+          "sourceOrderItemReference": "MZG-PYP-XVX"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-accepted:merchant-payout:1df280b1-1aa4-4772-b8a8-957dec807aaa",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "sourceOrderItemId": "1df280b1-1aa4-4772-b8a8-957dec807aaa",
+          "status": "HeldReturnWindow",
+          "publicReference": "F5E-3JM-Z1T",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "CY8-FZZ-47G",
+          "sourceOrderItemReference": "M0J-PZQ-KM2"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-received:merchant-payout:844ecdea-c4f9-473b-b9ee-f691bb74f659",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "sourceOrderItemId": "844ecdea-c4f9-473b-b9ee-f691bb74f659",
+          "status": "HeldReturnWindow",
+          "publicReference": "FBN-MNV-95D",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "CG3-A4Y-7JZ",
+          "sourceOrderItemReference": "MQS-53H-94C"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-collected:merchant-payout:3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "sourceOrderItemId": "3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+          "status": "HeldReturnWindow",
+          "publicReference": "FYW-7QE-NPP",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "C4H-YQZ-PW3",
+          "sourceOrderItemReference": "MJ3-4NM-A8W"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-dropoff:merchant-payout:9b45945c-9cbc-4731-93d8-23a29ef9861b",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "sourceOrderItemId": "9b45945c-9cbc-4731-93d8-23a29ef9861b",
+          "status": "HeldReturnWindow",
+          "publicReference": "F28-5A5-GV8",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "CHR-YXF-087",
+          "sourceOrderItemReference": "MTB-66E-RS6"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-awaiting-dropoff:merchant-payout:d6edb78d-7935-4530-807b-5264c37143ff",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "sourceOrderItemId": "d6edb78d-7935-4530-807b-5264c37143ff",
+          "status": "HeldReturnWindow",
+          "publicReference": "F97-4AK-ST4",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "C75-6C3-FF7",
+          "sourceOrderItemReference": "M7N-0X5-2BF"
+        },
+        {
+          "id": "SQ-local-ops-v1-return-request:merchant-payout:a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "sourceOrderItemId": "a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+          "status": "HeldReturnWindow",
+          "publicReference": "FEP-60S-H86",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "CVN-HDH-ABN",
+          "sourceOrderItemReference": "MTG-43Z-1SV"
+        },
+        {
+          "id": "SQ-local-ops-v1-finance-salaried:merchant-payout:d0949d46-c201-464e-a9ae-2b12c6efe42d",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-finance-salaried",
+          "sourceOrderItemId": "d0949d46-c201-464e-a9ae-2b12c6efe42d",
+          "status": "HeldReturnWindow",
+          "publicReference": "FVH-J2V-HZH",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "CPX-ENR-QD0",
+          "sourceOrderItemReference": "MM5-DEJ-HTP"
+        },
+        {
+          "id": "SQ-local-ops-v1-finance-independent:merchant-payout:559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "orderId": "SQ-local-ops-v1-finance-independent",
+          "sourceOrderItemId": "559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+          "status": "HeldReturnWindow",
+          "publicReference": "FVX-D1C-40W",
+          "merchantReference": "VZX-20M-TVB",
+          "orderReference": "CVE-HPR-CZN",
+          "sourceOrderItemReference": "MWP-RYS-R6D"
+        }
+      ]
+    },
+    "senam": {
+      "family": "SEQUO_RIDER",
+      "user": {
+        "id": "local-ops-v1-rider-senam",
+        "publicReference": "A4Z-XR3-YQY"
+      },
+      "missions": [
+        {
+          "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+          "orderId": "SQ-local-ops-v1-merchant-preparing",
+          "merchantSubOrderId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T22:27:18.720873Z",
+          "publicReference": "DA3-KTY-93W",
+          "orderReference": "C96-BBG-0DY",
+          "merchantSubOrderReference": "MNS-BX2-A3H",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "c51cb2ed-1e29-490e-b62d-37c62aed882c",
+          "orderId": "SQ-local-ops-v1-group-final",
+          "merchantSubOrderId": "2f8ed6c9-6121-4c1f-bb4f-4f04104faaf1",
+          "status": "HANDED_TO_SEQUO",
+          "publicReference": "DN1-6CX-PQA",
+          "orderReference": "CA5-JXM-S2V",
+          "merchantSubOrderReference": "M5Z-E4Y-ZWK",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "818791fa-7128-4a46-9c67-f2223f792f5a",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "merchantSubOrderId": "723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.850562Z",
+          "publicReference": "DQH-Z0Q-GXD",
+          "orderReference": "C2J-8SP-V0R",
+          "merchantSubOrderReference": "MZG-PYP-XVX",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "dd783ef9-9b4e-41c3-8a25-3cd577ec35b0",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "merchantSubOrderId": "1df280b1-1aa4-4772-b8a8-957dec807aaa",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.774123Z",
+          "publicReference": "DF6-1W5-0AT",
+          "orderReference": "CY8-FZZ-47G",
+          "merchantSubOrderReference": "M0J-PZQ-KM2",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "f2e3ad10-366e-41e3-9f0a-206cbfff001f",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "merchantSubOrderId": "844ecdea-c4f9-473b-b9ee-f691bb74f659",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.698907Z",
+          "publicReference": "D1E-4X6-8NR",
+          "orderReference": "CG3-A4Y-7JZ",
+          "merchantSubOrderReference": "MQS-53H-94C",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "6961788b-f07c-4d03-a7ac-cd3940bbec14",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "merchantSubOrderId": "3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.623218Z",
+          "publicReference": "DSA-BEA-80G",
+          "orderReference": "C4H-YQZ-PW3",
+          "merchantSubOrderReference": "MJ3-4NM-A8W",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "9ba06d45-23ad-4832-a63f-dc6de3947e5f",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "merchantSubOrderId": "9b45945c-9cbc-4731-93d8-23a29ef9861b",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.541698Z",
+          "publicReference": "DVF-VCG-EY2",
+          "orderReference": "CHR-YXF-087",
+          "merchantSubOrderReference": "MTB-66E-RS6",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "86d969a3-8447-4266-86fd-2bd4b3e14587",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "merchantSubOrderId": "d6edb78d-7935-4530-807b-5264c37143ff",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.448727Z",
+          "publicReference": "DT8-8BH-79H",
+          "orderReference": "C75-6C3-FF7",
+          "merchantSubOrderReference": "M7N-0X5-2BF",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "336ce08d-7691-4dd0-b6db-fbffa46c0c12",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "merchantSubOrderId": "a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.357846Z",
+          "publicReference": "DBY-PMA-0PH",
+          "orderReference": "CVN-HDH-ABN",
+          "merchantSubOrderReference": "MTG-43Z-1SV",
+          "courierReference": "TS9-MP8-PDJ"
+        },
+        {
+          "id": "a15b30eb-522c-4191-8f49-24be1c9026bf",
+          "orderId": "SQ-local-ops-v1-finance-independent",
+          "merchantSubOrderId": "559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.121657Z",
+          "publicReference": "DGM-75C-1Z2",
+          "orderReference": "CVE-HPR-CZN",
+          "merchantSubOrderReference": "MWP-RYS-R6D",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7:courier-payable",
+          "missionId": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WWK-H3T-QGD",
+          "missionReference": "DA3-KTY-93W"
+        },
+        {
+          "id": "c51cb2ed-1e29-490e-b62d-37c62aed882c:courier-payable",
+          "missionId": "c51cb2ed-1e29-490e-b62d-37c62aed882c",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WDD-GDZ-C6M",
+          "missionReference": "DN1-6CX-PQA"
+        },
+        {
+          "id": "818791fa-7128-4a46-9c67-f2223f792f5a:courier-payable",
+          "missionId": "818791fa-7128-4a46-9c67-f2223f792f5a",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WXH-ZVA-AWW",
+          "missionReference": "DQH-Z0Q-GXD"
+        },
+        {
+          "id": "dd783ef9-9b4e-41c3-8a25-3cd577ec35b0:courier-payable",
+          "missionId": "dd783ef9-9b4e-41c3-8a25-3cd577ec35b0",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WWK-328-0XG",
+          "missionReference": "DF6-1W5-0AT"
+        },
+        {
+          "id": "f2e3ad10-366e-41e3-9f0a-206cbfff001f:courier-payable",
+          "missionId": "f2e3ad10-366e-41e3-9f0a-206cbfff001f",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WKF-HFP-B7T",
+          "missionReference": "D1E-4X6-8NR"
+        },
+        {
+          "id": "6961788b-f07c-4d03-a7ac-cd3940bbec14:courier-payable",
+          "missionId": "6961788b-f07c-4d03-a7ac-cd3940bbec14",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "W8K-2N3-XKC",
+          "missionReference": "DSA-BEA-80G"
+        },
+        {
+          "id": "9ba06d45-23ad-4832-a63f-dc6de3947e5f:courier-payable",
+          "missionId": "9ba06d45-23ad-4832-a63f-dc6de3947e5f",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WJJ-VPS-ZVQ",
+          "missionReference": "DVF-VCG-EY2"
+        },
+        {
+          "id": "86d969a3-8447-4266-86fd-2bd4b3e14587:courier-payable",
+          "missionId": "86d969a3-8447-4266-86fd-2bd4b3e14587",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WPR-ST8-7YF",
+          "missionReference": "DT8-8BH-79H"
+        },
+        {
+          "id": "336ce08d-7691-4dd0-b6db-fbffa46c0c12:courier-payable",
+          "missionId": "336ce08d-7691-4dd0-b6db-fbffa46c0c12",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WEE-W63-RAA",
+          "missionReference": "DBY-PMA-0PH"
+        },
+        {
+          "id": "a15b30eb-522c-4191-8f49-24be1c9026bf:courier-payable",
+          "missionId": "a15b30eb-522c-4191-8f49-24be1c9026bf",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WQF-G0P-4DE",
+          "missionReference": "DGM-75C-1Z2"
+        }
+      ],
+      "earningsSummary": {
+        "riderId": "local-ops-v1-courier-senam",
+        "workforceType": "Freelancer",
+        "availableBalanceCfa": 4000,
+        "onHoldCfa": 0,
+        "paidOrProcessingCfa": 0,
+        "historyCount": 10,
+        "earnedTotalCfa": 4000,
+        "settledMissionCount": 10,
+        "paidCfa": 0,
+        "processingCfa": 0,
+        "transferStatus": "NOT_INTEGRATED",
+        "unverifiedTransferCfa": 0,
+        "reviewRequiredCfa": 0,
+        "courierReference": "TS9-MP8-PDJ"
+      }
+    },
+    "esso": {
+      "family": "SEQUO_HUB",
+      "user": {
+        "id": "local-ops-v1-operator-esso",
+        "publicReference": "AFG-ZMZ-B11"
+      },
+      "site": {
+        "id": "local-ops-v1-relay-adidogome"
+      },
+      "parcels": [
+        {
+          "id": "local-ops-v1-parcel-after-eight-days",
+          "relayPointId": "local-ops-v1-relay-adidogome",
+          "lockerId": "local-ops-v1-slot-2-2",
+          "orderId": "SQ-local-ops-v1-relay-order-after-eight-days",
+          "status": "Delayed",
+          "publicReference": "PP3-Z4S-J9N",
+          "orderReference": "C64-EVS-0XT",
+          "relayReference": "SGY-JNC-90S",
+          "lockerReference": "KH1-2PS-WAC"
+        },
+        {
+          "id": "local-ops-v1-parcel-after-thirty-days",
+          "relayPointId": "local-ops-v1-relay-adidogome",
+          "lockerId": "local-ops-v1-slot-2-3",
+          "orderId": "SQ-local-ops-v1-relay-order-after-thirty-days",
+          "status": "ReturnToSellerReview",
+          "publicReference": "PRM-E2K-MZ8",
+          "orderReference": "CEQ-HCZ-1EF",
+          "relayReference": "SGY-JNC-90S",
+          "lockerReference": "K50-BGD-K83"
+        },
+        {
+          "id": "local-ops-v1-parcel-fresh",
+          "relayPointId": "local-ops-v1-relay-adidogome",
+          "lockerId": "local-ops-v1-slot-2-1",
+          "orderId": "SQ-local-ops-v1-relay-order-fresh",
+          "status": "Deposited",
+          "publicReference": "PC4-AWP-0WK",
+          "orderReference": "C8Y-PF1-E09",
+          "relayReference": "SGY-JNC-90S",
+          "lockerReference": "K7T-MZ8-717"
+        }
+      ],
+      "returns": [],
+      "logicalSlots": [
+        {
+          "lockerId": "local-ops-v1-slot-2-1",
+          "relayPointId": "local-ops-v1-relay-adidogome",
+          "status": "OCCUPIED",
+          "publicReference": "K7T-MZ8-717"
+        },
+        {
+          "lockerId": "local-ops-v1-slot-2-2",
+          "relayPointId": "local-ops-v1-relay-adidogome",
+          "status": "OCCUPIED",
+          "publicReference": "KH1-2PS-WAC"
+        },
+        {
+          "lockerId": "local-ops-v1-slot-2-3",
+          "relayPointId": "local-ops-v1-relay-adidogome",
+          "status": "OCCUPIED",
+          "publicReference": "K50-BGD-K83"
+        }
+      ]
+    },
+    "dede": {
+      "family": "SEQUO_HUB",
+      "user": {
+        "id": "local-ops-v1-operator-dede",
+        "publicReference": "AF9-P8J-07D"
+      },
+      "site": {
+        "id": "local-ops-v1-relay-tokoin"
+      },
+      "parcels": [],
+      "returns": [
+        {
+          "id": "local-ops-v1-return-request-refund",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "status": "RefundPending",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RWS-DZF-TDX",
+          "orderReference": "C2J-8SP-V0R",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-accepted",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "status": "ReceivedBySequo",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RZX-PYC-SGY",
+          "orderReference": "CY8-FZZ-47G",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-received",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "status": "ReceivedBySequo",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RSN-96G-FQE",
+          "orderReference": "CG3-A4Y-7JZ",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-collected",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "status": "CollectedBySequo",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RWA-KZ0-0M8",
+          "orderReference": "C4H-YQZ-PW3",
+          "relayReference": "SJG-Q5W-YDX"
+        },
+        {
+          "id": "local-ops-v1-return-request-dropoff",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "status": "DroppedAtRelay",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "publicReference": "RCG-SZ9-KFA",
+          "orderReference": "CHR-YXF-087",
+          "relayReference": "SJG-Q5W-YDX"
+        }
+      ],
+      "logicalSlots": [
+        {
+          "lockerId": "local-ops-v1-slot-1-1",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "status": "AVAILABLE",
+          "publicReference": "KV5-28J-1WD"
+        },
+        {
+          "lockerId": "local-ops-v1-slot-1-2",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "status": "AVAILABLE",
+          "publicReference": "KAH-F51-GC1"
+        },
+        {
+          "lockerId": "local-ops-v1-slot-1-3",
+          "relayPointId": "local-ops-v1-relay-tokoin",
+          "status": "AVAILABLE",
+          "publicReference": "KX1-8R4-KE6"
+        }
+      ]
+    }
+  },
+  "adminMatches": {
+    "orders": 19,
+    "missions": 10,
+    "ledgerEntries": 10,
+    "merchantPayouts": 10,
+    "relayParcels": 3,
+    "returns": 5
+  },
+  "sharedJourneys": [
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-finance-independent",
+        "checkoutId": "local-ops-v1-finance-independent",
+        "customerFacingStatus": "Delivered",
+        "paymentStatus": "Validated",
+        "orderStatus": "DELIVERED",
+        "deliveredAt": "2026-11-08T11:00:28.121657Z",
+        "publicReference": "CVE-HPR-CZN",
+        "checkoutReference": "H1A-BRT-YAW"
+      },
+      "vendorParts": [
+        {
+          "id": "559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+          "orderId": "SQ-local-ops-v1-finance-independent",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T11:00:28.121657Z",
+          "publicReference": "MWP-RYS-R6D",
+          "orderReference": "CVE-HPR-CZN",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "a15b30eb-522c-4191-8f49-24be1c9026bf",
+          "orderId": "SQ-local-ops-v1-finance-independent",
+          "merchantSubOrderId": "559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.121657Z",
+          "publicReference": "DGM-75C-1Z2",
+          "orderReference": "CVE-HPR-CZN",
+          "merchantSubOrderReference": "MWP-RYS-R6D",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "a15b30eb-522c-4191-8f49-24be1c9026bf:courier-payable",
+          "missionId": "a15b30eb-522c-4191-8f49-24be1c9026bf",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WQF-G0P-4DE",
+          "missionReference": "DGM-75C-1Z2"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-group-final",
+        "checkoutId": "local-ops-v1-group-final",
+        "customerFacingStatus": "Awaiting SEQUO consolidation",
+        "paymentStatus": "Validated",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "publicReference": "CA5-JXM-S2V",
+        "checkoutReference": "HD1-NJ3-QVN"
+      },
+      "vendorParts": [
+        {
+          "id": "2f8ed6c9-6121-4c1f-bb4f-4f04104faaf1",
+          "orderId": "SQ-local-ops-v1-group-final",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "M5Z-E4Y-ZWK",
+          "orderReference": "CA5-JXM-S2V",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "c51cb2ed-1e29-490e-b62d-37c62aed882c",
+          "orderId": "SQ-local-ops-v1-group-final",
+          "merchantSubOrderId": "2f8ed6c9-6121-4c1f-bb4f-4f04104faaf1",
+          "status": "HANDED_TO_SEQUO",
+          "publicReference": "DN1-6CX-PQA",
+          "orderReference": "CA5-JXM-S2V",
+          "merchantSubOrderReference": "M5Z-E4Y-ZWK",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "c51cb2ed-1e29-490e-b62d-37c62aed882c:courier-payable",
+          "missionId": "c51cb2ed-1e29-490e-b62d-37c62aed882c",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WDD-GDZ-C6M",
+          "missionReference": "DN1-6CX-PQA"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-merchant-preparing",
+        "checkoutId": "local-ops-v1-merchant-preparing",
+        "customerFacingStatus": "Delivered",
+        "paymentStatus": "Validated",
+        "orderStatus": "DELIVERED",
+        "deliveredAt": "2026-11-08T22:27:18.720873Z",
+        "publicReference": "C96-BBG-0DY",
+        "checkoutReference": "HVM-GNB-XTF"
+      },
+      "vendorParts": [
+        {
+          "id": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+          "orderId": "SQ-local-ops-v1-merchant-preparing",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "PACKED_READY",
+          "orderStatus": "DELIVERED",
+          "deliveredAt": "2026-11-08T22:27:18.720873Z",
+          "publicReference": "MNS-BX2-A3H",
+          "orderReference": "C96-BBG-0DY",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+          "orderId": "SQ-local-ops-v1-merchant-preparing",
+          "merchantSubOrderId": "525417ed-38ef-439d-bd37-2944cbeca7c2",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T22:27:18.720873Z",
+          "publicReference": "DA3-KTY-93W",
+          "orderReference": "C96-BBG-0DY",
+          "merchantSubOrderReference": "MNS-BX2-A3H",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "58dc4a13-780a-4b50-a463-f27d0d3dccc7:courier-payable",
+          "missionId": "58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WWK-H3T-QGD",
+          "missionReference": "DA3-KTY-93W"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-accepted",
+        "checkoutId": "local-ops-v1-return-accepted",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.774123Z",
+        "publicReference": "CY8-FZZ-47G",
+        "checkoutReference": "HY1-GCX-M06"
+      },
+      "vendorParts": [
+        {
+          "id": "1df280b1-1aa4-4772-b8a8-957dec807aaa",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.774123Z",
+          "publicReference": "M0J-PZQ-KM2",
+          "orderReference": "CY8-FZZ-47G",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "dd783ef9-9b4e-41c3-8a25-3cd577ec35b0",
+          "orderId": "SQ-local-ops-v1-return-accepted",
+          "merchantSubOrderId": "1df280b1-1aa4-4772-b8a8-957dec807aaa",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.774123Z",
+          "publicReference": "DF6-1W5-0AT",
+          "orderReference": "CY8-FZZ-47G",
+          "merchantSubOrderReference": "M0J-PZQ-KM2",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "dd783ef9-9b4e-41c3-8a25-3cd577ec35b0:courier-payable",
+          "missionId": "dd783ef9-9b4e-41c3-8a25-3cd577ec35b0",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WWK-328-0XG",
+          "missionReference": "DF6-1W5-0AT"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-awaiting-dropoff",
+        "checkoutId": "local-ops-v1-return-awaiting-dropoff",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.448727Z",
+        "publicReference": "C75-6C3-FF7",
+        "checkoutReference": "HTW-B9W-DF1"
+      },
+      "vendorParts": [
+        {
+          "id": "d6edb78d-7935-4530-807b-5264c37143ff",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.448727Z",
+          "publicReference": "M7N-0X5-2BF",
+          "orderReference": "C75-6C3-FF7",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "86d969a3-8447-4266-86fd-2bd4b3e14587",
+          "orderId": "SQ-local-ops-v1-return-awaiting-dropoff",
+          "merchantSubOrderId": "d6edb78d-7935-4530-807b-5264c37143ff",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.448727Z",
+          "publicReference": "DT8-8BH-79H",
+          "orderReference": "C75-6C3-FF7",
+          "merchantSubOrderReference": "M7N-0X5-2BF",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "86d969a3-8447-4266-86fd-2bd4b3e14587:courier-payable",
+          "missionId": "86d969a3-8447-4266-86fd-2bd4b3e14587",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WPR-ST8-7YF",
+          "missionReference": "DT8-8BH-79H"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-collected",
+        "checkoutId": "local-ops-v1-return-collected",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.623218Z",
+        "publicReference": "C4H-YQZ-PW3",
+        "checkoutReference": "HZJ-B1R-TE1"
+      },
+      "vendorParts": [
+        {
+          "id": "3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.623218Z",
+          "publicReference": "MJ3-4NM-A8W",
+          "orderReference": "C4H-YQZ-PW3",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "6961788b-f07c-4d03-a7ac-cd3940bbec14",
+          "orderId": "SQ-local-ops-v1-return-collected",
+          "merchantSubOrderId": "3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.623218Z",
+          "publicReference": "DSA-BEA-80G",
+          "orderReference": "C4H-YQZ-PW3",
+          "merchantSubOrderReference": "MJ3-4NM-A8W",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "6961788b-f07c-4d03-a7ac-cd3940bbec14:courier-payable",
+          "missionId": "6961788b-f07c-4d03-a7ac-cd3940bbec14",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "W8K-2N3-XKC",
+          "missionReference": "DSA-BEA-80G"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-dropoff",
+        "checkoutId": "local-ops-v1-return-dropoff",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.541698Z",
+        "publicReference": "CHR-YXF-087",
+        "checkoutReference": "HHG-E3V-9R0"
+      },
+      "vendorParts": [
+        {
+          "id": "9b45945c-9cbc-4731-93d8-23a29ef9861b",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.541698Z",
+          "publicReference": "MTB-66E-RS6",
+          "orderReference": "CHR-YXF-087",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "9ba06d45-23ad-4832-a63f-dc6de3947e5f",
+          "orderId": "SQ-local-ops-v1-return-dropoff",
+          "merchantSubOrderId": "9b45945c-9cbc-4731-93d8-23a29ef9861b",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.541698Z",
+          "publicReference": "DVF-VCG-EY2",
+          "orderReference": "CHR-YXF-087",
+          "merchantSubOrderReference": "MTB-66E-RS6",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "9ba06d45-23ad-4832-a63f-dc6de3947e5f:courier-payable",
+          "missionId": "9ba06d45-23ad-4832-a63f-dc6de3947e5f",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WJJ-VPS-ZVQ",
+          "missionReference": "DVF-VCG-EY2"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-received",
+        "checkoutId": "local-ops-v1-return-received",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.698907Z",
+        "publicReference": "CG3-A4Y-7JZ",
+        "checkoutReference": "HFF-C5T-V7V"
+      },
+      "vendorParts": [
+        {
+          "id": "844ecdea-c4f9-473b-b9ee-f691bb74f659",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.698907Z",
+          "publicReference": "MQS-53H-94C",
+          "orderReference": "CG3-A4Y-7JZ",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "f2e3ad10-366e-41e3-9f0a-206cbfff001f",
+          "orderId": "SQ-local-ops-v1-return-received",
+          "merchantSubOrderId": "844ecdea-c4f9-473b-b9ee-f691bb74f659",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.698907Z",
+          "publicReference": "D1E-4X6-8NR",
+          "orderReference": "CG3-A4Y-7JZ",
+          "merchantSubOrderReference": "MQS-53H-94C",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "f2e3ad10-366e-41e3-9f0a-206cbfff001f:courier-payable",
+          "missionId": "f2e3ad10-366e-41e3-9f0a-206cbfff001f",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WKF-HFP-B7T",
+          "missionReference": "D1E-4X6-8NR"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-refund",
+        "checkoutId": "local-ops-v1-return-refund",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.850562Z",
+        "publicReference": "C2J-8SP-V0R",
+        "checkoutReference": "HDZ-DV4-GP5"
+      },
+      "vendorParts": [
+        {
+          "id": "723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.850562Z",
+          "publicReference": "MZG-PYP-XVX",
+          "orderReference": "C2J-8SP-V0R",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "818791fa-7128-4a46-9c67-f2223f792f5a",
+          "orderId": "SQ-local-ops-v1-return-refund",
+          "merchantSubOrderId": "723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.850562Z",
+          "publicReference": "DQH-Z0Q-GXD",
+          "orderReference": "C2J-8SP-V0R",
+          "merchantSubOrderReference": "MZG-PYP-XVX",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "818791fa-7128-4a46-9c67-f2223f792f5a:courier-payable",
+          "missionId": "818791fa-7128-4a46-9c67-f2223f792f5a",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WXH-ZVA-AWW",
+          "missionReference": "DQH-Z0Q-GXD"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-return-request",
+        "checkoutId": "local-ops-v1-return-request",
+        "customerFacingStatus": "Return requested",
+        "paymentStatus": "Validated",
+        "orderStatus": "RETURN_REQUESTED",
+        "deliveredAt": "2026-11-08T11:00:28.357846Z",
+        "publicReference": "CVN-HDH-ABN",
+        "checkoutReference": "HCK-Z8G-B8H"
+      },
+      "vendorParts": [
+        {
+          "id": "a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "HANDED_TO_COURIER",
+          "orderStatus": "RETURN_REQUESTED",
+          "deliveredAt": "2026-11-08T11:00:28.357846Z",
+          "publicReference": "MTG-43Z-1SV",
+          "orderReference": "CVN-HDH-ABN",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "riderMissions": [
+        {
+          "id": "336ce08d-7691-4dd0-b6db-fbffa46c0c12",
+          "orderId": "SQ-local-ops-v1-return-request",
+          "merchantSubOrderId": "a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+          "status": "DELIVERED_TO_CUSTOMER",
+          "deliveredAt": "2026-11-08T11:00:28.357846Z",
+          "publicReference": "DBY-PMA-0PH",
+          "orderReference": "CVN-HDH-ABN",
+          "merchantSubOrderReference": "MTG-43Z-1SV",
+          "courierReference": "TS9-MP8-PDJ"
+        }
+      ],
+      "ledger": [
+        {
+          "id": "336ce08d-7691-4dd0-b6db-fbffa46c0c12:courier-payable",
+          "missionId": "336ce08d-7691-4dd0-b6db-fbffa46c0c12",
+          "account": "CourierPayable",
+          "direction": "Credit",
+          "amountCfa": 400,
+          "payableAmountCfa": 400,
+          "status": "AVAILABLE",
+          "workforceType": "Freelancer",
+          "publicReference": "WEE-W63-RAA",
+          "missionReference": "DBY-PMA-0PH"
+        }
+      ],
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "senam",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-relay-order-after-eight-days",
+        "checkoutId": "local-ops-v1-relay-order-after-eight-days",
+        "customerFacingStatus": "Paid, waiting for Point de Relai routing",
+        "paymentStatus": "Validated",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "publicReference": "C64-EVS-0XT",
+        "checkoutReference": "HNT-4P7-TK1"
+      },
+      "vendorParts": [
+        {
+          "id": "b6eb9652-7e0c-47bc-ab65-e93113f32345",
+          "orderId": "SQ-local-ops-v1-relay-order-after-eight-days",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MY2-PNS-H82",
+          "orderReference": "C64-EVS-0XT",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "parcel": {
+        "id": "local-ops-v1-parcel-after-eight-days",
+        "relayPointId": "local-ops-v1-relay-adidogome",
+        "lockerId": "local-ops-v1-slot-2-2",
+        "orderId": "SQ-local-ops-v1-relay-order-after-eight-days",
+        "status": "Delayed",
+        "publicReference": "PP3-Z4S-J9N",
+        "orderReference": "C64-EVS-0XT",
+        "relayReference": "SGY-JNC-90S",
+        "lockerReference": "KH1-2PS-WAC"
+      },
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "esso",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-relay-order-after-thirty-days",
+        "checkoutId": "local-ops-v1-relay-order-after-thirty-days",
+        "customerFacingStatus": "Paid, waiting for Point de Relai routing",
+        "paymentStatus": "Validated",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "publicReference": "CEQ-HCZ-1EF",
+        "checkoutReference": "H0B-TGR-XXE"
+      },
+      "vendorParts": [
+        {
+          "id": "52a92a70-4507-470e-9b70-822b1ae90a40",
+          "orderId": "SQ-local-ops-v1-relay-order-after-thirty-days",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MZG-VFE-GEB",
+          "orderReference": "CEQ-HCZ-1EF",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "parcel": {
+        "id": "local-ops-v1-parcel-after-thirty-days",
+        "relayPointId": "local-ops-v1-relay-adidogome",
+        "lockerId": "local-ops-v1-slot-2-3",
+        "orderId": "SQ-local-ops-v1-relay-order-after-thirty-days",
+        "status": "ReturnToSellerReview",
+        "publicReference": "PRM-E2K-MZ8",
+        "orderReference": "CEQ-HCZ-1EF",
+        "relayReference": "SGY-JNC-90S",
+        "lockerReference": "K50-BGD-K83"
+      },
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "esso",
+        "admin"
+      ]
+    },
+    {
+      "order": {
+        "id": "SQ-local-ops-v1-relay-order-fresh",
+        "checkoutId": "local-ops-v1-relay-order-fresh",
+        "customerFacingStatus": "Paid, waiting for Point de Relai routing",
+        "paymentStatus": "Validated",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "publicReference": "C8Y-PF1-E09",
+        "checkoutReference": "HRX-4EM-QMH"
+      },
+      "vendorParts": [
+        {
+          "id": "1ce1273f-602b-4c3c-ae04-70805698870d",
+          "orderId": "SQ-local-ops-v1-relay-order-fresh",
+          "merchantId": "local-ops-v1-merchant-maison",
+          "status": "MERCHANT_PENDING",
+          "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+          "publicReference": "MRT-N8S-WPR",
+          "orderReference": "C8Y-PF1-E09",
+          "merchantReference": "VZX-20M-TVB"
+        }
+      ],
+      "parcel": {
+        "id": "local-ops-v1-parcel-fresh",
+        "relayPointId": "local-ops-v1-relay-adidogome",
+        "lockerId": "local-ops-v1-slot-2-1",
+        "orderId": "SQ-local-ops-v1-relay-order-fresh",
+        "status": "Deposited",
+        "publicReference": "PC4-AWP-0WK",
+        "orderReference": "C8Y-PF1-E09",
+        "relayReference": "SGY-JNC-90S",
+        "lockerReference": "K7T-MZ8-717"
+      },
+      "matchingRoles": [
+        "ama",
+        "yawa",
+        "esso",
+        "admin"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check": "GET /actuator/health",
+      "pass": true
+    },
+    {
+      "check": "local API healthy",
+      "pass": true
+    },
+    {
+      "check": "guarded temporary admin session",
+      "pass": true
+    },
+    {
+      "check": "GET /api/admin/local-fixtures",
+      "pass": true
+    },
+    {
+      "check": "installed synthetic fixture manifest",
+      "pass": true
+    },
+    {
+      "check": "GET /api/admin/web/orders?limit=100",
+      "pass": true
+    },
+    {
+      "check": "GET /api/admin/web/deliveries?limit=100",
+      "pass": true
+    },
+    {
+      "check": "GET /api/admin/web/returns?limit=100",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-maison",
+      "pass": true
+    },
+    {
+      "check": "GET /api/relay/parcels?relayPointId=local-ops-v1-relay-tokoin",
+      "pass": true
+    },
+    {
+      "check": "GET /api/relay/parcels?relayPointId=local-ops-v1-relay-adidogome",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/development-access?appSource=SEQUO_APP",
+      "pass": true
+    },
+    {
+      "check": "local fixture capability ama",
+      "pass": true
+    },
+    {
+      "check": "temporary fixture session ama",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/me",
+      "pass": true
+    },
+    {
+      "check": "Ama exact identity",
+      "pass": true
+    },
+    {
+      "check": "GET /api/orders",
+      "pass": true
+    },
+    {
+      "check": "Ama orders references and checksums",
+      "pass": true
+    },
+    {
+      "check": "GET /api/returns",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-refund",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-accepted",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-received",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-collected",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-dropoff",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-awaiting-dropoff",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-return-request",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-dispatch-busy",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-group-final",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-group-ready",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-finance-salaried",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-finance-independent",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-dispatch-unassigned",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-merchant-ready",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-merchant-preparing",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-merchant-new",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-relay-order-fresh",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-relay-order-after-eight-days",
+      "pass": true
+    },
+    {
+      "check": "Ama/admin order SQ-local-ops-v1-relay-order-after-thirty-days",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/development-access?appSource=SEQUO_VENDOR",
+      "pass": true
+    },
+    {
+      "check": "local fixture capability yawa",
+      "pass": true
+    },
+    {
+      "check": "temporary fixture session yawa",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/me",
+      "pass": true
+    },
+    {
+      "check": "Yawa exact identity",
+      "pass": true
+    },
+    {
+      "check": "GET /api/merchant/sub-orders?merchantId=local-ops-v1-merchant-maison&history=true",
+      "pass": true
+    },
+    {
+      "check": "Yawa merchant parts references and checksums",
+      "pass": true
+    },
+    {
+      "check": "GET /api/returns/merchant?merchantId=local-ops-v1-merchant-maison",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/merchant-payouts?merchantId=local-ops-v1-merchant-maison",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-merchant-preparing:merchant-payout:525417ed-38ef-439d-bd37-2944cbeca7c2",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-refund:merchant-payout:723ae46b-0bcb-440c-9c39-7c1d0acf1e20",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-accepted:merchant-payout:1df280b1-1aa4-4772-b8a8-957dec807aaa",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-received:merchant-payout:844ecdea-c4f9-473b-b9ee-f691bb74f659",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-collected:merchant-payout:3c3bb06c-3290-460d-9bdb-81aeabaf9adf",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-dropoff:merchant-payout:9b45945c-9cbc-4731-93d8-23a29ef9861b",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-awaiting-dropoff:merchant-payout:d6edb78d-7935-4530-807b-5264c37143ff",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-return-request:merchant-payout:a6f2799a-a2ea-4e50-b727-2d2ff1401ff7",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-finance-salaried:merchant-payout:d0949d46-c201-464e-a9ae-2b12c6efe42d",
+      "pass": true
+    },
+    {
+      "check": "Yawa/admin payout SQ-local-ops-v1-finance-independent:merchant-payout:559b3ac7-b2f0-47e0-857e-7987d7609f5a",
+      "pass": true
+    },
+    {
+      "check": "Yawa parent references match admin",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/development-access?appSource=SEQUO_RIDER",
+      "pass": true
+    },
+    {
+      "check": "local fixture capability senam",
+      "pass": true
+    },
+    {
+      "check": "temporary fixture session senam",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/me",
+      "pass": true
+    },
+    {
+      "check": "Senam exact identity",
+      "pass": true
+    },
+    {
+      "check": "GET /api/rider/missions",
+      "pass": true
+    },
+    {
+      "check": "Senam missions references and checksums",
+      "pass": true
+    },
+    {
+      "check": "GET /api/rider/payouts/history",
+      "pass": true
+    },
+    {
+      "check": "GET /api/rider/payouts/summary",
+      "pass": true
+    },
+    {
+      "check": "Senam ledger history references and checksums",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission 58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission c51cb2ed-1e29-490e-b62d-37c62aed882c",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission 818791fa-7128-4a46-9c67-f2223f792f5a",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission dd783ef9-9b4e-41c3-8a25-3cd577ec35b0",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission f2e3ad10-366e-41e3-9f0a-206cbfff001f",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission 6961788b-f07c-4d03-a7ac-cd3940bbec14",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission 9ba06d45-23ad-4832-a63f-dc6de3947e5f",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission 86d969a3-8447-4266-86fd-2bd4b3e14587",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission 336ce08d-7691-4dd0-b6db-fbffa46c0c12",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin mission a15b30eb-522c-4191-8f49-24be1c9026bf",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=336ce08d-7691-4dd0-b6db-fbffa46c0c12",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=58dc4a13-780a-4b50-a463-f27d0d3dccc7",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=6961788b-f07c-4d03-a7ac-cd3940bbec14",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=818791fa-7128-4a46-9c67-f2223f792f5a",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=86d969a3-8447-4266-86fd-2bd4b3e14587",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=9ba06d45-23ad-4832-a63f-dc6de3947e5f",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=a15b30eb-522c-4191-8f49-24be1c9026bf",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=c51cb2ed-1e29-490e-b62d-37c62aed882c",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=dd783ef9-9b4e-41c3-8a25-3cd577ec35b0",
+      "pass": true
+    },
+    {
+      "check": "GET /api/settlements/ledger?sourceType=DeliveryMission&sourceId=f2e3ad10-366e-41e3-9f0a-206cbfff001f",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger 58dc4a13-780a-4b50-a463-f27d0d3dccc7:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger c51cb2ed-1e29-490e-b62d-37c62aed882c:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger 818791fa-7128-4a46-9c67-f2223f792f5a:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger dd783ef9-9b4e-41c3-8a25-3cd577ec35b0:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger f2e3ad10-366e-41e3-9f0a-206cbfff001f:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger 6961788b-f07c-4d03-a7ac-cd3940bbec14:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger 9ba06d45-23ad-4832-a63f-dc6de3947e5f:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger 86d969a3-8447-4266-86fd-2bd4b3e14587:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger 336ce08d-7691-4dd0-b6db-fbffa46c0c12:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "Senam/admin ledger a15b30eb-522c-4191-8f49-24be1c9026bf:courier-payable",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/development-access?appSource=SEQUO_HUB",
+      "pass": true
+    },
+    {
+      "check": "local fixture capability esso",
+      "pass": true
+    },
+    {
+      "check": "temporary fixture session esso",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/me",
+      "pass": true
+    },
+    {
+      "check": "esso exact identity",
+      "pass": true
+    },
+    {
+      "check": "GET /api/relay/parcels/sites",
+      "pass": true
+    },
+    {
+      "check": "esso bound site only",
+      "pass": true
+    },
+    {
+      "check": "GET /api/relay/parcels?relayPointId=local-ops-v1-relay-adidogome",
+      "pass": true
+    },
+    {
+      "check": "GET /api/returns/relay?relayPointId=local-ops-v1-relay-adidogome",
+      "pass": true
+    },
+    {
+      "check": "GET /api/hub/lockers?relayPointId=local-ops-v1-relay-adidogome",
+      "pass": true
+    },
+    {
+      "check": "esso/admin parcel local-ops-v1-parcel-after-eight-days",
+      "pass": true
+    },
+    {
+      "check": "esso/admin parcel local-ops-v1-parcel-after-thirty-days",
+      "pass": true
+    },
+    {
+      "check": "esso/admin parcel local-ops-v1-parcel-fresh",
+      "pass": true
+    },
+    {
+      "check": "esso relay customer reference remains redacted",
+      "pass": true
+    },
+    {
+      "check": "esso foreign relay list denied",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/development-access?appSource=SEQUO_HUB",
+      "pass": true
+    },
+    {
+      "check": "local fixture capability dede",
+      "pass": true
+    },
+    {
+      "check": "temporary fixture session dede",
+      "pass": true
+    },
+    {
+      "check": "GET /api/auth/me",
+      "pass": true
+    },
+    {
+      "check": "dede exact identity",
+      "pass": true
+    },
+    {
+      "check": "GET /api/relay/parcels/sites",
+      "pass": true
+    },
+    {
+      "check": "dede bound site only",
+      "pass": true
+    },
+    {
+      "check": "GET /api/relay/parcels?relayPointId=local-ops-v1-relay-tokoin",
+      "pass": true
+    },
+    {
+      "check": "GET /api/returns/relay?relayPointId=local-ops-v1-relay-tokoin",
+      "pass": true
+    },
+    {
+      "check": "GET /api/hub/lockers?relayPointId=local-ops-v1-relay-tokoin",
+      "pass": true
+    },
+    {
+      "check": "dede/admin return local-ops-v1-return-request-refund",
+      "pass": true
+    },
+    {
+      "check": "dede/admin return local-ops-v1-return-request-accepted",
+      "pass": true
+    },
+    {
+      "check": "dede/admin return local-ops-v1-return-request-received",
+      "pass": true
+    },
+    {
+      "check": "dede/admin return local-ops-v1-return-request-collected",
+      "pass": true
+    },
+    {
+      "check": "dede/admin return local-ops-v1-return-request-dropoff",
+      "pass": true
+    },
+    {
+      "check": "dede relay customer reference remains redacted",
+      "pass": true
+    },
+    {
+      "check": "dede foreign relay list denied",
+      "pass": true
+    },
+    {
+      "check": "temporary session logout dede",
+      "pass": true
+    },
+    {
+      "check": "temporary session logout esso",
+      "pass": true
+    },
+    {
+      "check": "temporary session logout senam",
+      "pass": true
+    },
+    {
+      "check": "temporary session logout yawa",
+      "pass": true
+    },
+    {
+      "check": "temporary session logout ama",
+      "pass": true
+    },
+    {
+      "check": "temporary session logout admin",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet ama profile checksum",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet ama orders primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet ama orders relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet ama returns primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet ama returns relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa profile checksum",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa returns primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa returns relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa parts primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa parts relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa payouts primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet yawa payouts relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet senam profile checksum",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet senam missions primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet senam missions relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet senam ledger primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet senam ledger relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso profile checksum",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso returns primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso returns relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso parcels primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso parcels relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso logicalSlots primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet esso logicalSlots relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede profile checksum",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede returns primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede returns relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede parcels primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede parcels relationship checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede logicalSlots primary checksums",
+      "pass": true
+    },
+    {
+      "check": "Offline sheet dede logicalSlots relationship checksums",
+      "pass": true
+    }
+  ],
+  "notes": [
+    "Identity fields are synthetic fixture IDs only. Pickup/delivery/return PINs, QR nonces, tokens, contacts and raw proof text are excluded.",
+    "Creating/logout of temporary device-bound test sessions and automatic display-reference allocation are the only possible metadata writes. No seed/reset, custody, business transition, payment or provider action was requested.",
+    "sourceCommit records inspected source HEAD; health proves responding service, not independently its runtime binary SHA. Root owns the launcher and runtime version evidence."
+  ],
+  "health": "UP",
+  "hubReturnLookup": {
+    "role": "dede",
+    "relayPointId": "local-ops-v1-relay-tokoin",
+    "return": {
+      "id": "local-ops-v1-return-request-dropoff",
+      "orderId": "SQ-local-ops-v1-return-dropoff",
+      "status": "DroppedAtRelay",
+      "relayPointId": "local-ops-v1-relay-tokoin",
+      "publicReference": "RCG-SZ9-KFA",
+      "orderReference": "CHR-YXF-087",
+      "relayReference": "SJG-Q5W-YDX"
+    },
+    "operation": "Enter the publicReference in Hub return lookup; read-only resolver. Do not confirm intake or enter/issue a PIN.",
+    "observation": "Canonical assigned Tokoin return was visible to Dede and matched the admin read; resolver UI entry remains a device check. No PIN or intake action used."
+  },
+  "verificationCommands": [
+    "PYTHONDONTWRITEBYTECODE=1 python3 /tmp/sequo-device-reference-sheet.py",
+    "PYTHONDONTWRITEBYTECODE=1 python3 /tmp/sequo-device-reference-sheet-finalize.py"
+  ],
+  "verificationSummary": {
+    "passed": 167,
+    "checks": 167,
+    "temporarySessionsLoggedOut": 6,
+    "httpReadComparisonsPassed": true,
+    "deviceUIVerifiedByThisAgent": false
+  }
+}

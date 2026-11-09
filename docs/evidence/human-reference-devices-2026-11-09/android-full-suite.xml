@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="dev.orestegabo.sequo.devicereferencetests.InstalledReferenceUiTest" tests="4" failures="0" errors="0" skipped="0" time="185.366" timestamp="2026-11-09T01:14:57" hostname="localhost">
+  <properties>
+    <property name="device" value="Sequo_References_API_36_1(AVD) - 16" />
+    <property name="flavor" value="" />
+    <property name="project" value=":harness" />
+  </properties>
+  <testcase name="test01CustomerPersistedOrderReferencesAgreeWithAdmin" classname="dev.orestegabo.sequo.devicereferencetests.InstalledReferenceUiTest" time="143.011" />
+  <testcase name="test02VendorPartAndParentReferencesAgreeWithAdmin" classname="dev.orestegabo.sequo.devicereferencetests.InstalledReferenceUiTest" time="10.366" />
+  <testcase name="test03HubParcelHistoryAndCheckedReturnLookupUseRealReferences" classname="dev.orestegabo.sequo.devicereferencetests.InstalledReferenceUiTest" time="16.841" />
+  <testcase name="test04RiderCompletedMissionReferenceAgreesWithAdminAndRecordedEarnings" classname="dev.orestegabo.sequo.devicereferencetests.InstalledReferenceUiTest" time="13.639" />
+</testsuite>

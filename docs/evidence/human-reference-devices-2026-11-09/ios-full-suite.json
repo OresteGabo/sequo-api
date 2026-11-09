@@ -1,0 +1,36 @@
+{
+  "devicesAndConfigurations": [
+    {
+      "device": {
+        "architecture": "arm64",
+        "deviceId": "59D90F12-C368-449B-8752-6BD86241E8DB",
+        "deviceName": "Sequo-Task28-iPhone16",
+        "modelName": "iPhone 16",
+        "osBuildNumber": "22G86",
+        "osVersion": "18.6",
+        "platform": "iOS Simulator"
+      },
+      "expectedFailures": 0,
+      "failedTests": 0,
+      "passedTests": 4,
+      "skippedTests": 0,
+      "testPlanConfiguration": {
+        "configurationId": "1",
+        "configurationName": "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription": "ReferenceDeviceTests \u00b7 Built with macOS 26.7.3",
+  "expectedFailures": 0,
+  "failedTests": 0,
+  "finishTime": 1794186821.784,
+  "passedTests": 4,
+  "result": "Passed",
+  "skippedTests": 0,
+  "startTime": 1794186704.297,
+  "statistics": [],
+  "testFailures": [],
+  "title": "Test - ReferenceDeviceTests",
+  "topInsights": [],
+  "totalTestCount": 4
+}

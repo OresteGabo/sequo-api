@@ -1,0 +1,102 @@
+{
+  "recordedAt": "2026-11-09T01:19:52.383263+00:00",
+  "releaseId": "sequo-reference-device-20261109-01",
+  "environment": "LOCAL_FIXTURE",
+  "result": "PASS",
+  "native": {
+    "android": {
+      "passed": 4,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "attempt": "07",
+      "evidence": "android-full-suite.xml"
+    },
+    "ios": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "attempt": "04",
+      "evidence": "ios-full-suite.json"
+    }
+  },
+  "otherChecks": {
+    "apiAdminReadChecksPassed": 167,
+    "temporaryApiComparisonSessionsLoggedOut": 6,
+    "adminNodeTestsPassed": 103,
+    "adminTypeCheck": "PASS",
+    "adminProductionBuild": "PASS",
+    "hubHostTestsPassed": 21,
+    "iosLauncherTestsPassed": 14,
+    "referenceCopiesAndVectors": "PASS",
+    "mobileDesignCopies": "PASS",
+    "installedArtifactHashesMatched": 8,
+    "completeIosBundleHashesMatched": 4,
+    "protectedFileHashesUnchanged": 9
+  },
+  "fixCommits": {
+    "sequo-admin": "2cc5cb3a93c0aa5d202f97bcdfc7bae225e29a21",
+    "SequoHub": "c050d764504aaf1314208e5a2336cdf022a4b3af"
+  },
+  "regressionCommits": {
+    "android": "cdda86c5c70de2a859d2f511ffa85c6c19f29d3f",
+    "ios": "f9b45fbefd92eba0039322364833d108f5b2800e"
+  },
+  "productSourceRevisions": {
+    "Sequo": "52263d6e4f7adbea63fb57a3237d6bb5898747ba",
+    "SequoVendor": "a013450aa08ad1795608463a9eb29a1213ab3d74",
+    "SequoHub": "c050d764504aaf1314208e5a2336cdf022a4b3af",
+    "SequoRider": "ad28b084e7a7b7a96ededff2aa6e94d1639328fa"
+  },
+  "businessTransitionsSubmitted": false,
+  "actualProviderOperations": false,
+  "actualPickupOrReturnCredentialsIssuedOrCaptured": false,
+  "hardwareDevicesTested": false,
+  "screenshots": [
+    "01-customer-order-reference.png",
+    "02-vendor-part-reference.png",
+    "03-hub-parcel-history-reference.png",
+    "04-rider-mission-source-reference.png",
+    "05-hub-invalid-reference.png",
+    "06-hub-cancelled-lookup.png",
+    "admin-merchant-order.jpg",
+    "admin-mission.jpg",
+    "admin-order.jpg",
+    "admin-relay.jpg",
+    "ios-customer-order.png",
+    "ios-hub-checksum-error.png",
+    "ios-hub-history.png",
+    "ios-hub-lookup-cancelled.png",
+    "ios-rider-history.png",
+    "ios-rider-payout.png",
+    "ios-vendor-order.png"
+  ],
+  "filesChanged": {
+    "sequo-admin": [
+      "src/adminControls.ts",
+      "src/adminReferences.ts",
+      "tests/adminReferences.test.mjs"
+    ],
+    "SequoHub": [
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/live/LiveHubWorkspace.kt"
+    ],
+    "sequo-api-regressions": [
+      "scripts/device-reference-tests/android/.gitignore",
+      "scripts/device-reference-tests/android/README.md",
+      "scripts/device-reference-tests/android/build.gradle.kts",
+      "scripts/device-reference-tests/android/gradle.properties",
+      "scripts/device-reference-tests/android/harness/build.gradle.kts",
+      "scripts/device-reference-tests/android/harness/src/androidTest/java/dev/orestegabo/sequo/devicereferencetests/InstalledReferenceUiTest.java",
+      "scripts/device-reference-tests/android/harness/src/main/AndroidManifest.xml",
+      "scripts/device-reference-tests/android/run-connected.py",
+      "scripts/device-reference-tests/android/settings.gradle.kts",
+      "scripts/device-reference-tests/ios/README.md",
+      "scripts/device-reference-tests/ios/ReferenceDeviceTests.xcodeproj/project.pbxproj",
+      "scripts/device-reference-tests/ios/ReferenceDeviceTests.xcodeproj/xcshareddata/xcschemes/ReferenceDeviceTests.xcscheme",
+      "scripts/device-reference-tests/ios/ReferenceTestHost/AppDelegate.swift",
+      "scripts/device-reference-tests/ios/ReferenceUITests/ReferenceDeviceTests.swift",
+      "scripts/device-reference-tests/ios/run.py",
+      "scripts/device-reference-tests/ios/test_run.py"
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "customer": {
+    "applicationId": "dev.orestegabo.sequo.Sequo.fixture",
+    "releaseId": "sequo-reference-device-20261109-01",
+    "sourceHead": "52263d6e4f7adbea63fb57a3237d6bb5898747ba",
+    "payloadSha256": "6e87bdb1ca2ed46899ffcce0a0bf9394a15b955aaaeac2d4b7ea3c60ad2fb0b0",
+    "debugDylibSha256": {
+      "Sequo.debug.dylib": "896a858fc9fbe85cf823cf0165922ed027eea6979b418336234d47466c705b64"
+    }
+  },
+  "vendor": {
+    "applicationId": "dev.orestegabo.sequovendor.SequoVendor.fixture",
+    "releaseId": "sequo-reference-device-20261109-01",
+    "sourceHead": "a013450aa08ad1795608463a9eb29a1213ab3d74",
+    "payloadSha256": "57dcfbd831891e1b395fa50ae5df9f367bc904c0ae5111028b1d471eb4802620",
+    "debugDylibSha256": {
+      "SequoVendor.debug.dylib": "7bb2181d7d0807f0e299a50e60a51cf1d9bd3612f7f3ea19b51e5d2fac1676af"
+    }
+  },
+  "rider": {
+    "applicationId": "dev.orestegabo.sequorider.SequoRider.fixture",
+    "releaseId": "sequo-reference-device-20261109-01",
+    "sourceHead": "ad28b084e7a7b7a96ededff2aa6e94d1639328fa",
+    "payloadSha256": "e2024abc9e6cbb4ac77ed49605f9f373a509e1af103286f46b002c551e2344fd",
+    "debugDylibSha256": {
+      "SequoRider.debug.dylib": "eb1d2e3abaff515f969d2e22157e8339a0a01c0703f505596d69ad61b03f1760"
+    }
+  },
+  "hub": {
+    "applicationId": "dev.orestegabo.sequohub.SequoHub.fixture",
+    "releaseId": "sequo-reference-device-20261109-01",
+    "sourceHead": "c050d764504aaf1314208e5a2336cdf022a4b3af",
+    "payloadSha256": "120fe153c3ef78ff307b21677a4f5c3282c3562d1e4c00de39a64b929fd19a56",
+    "debugDylibSha256": {
+      "SequoHub.debug.dylib": "442f506a91181cdf66d8572d63bd43e9ab10e2247a3aa16a6bcc4c2b468a994a"
+    }
+  }
+}
