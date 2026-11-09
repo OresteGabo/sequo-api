@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.delivery
 
+import dev.orestegabo.sequo_api.support.assertPersistentJsonEquals
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.*
 import dev.orestegabo.sequo_api.domain.catalog.CatalogProductKind
@@ -246,7 +247,7 @@ class MerchantResponseDeadlineHttpTest @Autowired constructor(
         assertEquals(fixture.owners.single().id, audit.actorUserId)
         val repeated = call("POST", path, fixture.owners.single(), body)
         assertEquals(200, repeated.statusCode())
-        assertEquals(refused["updatedAt"].asText(), json.readTree(repeated.body())["updatedAt"].asText())
+        assertPersistentJsonEquals(refused["updatedAt"], json.readTree(repeated.body())["updatedAt"])
         assertEquals(1, events.findByOrderIdOrderByCreatedAtAsc(fixture.orderId).count { it.eventType == CustomerOrderEventType.MERCHANT_RESPONSE_REJECTED })
         val changed = json.writeValueAsString(mapOf("merchantId" to row.merchantId, "reason" to "Changed refusal."))
         assertEquals(400, call("POST", path, fixture.owners.single(), changed).statusCode())
