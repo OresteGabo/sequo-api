@@ -1,5 +1,7 @@
 # Admin email-code sign-in deployment
 
+Owner guide to costs, quotas, billing behavior and sign-in: [RESEND_EMAIL_GUIDE.md](RESEND_EMAIL_GUIDE.md).
+
 ## Implemented behavior
 
 The existing admin code flow now has an opt-in Resend HTTPS transport. No email SDK/dependency or database migration was added. The sender uses a fixed HTTPS endpoint, disallows redirects, sets 5-second connect and 10-second request timeouts, checks provider acknowledgement, and supplies an opaque stable per-code idempotency key. Codes, credentials and provider response bodies are not logged or returned to clients. A bilingual plain-text email includes the code, expiry and unsolicited-request warning.
