@@ -8,7 +8,9 @@ import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+import org.springframework.data.jpa.domain.Specification
+import org.springframework.data.domain.Sort
 import org.springframework.http.CacheControl
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -39,16 +41,7 @@ class ActivityJournalRecord(
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
 )
 
-interface ActivityJournalRepository : JpaRepository<ActivityJournalRecord, String> {
-    @Query("""select a from ActivityJournalRecord a where
-        (:actor is null or a.actorUserId = :actor) and
-        (:target is null or a.targetReference = :target) and
-        (:operation is null or a.operationId = :operation) and
-        (:since is null or a.createdAt >= :since) and
-        (:until is null or a.createdAt < :until)
-        order by a.createdAt desc, a.id desc""")
-    fun history(actor: String?, target: String?, operation: String?, since: Instant?, until: Instant?, page: org.springframework.data.domain.Pageable): List<ActivityJournalRecord>
-}
+interface ActivityJournalRepository : JpaRepository<ActivityJournalRecord, String>, JpaSpecificationExecutor<ActivityJournalRecord>
 
 @Service
 class ActivityJournalWriter(private val records: ActivityJournalRepository) {
@@ -101,6 +94,17 @@ class ActivityJournalController(private val records: ActivityJournalRepository) 
         if (authentication == null) return ResponseEntity.status(401).build()
         if (!authentication.hasAnyRole(RoleGroups.AdminOnly)) return ResponseEntity.status(403).build()
         if (page !in 0..100000 || limit !in 1..100 || (since != null && until != null && since >= until)) return ResponseEntity.badRequest().build()
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(records.history(actorUserId, targetReference, operationId, since, until, PageRequest.of(page, limit)))
+        // Omit absent filters rather than bind untyped null timestamps in PostgreSQL.
+        val filters = Specification<ActivityJournalRecord> { root, _, builder ->
+            val predicates = mutableListOf<jakarta.persistence.criteria.Predicate>()
+            actorUserId?.let { predicates += builder.equal(root.get<String>("actorUserId"), it) }
+            targetReference?.let { predicates += builder.equal(root.get<String>("targetReference"), it) }
+            operationId?.let { predicates += builder.equal(root.get<String>("operationId"), it) }
+            since?.let { predicates += builder.greaterThanOrEqualTo(root.get<Instant>("createdAt"), it) }
+            until?.let { predicates += builder.lessThan(root.get<Instant>("createdAt"), it) }
+            builder.and(*predicates.toTypedArray())
+        }
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(records.findAll(filters,
+            PageRequest.of(page, limit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))).content)
     }
 }

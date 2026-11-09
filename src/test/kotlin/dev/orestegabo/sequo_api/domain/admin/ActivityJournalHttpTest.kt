@@ -45,6 +45,10 @@ class ActivityJournalHttpTest @Autowired constructor(
         assertEquals(200, history.statusCode())
         assertTrue(history.headers().firstValue("cache-control").orElse("").contains("no-store"))
         assertEquals(2, json.readTree(history.body()).size())
+        val operation = entries.first().operationId
+        assertEquals(2, json.readTree(call("/api/admin/web/activity?operationId=$operation&since=2000-01-01T00:00:00Z&until=2100-01-01T00:00:00Z", token).body()).size())
+        assertEquals(2, json.readTree(call("/api/admin/web/activity?targetReference=userId%3D$target", token).body()).size())
+        assertEquals(0, json.readTree(call("/api/admin/web/activity?operationId=$operation&page=1", token).body()).size())
         assertFalse(history.body().contains("SECRET"))
         assertFalse(history.body().contains(token))
         // Reads do not create noise in the mutation history.
