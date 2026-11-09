@@ -1,0 +1,493 @@
+{
+  "protocol": "SEQUO_VENDOR_INCOMING_VERIFICATION_V1",
+  "recordedAt": "2026-11-09T02:40:18.943118+00:00",
+  "environment": "LOCAL_FIXTURE",
+  "realProviderOperations": false,
+  "dataReset": false,
+  "policy": {
+    "alertSeconds": 45,
+    "responseSeconds": 600,
+    "enforcementScanMilliseconds": 15000,
+    "legacyBackfill": false,
+    "paymentRefundClaimed": false
+  },
+  "tests": {
+    "apiRegression": {
+      "tests": 58,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sourceCommits": [
+        "bb50bba",
+        "d86758e"
+      ],
+      "log": "/tmp/sequo-merchant-response-backend-verification.log"
+    },
+    "apiPolicyCapFollowup": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sourceCommit": "d03e2aa",
+      "log": "/tmp/sequo-merchant-response-policy-cap-verification.log"
+    },
+    "vendorHost": {
+      "tests": 83,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sourceCommit": "c9fcd64",
+      "androidMainCompile": "PASS",
+      "iosSimulatorMainCompile": "PASS",
+      "log": "/tmp/sequo-vendor-incoming-final-check.log"
+    },
+    "iosRunnerUnit": {
+      "tests": 14,
+      "failures": 0,
+      "log": "/tmp/sequo-vendor-incoming-ios-runner-unit.log"
+    },
+    "androidNative": [
+      {
+        "action": "accept",
+        "publicReference": "MD6-KKR-D3V",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "durationSeconds": 5.985,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/android-accept-2-as-accept-junit.xml"
+      },
+      {
+        "action": "refuse",
+        "publicReference": "M0N-18T-C47",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "durationSeconds": 5.344,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/android-refuse-1-as-refuse-junit.xml"
+      },
+      {
+        "action": "unanswered",
+        "publicReference": "M9A-TJ0-NYF",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "durationSeconds": 38.531,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/android-accept-3-as-wait-junit.xml"
+      },
+      {
+        "action": "inspect-existing-waiting",
+        "publicReference": "M0X-4NW-SMQ",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "durationSeconds": 5.462,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/android-existing-waiting-junit.xml"
+      }
+    ],
+    "iosNative": [
+      {
+        "case": "case-accept-M7B-C4J-R7R",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/ios-ui-02/case-accept-M7B-C4J-R7R/test-summary.json"
+      },
+      {
+        "case": "case-inspect-waiting-M9A-TJ0-NYF",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/ios-ui-02/case-inspect-waiting-M9A-TJ0-NYF/test-summary.json"
+      },
+      {
+        "case": "case-refuse-MA6-YPC-0M8",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/ios-ui-02/case-refuse-MA6-YPC-0M8/test-summary.json"
+      },
+      {
+        "case": "case-wait-M6Q-BDE-8YF",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0,
+        "sourceResult": "/tmp/sequo-vendor-incoming-devices/ios-ui-02/case-wait-M6Q-BDE-8YF/test-summary.json"
+      }
+    ]
+  },
+  "installedApps": [
+    {
+      "app": "SequoVendor",
+      "platform": "android",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-vendor-incoming-20261109-01",
+      "apiBaseUrl": "http://10.0.2.2:55840",
+      "applicationId": "dev.orestegabo.sequovendor.fixture",
+      "sourceHead": "c9fcd64ec6307d7e183830332173aed143dc3795",
+      "artifact": "/private/tmp/sequo-vendor-incoming-devices/vendor-android/SequoVendor-sequo-vendor-incoming-20261109-01-LOCAL_FIXTURE.apk",
+      "sha256": "1b30b709e6b6acf015198abae76e107598cc32eba89d7635d2a74100a2828ba5",
+      "payloadSha256": null,
+      "executableSha256": null,
+      "debugDylibSha256": null,
+      "signing": "debug key",
+      "preservedLocalEditSha256": {
+        "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+      }
+    },
+    {
+      "app": "SequoVendor",
+      "platform": "ios",
+      "environment": "LOCAL_FIXTURE",
+      "releaseId": "sequo-vendor-incoming-20261109-01",
+      "apiBaseUrl": "http://127.0.0.1:55840",
+      "applicationId": "dev.orestegabo.sequovendor.SequoVendor.fixture",
+      "sourceHead": "c9fcd64ec6307d7e183830332173aed143dc3795",
+      "artifact": "/private/tmp/sequo-vendor-incoming-devices/vendor-ios/SequoVendor-sequo-vendor-incoming-20261109-01-LOCAL_FIXTURE.app",
+      "sha256": null,
+      "payloadSha256": "518cf6e20c9aa665cd3373a22eeda689e61dbcc653e9d8477fc713d46d7d066a",
+      "executableSha256": "33a77dce1ab11d504791413ee10b67320e572d5a30bff193be49cc424942b419",
+      "debugDylibSha256": {
+        "SequoVendor.debug.dylib": "fc55ccc62ba63fff6de7794a894bf965a78496e24f0e2b7c5b6771486445bd7a"
+      },
+      "signing": "validated local Apple Development simulator",
+      "preservedLocalEditSha256": {
+        "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+      }
+    }
+  ],
+  "installedVerification": {
+    "androidApkSha256Matched": true,
+    "iosFullInstalledPayloadMatchedForEveryRun": true
+  },
+  "localPostgresMigration": {
+    "from": 61,
+    "to": 62,
+    "applied": true,
+    "validatedOnRestart": true
+  },
+  "runningApiBuild": {
+    "archiveEntry": "META-INF/build-info.properties",
+    "properties": [
+      "build.releaseId=sequo-admin-local-development",
+      "build.revision=942d2f0e19f7ee15cf4066074ce778d762af025b"
+    ]
+  },
+  "serverReadbacks": [
+    {
+      "scene": "android-accept",
+      "attempt": 2,
+      "initial": {
+        "publicReference": "MD6-KKR-D3V",
+        "orderReference": "C9M-JY1-WP7",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:24:30.633999Z",
+        "alertUntilAt": "2026-11-09T02:25:15.633999Z",
+        "responseDeadlineAt": "2026-11-09T02:34:30.633999Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:24:30.724155Z"
+      },
+      "readback": {
+        "publicReference": "MD6-KKR-D3V",
+        "orderReference": "C9M-JY1-WP7",
+        "status": "ACCEPTED",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:24:30.633999Z",
+        "alertUntilAt": "2026-11-09T02:25:15.633999Z",
+        "responseDeadlineAt": "2026-11-09T02:34:30.633999Z",
+        "responseExpiredAt": null,
+        "responseState": "ACCEPTED",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:37:16.564712Z"
+      },
+      "afterRestart": true
+    },
+    {
+      "scene": "android-refuse",
+      "attempt": 1,
+      "initial": {
+        "publicReference": "M0N-18T-C47",
+        "orderReference": "CP7-1VB-NW3",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:24:59.640621Z",
+        "alertUntilAt": "2026-11-09T02:25:44.640621Z",
+        "responseDeadlineAt": "2026-11-09T02:34:59.640621Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:24:59.700693Z"
+      },
+      "readback": {
+        "publicReference": "M0N-18T-C47",
+        "orderReference": "CP7-1VB-NW3",
+        "status": "REJECTED",
+        "orderStatus": "CANCELLED",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:24:59.640621Z",
+        "alertUntilAt": "2026-11-09T02:25:44.640621Z",
+        "responseDeadlineAt": "2026-11-09T02:34:59.640621Z",
+        "responseExpiredAt": null,
+        "responseState": "REJECTED",
+        "responseDisposition": "ORDER_CANCELLED",
+        "serverNow": "2026-11-09T02:37:16.670804Z"
+      },
+      "afterRestart": true
+    },
+    {
+      "scene": "android-accept",
+      "attempt": 3,
+      "initial": {
+        "publicReference": "M9A-TJ0-NYF",
+        "orderReference": "CE2-0YH-V6X",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:26:21.352077Z",
+        "alertUntilAt": "2026-11-09T02:27:06.352077Z",
+        "responseDeadlineAt": "2026-11-09T02:36:21.352077Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:26:21.420415Z"
+      },
+      "readback": {
+        "publicReference": "M9A-TJ0-NYF",
+        "orderReference": "CE2-0YH-V6X",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:26:21.352077Z",
+        "alertUntilAt": "2026-11-09T02:27:06.352077Z",
+        "responseDeadlineAt": "2026-11-09T02:36:21.352077Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:28:02.456177Z"
+      },
+      "afterRestart": false
+    },
+    {
+      "scene": "android-wait",
+      "attempt": 1,
+      "initial": {
+        "publicReference": "M4X-QDJ-65Y",
+        "orderReference": "CGQ-P95-TRZ",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:03:47.174019Z",
+        "alertUntilAt": "2026-11-09T02:04:32.174019Z",
+        "responseDeadlineAt": "2026-11-09T02:13:47.174019Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:03:47.326651Z"
+      },
+      "readback": {
+        "publicReference": "M4X-QDJ-65Y",
+        "orderReference": "CGQ-P95-TRZ",
+        "status": "CANCELLED",
+        "orderStatus": "CANCELLED",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:03:47.174019Z",
+        "alertUntilAt": "2026-11-09T02:04:32.174019Z",
+        "responseDeadlineAt": "2026-11-09T02:13:47.174019Z",
+        "responseExpiredAt": "2026-11-09T02:13:59.520978Z",
+        "responseState": "EXPIRED",
+        "responseDisposition": "ORDER_CANCELLED",
+        "serverNow": "2026-11-09T02:37:16.979628Z"
+      },
+      "afterRestart": true
+    },
+    {
+      "scene": "ios-accept",
+      "attempt": 2,
+      "initial": {
+        "publicReference": "M7B-C4J-R7R",
+        "orderReference": "CPS-J14-CP1",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:29:40.877310Z",
+        "alertUntilAt": "2026-11-09T02:30:25.877310Z",
+        "responseDeadlineAt": "2026-11-09T02:39:40.877310Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:29:40.984720Z"
+      },
+      "readback": {
+        "publicReference": "M7B-C4J-R7R",
+        "orderReference": "CPS-J14-CP1",
+        "status": "ACCEPTED",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:29:40.877310Z",
+        "alertUntilAt": "2026-11-09T02:30:25.877310Z",
+        "responseDeadlineAt": "2026-11-09T02:39:40.877310Z",
+        "responseExpiredAt": null,
+        "responseState": "ACCEPTED",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:37:16.768484Z"
+      },
+      "afterRestart": true
+    },
+    {
+      "scene": "ios-refuse",
+      "attempt": 1,
+      "initial": {
+        "publicReference": "MA6-YPC-0M8",
+        "orderReference": "CFV-PJT-BPV",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:30:55.170530Z",
+        "alertUntilAt": "2026-11-09T02:31:40.170530Z",
+        "responseDeadlineAt": "2026-11-09T02:40:55.170530Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:30:55.243305Z"
+      },
+      "readback": {
+        "publicReference": "MA6-YPC-0M8",
+        "orderReference": "CFV-PJT-BPV",
+        "status": "REJECTED",
+        "orderStatus": "CANCELLED",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:30:55.170530Z",
+        "alertUntilAt": "2026-11-09T02:31:40.170530Z",
+        "responseDeadlineAt": "2026-11-09T02:40:55.170530Z",
+        "responseExpiredAt": null,
+        "responseState": "REJECTED",
+        "responseDisposition": "ORDER_CANCELLED",
+        "serverNow": "2026-11-09T02:37:16.863120Z"
+      },
+      "afterRestart": true
+    },
+    {
+      "scene": "ios-wait",
+      "attempt": 1,
+      "initial": {
+        "publicReference": "M6Q-BDE-8YF",
+        "orderReference": "CBX-EV4-VN9",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:32:05.638613Z",
+        "alertUntilAt": "2026-11-09T02:32:50.638613Z",
+        "responseDeadlineAt": "2026-11-09T02:42:05.638613Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:32:05.692058Z"
+      },
+      "readback": {
+        "publicReference": "M6Q-BDE-8YF",
+        "orderReference": "CBX-EV4-VN9",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "itemSubtotalCfa": 9600,
+        "createdAt": "2026-11-09T02:32:05.638613Z",
+        "alertUntilAt": "2026-11-09T02:32:50.638613Z",
+        "responseDeadlineAt": "2026-11-09T02:42:05.638613Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "responseDisposition": null,
+        "serverNow": "2026-11-09T02:37:17.074750Z"
+      },
+      "afterRestart": true
+    }
+  ],
+  "limitations": [
+    "Foreground/resumed alerting only; closed/locked-app native push registration and connected transport are not configured.",
+    "Physical-phone audibility, vibration, silent/DND and volume are unverified; the Android emulator audio HAL reported an I/O error.",
+    "Paid cancellation preserves Validated payment and does not execute a refund. Confirmed grouped work requires operations review; no substitute/partial-refund/resumption policy is invented."
+  ],
+  "changedFiles": {
+    "sequo-api": [
+      "scripts/device-reference-tests/android/INCOMING_ORDER_TEST.md",
+      "scripts/device-reference-tests/android/harness/src/androidTest/java/dev/orestegabo/sequo/devicereferencetests/InstalledVendorIncomingOrderUiTest.java",
+      "scripts/device-reference-tests/android/run-connected.py",
+      "scripts/device-reference-tests/ios/INCOMING_ORDER_TEST.md",
+      "scripts/device-reference-tests/ios/ReferenceDeviceTests.xcodeproj/project.pbxproj",
+      "scripts/device-reference-tests/ios/ReferenceUITests/VendorIncomingOrderUiTests.swift",
+      "scripts/device-reference-tests/ios/run-incoming.py",
+      "scripts/device-reference-tests/ios/run.py",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/DeliveryReadinessDispatch.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantFulfillmentController.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantFulfillmentService.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantOrderNotificationRecipients.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantResponseDeadline.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantSubOrder.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantSubOrderRepository.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/localfixture/LocalMerchantIncomingFixture.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/localfixture/LocalOperationalJourneySeeder.kt",
+      "src/main/kotlin/dev/orestegabo/sequo_api/domain/order/OrderFulfillmentPersistence.kt",
+      "src/main/resources/application.properties",
+      "src/main/resources/db/migration/V62__merchant_response_deadlines.sql",
+      "src/test/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantResponseDeadlineHttpTest.kt",
+      "src/test/kotlin/dev/orestegabo/sequo_api/domain/delivery/MerchantResponseDeadlinePolicyTest.kt",
+      "src/test/kotlin/dev/orestegabo/sequo_api/domain/localfixture/LocalMerchantIncomingFixtureHttpTest.kt",
+      "src/test/kotlin/dev/orestegabo/sequo_api/domain/order/CustomerCartCheckoutHttpTest.kt",
+      "src/test/resources/application.properties",
+      "docs/verification/vendor-incoming-orders-2026-11-09.md",
+      "docs/evidence/vendor-incoming-orders-2026-11-09/verification.json"
+    ],
+    "SequoVendor": [
+      "README.md",
+      "androidApp/src/main/AndroidManifest.xml",
+      "shared/src/androidHostTest/kotlin/dev/orestegabo/sequovendor/VendorIncomingOrderAlertTest.kt",
+      "shared/src/androidHostTest/kotlin/dev/orestegabo/sequovendor/VendorIncomingOrderCoordinatorTest.kt",
+      "shared/src/androidMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderAlert.android.kt",
+      "shared/src/androidMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderReceiptStore.android.kt",
+      "shared/src/commonMain/composeResources/values-fr/strings.xml",
+      "shared/src/commonMain/composeResources/values/strings.xml",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/fulfillment/MerchantFulfillmentDtos.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderAlert.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderChime.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderCoordinator.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderReceiptEncoding.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/feature/settings/AppText.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/model/VendorModels.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/app/SequoVendorShell.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/orders/IncomingOrderDialog.kt",
+      "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/ui/orders/OrdersContent.kt",
+      "shared/src/iosMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderAlert.ios.kt",
+      "shared/src/iosMain/kotlin/dev/orestegabo/sequovendor/core/orders/VendorIncomingOrderReceiptStore.ios.kt"
+    ]
+  },
+  "preservedVendorXcodeSha256": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+}
