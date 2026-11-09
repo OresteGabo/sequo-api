@@ -12,6 +12,8 @@ import sys
 
 EXPECTED_SERIAL = "emulator-5554"
 EXPECTED_AVD = "Sequo_References_API_36_1"
+READ_ONLY_CLASS = "dev.orestegabo.sequo.devicereferencetests.InstalledReferenceUiTest"
+INCOMING_CLASS = "dev.orestegabo.sequo.devicereferencetests.InstalledVendorIncomingOrderUiTest"
 
 
 def main():
@@ -19,7 +21,25 @@ def main():
     parser.add_argument("--sheet", type=Path, default=Path("/tmp/sequo-device-reference-sheet.json"))
     parser.add_argument("--class", dest="test_class", help="Optional official runner class or class#method selector")
     parser.add_argument("--resolve-online", action="store_true", help="First public Maven dependency resolution only; default is offline")
+    parser.add_argument("--incoming-reference", help="Exact canonical M reference of the fresh authorized synthetic scene")
+    parser.add_argument("--incoming-action", choices=("accept", "refuse", "wait"))
+    parser.add_argument("--incoming-amount-cfa", type=int, help="Actual server itemSubtotalCfa for the fixed quantity-two scene")
     args = parser.parse_args()
+    selected_class = args.test_class or READ_ONLY_CLASS
+    is_incoming = selected_class in (INCOMING_CLASS + "#incomingOrderUsesExistingMerchantAction", INCOMING_CLASS + "#existingWaitingQueueIsReadable")
+    incoming_arguments = (args.incoming_reference, args.incoming_action, args.incoming_amount_cfa)
+    if is_incoming:
+        import re
+        if not all(value is not None for value in incoming_arguments):
+            parser.error("The incoming-order class requires all three explicit --incoming-* arguments")
+        if not re.fullmatch(r"M[0-9A-HJKMNP-TV-Z]{2}-[0-9A-HJKMNP-TV-Z]{3}-[0-9A-HJKMNP-TV-Z]{3}", args.incoming_reference):
+            parser.error("A canonical merchant-part reference is required; instrumentation also checks its checksum")
+        if selected_class.endswith("#existingWaitingQueueIsReadable") and args.incoming_action != "wait":
+            parser.error("The read-only existing-waiting diagnostic requires --incoming-action wait")
+        if not 1 <= args.incoming_amount_cfa <= 1_000_000:
+            parser.error("Only a bounded positive synthetic subtotal is allowed")
+    elif any(value is not None for value in incoming_arguments):
+        parser.error("Incoming action arguments are permitted only for the explicit incoming-order JUnit class")
     project = Path(__file__).resolve().parent
     workspace = project.parents[3]
     sdk = Path(os.environ.get("ANDROID_HOME", str(Path.home() / "Library/Android/sdk")))
@@ -47,10 +67,14 @@ def main():
     if not args.resolve_online:
         command.append("--offline")
     command += ["-PreferenceSheet=" + str(args.sheet.resolve())]
-    if args.test_class:
-        if not args.test_class.startswith("dev.orestegabo.sequo.devicereferencetests.") or any(c.isspace() for c in args.test_class):
-            parser.error("The optional selector must name this harness's JUnit class/method")
-        command.append("-Pandroid.testInstrumentationRunnerArguments.class=" + args.test_class)
+    if not selected_class.startswith("dev.orestegabo.sequo.devicereferencetests.") or any(c.isspace() for c in selected_class):
+        parser.error("The optional selector must name this harness's JUnit class/method")
+    if selected_class.startswith(INCOMING_CLASS) and not is_incoming:
+        parser.error("Only the declared incoming-order JUnit method may be selected")
+    command.append("-Pandroid.testInstrumentationRunnerArguments.class=" + selected_class)
+    if is_incoming:
+        for key, value in (("incomingExpectedReference", args.incoming_reference), ("incomingAction", args.incoming_action), ("incomingExpectedAmountCfa", args.incoming_amount_cfa)):
+            command.append("-Pandroid.testInstrumentationRunnerArguments." + key + "=" + str(value))
     command.append(":harness:connectedDebugAndroidTest")
     environment = dict(os.environ, ANDROID_SERIAL=EXPECTED_SERIAL, ANDROID_HOME=str(sdk))
     return subprocess.call(command, env=environment)
