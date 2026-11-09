@@ -13,6 +13,7 @@ Initial model: 9 November 2026. Support and daily operations are combined. There
 | Approve, suspend or reactivate operational personnel accounts | No | Yes | Yes |
 | Grant/revoke courier, relay-partner or merchant personnel roles | No | Yes, for non-admin accounts | Yes |
 | Enroll rider/merchant profiles and configure relay sites | No | Yes | Yes |
+| Register operational partners in one flow and review applications | No | Yes | Yes |
 | Change rider workforce, relay operator assignments or merchant memberships | No | Yes | Yes |
 | Appoint administrators or change an administrator's access/roles | No | No | Yes |
 | Change your own access or roles | No | No | No |
@@ -38,6 +39,8 @@ SUPPORT_AGENT is retained for compatibility with historical read-only support re
 Vendor's role decoder and Hub's session checks recognize STAFF_MANAGER. Older installed apps may need an updated build before a newly appointed Staff manager uses those apps. Native application store distribution is separate from deploying the backend and website.
 
 ## Personnel management
+
+See [Partner onboarding and applications](PARTNER_ONBOARDING_AND_APPLICATIONS.md) for direct registration and applicant review from each partner page. Staff managers can create business partner accounts through this restricted flow; administrator creation remains Owner-only.
 
 See [Owner network management](OWNER_NETWORK_MANAGEMENT.md) for the account creation, profile editing and removal interfaces added after this initial role rollout.
 

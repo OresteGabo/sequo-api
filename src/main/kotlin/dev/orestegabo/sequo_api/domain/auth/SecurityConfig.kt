@@ -57,6 +57,7 @@ class SecurityConfig(
                     .requestMatchers("/api/auth/passkey/register/**").authenticated()
                     .requestMatchers("/api/auth/cross-device/resolve").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/partner-applications").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/login-requests").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/admin-auth/login-requests/*").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/login-requests/*/exchange").permitAll()

@@ -1,18 +1,17 @@
 # Owner management of the SEQUO network
 
 Owners can manage vendors, riders, hubs and personnel from the admin website.
-Operations and Staff managers retain their existing permissions. The additional
-account creation and profile lifecycle workspaces are Owner-only, enforced by
-both the interface and current persisted server authority.
+The current [partner onboarding flow](PARTNER_ONBOARDING_AND_APPLICATIONS.md) also lets Staff managers register operational partners and review applicant-submitted forms.
+Operations retains its existing permissions. Owners and Staff managers can use the restricted partner onboarding/review flow. Standalone administrator creation in Users and the additional profile lifecycle editors remain Owner-only, enforced by the interface and current persisted server authority.
 
 ## Where to work
 
 | Record | Add | Edit | Remove / restore |
 | --- | --- | --- | --- |
 | Personnel and administrators | Users → Add personnel account | Select Accounts → Edit personnel profile | Account access and roles → Suspend / Restore personnel access; grant or revoke individual roles |
-| Vendors | Add an account with Vendor owner role, then use the existing merchant enrollment form in Merchants | Select vendor → Edit / remove vendor; Store settings handles location and hours | Vendor profile and removal → Remove / Restore vendor to service |
-| Riders | Add an account with Rider role, then use the existing rider registration form | Select rider → Edit / remove rider for vehicle; Riders and workforce for workforce classification; Users for name | Rider profile and removal → Remove / Restore rider to service |
-| Hubs | Relay points → existing hub setup form; assign an authorized relay operator | Hub setup handles name, address and slots; Relay sites and assigned operators handles personnel assignment | Hub profile and removal → Remove / Restore hub to service |
+| Vendors | Merchants → Add a vendor: contact and shop details together | Select vendor → Edit / remove vendor; Store settings handles location and hours | Vendor profile and removal → Remove / Restore vendor to service |
+| Riders | Riders → Add a rider: contact, vehicle and workforce together | Select rider → Edit / remove rider for vehicle; Riders and workforce for workforce classification; Users for name | Rider profile and removal → Remove / Restore rider to service |
+| Hubs | Relay points → Add a hub: operator contact and site together | Hub setup handles name, address and slots; Relay sites and assigned operators handles personnel assignment | Hub profile and removal → Remove / Restore hub to service |
 
 Existing list views remain the starting workspace. Select a record to open its
 related profile editor. Review the displayed details, choose an action, enter a
@@ -34,8 +33,7 @@ does not reactivate an existing suspended, deleted or pending identity. Existing
 profile editing changes display names, shop names or vehicles; credential email
 and phone changes still require the identity verification workflows.
 
-Registering a shop or rider profile remains separate from its account role. Shop
-location, hours and hub operators must be configured using the existing forms.
+The partner pages now create or match the account, grant its business role and register the profile in one transaction. Public applicants submit pending forms that staff review from those same pages. Shop hours and hub storage positions retain their existing settings controls.
 No addresses, earnings, wallets or past activity are invented.
 
 ## Removal and ongoing work
