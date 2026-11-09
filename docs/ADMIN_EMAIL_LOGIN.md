@@ -13,14 +13,14 @@ The public admin frontend now defaults to https://api.sequoservice.com in produc
 ## Required external setup
 
 1. Create the Resend account on https://resend.com/signup. The owner must enter their password and accept the account terms themselves. Start with the free plan; no paid subscription is needed for initial testing.
-2. Verify a sending subdomain that SEQUO controls, such as auth.sequoservice.com. Add only the exact DNS records shown in the Resend dashboard. Preserve existing website records and mailbox MX records. Domain ownership and DNS access must be confirmed before edits.
-3. Create a sending-only key restricted to that domain. Save it directly in the API host’s protected environment/secret store. Do not paste it into chat, commit it, or expose it through Vercel frontend variables.
+2. Verify the exact sender domain that SEQUO controls. The owner currently selected sequoservice.com; its approved records and verified state are in RESEND_ROOT_DOMAIN_DNS.md. Add only the exact DNS records shown in the Resend dashboard. Preserve existing website records and mailbox MX records. Domain ownership and DNS access must be confirmed before edits.
+3. Use a sending-only key, restricted to the domain where the dashboard supports it. The current key has All domains sending scope because that was the only offered choice. Save it directly in the API host’s protected environment/secret store. Do not paste it into chat, commit it, or expose it through Vercel frontend variables.
 4. Configure the API host:
 
 ```dotenv
 ADMIN_EMAIL_ENABLED=true
 RESEND_API_KEY=<secure sending-only secret>
-ADMIN_EMAIL_FROM=no-reply@auth.sequoservice.com
+ADMIN_EMAIL_FROM=no-reply@sequoservice.com
 ```
 
 The example sender is usable only after that sending domain is verified. Docker Compose forwards these values. Enabled delivery with a missing/malformed key or invalid sender fails startup rather than falling back to a fake sender. Disabled delivery makes no outbound request. Existing local-fixture launchers stay disabled and retain their separate passwordless test entry.
@@ -50,6 +50,16 @@ The owner switched to the correct Cloudflare account. The three previously appro
 The owner created the `SEQUO Admin` key with Sending access. The dashboard offered only All domains, so the key has account-wide sending scope, not a single-domain restriction and not Full access. It was saved through a protected local file and transferred directly into the protected VPS `.env` without printing its value. Email delivery is enabled with `no-reply@auth.sequoservice.com`. Only the API container was restarted; readiness returned UP.
 
 One code was requested through the actual `https://admin.sequoservice.com` frontend for the explicitly authorized address. Resend reported Delivered for message `01a1c0c4-c41d-7d22-b244-78494d0554ac`. The backend persisted the accepted code hash with a five-minute expiry (request time 2026-11-09 14:44:42 UTC). The owner confirmed inbox receipt and supplied the received code, which was entered through the normal hosted email-verification form before expiry. The authenticated dashboard opened at `/#dashboard`, showing the Administrator workspace and successfully loaded server records. Database metadata confirms the code is CONSUMED and one active SEQUO_ADMIN device session exists for the requested account. No raw code or credential was committed or added to operational evidence. The temporary local key-transfer file was removed; the provider key remains in the protected production environment. The browser is left signed in for the owner to test.
+
+### Branded root-domain email — 2026-11-09
+
+At the owner's request, the sender changed to `no-reply@sequoservice.com` after separately approving and verifying the root domain's three DNS records. The HTML template includes the existing approved PNG logo as a CID attachment, a code panel, UTC expiry, and bilingual instructions; the existing plain-text fallback remains. No remote image fetch or code-bearing URL was introduced. The sender eligibility, expiry, hashing, delivery acknowledgement and single-use protections remain unchanged.
+
+Four focused test classes passed: 14 tests, no failures, covering HTML/text/CID payload consistency, PNG attachment data, invalid input, provider failure, disabled delivery, authorization, and concurrent one-time code consumption. Desktop and phone previews were rendered and inspected. The approved PNG matches the original brand asset byte-for-byte.
+
+Release `sequo-branded-email-20261109-01` uses source `5e989030d30eb243be7589d037c7a5e71dd57045`. Local and remote artifact SHA-256 matched `1f50714239ef26cbcfef1d15469cf591eb8f3fcd67a635bffebd4d6f3c4af2d9`. A private canary passed production startup guards and all 62 migration checksums, with no migration required, email sending disabled and background workers off. The live API then started healthy as `sequo-api:branded-email-20261109`, retaining signing keys, active sessions and the provider key. Rollback image/configuration are retained privately under the release directory; the temporary canary and duplicate environment file were removed after readiness passed.
+
+Resend reported Delivered for live test message `01a1c0e2-0b60-7bda-beed-85ccfed29e1e` to the owner-authorized address. Provider details confirm the exact root sender and `sequo-logo.png` attachment. The owner's existing Safari session was preserved. No fresh sign-in was required for this design/sender change.
 
 Primary provider references (checked 2026-11-09):
 

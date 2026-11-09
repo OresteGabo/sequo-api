@@ -36,18 +36,26 @@ Already signed-in sessions are not signed out merely because Resend reaches a qu
 | Admin website | https://admin.sequoservice.com |
 | Backend | https://api.sequoservice.com |
 | Provider | Resend, HTTPS email API |
-| Verified sending domain | `auth.sequoservice.com` |
+| Verified sending domain | `sequoservice.com` |
 | Region | Ireland, `eu-west-1` |
-| Sender | `SEQUO Admin <no-reply@auth.sequoservice.com>` |
+| Sender | `SEQUO Admin <no-reply@sequoservice.com>` |
 | Key name | `SEQUO Admin` |
 | Permission | Sending access; the creation form offered All domains |
 | Production configuration | `/home/ubuntu/sequo-api/.env`, permissions 0600 |
 
 The key can send across domains in this Resend account; it is not restricted to a single domain and does not have Full access. Its value must stay out of Git, Markdown files, chat and frontend/VITE configuration. The temporary local key-transfer file was removed after installation.
 
-Only the server stores `RESEND_API_KEY`. It also uses `ADMIN_EMAIL_ENABLED=true` and `ADMIN_EMAIL_FROM=no-reply@auth.sequoservice.com`. No actual secret belongs in this guide.
+Only the server stores `RESEND_API_KEY`. It also uses `ADMIN_EMAIL_ENABLED=true` and `ADMIN_EMAIL_FROM=no-reply@sequoservice.com`. No actual secret belongs in this guide.
 
-The approved Cloudflare TXT/CNAME records are documented in [ADMIN_EMAIL_DNS.md](ADMIN_EMAIL_DNS.md). Existing website and Zoho mailbox records were preserved.
+The current root-domain records are documented in [RESEND_ROOT_DOMAIN_DNS.md](RESEND_ROOT_DOMAIN_DNS.md). The earlier `auth.sequoservice.com` verification remains documented in [ADMIN_EMAIL_DNS.md](ADMIN_EMAIL_DNS.md). Existing website and Zoho mailbox records were preserved.
+
+## Branded email design
+
+Admin codes are delivered as both styled HTML and a plain-text fallback. The HTML uses the approved green SEQUO brand, a prominent code panel, expiry, and French/English instructions. The approved PNG logo is attached inline using a content ID; no external image host, font or tracking pixel is required. Clients that hide images can still display the SEQUO alt text and the actual code.
+
+Desktop and 375-pixel phone previews were visually checked, with no horizontal overflow. Browser previews do not guarantee identical rendering in every email client. Resend's own HTML preview does not display inline attachments; this is a dashboard limitation, not evidence that the logo is missing from the sent message. See [Resend's inline-image documentation](https://resend.com/docs/dashboard/emails/embed-inline-images).
+
+Synthetic previews (sample code only): [desktop](branding/email/desktop-preview.png), [phone](branding/email/mobile-preview.png), [standalone HTML](branding/email/preview.html).
 
 ## Who receives login codes
 
