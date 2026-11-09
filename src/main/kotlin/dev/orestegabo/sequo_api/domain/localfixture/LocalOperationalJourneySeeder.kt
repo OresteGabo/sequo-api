@@ -78,6 +78,16 @@ class LocalOperationalJourneySeeder(
         return result
     }
 
+    /** Explicit, bounded new scenes only; existing slots are never advanced or rearmed. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    fun seedMerchantIncoming(context: LocalOperationalFixtureContext, incomingScene: LocalMerchantIncomingScene,
+        attempt: Int): LocalFixtureScenario {
+        policy.requireEnabled()
+        require(context.prefix == "local-ops-v1" && attempt in 1..3) { "Unsupported local incoming-order fixture slot." }
+        return scene(context, "merchant-incoming-${incomingScene.slug}-$attempt", "[TEST] ${incomingScene.slug} incoming order",
+            "orders", "New synthetic paid order for native incoming-order practice; its server deadlines are not reset on retry.")
+    }
+
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     fun seedReturnOrders(context: LocalOperationalFixtureContext): List<LocalFixtureScenario> {
         policy.requireEnabled()
