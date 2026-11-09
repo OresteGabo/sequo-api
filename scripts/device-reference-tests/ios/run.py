@@ -147,6 +147,7 @@ def main():
  command=['xcodebuild','-xctestrun',str(configured),*destination,'-resultBundlePath',str(result),
   '-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1']
  if args.only:command+=['-only-testing:ReferenceUITests/ReferenceDeviceTests/'+methods[args.only]]
+ else:command+=['-only-testing:ReferenceUITests/ReferenceDeviceTests']
  command+=['test-without-building']
  # No fabricated signing identity/entitlements. The simulator test host uses Xcode's standard unsigned build.
  completed=subprocess.run(command,env=env,check=False)
