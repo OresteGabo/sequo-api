@@ -68,24 +68,14 @@ Native checks used task-owned iPhone 16 / iOS 18.6 simulator
 
 ## Visual comparison
 
-The native screenshots below record the final builds,
-except Rider History, which is the earlier `80fd0a0` visual checkpoint before
-the follow-up that painted the signed-out background.
+Test screenshots are local artifacts and are no longer stored in this repository.
+The recorded visual checks covered Customer Home, Basket and dark Account;
+Vendor Dashboard and editor; Hub relay and return form; and Rider Missions,
+History and dark sign-in.
 
-| Sequo | SequoVendor |
-| --- | --- |
-| ![Customer](evidence/design-review-2026-11-08/customer-home.jpg) | ![Vendor](evidence/design-review-2026-11-08/vendor-dashboard.jpg) |
-
-| SequoHub | SequoRider |
-| --- | --- |
-| ![Hub](evidence/design-review-2026-11-08/hub-relay.jpg) | ![Rider](evidence/design-review-2026-11-08/rider-missions.jpg) |
-
-Additional actual views: [Customer Basket](evidence/design-review-2026-11-08/customer-basket.jpg),
-[Customer dark Account](evidence/design-review-2026-11-08/customer-dark.jpg),
-[Vendor editor](evidence/design-review-2026-11-08/vendor-editor.jpg),
-[Hub return form](evidence/design-review-2026-11-08/hub-returns.jpg),
-[Rider History](evidence/design-review-2026-11-08/rider-history.jpg),
-[Rider dark sign-in](evidence/design-review-2026-11-08/rider-auth-dark.jpg).
+These observations used the final builds except Rider History, which used the
+`80fd0a0` checkpoint before the signed-out-background follow-up. Verification
+results and reproduction steps remain recorded below.
 
 ## Reproducing the checks
 

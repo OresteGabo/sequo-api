@@ -54,7 +54,6 @@
         "scripts/check-human-references-local.py",
         "docs/HUMAN_REFERENCE_REVIEW_2026-11-09.md",
         "docs/HUMAN_REFERENCES.md",
-        "docs/evidence/human-references-2026-11-09/admin-invalid-reference.jpg",
         "docs/evidence/human-references-2026-11-09/after-restart.json",
         "docs/evidence/human-references-2026-11-09/api-tests.json",
         "docs/evidence/human-references-2026-11-09/before-restart.json",
@@ -233,10 +232,10 @@
     "build.version": "0.0.1-SNAPSHOT"
   },
   "evidenceFiles": [
-    "docs/evidence/human-references-2026-11-09/admin-invalid-reference.jpg",
     "docs/evidence/human-references-2026-11-09/after-restart.json",
     "docs/evidence/human-references-2026-11-09/api-tests.json",
     "docs/evidence/human-references-2026-11-09/before-restart.json",
     "docs/evidence/human-references-2026-11-09/verification.json"
-  ]
+  ],
+  "screenshotStorage": "Test screenshots are local artifacts and are not stored in this repository. Recorded verification results are retained."
 }

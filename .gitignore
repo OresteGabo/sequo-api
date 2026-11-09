@@ -76,3 +76,9 @@ out/
 
 # Release tooling caches
 __pycache__/
+
+# Generated UI test captures stay local; retain assertions and test receipts.
+/docs/evidence/**/*.png
+/docs/evidence/**/*.jpg
+/docs/evidence/**/*.jpeg
+/docs/evidence/**/*.webp

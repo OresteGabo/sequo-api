@@ -4,7 +4,7 @@ Verified at 2026-11-08T22:37:57.816886+00:00 against loopback API port55840 and 
 
 Checks: 35 passed, 0 failed.
 
-Parent UI observations: protected Senam restore; offered target accepted; blank pickup note rejected without advancing; entered test note accepted; wrong PIN rejected without advancing; private valid PIN accepted and Delivered shown. This GET-only record verifies resulting canonical state and actors; it does not claim mutation replay. Screenshot: rider-delivered.jpg.
+Parent UI observations: protected Senam restore; offered target accepted; blank pickup note rejected without advancing; entered test note accepted; wrong PIN rejected without advancing; private valid PIN accepted and Delivered shown. This GET-only record verifies resulting canonical state and actors; it does not claim mutation replay. Test screenshots are local artifacts and are not stored in this repository.
 
 ## Canonical persisted state
 

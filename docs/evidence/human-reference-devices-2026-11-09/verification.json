@@ -52,25 +52,6 @@
   "actualProviderOperations": false,
   "actualPickupOrReturnCredentialsIssuedOrCaptured": false,
   "hardwareDevicesTested": false,
-  "screenshots": [
-    "01-customer-order-reference.png",
-    "02-vendor-part-reference.png",
-    "03-hub-parcel-history-reference.png",
-    "04-rider-mission-source-reference.png",
-    "05-hub-invalid-reference.png",
-    "06-hub-cancelled-lookup.png",
-    "admin-merchant-order.jpg",
-    "admin-mission.jpg",
-    "admin-order.jpg",
-    "admin-relay.jpg",
-    "ios-customer-order.png",
-    "ios-hub-checksum-error.png",
-    "ios-hub-history.png",
-    "ios-hub-lookup-cancelled.png",
-    "ios-rider-history.png",
-    "ios-rider-payout.png",
-    "ios-vendor-order.png"
-  ],
   "filesChanged": {
     "sequo-admin": [
       "src/adminControls.ts",
@@ -98,5 +79,9 @@
       "scripts/device-reference-tests/ios/run.py",
       "scripts/device-reference-tests/ios/test_run.py"
     ]
+  },
+  "screenshotArtifacts": {
+    "capturedDuringRun": 17,
+    "versionControlled": false
   }
 }
