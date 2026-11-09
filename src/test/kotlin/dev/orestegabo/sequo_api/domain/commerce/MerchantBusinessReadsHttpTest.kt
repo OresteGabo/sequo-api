@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.commerce
 
+import dev.orestegabo.sequo_api.support.assertPersistentJsonEquals
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.*
@@ -113,8 +114,8 @@ class MerchantBusinessReadsHttpTest @Autowired constructor(
         assertEquals(listOf(first.productId), ownMixed["lines"].map { it["productId"].asText() })
         assertEquals(2, ownMixed["lines"].single()["quantity"].asInt())
         assertPrivacy(ownMixed, mixed.owner.id, second)
-        assertEquals(ownMixed, get("/api/merchant/sub-orders/${mixed.part(first.id)}", first.owner.token))
-        assertEquals(history, get(historyPath(first), first.owner.token))
+        assertPersistentJsonEquals(ownMixed, get("/api/merchant/sub-orders/${mixed.part(first.id)}", first.owner.token))
+        assertPersistentJsonEquals(history, get(historyPath(first), first.owner.token))
         assertEquals(listOf(rejected.part(first.id)), get(historyPath(first) + "&status=REJECTED", first.owner.token).map { it["id"].asText() })
         val secondHistory = get(historyPath(second), second.owner.token)
         assertEquals(setOf(mixed.part(second.id), foreignActive.part(second.id)), secondHistory.map { it["id"].asText() }.toSet())

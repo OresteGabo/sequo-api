@@ -1,5 +1,6 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.support.databaseInstant
 import dev.orestegabo.sequo_api.SequoApiApplication
 import dev.orestegabo.sequo_api.domain.auth.AuthProvider
 import dev.orestegabo.sequo_api.domain.auth.User
@@ -44,8 +45,8 @@ class CustomerCheckoutRestartTest {
         }
         startApplication().use { context ->
             val service = context.getBean(CustomerCartCheckoutService::class.java)
-            assertEquals(submitted, service.get(customerId, submitted.checkoutId))
-            assertEquals(submitted, service.submit(customerId, request))
+            assertEquals(submitted.copy(createdAt = databaseInstant(submitted.createdAt)), service.get(customerId, submitted.checkoutId))
+            assertEquals(submitted.copy(createdAt = databaseInstant(submitted.createdAt)), service.submit(customerId, request))
             assertEquals(1, service.list(customerId).size)
             assertNull(context.getBean(CustomerOrderRecordRepository::class.java).findByCheckoutId(submitted.checkoutId))
         }

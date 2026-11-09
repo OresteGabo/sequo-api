@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.order
 
+import dev.orestegabo.sequo_api.support.persistentJson
+import dev.orestegabo.sequo_api.support.assertPersistentJsonEquals
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.*
@@ -293,7 +295,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(400, call("POST", "$actionPath/accept", otherMerchant, """{"merchantId":"$otherMerchantId"}""").statusCode())
 
         // Read-time server clock is intentionally fresh; all canonical business fields remain strict.
-        fun canonicalMerchant(row: JsonNode) = row.deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>().also { it.remove("serverNow") }
+        fun canonicalMerchant(row: JsonNode) = persistentJson(row)
         fun replayAction(action: String, body: String): JsonNode {
             val results = (1..2).map { CompletableFuture.supplyAsync { call("POST", "$actionPath/$action", merchant, body) } }.map { it.join() }
             results.forEach { assertEquals(200, it.statusCode(), it.body()) }
@@ -501,7 +503,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertTrue(json.readTree(approved.body())["history"].all { it["actorUserId"].asText() == operatorId })
         val repeatedReview = call("POST", reviewPath, operator, review)
         assertEquals(200, repeatedReview.statusCode(), repeatedReview.body())
-        assertEquals(json.readTree(approved.body()), json.readTree(repeatedReview.body()))
+        assertPersistentJsonEquals(json.readTree(approved.body()), json.readTree(repeatedReview.body()))
         val grouped = call("POST", "/api/consolidations", operator, groupBody)
         assertEquals(200, grouped.statusCode(), grouped.body())
         val manifest = json.readTree(grouped.body())
@@ -509,7 +511,7 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
             """{"manifestId":"retry-$manifestId","orderId":"$orderId","cooperativeId":"$cooperativeId"}""")
         assertEquals(200, uiRetry.statusCode(), uiRetry.body())
         assertEquals(manifestId, json.readTree(uiRetry.body())["manifestId"].asText())
-        assertEquals(manifest, json.readTree(uiRetry.body()))
+        assertPersistentJsonEquals(manifest, json.readTree(uiRetry.body()))
         assertEquals(customer.userId, manifest["customerId"].asText())
         assertEquals(operatorId, manifest["approvedByUserId"].asText())
         assertEquals(parts.map { it["id"].asText() }.toSet(), manifest["sellerPackages"].map { it["subOrderId"].asText() }.toSet())

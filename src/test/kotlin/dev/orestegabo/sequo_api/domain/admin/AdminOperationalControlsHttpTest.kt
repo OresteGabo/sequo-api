@@ -1,5 +1,7 @@
 package dev.orestegabo.sequo_api.domain.admin
 
+import dev.orestegabo.sequo_api.support.databaseInstant
+import dev.orestegabo.sequo_api.support.assertPersistentJsonEquals
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.orestegabo.sequo_api.domain.auth.*
@@ -248,7 +250,7 @@ class AdminOperationalControlsHttpTest @Autowired constructor(
         jdbc.update("update delivery_missions set status='ACCEPTED_BY_COURIER',accepted_at=? where id=?", java.sql.Timestamp.from(at), mission.id)
         val repeat = missionRequest("${mission.id}/assign", body)
         assertEquals(200, repeat.statusCode(), repeat.body())
-        assertEquals(assignedAt, tree(repeat)["assignedAt"].asText())
+        assertEquals(databaseInstant(Instant.parse(assignedAt)), databaseInstant(Instant.parse(tree(repeat)["assignedAt"].asText())))
         assertEquals("Freelancer", tree(repeat)["assignmentWorkforceType"].asText())
         assertEquals(400, tree(repeat)["courierFeeCfa"].asInt())
         assertEquals(at, missions.findById(mission.id!!).orElseThrow().acceptedAt)
@@ -271,7 +273,7 @@ class AdminOperationalControlsHttpTest @Autowired constructor(
         assertEquals(200, response.statusCode(), response.body())
         val replay = missionRequest("couriers/unpause", payload)
         assertEquals(200, replay.statusCode())
-        assertEquals(tree(response)["updatedAt"], tree(replay)["updatedAt"])
+        assertPersistentJsonEquals(tree(response)["updatedAt"], tree(replay)["updatedAt"])
         val history = tree(missionRequest("couriers/actual-courier/admin-actions", null, method = "GET"))
         assertEquals(1, history.size())
         assertEquals(admin.id, history[0]["actorUserId"].asText())
