@@ -49,6 +49,8 @@ class ResendAdminEmailCodeSender(
             "from" to "SEQUO Admin <${ApiInputPolicy.normalizedIdentityEmail(from)}>",
             "to" to listOf(recipient),
             "subject" to "SEQUO Admin — Code de connexion / Sign-in code",
+            "html" to AdminSignInEmail.html(code, expiresAt),
+            "attachments" to AdminSignInEmail.attachments(),
             "text" to "Votre code de connexion SEQUO Admin / Your SEQUO Admin sign-in code:\n\n$code\n\n" +
                 "Expire à / Expires at: $expiresAt (UTC).\n" +
                 "Ce code est à usage unique. Ne le partagez pas. / This code is single-use. Do not share it.\n" +

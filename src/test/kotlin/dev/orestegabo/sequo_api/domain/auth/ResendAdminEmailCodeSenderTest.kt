@@ -6,6 +6,7 @@ import java.net.InetSocketAddress
 import java.net.URI
 import java.net.http.HttpClient
 import java.time.Instant
+import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -46,6 +47,21 @@ class ResendAdminEmailCodeSenderTest {
         assertEquals("admin@example.test", body["to"][0].asText())
         assertTrue(body["text"].asText().contains("ABC-DEF"))
         assertTrue(body["text"].asText().contains(expiry.toString()))
+        val html = body["html"].asText()
+        assertTrue(html.contains("ABC-DEF"))
+        assertTrue(html.contains("2026-11-09 · 15:00 UTC"))
+        assertTrue(html.contains("src=\"cid:sequo-logo\""))
+        assertTrue(html.contains("alt=\"SEQUO\""))
+        assertTrue(html.contains("lang=\"en\""))
+        assertFalse(html.contains("{{"))
+        assertFalse(html.contains("<script", ignoreCase = true))
+        assertFalse(html.contains("src=\"http"))
+        assertFalse(html.contains(key))
+        val attachment = body["attachments"].single()
+        assertEquals("sequo-logo", attachment["content_id"].asText())
+        assertEquals("image/png", attachment["content_type"].asText())
+        val png = Base64.getDecoder().decode(attachment["content"].asText())
+        assertEquals(listOf(137, 80, 78, 71, 13, 10, 26, 10), png.take(8).map { it.toInt() and 255 })
         assertEquals(ids[0], ids[1]); assertNotEquals(ids[1], ids[2])
         assertFalse(ids[0].contains("ABC-DEF")); assertFalse(ids[0].contains("admin@"))
     }
