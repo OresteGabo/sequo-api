@@ -48,7 +48,7 @@ for action in ['accept','start-preparation','mark-packed']:api('/api/merchant/su
 assert api('/api/orders/checkouts/'+cid+'/test-dispatch',token=customer)['ready']
 api('/api/orders/checkouts/'+cid+'/test-dispatch',{'riderId':'demo-v1-rider-1'},customer)
 assigned=api('/api/orders/'+oid,token=customer)['deliveries'];assert len(assigned)==1
-mid=assigned[0]['id']
+mid=next(m['id'] for m in api('/api/rider/missions',token=rider) if m['orderId']==oid)
 denied('/api/rider/missions/'+mid,token=tokens['rider.kossi'],codes=(403,))
 api('/api/rider/missions/'+mid+'/accept',token=rider,method='POST')
 api('/api/rider/missions/'+mid+'/pickup/complete',{'proofMetadata':'TEST scripted validation — no physical pickup','idempotencyKey':'test-flow-pickup-'+mid},rider)
