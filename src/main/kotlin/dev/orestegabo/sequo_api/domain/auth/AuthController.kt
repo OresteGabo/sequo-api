@@ -34,6 +34,7 @@ class AuthController(
     data class SocialLoginRequest(
         val token: String,
         val device: DeviceRequest,
+        val challengeId: String? = null,
     )
 
     data class WhatsAppOtpRequest(val phoneNumber: String)
@@ -118,6 +119,14 @@ class AuthController(
         val subPresent: Boolean?,
     )
 
+    @PostMapping("/apple/challenge")
+    fun appleChallenge(@RequestBody device: DeviceRequest): ResponseEntity<Any> = try {
+        authRateLimiter.checkSocialLogin(AuthProvider.APPLE)
+        ResponseEntity.ok(authService.createAppleChallenge(device.toBinding()))
+    } catch (e: RateLimitExceededException) {
+        rateLimitedResponse(e)
+    }
+
     @PostMapping("/social/{provider}")
     fun loginSocial(
         @PathVariable provider: AuthProvider,
@@ -126,7 +135,7 @@ class AuthController(
         return try {
             val token = ApiInputPolicy.requiredToken(request.token, "token")
             authRateLimiter.checkSocialLogin(provider)
-            val tokens = authService.loginWithSocialToken(provider, token, request.device.toBinding())
+            val tokens = authService.loginWithSocialToken(provider, token, request.device.toBinding(), request.challengeId)
             tokens?.let {
                 adminAuthAuditService.record(
                     AdminAuthAuditEvent(

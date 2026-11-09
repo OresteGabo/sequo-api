@@ -44,6 +44,10 @@ interface UserDeviceRepository : JpaRepository<UserDevice, String> {
 }
 
 interface AuthChallengeRepository : JpaRepository<AuthChallenge, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from AuthChallenge c where c.id = :id and c.purpose = :purpose")
+    fun lockForAuthentication(id: String, purpose: AuthChallengePurpose): AuthChallenge?
+
     fun findByIdAndPurpose(id: String, purpose: AuthChallengePurpose): AuthChallenge?
 }
 

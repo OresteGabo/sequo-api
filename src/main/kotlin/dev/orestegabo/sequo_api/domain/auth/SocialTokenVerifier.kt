@@ -246,14 +246,3 @@ class FacebookTokenVerifier(
         return restTemplate.getForObject(url, Map::class.java)
     }
 }
-
-@Service
-class AppleTokenVerifier(
-    @Value("\${sequo.auth.apple.client-id}") private val clientId: String
-) : SocialTokenVerifier {
-    override fun verify(token: String): SocialUser? {
-        // Apple verification requires validating a JWT (identity token) against Apple's public keys.
-        // The 'clientId' (Service ID) is used here to verify the 'aud' (audience) claim in the JWT.
-        return null 
-    }
-}

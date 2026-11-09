@@ -81,6 +81,7 @@ enum class AppSource {
 }
 
 enum class AuthChallengePurpose {
+    APPLE_SIGN_IN,
     WHATSAPP_OTP,
     PASSKEY_REGISTRATION,
     PASSKEY_AUTHENTICATION,

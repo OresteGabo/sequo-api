@@ -125,15 +125,43 @@ class AuthService(
     private val secureRandom = SecureRandom()
     private val codeRandom = SecureRandom()
 
+    data class AppleChallengeResponse(val challengeId: String, val nonce: String)
+
     @Transactional
-    fun loginWithSocialToken(provider: AuthProvider, token: String, device: DeviceBinding): AuthTokens? {
+    fun createAppleChallenge(device: DeviceBinding): AppleChallengeResponse {
+        val nonce = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(secureRandom::nextBytes))
+        val challenge = authChallengeRepository.save(AuthChallenge(
+            purpose = AuthChallengePurpose.APPLE_SIGN_IN,
+            subject = "apple-sign-in",
+            challengeHash = tokenService.hash(nonce),
+            requestingDeviceId = device.deviceId,
+            requestingAppSource = device.appSource,
+            expiresAt = Instant.now().plusSeconds(300),
+        ))
+        // Apple receives this digest as its nonce; no raw challenge is persisted.
+        return AppleChallengeResponse(requireNotNull(challenge.id), challenge.challengeHash)
+    }
+
+    @Transactional
+    fun loginWithSocialToken(provider: AuthProvider, token: String, device: DeviceBinding, challengeId: String? = null): AuthTokens? {
         val verifier = when (provider) {
             AuthProvider.GOOGLE -> googleVerifier
             AuthProvider.FACEBOOK -> facebookVerifier
             AuthProvider.APPLE -> appleVerifier
             else -> return null
         }
-        val socialUser = verifier.verify(token) ?: return null
+        val appleChallenge = if (provider == AuthProvider.APPLE) {
+            val id = challengeId?.takeIf { it.length in 1..255 } ?: return null
+            val challenge = authChallengeRepository.lockForAuthentication(id, AuthChallengePurpose.APPLE_SIGN_IN) ?: return null
+            if (challenge.consumedAt != null || !challenge.expiresAt.isAfter(Instant.now()) ||
+                challenge.requestingDeviceId != device.deviceId || challenge.requestingAppSource != device.appSource) return null
+            challenge
+        } else null
+        val socialUser = if (appleChallenge != null) {
+            appleVerifier.verify(token, appleChallenge.challengeHash)
+        } else verifier.verify(token)
+        socialUser ?: return null
+        appleChallenge?.consumedAt = Instant.now()
         if (socialUser.provider != provider) return null
         if (socialUser.email != null && !socialUser.emailVerified) return null
 
@@ -143,6 +171,7 @@ class AuthService(
         } else {
             val normalizedEmail = socialUser.email?.let(::normalizeEmail)
             val existing = normalizedEmail?.let { userRepository.findByEmail(it) }
+            if (provider == AuthProvider.APPLE && existing != null) throw AccountLinkRequiredException(existing.provider, provider)
             val provisioned = existing ?: userRepository.save(
                 User(
                     email = normalizedEmail,
