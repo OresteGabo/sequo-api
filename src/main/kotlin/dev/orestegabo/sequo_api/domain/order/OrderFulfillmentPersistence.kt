@@ -241,6 +241,7 @@ data class CustomerOrderSnapshot(
     val updatedAt: Instant,
     val publicReference: String? = null,
     val checkoutReference: String? = null,
+    val testOrder: Boolean = false,
     val customerReference: String? = null,
 )
 
@@ -374,7 +375,7 @@ class OrderFulfillmentPersistenceService(
                     sourceType = "CHECKOUT",
                     sourceId = request.checkoutId,
                     actorUserId = request.customerId,
-                    metadata = "Paid order accepted for merchant fulfillment.",
+                    metadata = if(dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(request.paymentReference)) "TEST_NO_FUNDS order accepted; no provider payment." else "Paid order accepted for merchant fulfillment.",
                     createdAt = createdAt,
                 )
             )
@@ -514,6 +515,7 @@ class OrderDeliveryLifecycleService(
     }
 
     private fun accrueMerchantPayouts(order: CustomerOrderRecord, deliveredAt: Instant) {
+        if(dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(order.paymentReference)) return
         merchantSubOrders.findByOrderId(order.id).forEach { subOrder ->
             val subOrderId = checkNotNull(subOrder.id) { "Persisted merchant sub-order id is required for settlement." }
             settlements.accrueMerchantPayout(
@@ -675,6 +677,7 @@ private fun OrderLineRequest.photoEvidenceType(): String =
     }
 
 private fun CustomerOrderRecord.toSnapshot(references: PublicReferenceRegistry? = null) = CustomerOrderSnapshot(
+    testOrder = dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(paymentReference),
     id = id,
     checkoutId = checkoutId,
     customerId = customerId,

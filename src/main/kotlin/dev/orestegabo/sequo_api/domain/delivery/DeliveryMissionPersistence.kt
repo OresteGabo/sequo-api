@@ -379,14 +379,21 @@ class DeliveryMissionService(
             .filter { it.courierId == null }
             .map(::missionSnapshot)
         return (assigned + availableOffers)
+            .filter { testBoundaryAllows(it, resolvedCourierId) }
             .distinctBy { it.id }
             .sortedByDescending { it.updatedAt }
             .map { riderRoute(it, courierId) }
     }
 
+    private fun testBoundaryAllows(mission: DeliveryMissionSnapshot, courierId: String): Boolean {
+        val reference=orders.findById(mission.orderId).orElse(null)?.paymentReference.orEmpty()
+        return dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(reference) == dev.orestegabo.sequo_api.domain.testaccess.isSeededTestRider(courierId)
+    }
+
     @Transactional(readOnly = true)
     fun riderRoute(mission: DeliveryMissionSnapshot, actorId: String): DeliveryMissionSnapshot {
         val courierId = courierIdForActor(actorId)
+        if(courierId != null && !testBoundaryAllows(mission,courierId)) throw org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN)
         val assigned = mission.courierId != null && mission.courierId == courierId
         if (!assigned && !(mission.courierId == null && mission.status == DeliveryMissionRecordStatus.OFFERED_TO_COURIER)) {
             return mission
@@ -499,6 +506,7 @@ class DeliveryMissionService(
             return rejected("courier_paused", "Courier is paused and cannot accept delivery missions.")
         }
         val mission = repository.lockForAction(missionId) ?: return rejected("mission_not_found", "Delivery mission was not found.")
+        if(!testBoundaryAllows(missionSnapshot(mission),resolvedCourierId)) return rejected("test_order_rider_boundary", "This rider cannot accept that order type.")
         if (mission.courierId == resolvedCourierId && mission.acceptedAt != null) {
             return success(mission, "Courier acceptance was already recorded.")
         }

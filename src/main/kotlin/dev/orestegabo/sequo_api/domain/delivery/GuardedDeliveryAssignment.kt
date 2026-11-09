@@ -21,6 +21,7 @@ class CourierDispatchEligibility(
     private val users: UserRepository,
     private val availability: CourierAvailabilityService,
     private val missions: DeliveryMissionRepository,
+    private val orders: CustomerOrderRecordRepository? = null,
 ) {
     private val busy = setOf(DeliveryMissionRecordStatus.CREATED, DeliveryMissionRecordStatus.OFFERED_TO_COURIER,
         DeliveryMissionRecordStatus.ACCEPTED_BY_COURIER, DeliveryMissionRecordStatus.PICKED_UP_FROM_SELLER, DeliveryMissionRecordStatus.PROBLEM_REPORTED)
@@ -31,6 +32,9 @@ class CourierDispatchEligibility(
         if (courier.status != "ACTIVE" || user == null || !user.active || !user.status.canAuthenticate() || RoleCode.COURIER !in user.roles) {
             return reject("courier_unavailable", "An active linked courier account is required for a new assignment.")
         }
+        val order = missions.findById(missionId).orElse(null)?.let { orders?.findById(it.orderId)?.orElse(null) }
+        if (order != null && dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(order.paymentReference) != dev.orestegabo.sequo_api.domain.testaccess.isSeededTestRider(courier.id))
+            return reject("test_order_rider_boundary", "Test orders require seeded test riders; ordinary orders require ordinary riders.")
         if (availability.isPaused(courier.id, at)) return reject("courier_paused", "Courier is paused and cannot receive delivery missions.")
         if (courierWorkforce(courier.workforceType) == null) return reject("courier_workforce_unknown", "Review the courier workforce before assigning.")
         if (DeliveryVehicleType.entries.none { it.name.equals(courier.vehicleType, true) }) return reject("courier_vehicle_unknown", "A supported courier vehicle is required.")

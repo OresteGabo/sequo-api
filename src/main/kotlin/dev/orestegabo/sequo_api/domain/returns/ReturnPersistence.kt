@@ -312,6 +312,7 @@ class ReturnPersistenceService(
             ?: throw org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Order is unavailable.")
 
     private fun productPolicyAllows(order: CustomerOrderRecord): Boolean {
+        if(dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(order.paymentReference)) return false
         val lines = orderLines.findByOrderIdOrderByLineIndexAsc(order.id)
         if (lines.isEmpty()) return false
         if (order.route == dev.orestegabo.sequo_api.domain.order.OrderRoute.Pickup && policy.clickAndCollectMode == ClickAndCollectReturnMode.PENDING) return true

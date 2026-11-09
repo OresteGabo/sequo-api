@@ -316,6 +316,7 @@ class RelayParcelApplicationService(
     private val publisher: ApplicationEventPublisher,
     private val lockers: dev.orestegabo.sequo_api.domain.hub.RelayLockerRepository,
     private val eligibility: RelayOrderEligibilityService,
+    private val orders: dev.orestegabo.sequo_api.domain.order.CustomerOrderRecordRepository? = null,
 ) {
     private val storageFeeService = RelayStorageFeeService()
     private val objectMapper = ObjectMapper()
@@ -448,6 +449,7 @@ class RelayParcelApplicationService(
         require(dailyFeeCfa >= 0) { "dailyFeeCfa cannot be negative." }
         if (dailyFeeCfa == 0) return emptyList()
         return persistence.lockParcelsForFeeAssessment(relayPointId, evaluatedAt)
+            .filter { parcel -> parcel.orderId?.let { orders?.findById(it)?.orElse(null)?.paymentReference }?.let { !dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(it) } ?: true }
             .mapNotNull { parcel -> parcel.assessStorageFee(dailyFeeCfa, evaluatedAt) }
     }
 

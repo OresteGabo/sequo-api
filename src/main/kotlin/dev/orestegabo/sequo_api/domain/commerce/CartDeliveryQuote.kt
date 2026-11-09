@@ -41,6 +41,7 @@ data class CartDeliveryQuote(
     val subscriptionDiscountCfa: Int = 0,
     val loyaltyDiscountCfa: Int = 0,
     val referralCreditAppliedCfa: Int = 0,
+    val testOrderAvailable: Boolean = false,
 )
 
 internal data class ReviewedCart(
@@ -62,6 +63,7 @@ class CartDeliveryQuoteService(
     private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
     private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     @Value("\${sequo.cart.straight-line-dispatch-origin:}") configuredOrigin: String,
+    private val testOrders: dev.orestegabo.sequo_api.domain.testaccess.TestOrderPolicy? = null,
 ) {
     private val origin = configuredOrigin.takeIf { it.isNotBlank() }?.let {
         val coordinates = it.split(",")
@@ -93,7 +95,10 @@ class CartDeliveryQuoteService(
             relays.requireAvailable(ApiInputPolicy.requiredIdentifier(it, "relayPointId"))
         }
         val meters = distanceProvider.estimate(RoutingDistanceRequest(dispatchOrigin, GeoPoint(relay?.latitude ?: latitude, relay?.longitude ?: longitude)))
-        val benefitReview = benefits.review(userId, pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0)),
+        val testCart = testOrders?.enabled == true && cart.items.all { testOrders.testProduct(it.product.id,it.product.merchantId) }
+        val baseDelivery = pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0))
+        val benefitReview = if(testCart) dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitReview(baseDelivery,null,null,null,listOf("TEST_NO_FUNDS"))
+            else benefits.review(userId, baseDelivery,
             if (relay == null) dev.orestegabo.sequo_api.domain.subscription.SubscriptionDeliveryMode.FastDelivery
             else dev.orestegabo.sequo_api.domain.subscription.SubscriptionDeliveryMode.PointDeRelai)
         val delivery = benefitReview.delivery
@@ -133,6 +138,7 @@ class CartDeliveryQuoteService(
             subscriptionDiscountCfa = delivery.subscriptionDiscountCfa,
             loyaltyDiscountCfa = delivery.loyaltyDiscountCfa,
             referralCreditAppliedCfa = delivery.referralCreditAppliedCfa,
+            testOrderAvailable = testCart,
         )
         return ReviewedCart(cart, quote, destination, orderPricing, relay, benefitReview)
     }

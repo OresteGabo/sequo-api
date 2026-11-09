@@ -92,13 +92,16 @@ class RelayAvailabilityService(private val points: RelayPointRepository, private
 }
 
 @RestController
-class CartRelayController(private val commerce: CommerceService, private val availability: RelayAvailabilityService) {
+class CartRelayController(private val commerce: CommerceService, private val availability: RelayAvailabilityService, private val testOrders: dev.orestegabo.sequo_api.domain.testaccess.TestOrderPolicy? = null) {
     @GetMapping("/api/cart/relay-points")
     fun points(@AuthenticationPrincipal userId: String?): List<RelayDestination> {
         requireNotNull(userId) { "Authentication is required." }
         val cart = commerce.cart(userId)
         return if (cart.items.all { it.available } && relayCategoriesAllowed(cart.items.map { catalogRelayCategory(it.product.category) }))
-            availability.available() else emptyList()
+            availability.available().filter { point ->
+                val testCart = testOrders?.enabled == true && cart.items.isNotEmpty() && cart.items.all { testOrders.testProduct(it.product.id,it.product.merchantId) }
+                if(testOrders?.enabled == true) point.id.startsWith("live-test-v1-hub-") == testCart else true
+            } else emptyList()
     }
 }
 

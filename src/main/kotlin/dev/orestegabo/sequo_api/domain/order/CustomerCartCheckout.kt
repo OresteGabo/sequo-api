@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController
 
 internal const val CART_CHECKOUT_PREFIX = "cart-"
 
-data class SubmitCartCheckoutRequest(val addressId: String, val quoteRevision: String, val paymentProvider: String, val relayPointId: String? = null, val deliveryMode: String? = null)
+data class SubmitCartCheckoutRequest(val addressId: String, val quoteRevision: String, val paymentProvider: String, val relayPointId: String? = null, val deliveryMode: String? = null, val testOrder: Boolean? = null)
 
 data class CustomerCheckoutSummary(
     val checkoutId: String,
@@ -45,6 +45,7 @@ data class CustomerCheckoutSummary(
     val lines: List<CheckoutLineSummary>,
     val publicReference: String? = null,
     val orderReference: String? = null,
+    val testOrder: Boolean = false,
 )
 
 data class CheckoutLineSummary(val productName: String, val quantity: Int, val optionLabel: String? = null)
@@ -64,15 +65,17 @@ class CustomerCartCheckoutService(
     private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     private val benefits: dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitsService,
     paymentProcessor: PaymentProcessor,
-    pricing: DeliveryPricingService,
+    private val pricing: DeliveryPricingService,
     private val references: PublicReferenceRegistry? = null,
     private val demo: dev.orestegabo.sequo_api.domain.demo.DemoEnvironment? = null,
+    private val testOrders: dev.orestegabo.sequo_api.domain.testaccess.TestOrderPolicy? = null,
 ) {
     private val processor = RegularOrderProcessor(paymentProcessor, pricing, allowDemoIllustrations = demo != null)
     private val mapper = ObjectMapper()
 
     @Transactional
     fun submit(customerId: String, request: SubmitCartCheckoutRequest): CustomerCheckoutSummary {
+        val isTestOrder = request.testOrder == true
         require(request.quoteRevision.matches(Regex("[a-f0-9]{64}"))) { "A reviewed quote is required." }
         val addressId = ApiInputPolicy.requiredIdentifier(request.addressId, "addressId")
         val provider = when (request.paymentProvider) {
@@ -83,7 +86,7 @@ class CustomerCartCheckoutService(
         require(users.lockCheckoutOwner(customerId)?.active == true) { "Customer account is unavailable." }
 
         val digest = MessageDigest.getInstance("SHA-256")
-            .digest(mapper.writeValueAsBytes(listOf(customerId, request.quoteRevision))).toHexString()
+            .digest(mapper.writeValueAsBytes(if(isTestOrder) listOf(customerId,request.quoteRevision,"TEST_NO_FUNDS") else listOf(customerId, request.quoteRevision))).toHexString()
         val checkoutId = "$CART_CHECKOUT_PREFIX$digest"
         checkouts.findByCheckoutIdAndCustomerId(checkoutId, customerId)?.let {
             val existing = mapper.readPendingRequest(it.requestPayload)
@@ -100,6 +103,13 @@ class CustomerCartCheckoutService(
             throw CheckoutQuoteChanged()
         }
         if (reviewed.quote.revision != request.quoteRevision) throw CheckoutQuoteChanged()
+        val testCart = testOrders?.enabled == true && reviewed.cart.items.all { testOrders.testProduct(it.product.id,it.product.merchantId) }
+        require(!isTestOrder || testCart) { "Test confirmation requires only seeded test products." }
+        if(testOrders?.enabled==true && reviewed.cart.items.any { testOrders.testProduct(it.product.id,it.product.merchantId) }) {
+            require(isTestOrder && testCart) { "Keep test products in a separate basket and use test checkout." }
+        }
+        if(request.relayPointId?.startsWith("live-test-v1-hub-")==true) require(isTestOrder) { "Test hubs require test checkout." }
+        if(isTestOrder) require(request.relayPointId==null || request.relayPointId.startsWith("live-test-v1-hub-")) { "Choose a test hub." }
         val sellers = merchants.findAllById(reviewed.cart.items.mapNotNull { it.product.merchantId }.distinct()).associateBy { it.id }
         val lines = reviewed.cart.items.map { item ->
             val product = item.product
@@ -109,6 +119,7 @@ class CustomerCartCheckoutService(
             val category = dev.orestegabo.sequo_api.domain.relay.orderCategory(product.category, product.kind)
             val capturedAt = product.capturedAtLabel?.let { runCatching { Instant.parse(it) }.getOrNull() }
             val photo = when {
+                isTestOrder -> ProductPhotoEvidence.DemoIllustration
                 demo != null && product.id.startsWith("demo-v1-") -> ProductPhotoEvidence.DemoIllustration
                 product.cameraVerified && capturedAt != null -> ProductPhotoEvidence.LiveCameraCapture(capturedAt.toEpochMilli())
                 product.kind == CatalogProductKind.GenericSealedItem && !product.photoRequired && !product.imageUrl.isNullOrBlank() ->
@@ -132,19 +143,19 @@ class CustomerCartCheckoutService(
         val order = OrderProcessingRequest(
             checkoutId, customerId, OrderServiceLevel.Regular, if (reviewed.relayDestination == null) OrderRoute.FastDelivery else OrderRoute.PointDeRelai,
             lines, reviewed.quote.distanceMeters / 1000.0,
-            paymentProvider = provider, paymentReference = checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
-            deliveryOption = reviewed.quote.deliveryOption, subscriberPriority = benefits.subscriberPriority(customerId),
+            paymentProvider = provider, paymentReference = if(isTestOrder) dev.orestegabo.sequo_api.domain.testaccess.TEST_ORDER_REFERENCE+checkoutId else checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
+            deliveryOption = reviewed.quote.deliveryOption, subscriberPriority = if(isTestOrder) false else benefits.subscriberPriority(customerId),
         )
-        val result = processor.process(order, reviewed.pricing)
+        val result = (if(isTestOrder) requireNotNull(testOrders).processor(pricing) else processor).process(order, reviewed.pricing)
         val status = when (result) {
             is OrderProcessingResult.AwaitingPaymentValidation -> PendingPaymentCheckoutStatus.AWAITING_WEBHOOK
             is OrderProcessingResult.AcceptedForFulfillment -> PendingPaymentCheckoutStatus.COMPLETED
             is OrderProcessingResult.Rejected -> PendingPaymentCheckoutStatus.FAILED
         }
         val saved = pending.recordCartCheckout(order, reviewed.pricing, status)
-        if (status != PendingPaymentCheckoutStatus.FAILED) benefits.reserve(checkoutId, customerId, reviewed.benefits)
+        if (status != PendingPaymentCheckoutStatus.FAILED && !isTestOrder) benefits.reserve(checkoutId, customerId, reviewed.benefits)
         if (result is OrderProcessingResult.AcceptedForFulfillment) {
-            benefits.complete(checkoutId, customerId)
+            if(!isTestOrder) benefits.complete(checkoutId, customerId)
             fulfillment.persistAcceptedOrder(order, result)
         }
         if (status != PendingPaymentCheckoutStatus.FAILED) commerce.clearCart(customerId)
@@ -166,6 +177,7 @@ class CustomerCartCheckoutService(
         status, amountCfa, paymentProvider, request.relayDestination?.name ?: request.homeDestination?.label, createdAt,
         request.lines.map { CheckoutLineSummary(it.productName, it.quantity, it.optionLabel) },
         publicReference = references.referenceOrNull(PublicReferenceKind.CHECKOUT, checkoutId),
+        testOrder = dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(paymentReference),
         orderReference = if (status == PendingPaymentCheckoutStatus.COMPLETED) references.referenceOrNull(PublicReferenceKind.ORDER, checkoutId.toOrderId()) else null,
     )
 }

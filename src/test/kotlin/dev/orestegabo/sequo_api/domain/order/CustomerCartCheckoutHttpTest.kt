@@ -46,6 +46,7 @@ import kotlin.test.assertTrue
     properties = [
         "spring.datasource.url=jdbc:h2:mem:cart_checkout_http;DB_CLOSE_DELAY=-1",
         "sequo.cart.straight-line-dispatch-origin=0,0",
+        "sequo.testing.orders.enabled=true",
         "sequo.wallets.yas-togo.webhook-secret=isolated-fixture-webhook-secret",
         "sequo.wallets.yas-togo.api-base-url=https://wallet-fixture.sequo.tg",
         "sequo.wallets.yas-togo.api-key=isolated-fixture-key",
@@ -1056,6 +1057,71 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
             .header("X-Sequo-Webhook-Signature", signature)
             .POST(HttpRequest.BodyPublishers.ofString(payload)).build()
         return client.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    @Test
+    fun approvedTestCheckoutRunsVendorRiderRelayPickupWithoutFinancialAccrual() {
+        val f=fixture()
+        val quoteOrdinary=quote(f)
+        assertFalse(quoteOrdinary["testOrderAvailable"].asBoolean())
+        val badTest=submitBody(f,quoteOrdinary).dropLast(1)+",\"testOrder\":true}"
+        assertEquals(400,call("POST","/api/orders/checkouts",f.token,badTest).statusCode())
+        val ordinary=call("POST","/api/orders/checkouts",f.token,submitBody(f,quoteOrdinary))
+        val ordinaryId=json.readTree(ordinary.body())["checkoutId"].asText()
+        assertEquals(404,call("POST","/api/orders/checkouts/$ordinaryId/test-payment",f.token).statusCode())
+        val owner=users.save(User(email="test-owner-${UUID.randomUUID()}@fixture.invalid",roles=mutableSetOf(RoleCode.MERCHANT_OWNER)))
+        val merchantId="demo-v1-shop-mode"
+        merchants.saveAndFlush(MerchantRecord(merchantId,ownerUserId=owner.id,name="[TEST] Shop"))
+        jdbc.update("insert into merchant_memberships(id,user_id,merchant_id,role_code,active,created_at,updated_at) values (?,?,?,'MERCHANT_OWNER',true,current_timestamp,current_timestamp)","test-flow-membership",owner.id,merchantId)
+        val vendor=jwt.generateAccessToken(UserSession(requireNotNull(owner.id),owner.email,AuthProvider.EMAIL,setOf(RoleCode.MERCHANT_OWNER),setOf(merchantId)))
+        val product=products.saveAndFlush(ProductRecord("demo-v1-mode-99",merchantId,name="[TEST] Item",kind=CatalogProductKind.GenericSealedItem,category="fashion",basePriceCfa=1000,imageUrl="https://fixture.invalid/test.jpg"))
+        assertEquals(200,call("PUT","/api/cart/items",f.token,"""{"productId":"${product.id}","quantity":1}""").statusCode())
+        val operator=users.save(User(email="test-operator-${UUID.randomUUID()}@fixture.invalid",roles=mutableSetOf(RoleCode.RELAY_PARTNER)))
+        val site="live-test-v1-hub-unit"
+        relayPoints.saveAndFlush(dev.orestegabo.sequo_api.domain.party.RelayPointRecord(site,operatorUserId=operator.id,name="[TEST] Hub",latitude=0.0,longitude=0.02))
+        jdbc.update("insert into relay_locker_grids(id,relay_point_id,grid_code,label,created_at,updated_at,version) values (?,?,'TEST-A','[TEST]',current_timestamp,current_timestamp,0)",site,site)
+        relayLockers.saveAndFlush(dev.orestegabo.sequo_api.domain.hub.RelayLockerRecord("$site-slot",site,relayLockerGridId=site,lockerCode="TEST-A1"))
+        val hub=jwt.generateAccessToken(UserSession(requireNotNull(operator.id),operator.email,AuthProvider.EMAIL,setOf(RoleCode.RELAY_PARTNER)))
+        assertTrue(read("GET","/api/cart/relay-points",f.token).any{it["id"].asText()==site})
+        val q=read("GET","/api/cart/quote?addressId=${f.addressId}&relayPointId=$site",f.token)
+        assertTrue(q["testOrderAvailable"].asBoolean());assertEquals(0,q["referralCreditAppliedCfa"].asInt())
+        val body="""{"addressId":"${f.addressId}","quoteRevision":"${q["revision"].asText()}","paymentProvider":"yas_togo","relayPointId":"$site","testOrder":true}"""
+        val submitted=call("POST","/api/orders/checkouts",f.token,body);assertEquals(202,submitted.statusCode(),submitted.body())
+        val cid=json.readTree(submitted.body())["checkoutId"].asText();assertTrue(json.readTree(submitted.body())["testOrder"].asBoolean())
+        val other=fixture()
+        assertEquals(404,call("POST","/api/orders/checkouts/$cid/test-payment",other.token).statusCode())
+        repeat(2){assertEquals(200,call("POST","/api/orders/checkouts/$cid/test-payment",f.token).statusCode())}
+        val order=orders.findByCheckoutId(cid)!!
+        assertTrue(order.paymentReference.startsWith("TEST_NO_FUNDS:"))
+        assertEquals(0,jdbc.queryForObject("select count(*) from payment_webhook_events where checkout_id=?",Int::class.java,cid))
+        assertEquals(0,jdbc.queryForObject("select count(*) from delivery_benefit_applications where checkout_id=?",Int::class.java,cid))
+        assertFalse(read("GET","/api/orders/checkouts/$cid/test-dispatch",f.token)["ready"].asBoolean())
+        val details=read("GET","/api/orders/${order.id}",f.token);assertTrue(details["order"]["testOrder"].asBoolean())
+        val part=details["merchantSubOrders"].single()["id"].asText()
+        for(action in listOf("accept","start-preparation","mark-packed")) {
+            val response=call("POST","/api/merchant/sub-orders/$part/$action",vendor,"""{"merchantId":"$merchantId","packageCount":1}""")
+            assertEquals(200,response.statusCode(),response.body())
+        }
+        val riderUser=users.save(User(email="test-rider-${UUID.randomUUID()}@fixture.invalid",roles=mutableSetOf(RoleCode.COURIER)))
+        val riderId="demo-v1-rider-1"
+        couriers.saveAndFlush(CourierRecord(riderId,userId=riderUser.id,workforceType="Freelancer",vehicleType="Moto"))
+        val rider=jwt.generateAccessToken(UserSession(requireNotNull(riderUser.id),riderUser.email,AuthProvider.EMAIL,setOf(RoleCode.COURIER)))
+        assertEquals(400,call("POST","/api/orders/checkouts/$cid/test-dispatch",f.token,"""{"riderId":"ordinary-rider"}""").statusCode())
+        repeat(2){val assigned=call("POST","/api/orders/checkouts/$cid/test-dispatch",f.token,"""{"riderId":"$riderId"}""");assertEquals(200,assigned.statusCode(),assigned.body())}
+        val mid=deliveryMissions.findByOrderIdOrderByCreatedAtAsc(order.id).single().id!!
+        assertEquals(200,call("POST","/api/rider/missions/$mid/accept",rider).statusCode())
+        assertEquals(200,call("POST","/api/rider/missions/$mid/pickup/complete",rider,"""{"proofMetadata":"TEST scripted handoff, no physical delivery","idempotencyKey":"test-pickup-$mid"}""").statusCode())
+        val deposited=call("POST","/api/rider/missions/$mid/relay-deposit",rider,"""{"relayPointId":"$site","lockerCode":"TEST-A1","proofMetadata":"TEST scripted relay handoff","idempotencyKey":"test-deposit-$mid"}""")
+        assertEquals(200,deposited.statusCode(),deposited.body())
+        val pickup=read("GET","/api/orders/${order.id}/relay-pickups",f.token).single()
+        val parcel=pickup["parcelId"].asText();val code=pickup["numericCode"].asText();assertTrue(code.length>=4)
+        val released=call("POST","/api/relay/parcels/$parcel/release",hub,"""{"relayPointId":"$site","rawNumericCode":"$code","identityDocumentMatched":true,"eventId":"test-release-$parcel","idempotencyKey":"test-release-$parcel"}""")
+        assertEquals(200,released.statusCode(),released.body())
+        assertEquals("DELIVERED",read("GET","/api/orders/${order.id}",f.token)["order"]["orderStatus"].asText())
+        assertEquals(0,jdbc.queryForObject("select count(*) from merchant_payout_accruals where order_id=?",Int::class.java,order.id))
+        assertEquals(0,jdbc.queryForObject("select count(*) from delivery_settlements where mission_id=?",Int::class.java,mid))
+        assertEquals(0,jdbc.queryForObject("select count(*) from settlement_ledger_entries where source_id in (?,?)",Int::class.java,mid,part))
+        assertFalse(read("GET","/api/returns/orders/${order.id}/eligibility",f.token)["eligible"].asBoolean())
     }
 
     private data class Fixture(val userId: String, val token: String, val productId: String, val addressId: String)

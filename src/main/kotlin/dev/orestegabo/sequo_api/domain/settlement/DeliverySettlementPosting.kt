@@ -58,6 +58,7 @@ class DeliverySettlementPostingService(
                 DeliveryMissionRecordStatus.DEPOSITED_AT_RELAY, DeliveryMissionRecordStatus.RELEASED_BY_RELAY,
                 DeliveryMissionRecordStatus.HANDED_TO_SEQUO)) return null
         val order = orders.findById(mission.orderId).orElse(null) ?: return null
+        if (dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(order.paymentReference)) return null
         if (order.paymentStatus != PaymentValidationStatus.Validated) return null
         val courierId = mission.courierId ?: return null
         // The same owner lock is used by checkout. It serializes contribution allocation across
