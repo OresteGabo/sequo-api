@@ -56,6 +56,7 @@ class OwnerDirectoryHttpTest @Autowired constructor(
             val result = call("accounts", owner, "POST", body)
             assertEquals(200, result.statusCode(), result.body())
             val id = tree(result)["record"]["id"].asText()
+            assertTrue(dev.orestegabo.sequo.reference.HumanReference.isValid(tree(result)["record"]["publicReference"].asText(), dev.orestegabo.sequo.reference.PublicReferenceKind.USER))
             assertEquals(setOf(RoleCode.CUSTOMER, RoleCode.valueOf(role)), users.findById(id).orElseThrow().roles)
             assertEquals(0, devices.findTop100ByUserIdOrderByCreatedAtDesc(id).size)
             val audit = access.findByIdempotencyKey(body.getValue("idempotencyKey"))!!

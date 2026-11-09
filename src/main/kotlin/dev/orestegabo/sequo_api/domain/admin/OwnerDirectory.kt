@@ -1,6 +1,8 @@
 package dev.orestegabo.sequo_api.domain.admin
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import dev.orestegabo.sequo.reference.PublicReferenceKind
+import dev.orestegabo.sequo_api.domain.reference.PublicReferenceRegistry
 import dev.orestegabo.sequo_api.api.ApiInputPolicy
 import dev.orestegabo.sequo_api.domain.auth.*
 import dev.orestegabo.sequo_api.domain.commerce.CommerceMerchantRepository
@@ -50,7 +52,7 @@ class OwnerDirectoryService(private val users: UserRepository, private val auth:
     private val sites: RelayPointRepository, private val missions: DeliveryMissionRepository,
     private val subOrders: MerchantSubOrderRepository, private val parcels: RelayParcelRecordRepository,
     private val pending: PendingPaymentCheckoutRepository, private val operations: OwnerDirectoryRepository,
-    private val accessChanges: AdminAccessChangeRepository, private val em: EntityManager,
+    private val accessChanges: AdminAccessChangeRepository, private val em: EntityManager, private val references: PublicReferenceRegistry,
 ) {
     private val json = ObjectMapper()
     private val activeMissions = DeliveryMissionRecordStatus.entries.toSet() - setOf(DeliveryMissionRecordStatus.CANCELLED,
@@ -154,13 +156,22 @@ class OwnerDirectoryService(private val users: UserRepository, private val auth:
             if (kind == "hubs") request.relayDestination?.id == id else request.lines.any { line -> line.sellerId == id }
         }) conflict("directory_checkout_in_progress", "Resolve pending customer checkouts before removing this profile.")
     }
-    private fun snapshot(kind: String, id: String): Map<String, Any?> = when(kind) {
+    private fun snapshot(kind: String, id: String): Map<String, Any?> {
+        val record = when(kind) {
         "accounts" -> users.findById(id).orElse(null)?.let { mapOf("id" to id, "name" to it.name, "email" to it.email, "phoneNumber" to it.phoneNumber, "status" to it.status.name, "roles" to it.roles.map { r -> r.name }.sorted(), "updatedAt" to it.updatedAt.toString()) }
         "merchants" -> merchants.findById(id).orElse(null)?.let { mapOf("id" to id, "name" to it.name, "status" to it.status, "ownerUserId" to it.ownerUserId, "updatedAt" to it.updatedAt.toString()) }
         "couriers" -> couriers.findById(id).orElse(null)?.let { mapOf("id" to id, "userId" to it.userId, "vehicleType" to it.vehicleType, "status" to it.status, "updatedAt" to it.updatedAt.toString()) }
         "hubs" -> sites.findById(id).orElse(null)?.let { mapOf("id" to id, "name" to it.name, "status" to it.status, "updatedAt" to it.updatedAt.toString()) }
         else -> throw IllegalArgumentException("Unknown directory.")
-    } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+        } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+        val referenceKind = when(kind) {
+            "accounts" -> PublicReferenceKind.USER
+            "merchants" -> PublicReferenceKind.MERCHANT
+            "couriers" -> PublicReferenceKind.COURIER
+            else -> PublicReferenceKind.RELAY
+        }
+        return record + ("publicReference" to references.reference(referenceKind, id))
+    }
     private fun append(i: Intent, id: String, before: Map<String, Any?>?, after: Map<String, Any?>): OwnerDirectoryResult {
         val operation = operations.saveAndFlush(OwnerDirectoryOperation(kind = i.kind, entityId = id, actorUserId = i.actor,
             action = i.action.substringBefore(':'), beforeJson = before?.let(json::writeValueAsString), afterJson = json.writeValueAsString(after), reason = i.reason, idempotencyKey = i.key, intentHash = i.hash))
