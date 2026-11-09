@@ -32,10 +32,19 @@ interface AdminAuthAuditService {
 }
 
 @Service
-class LoggingAdminAuthAuditService : AdminAuthAuditService {
-    private val logger = LoggerFactory.getLogger(LoggingAdminAuthAuditService::class.java)
+class PersistentAdminAuthAuditService(
+    private val journal: dev.orestegabo.sequo_api.domain.admin.ActivityJournalWriter,
+) : AdminAuthAuditService {
+    private val logger = LoggerFactory.getLogger(PersistentAdminAuthAuditService::class.java)
 
     override fun record(event: AdminAuthAuditEvent) {
+        journal.append(dev.orestegabo.sequo_api.domain.admin.ActivityJournalRecord(
+            operationId = event.requestId ?: java.util.UUID.randomUUID().toString(),
+            phase = "AUTH_EVENT", actorUserId = event.userId,
+            action = "ADMIN_AUTH ${event.type}",
+            targetReference = event.requestId?.let { "requestId=$it" } ?: "",
+            createdAt = event.occurredAt,
+        ))
         logger.info(
             "Admin auth audit event type={} occurredAt={} userId={} requestId={} clientType={} provider={}",
             event.type,
