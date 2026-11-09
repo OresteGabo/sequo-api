@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="dev.orestegabo.sequo.fixture" />
+        <package android:name="dev.orestegabo.sequovendor.fixture" />
+        <package android:name="dev.orestegabo.sequorider.fixture" />
+        <package android:name="dev.orestegabo.sequohub.fixture" />
+    </queries>
+    <application android:allowBackup="false" android:label="SEQUO fixture UI checks" android:supportsRtl="true" />
+</manifest>
