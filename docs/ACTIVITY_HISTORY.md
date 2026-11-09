@@ -68,3 +68,25 @@ Before production activation: run ActivityJournalHttpTest,
 AdminUserAccessHttpTest and AdminAuthControllerEmailCodeTest; build the admin
 website; validate V64 and its immutable trigger against an isolated PostgreSQL
 copy. Do not edit already-applied Flyway migrations.
+
+## Deployment verification — 9 November 2026
+
+- API revision `7635b0acae3be14f0152ab26c32bae3816084eaf`, release
+  `sequo-activity-20261109-01`; production Flyway version 64 and public readiness UP.
+- Admin website revision `aacc6e7b0caeda80bdd05eefeb19e00217655b3d` deployed
+  successfully through Vercel. Activity history loaded in Safari using the
+  existing Owner session. No test mutations were made to production accounts.
+- 40 backend checks passed across the journal, account access, email login,
+  concurrent email verification, operational controls, enrollment and relay
+  administration; all four website permission checks and the production build passed.
+- An isolated PostgreSQL database copy validated schema migration, unfiltered,
+  actor and date-filtered history reads, and persistent actor/target/failure
+  evidence from a rejected administrator mutation. UPDATE, DELETE and TRUNCATE
+  were each rejected by the append-only trigger. The copy used its own signing
+  key and was removed after validation.
+- GitHub Actions could not start because of the existing account billing lock.
+  The tested artifact was deployed using the established API-only manual fallback.
+  Its SHA-256 is
+  `a3bdabe8b6fda58792f0f3bbe9275893188229726933c83b2fb4fb0bd92c7bb6`.
+  A private pre-deployment database backup and rollback environment were retained
+  on the VPS; production secrets, identities, roles and paid-launch gates were preserved.
