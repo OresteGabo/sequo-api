@@ -1,0 +1,29 @@
+spring:
+  config:
+    import: classpath:application-prod.yml
+sequo:
+  demo:
+    access-code: ${DEMO_ACCESS_CODE}
+    public-url: ${DEMO_PUBLIC_URL}
+  auth:
+    jwt:
+      issuer: sequo-demo-v1
+      audience: sequo-demo-mobile
+  wallets:
+    yas-togo:
+      api-base-url: ""
+      api-key: ""
+      merchant-account-id: ""
+      webhook-secret: ""
+    moov-africa:
+      api-base-url: ""
+      api-key: ""
+      merchant-account-id: ""
+      webhook-secret: ""
+  cart:
+    straight-line-dispatch-origin: 6.1725,1.2314
+  merchant-fulfillment:
+    response-deadline:
+      enabled: false
+      scheduler:
+        enabled: false

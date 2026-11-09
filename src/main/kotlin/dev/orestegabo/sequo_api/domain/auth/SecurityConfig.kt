@@ -45,7 +45,7 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers(HttpMethod.GET, "/relay-operator.html", "/relay-operator.js").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/relay-operator.html", "/relay-operator.js", "/api/demo/images/*").permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                     .requestMatchers("/api/v1/auth/logout-all").authenticated()
                     .requestMatchers("/api/v1/auth/me", "/api/v1/auth/sessions/**").authenticated()

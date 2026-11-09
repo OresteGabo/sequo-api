@@ -66,8 +66,9 @@ class CustomerCartCheckoutService(
     paymentProcessor: PaymentProcessor,
     pricing: DeliveryPricingService,
     private val references: PublicReferenceRegistry? = null,
+    private val demo: dev.orestegabo.sequo_api.domain.demo.DemoEnvironment? = null,
 ) {
-    private val processor = RegularOrderProcessor(paymentProcessor, pricing)
+    private val processor = RegularOrderProcessor(paymentProcessor, pricing, allowDemoIllustrations = demo != null)
     private val mapper = ObjectMapper()
 
     @Transactional
@@ -108,6 +109,7 @@ class CustomerCartCheckoutService(
             val category = dev.orestegabo.sequo_api.domain.relay.orderCategory(product.category, product.kind)
             val capturedAt = product.capturedAtLabel?.let { runCatching { Instant.parse(it) }.getOrNull() }
             val photo = when {
+                demo != null && product.id.startsWith("demo-v1-") -> ProductPhotoEvidence.DemoIllustration
                 product.cameraVerified && capturedAt != null -> ProductPhotoEvidence.LiveCameraCapture(capturedAt.toEpochMilli())
                 product.kind == CatalogProductKind.GenericSealedItem && !product.photoRequired && !product.imageUrl.isNullOrBlank() ->
                     ProductPhotoEvidence.GenericCatalogImage

@@ -669,6 +669,7 @@ private fun OrderLineRequest.photoEvidenceType(): String =
     when (photoEvidence) {
         is ProductPhotoEvidence.LiveCameraCapture -> "LIVE_CAMERA_CAPTURE"
         ProductPhotoEvidence.GenericCatalogImage -> "GENERIC_CATALOG_IMAGE"
+        ProductPhotoEvidence.DemoIllustration -> "DEMO_ILLUSTRATION"
         ProductPhotoEvidence.Missing -> "MISSING"
         ProductPhotoEvidence.GalleryUpload -> "GALLERY_UPLOAD"
     }

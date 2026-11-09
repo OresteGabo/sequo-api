@@ -324,6 +324,7 @@ private fun OrderLineRequest.toPendingPayload() = PendingOrderLineRequestPayload
     photoEvidenceType = when (val evidence = photoEvidence) {
         is ProductPhotoEvidence.LiveCameraCapture -> "LIVE_CAMERA_CAPTURE"
         ProductPhotoEvidence.GenericCatalogImage -> "GENERIC_CATALOG_IMAGE"
+        ProductPhotoEvidence.DemoIllustration -> "DEMO_ILLUSTRATION"
         ProductPhotoEvidence.Missing -> "MISSING"
         ProductPhotoEvidence.GalleryUpload -> "GALLERY_UPLOAD"
     },
@@ -366,6 +367,7 @@ private fun PendingOrderLineRequestPayload.toRequest() = OrderLineRequest(
     photoEvidence = when (photoEvidenceType) {
         "LIVE_CAMERA_CAPTURE" -> ProductPhotoEvidence.LiveCameraCapture(capturedAtEpochMillis ?: 0)
         "GENERIC_CATALOG_IMAGE" -> ProductPhotoEvidence.GenericCatalogImage
+        "DEMO_ILLUSTRATION" -> ProductPhotoEvidence.DemoIllustration
         "MISSING" -> ProductPhotoEvidence.Missing
         "GALLERY_UPLOAD" -> ProductPhotoEvidence.GalleryUpload
         else -> throw IllegalArgumentException("Unsupported pending checkout photo evidence type.")

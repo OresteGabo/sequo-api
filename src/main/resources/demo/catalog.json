@@ -1,0 +1,962 @@
+[
+  {
+    "id": "demo-v1-shop-bistro",
+    "name": "Bistro Demo",
+    "category": "food",
+    "area": "Tokoin",
+    "color": "#D86B44",
+    "kind": "Repas chauds",
+    "products": [
+      {
+        "id": "demo-v1-bistro-01",
+        "name": "Riz au poulet",
+        "code": "01.01",
+        "price": 1800,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-02",
+        "name": "Attieke poisson",
+        "code": "01.02",
+        "price": 1950,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-03",
+        "name": "Pates tomate",
+        "code": "01.03",
+        "price": 2100,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-04",
+        "name": "Poulet grille",
+        "code": "01.04",
+        "price": 2250,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-05",
+        "name": "Brochettes boeuf",
+        "code": "01.05",
+        "price": 2400,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-06",
+        "name": "Riz aux legumes",
+        "code": "01.06",
+        "price": 2550,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-07",
+        "name": "Sandwich oeuf",
+        "code": "01.07",
+        "price": 2700,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-08",
+        "name": "Burger maison",
+        "code": "01.08",
+        "price": 2850,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-09",
+        "name": "Frites croustillantes",
+        "code": "01.09",
+        "price": 3000,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-bistro-10",
+        "name": "Salade fraiche",
+        "code": "01.10",
+        "price": 3150,
+        "mode": "meal"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-saveurs",
+    "name": "Saveurs Demo",
+    "category": "food",
+    "area": "Adidogome",
+    "color": "#B95054",
+    "kind": "Cuisine du quartier",
+    "products": [
+      {
+        "id": "demo-v1-saveurs-01",
+        "name": "Akoume sauce",
+        "code": "02.01",
+        "price": 1500,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-02",
+        "name": "Fufu poulet",
+        "code": "02.02",
+        "price": 1650,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-03",
+        "name": "Riz sauce arachide",
+        "code": "02.03",
+        "price": 1800,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-04",
+        "name": "Poisson braise",
+        "code": "02.04",
+        "price": 1950,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-05",
+        "name": "Haricots cuisines",
+        "code": "02.05",
+        "price": 2100,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-06",
+        "name": "Alloco poulet",
+        "code": "02.06",
+        "price": 2250,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-07",
+        "name": "Omelette pain",
+        "code": "02.07",
+        "price": 2400,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-08",
+        "name": "Couscous legumes",
+        "code": "02.08",
+        "price": 2550,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-09",
+        "name": "Patate douce",
+        "code": "02.09",
+        "price": 2700,
+        "mode": "meal"
+      },
+      {
+        "id": "demo-v1-saveurs-10",
+        "name": "Soupe legumes",
+        "code": "02.10",
+        "price": 2850,
+        "mode": "meal"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-grains",
+    "name": "Grains Demo",
+    "category": "grocery",
+    "area": "Assigame",
+    "color": "#B18B3C",
+    "kind": "Grains et cereales",
+    "products": [
+      {
+        "id": "demo-v1-grains-01",
+        "name": "Riz blanc",
+        "code": "03.01",
+        "price": 950,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-02",
+        "name": "Riz parfume",
+        "code": "03.02",
+        "price": 1100,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-03",
+        "name": "Haricots rouges",
+        "code": "03.03",
+        "price": 1250,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-04",
+        "name": "Haricots blancs",
+        "code": "03.04",
+        "price": 1400,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-05",
+        "name": "Lentilles vertes",
+        "code": "03.05",
+        "price": 1550,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-06",
+        "name": "Mais sec",
+        "code": "03.06",
+        "price": 1700,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-07",
+        "name": "Mil dore",
+        "code": "03.07",
+        "price": 1850,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-08",
+        "name": "Sorgho rouge",
+        "code": "03.08",
+        "price": 2000,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-09",
+        "name": "Pois chiches",
+        "code": "03.09",
+        "price": 2150,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-grains-10",
+        "name": "Farine de mais",
+        "code": "03.10",
+        "price": 2300,
+        "mode": "kg"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-marche",
+    "name": "Marche Demo",
+    "category": "grocery",
+    "area": "Be-Kpota",
+    "color": "#4D9568",
+    "kind": "Fruits et legumes",
+    "products": [
+      {
+        "id": "demo-v1-marche-01",
+        "name": "Tomates",
+        "code": "04.01",
+        "price": 1200,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-02",
+        "name": "Oignons",
+        "code": "04.02",
+        "price": 1350,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-03",
+        "name": "Pommes de terre",
+        "code": "04.03",
+        "price": 1500,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-04",
+        "name": "Carottes",
+        "code": "04.04",
+        "price": 1650,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-05",
+        "name": "Bananes",
+        "code": "04.05",
+        "price": 1800,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-06",
+        "name": "Oranges",
+        "code": "04.06",
+        "price": 1950,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-07",
+        "name": "Pommes",
+        "code": "04.07",
+        "price": 2100,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-08",
+        "name": "Mangues",
+        "code": "04.08",
+        "price": 2250,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-09",
+        "name": "Avocats",
+        "code": "04.09",
+        "price": 2400,
+        "mode": "kg"
+      },
+      {
+        "id": "demo-v1-marche-10",
+        "name": "Aubergines",
+        "code": "04.10",
+        "price": 2550,
+        "mode": "kg"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-boissons",
+    "name": "Boissons Demo",
+    "category": "grocery",
+    "area": "Ablogame",
+    "color": "#388D9C",
+    "kind": "Boissons et huiles",
+    "products": [
+      {
+        "id": "demo-v1-boissons-01",
+        "name": "Jus de mangue",
+        "code": "05.01",
+        "price": 1600,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-02",
+        "name": "Jus ananas",
+        "code": "05.02",
+        "price": 1750,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-03",
+        "name": "Jus orange",
+        "code": "05.03",
+        "price": 1900,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-04",
+        "name": "Bissap",
+        "code": "05.04",
+        "price": 2050,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-05",
+        "name": "Gingembre",
+        "code": "05.05",
+        "price": 2200,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-06",
+        "name": "Huile arachide",
+        "code": "05.06",
+        "price": 2350,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-07",
+        "name": "Huile tournesol",
+        "code": "05.07",
+        "price": 2500,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-08",
+        "name": "Sirop citron",
+        "code": "05.08",
+        "price": 2650,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-09",
+        "name": "Jus tamarin",
+        "code": "05.09",
+        "price": 2800,
+        "mode": "l"
+      },
+      {
+        "id": "demo-v1-boissons-10",
+        "name": "Eau citronnee",
+        "code": "05.10",
+        "price": 2950,
+        "mode": "l"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-mode",
+    "name": "Mode Demo",
+    "category": "fashion",
+    "area": "Tokoin",
+    "color": "#8C6BB2",
+    "kind": "Vetements adultes",
+    "products": [
+      {
+        "id": "demo-v1-mode-01",
+        "name": "T-shirt essentiel",
+        "code": "06.01",
+        "price": 4500,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-02",
+        "name": "Chemise coton",
+        "code": "06.02",
+        "price": 4650,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-03",
+        "name": "Robe fluide",
+        "code": "06.03",
+        "price": 4800,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-04",
+        "name": "Pantalon droit",
+        "code": "06.04",
+        "price": 4950,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-05",
+        "name": "Polo classique",
+        "code": "06.05",
+        "price": 5100,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-06",
+        "name": "Veste legere",
+        "code": "06.06",
+        "price": 5250,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-07",
+        "name": "Jupe longue",
+        "code": "06.07",
+        "price": 5400,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-08",
+        "name": "Sweat doux",
+        "code": "06.08",
+        "price": 5550,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-09",
+        "name": "Short quotidien",
+        "code": "06.09",
+        "price": 5700,
+        "mode": "clothes"
+      },
+      {
+        "id": "demo-v1-mode-10",
+        "name": "Blouse elegante",
+        "code": "06.10",
+        "price": 5850,
+        "mode": "clothes"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-petits",
+    "name": "Petits Demo",
+    "category": "fashion",
+    "area": "Adidogome",
+    "color": "#BF759E",
+    "kind": "Vetements enfants",
+    "products": [
+      {
+        "id": "demo-v1-petits-01",
+        "name": "T-shirt enfant",
+        "code": "07.01",
+        "price": 3000,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-02",
+        "name": "Robe enfant",
+        "code": "07.02",
+        "price": 3150,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-03",
+        "name": "Pantalon enfant",
+        "code": "07.03",
+        "price": 3300,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-04",
+        "name": "Short enfant",
+        "code": "07.04",
+        "price": 3450,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-05",
+        "name": "Pyjama enfant",
+        "code": "07.05",
+        "price": 3600,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-06",
+        "name": "Sweat enfant",
+        "code": "07.06",
+        "price": 3750,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-07",
+        "name": "Polo enfant",
+        "code": "07.07",
+        "price": 3900,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-08",
+        "name": "Jupe enfant",
+        "code": "07.08",
+        "price": 4050,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-09",
+        "name": "Veste enfant",
+        "code": "07.09",
+        "price": 4200,
+        "mode": "kids"
+      },
+      {
+        "id": "demo-v1-petits-10",
+        "name": "Ensemble enfant",
+        "code": "07.10",
+        "price": 4350,
+        "mode": "kids"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-pas",
+    "name": "Pas Demo",
+    "category": "fashion",
+    "area": "Hedzranawoe",
+    "color": "#657BC0",
+    "kind": "Chaussures",
+    "products": [
+      {
+        "id": "demo-v1-pas-01",
+        "name": "Baskets urbaines",
+        "code": "08.01",
+        "price": 6500,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-02",
+        "name": "Sandales confort",
+        "code": "08.02",
+        "price": 6650,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-03",
+        "name": "Chaussures ville",
+        "code": "08.03",
+        "price": 6800,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-04",
+        "name": "Baskets sport",
+        "code": "08.04",
+        "price": 6950,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-05",
+        "name": "Mocassins souples",
+        "code": "08.05",
+        "price": 7100,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-06",
+        "name": "Tennis toile",
+        "code": "08.06",
+        "price": 7250,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-07",
+        "name": "Sandales cuir",
+        "code": "08.07",
+        "price": 7400,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-08",
+        "name": "Bottines legeres",
+        "code": "08.08",
+        "price": 7550,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-09",
+        "name": "Claquettes plage",
+        "code": "08.09",
+        "price": 7700,
+        "mode": "shoes"
+      },
+      {
+        "id": "demo-v1-pas-10",
+        "name": "Baskets montantes",
+        "code": "08.10",
+        "price": 7850,
+        "mode": "shoes"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-tech",
+    "name": "Tech Demo",
+    "category": "electronics",
+    "area": "Hedzranawoe",
+    "color": "#4C83A8",
+    "kind": "Accessoires electroniques",
+    "products": [
+      {
+        "id": "demo-v1-tech-01",
+        "name": "Chargeur USB-C",
+        "code": "09.01",
+        "price": 3500,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-02",
+        "name": "Cable tresse",
+        "code": "09.02",
+        "price": 3650,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-03",
+        "name": "Ecouteurs filaires",
+        "code": "09.03",
+        "price": 3800,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-04",
+        "name": "Batterie externe",
+        "code": "09.04",
+        "price": 3950,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-05",
+        "name": "Support telephone",
+        "code": "09.05",
+        "price": 4100,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-06",
+        "name": "Lampe USB",
+        "code": "09.06",
+        "price": 4250,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-07",
+        "name": "Souris sans fil",
+        "code": "09.07",
+        "price": 4400,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-08",
+        "name": "Clavier compact",
+        "code": "09.08",
+        "price": 4550,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-09",
+        "name": "Hub USB",
+        "code": "09.09",
+        "price": 4700,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-tech-10",
+        "name": "Enceinte portable",
+        "code": "09.10",
+        "price": 4850,
+        "mode": "unit"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-maison",
+    "name": "Maison Demo",
+    "category": "home",
+    "area": "Agoe",
+    "color": "#BD8554",
+    "kind": "Maison et cuisine",
+    "products": [
+      {
+        "id": "demo-v1-maison-01",
+        "name": "Mug ceramique",
+        "code": "10.01",
+        "price": 2200,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-02",
+        "name": "Assiette creuse",
+        "code": "10.02",
+        "price": 2350,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-03",
+        "name": "Boite repas",
+        "code": "10.03",
+        "price": 2500,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-04",
+        "name": "Gourde inox",
+        "code": "10.04",
+        "price": 2650,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-05",
+        "name": "Torchons coton",
+        "code": "10.05",
+        "price": 2800,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-06",
+        "name": "Bol bambou",
+        "code": "10.06",
+        "price": 2950,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-07",
+        "name": "Spatule bois",
+        "code": "10.07",
+        "price": 3100,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-08",
+        "name": "Plateau repas",
+        "code": "10.08",
+        "price": 3250,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-09",
+        "name": "Pot rangement",
+        "code": "10.09",
+        "price": 3400,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-maison-10",
+        "name": "Coussin doux",
+        "code": "10.10",
+        "price": 3550,
+        "mode": "unit"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-tissus",
+    "name": "Tissus Demo",
+    "category": "fashion",
+    "area": "Assigame",
+    "color": "#A36D53",
+    "kind": "Tissus au metre",
+    "products": [
+      {
+        "id": "demo-v1-tissus-01",
+        "name": "Tissu indigo",
+        "code": "11.01",
+        "price": 2800,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-02",
+        "name": "Tissu soleil",
+        "code": "11.02",
+        "price": 2950,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-03",
+        "name": "Tissu foret",
+        "code": "11.03",
+        "price": 3100,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-04",
+        "name": "Tissu ocean",
+        "code": "11.04",
+        "price": 3250,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-05",
+        "name": "Tissu corail",
+        "code": "11.05",
+        "price": 3400,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-06",
+        "name": "Tissu sable",
+        "code": "11.06",
+        "price": 3550,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-07",
+        "name": "Tissu violet",
+        "code": "11.07",
+        "price": 3700,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-08",
+        "name": "Tissu ciel",
+        "code": "11.08",
+        "price": 3850,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-09",
+        "name": "Tissu terracotta",
+        "code": "11.09",
+        "price": 4000,
+        "mode": "m"
+      },
+      {
+        "id": "demo-v1-tissus-10",
+        "name": "Tissu ivoire",
+        "code": "11.10",
+        "price": 4150,
+        "mode": "m"
+      }
+    ]
+  },
+  {
+    "id": "demo-v1-shop-essentiels",
+    "name": "Essentiels Demo",
+    "category": "home",
+    "area": "Be-Kpota",
+    "color": "#62928E",
+    "kind": "Quotidien et bureau",
+    "products": [
+      {
+        "id": "demo-v1-essentiels-01",
+        "name": "Carnet lignes",
+        "code": "12.01",
+        "price": 1700,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-02",
+        "name": "Stylos couleurs",
+        "code": "12.02",
+        "price": 1850,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-03",
+        "name": "Trousse zippee",
+        "code": "12.03",
+        "price": 2000,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-04",
+        "name": "Sac courses",
+        "code": "12.04",
+        "price": 2150,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-05",
+        "name": "Parapluie compact",
+        "code": "12.05",
+        "price": 2300,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-06",
+        "name": "Serviette coton",
+        "code": "12.06",
+        "price": 2450,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-07",
+        "name": "Brosse menage",
+        "code": "12.07",
+        "price": 2600,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-08",
+        "name": "Panier rangement",
+        "code": "12.08",
+        "price": 2750,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-09",
+        "name": "Bouteille isotherme",
+        "code": "12.09",
+        "price": 2900,
+        "mode": "unit"
+      },
+      {
+        "id": "demo-v1-essentiels-10",
+        "name": "Pochette documents",
+        "code": "12.10",
+        "price": 3050,
+        "mode": "unit"
+      }
+    ]
+  }
+]

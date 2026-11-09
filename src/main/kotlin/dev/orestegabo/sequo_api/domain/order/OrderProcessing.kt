@@ -58,6 +58,7 @@ enum class FulfillmentPriority {
 sealed class ProductPhotoEvidence {
     data class LiveCameraCapture(val capturedAtEpochMillis: Long) : ProductPhotoEvidence()
     object GenericCatalogImage : ProductPhotoEvidence()
+    object DemoIllustration : ProductPhotoEvidence()
     object Missing : ProductPhotoEvidence()
     object GalleryUpload : ProductPhotoEvidence()
 }
@@ -210,6 +211,7 @@ abstract class SequoOrderProcessor(
     private val paymentProcessor: PaymentProcessor,
     private val pricingService: DeliveryPricingService,
     private val confirmationSender: OrderConfirmationSender,
+    private val allowDemoIllustrations: Boolean = false,
 ) {
     // Template Method: subclasses customize service-level differences while this class owns the invariant order flow.
     protected abstract val processorName: String
@@ -297,7 +299,7 @@ abstract class SequoOrderProcessor(
         }
 
         request.lines.forEachIndexed { index, line ->
-            validateLine(index, line)?.let { return it }
+            validateLine(index, line, allowDemoIllustrations)?.let { return it }
         }
         request.lines.subtotalCfaOrNull()
             ?: return OrderRejectionReason("subtotal_overflow", "Order item subtotal is too large.")
@@ -377,7 +379,8 @@ class RegularOrderProcessor(
     paymentProcessor: PaymentProcessor,
     pricingService: DeliveryPricingService,
     confirmationSender: OrderConfirmationSender = InAppOrderConfirmationSender(),
-) : SequoOrderProcessor(paymentProcessor, pricingService, confirmationSender) {
+    allowDemoIllustrations: Boolean = false,
+) : SequoOrderProcessor(paymentProcessor, pricingService, confirmationSender, allowDemoIllustrations) {
     override val processorName: String = "RegularOrderProcessor"
 
     override fun supports(serviceLevel: OrderServiceLevel): Boolean =
@@ -415,7 +418,7 @@ class OrderProcessorFactory(
         if (serviceLevel.isPrime) primeOrderProcessor else regularOrderProcessor
 }
 
-private fun validateLine(index: Int, line: OrderLineRequest): OrderRejectionReason? {
+private fun validateLine(index: Int, line: OrderLineRequest, allowDemoIllustrations: Boolean): OrderRejectionReason? {
     val prefix = "Line ${index + 1}"
     if (line.productId.isBlank()) return OrderRejectionReason("missing_product_id", "$prefix requires a product id.")
     if (line.sellerId.isBlank()) return OrderRejectionReason("missing_seller_id", "$prefix requires a seller id.")
@@ -431,7 +434,7 @@ private fun validateLine(index: Int, line: OrderLineRequest): OrderRejectionReas
             return OrderRejectionReason("invalid_negotiated_price", "$prefix negotiated price cannot exceed list price.")
         }
     }
-    if (!line.hasAllowedPhotoEvidence()) {
+    if (!line.hasAllowedPhotoEvidence(allowDemoIllustrations)) {
         return OrderRejectionReason(
             code = "invalid_photo_evidence",
             message = "$prefix requires a real-time seller photo or an allowed generic catalog image.",
@@ -443,10 +446,11 @@ private fun validateLine(index: Int, line: OrderLineRequest): OrderRejectionReas
     return null
 }
 
-private fun OrderLineRequest.hasAllowedPhotoEvidence(): Boolean =
+private fun OrderLineRequest.hasAllowedPhotoEvidence(allowDemoIllustrations: Boolean): Boolean =
     when (photoEvidence) {
         is ProductPhotoEvidence.LiveCameraCapture -> true
         ProductPhotoEvidence.GenericCatalogImage -> category == OrderProductCategory.GenericSealedItem
+        ProductPhotoEvidence.DemoIllustration -> allowDemoIllustrations && productId.startsWith("demo-v1-")
         ProductPhotoEvidence.Missing,
         ProductPhotoEvidence.GalleryUpload -> false
     }

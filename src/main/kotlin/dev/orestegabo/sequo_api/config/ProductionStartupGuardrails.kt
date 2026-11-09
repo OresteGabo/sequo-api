@@ -137,7 +137,7 @@ object StartupSecurityChecks {
     }
 
     private const val MIN_SECRET_LENGTH = 32
-    private val STRICT_SECURITY_PROFILES = setOf("docker", "prod", "production", "stage", "staging")
+    private val STRICT_SECURITY_PROFILES = setOf("docker", "prod", "production", "stage", "staging", "demo")
     private val UNSAFE_DDL_AUTO_VALUES = setOf("create", "create-drop", "update")
     private val KNOWN_UNSAFE_JWT_SECRETS = setOf(
         "sequo_auth_dev_secret_key_2026_v1",
