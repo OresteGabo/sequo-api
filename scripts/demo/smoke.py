@@ -13,7 +13,7 @@ def request(path,body=None,token=None,method=None):
         raise RuntimeError(f'{path}: HTTP {e.code}; {e.read().decode()[:400]}') from None
 for i in range(30):
     try:
-        if request('/actuator/health')['status']=='UP':break
+        if request('/actuator/health/readiness')['status']=='UP':break
     except Exception:pass
     time.sleep(2)
 else:raise RuntimeError('Demo API did not become ready')
@@ -24,7 +24,7 @@ assert all(p['name'].startswith('[DEMO]') and not p['cameraVerified'] for p in p
 for p in products:
     with urllib.request.urlopen(base+'/api/demo/images/'+p['id'],timeout=8) as r:
         assert r.status==200 and r.headers.get_content_type()=='image/jpeg' and r.read(2)==b'\xff\xd8'
-token=request('/api/auth/demo/session',{'accessCode':env['DEMO_ACCESS_CODE'],'deviceId':'demo-smoke-'+str(uuid.uuid4())})['accessToken']
+token=request('/api/auth/demo/session',{'accessCode':env['DEMO_ACCESS_CODE'],'deviceId':'demo-server-smoke-v1'})['accessToken']
 assert request('/api/auth/me',token=token)['id']=='demo-v1-customer'
 # No normal order is created from anonymous or unknown code access.
 for path,body in [('/api/auth/demo/session',{'accessCode':'invalid','deviceId':'invalid'}),('/api/demo/checkouts/unknown/advance',{'action':'PAY'})]:

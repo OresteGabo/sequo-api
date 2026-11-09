@@ -90,9 +90,10 @@ class DemoJourney(private val environment: DemoEnvironment, private val checkout
                 require(riderId in DemoEnvironment.RIDERS) { "Choose a test rider." }
                 require(parts.size<=4) { "Use up to four shops per demo delivery, one test rider per package." }
                 for((i,part) in parts.withIndex()) {
+                    val fee=order.deliveryFeeCfa/parts.size + if(i < order.deliveryFeeCfa % parts.size) 1 else 0
                     val mission=missions.findByMerchantSubOrderId(part.id)?.let { delivery.get(it.id!!) }
                         ?: delivery.create(CreateDeliveryMissionCommand("DEMO-${UUID.nameUUIDFromBytes(part.id.toByteArray())}",order.id,part.id,DeliveryMissionRecordMode.EXPRESS,DeliveryMissionRecordDestination.CUSTOMER_ADDRESS,
-                            customerDeliveryFeeCfa=order.deliveryFeeCfa/parts.size,courierFeeCfa=order.deliveryFeeCfa/parts.size))
+                            customerDeliveryFeeCfa=fee,courierFeeCfa=fee))
                     val courier=mission.courierId ?: DemoEnvironment.RIDERS[(DemoEnvironment.RIDERS.indexOf(riderId)+i)%4]
                     if(mission.courierId==null) success(assignments.assign(mission.id,courier,DemoEnvironment.ADMIN,"DEMO assignment requested by $customer","demo-assign-${mission.id}"))
                     if(delivery.get(mission.id)?.status==DeliveryMissionRecordStatus.CREATED) success(assignments.offer(mission.id,DemoEnvironment.ADMIN,"DEMO rider offer","demo-offer-${mission.id}"))

@@ -32,7 +32,11 @@ class DemoCatalog(private val environment: DemoEnvironment, private val users: U
         jdbc.update("update products set status='INACTIVE'")
         jdbc.update("update merchant_storefronts set active=false")
         jdbc.update("update catalog_promotions set active=false")
-        fun user(id: String, name: String, role: RoleCode) = users.saveAndFlush(User(id=id, email="$id@demo.invalid", name="[DEMO] $name", roles=mutableSetOf(role)))
+        fun user(id: String, name: String, role: RoleCode) {
+            // User has a generated JPA identity: explicit fixture IDs must be inserted, not merged as detached users.
+            jdbc.update("insert into users(id,email,display_name,is_active,provider,status,created_at,updated_at) values (?,?,?,true,'EMAIL','ACTIVE',current_timestamp,current_timestamp)",id,"$id@demo.invalid","[DEMO] $name")
+            jdbc.update("insert into user_roles(user_id,role_code) values (?,?)",id,role.name)
+        }
         user(DemoEnvironment.CUSTOMER, "Client Sequo", RoleCode.CUSTOMER)
         user(DemoEnvironment.ADMIN, "Operations", RoleCode.SUPER_ADMIN)
         for ((i,id) in DemoEnvironment.RIDERS.withIndex()) {
