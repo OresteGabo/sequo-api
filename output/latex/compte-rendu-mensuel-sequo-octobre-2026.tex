@@ -1,0 +1,298 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{array,booktabs,enumitem,fancyhdr,lastpage,lmodern,ragged2e,tabularx,tikz}
+\usepackage[table]{xcolor}
+\usepackage{hyperref}
+\renewcommand{\familydefault}{\sfdefault}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlength{\footskip}{25pt}
+\setlist[itemize]{label=\textbullet,leftmargin=1.2em,itemsep=0.22em,topsep=0.2em}
+\definecolor{SequoInk}{HTML}{1F2933}
+\definecolor{SequoMuted}{HTML}{59636F}
+\definecolor{SequoGreen}{HTML}{1F7A5B}
+\definecolor{SequoBlue}{HTML}{164E63}
+\definecolor{SequoPale}{HTML}{F3F7F5}
+\definecolor{SequoLine}{HTML}{D9E2DE}
+\definecolor{SequoHeader}{HTML}{E9F1EE}
+\definecolor{GaboOlive}{HTML}{6D5E0F}
+\definecolor{GaboCream}{HTML}{FFF9EE}
+\arrayrulecolor{SequoLine}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\hypersetup{colorlinks=true,urlcolor=SequoBlue,linkcolor=SequoBlue,pdftitle={Compte rendu mensuel Sequo - Octobre 2026},pdfauthor={Muhirwa Gabo Oreste}}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[L]{\small\color{SequoMuted}Compte rendu mensuel - Sequo - Octobre 2026}
+\fancyfoot[R]{\small\color{SequoMuted}Page \thepage\ sur \pageref{LastPage}}
+\newcommand{\gabologo}{%
+  \begin{tikzpicture}[x=0.85pt,y=0.85pt]
+    \fill[GaboCream,rounded corners=32pt] (0,0) rectangle (150,150);
+    \draw[color=GaboOlive,line width=13pt,line join=round,line cap=round]
+      (106,108) -- (64,108) -- (37,75) -- (64,42) -- (106,42);
+    \draw[color=GaboOlive,line width=13pt,line cap=round] (88,75) -- (124,75);
+    \fill[GaboOlive] (126,75) circle (6.5pt);
+  \end{tikzpicture}%
+}
+\newcommand{\sectiontitle}[1]{\vspace{0.45em}{\Large\bfseries\color{SequoInk}#1}\par\vspace{0.1em}}
+\newcommand{\subsectiontitle}[1]{\vspace{0.3em}{\large\bfseries\color{SequoInk}#1}\par}
+\newcommand{\simpleexplanation}[1]{{\small\textbf{\color{SequoBlue}Explication simple.} \color{SequoMuted}#1\par}}
+\newcommand{\metric}[2]{\begin{minipage}[t]{0.30\linewidth}{\LARGE\bfseries\color{SequoGreen}#1}\par{\small\color{SequoMuted}#2}\end{minipage}}
+\newcommand{\statuspartial}{\textbf{\color{SequoBlue}En cours}}
+\newcommand{\statuspending}{\textbf{\color{SequoMuted}À finaliser}}
+\newcommand{\evidence}[1]{\par{\footnotesize\color{SequoMuted}Repères Git : #1.\par}}
+
+\begin{document}
+\color{SequoInk}
+\pagenumbering{roman}
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[SequoPale] (current page.north west) rectangle ([yshift=-4.8cm]current page.north east);
+    \fill[GaboOlive] (current page.north west) rectangle ([xshift=0.38cm]current page.south west);
+    \fill[SequoHeader] ([yshift=3.4cm]current page.south west) rectangle (current page.south east);
+  \end{tikzpicture}
+  \vspace*{0.7cm}
+  \begin{minipage}[t]{0.52\linewidth}
+    \resizebox{1.65cm}{!}{\gabologo}\hspace{0.35cm}%
+    \raisebox{0.48cm}{\Large\bfseries\color{GaboOlive}GABO}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.38\linewidth}
+    \raggedleft{\small\bfseries RAPPORT MENSUEL}\par
+    {\small Écosystème Sequo}\par
+    {\small\color{SequoMuted}Établi le 8 novembre 2026}
+  \end{minipage}\par
+  \vspace{2.0cm}
+  {\small\bfseries\color{SequoMuted}Période de suivi}\par
+  {\LARGE\bfseries\color{GaboOlive}Octobre 2026}\par
+  \vspace{0.45cm}
+  {\fontsize{31}{34}\selectfont\bfseries Compte rendu mensuel\\du travail accompli}\par
+  \vspace{0.35cm}
+  {\Large Projet Sequo}\par
+  \vspace{0.15cm}
+  {\large\color{SequoMuted}API, applications client, relais, livreur et vendeur, administration et sites web}\par
+  \vfill
+  {\renewcommand{\arraystretch}{1.22}
+  \begin{tabularx}{0.94\linewidth}{@{}L{4.0cm}Y@{}}
+    \toprule
+    \textbf{Période couverte} & Du 1er au 31 octobre 2026 \\
+    \textbf{Destinataire} & Gamal Tchadenu / SEQUO \\
+    \textbf{Préparé par} & Muhirwa Gabo Oreste \\
+    \textbf{Objet} & Bilan d'avancement du mois d'octobre 2026 \\
+    \textbf{Base de vérification} & Commits d'octobre des huit dépôts locaux consultés \\
+    \textbf{Format} & Rapport technique avec explications simples \\
+    \bottomrule
+  \end{tabularx}}\par
+  \vspace{0.55cm}
+  {\small\textbf{Notice de lecture.} Les passages intitulés \textit{Explication simple} reformulent les informations techniques pour un lecteur non développeur. Ils sont volontairement moins complets et moins précis que les détails techniques, afin d'en faciliter la compréhension. Ils ne remplacent ni les spécifications ni le code.}
+\end{titlepage}
+\pagenumbering{arabic}
+
+\sectiontitle{Périmètre et résumé exécutif}
+Monsieur Gamal,
+
+Ce rapport présente les travaux que j'ai enregistrés dans les dépôts Git du projet Sequo du 1er au 31 octobre 2026. Les réalisations présentées proviennent exclusivement des commits de cette période. Les travaux de septembre et les modifications de novembre ne sont pas comptabilisés.
+
+En octobre, j'ai commencé à relier plusieurs parcours applicatifs au serveur commun, développé l'application vendeur et les parcours livreur, et fait évoluer l'administration web vers un outil de consultation opérationnelle. J'ai également poursuivi l'authentification, la gestion des sessions, les contrôles d'accès et l'automatisation du déploiement.
+
+\simpleexplanation{Le travail du mois rapproche les différents outils Sequo d'un fonctionnement commun : consulter les produits depuis le serveur, traiter les colis au relais, préparer les commandes côté vendeur et suivre les missions côté livreur. Certaines fonctions restent toutefois locales, simulées ou dépendantes de services externes à raccorder.}
+
+\vspace{0.5em}
+\metric{474}{commits hors fusions en octobre}\hfill
+\metric{8}{dépôts examinés}\hfill
+\metric{7}{dépôts avec activité en octobre}
+\par\vspace{0.65em}
+
+\sectiontitle{Lecture du mois par projet}
+{\small\renewcommand{\arraystretch}{1.25}\rowcolors{2}{SequoPale}{white}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}Y@{}}
+\toprule\rowcolor{SequoHeader}\textbf{Projet} & \textbf{Avancement enregistré en octobre} \\
+\midrule
+Sequo API & Accès public au catalogue, évolution des comptes et sessions, routes vendeur/livreur/admin, migrations et déploiement automatique. \\
+Sequo & Catalogue distant, profil et sessions, connexion Google Android/iOS, traductions, navigation et premiers parcours locaux de retour et négociation. \\
+SequoHub & Raccordement de plusieurs opérations relais à l'API, réception, remise, retour et visibilité du stockage. \\
+SequoVendor & Création de l'application vendeur, commandes, catalogue, notifications et premiers raccordements serveur. \\
+SequoRider & Construction des parcours de mission et raccordement des missions, rémunérations consultables et notifications. \\
+sequo-admin & Tableau de bord, listes opérationnelles et connexion web approuvée depuis les applications. \\
+sequo-services & Ajustement du texte destiné aux commerçants sur la commission et les reversements. \\
+sequo-developers & Aucun commit d'octobre identifié dans l'historique de la branche locale examinée. \\
+\bottomrule
+\end{tabularx}}
+
+\newpage
+\sectiontitle{1. Sequo API : serveur et intégrations}
+\subsectiontitle{Catalogue et accès aux données}
+\begin{itemize}
+  \item Ouverture des routes de consultation publique du catalogue, des offres d'abonnement et des prestataires de paiement. Les mutations et la consultation des produits archivés restent soumises à authentification.
+  \item Amélioration des suggestions de produits par sous-catégorie et proximité de prix, avec tests associés.
+  \item Enrichissement du jeu de données de développement : commerçants, boutiques et produits simulés enregistrables en base. Ces données servent aux essais et ne représentent pas une activité commerciale réelle.
+  \item Ajout de routes vendeur pour créer, modifier et désactiver des produits, ainsi qu'une route de métadonnées photographiques. La prise de photo et son envoi complet depuis l'application restent à terminer.
+  \item Ajout de routes de missions limitées au périmètre du livreur connecté et de consultation de ses rémunérations. Ajout de vues de consultation pour l'administration web.
+\end{itemize}
+\evidence{\texttt{734145a}, \texttt{4370631}, \texttt{f79ceb3}, \texttt{dbdb59b}, \texttt{127b8e2}, \texttt{568edb7}, \texttt{fc09012}, \texttt{c720de0}, \texttt{b84d4a6}}
+\simpleexplanation{Le serveur fournit davantage de données et d'actions aux différentes applications. La consultation des produits peut se faire sans compte, tandis que les opérations personnelles ou de modification conservent leurs contrôles d'accès. Les produits de démonstration restent des données de test.}
+
+\subsectiontitle{Déploiement et base de données}
+\begin{itemize}
+  \item Ajustement des vérifications de santé du déploiement pour attendre le démarrage effectif du serveur.
+  \item Restauration des migrations Flyway incrémentales, afin de faire évoluer le schéma de base de données par étapes.
+  \item Mise à jour des procédures de déploiement automatique GitHub Actions et de l'exploitation sous l'utilisateur \texttt{ubuntu}, dans les notes serveur et la documentation de déploiement.
+\end{itemize}
+\evidence{\texttt{2e5a8e9}, \texttt{4d01c2a}, \texttt{573823e}, \texttt{dc10998}, \texttt{edd22a4}, \texttt{711baab}}
+\simpleexplanation{Ces changements fiabilisent la mise à jour du serveur : le contrôle de disponibilité attend son démarrage et les modifications de la base sont conservées sous forme d'étapes successives. Les commits documentent la procédure ; ils ne constituent pas, à eux seuls, un contrôle de disponibilité du service au jour du rapport.}
+
+\subsectiontitle{Paiements : préparation et blocages explicites}
+J'ai ajouté les interfaces d'intégration des prestataires Yas Togo et Moov Africa, ainsi que des tests vérifiant qu'un prestataire non raccordé ne produit pas de faux paiement validé. Côté client, des états d'attente ou d'indisponibilité ont également été ajoutés au parcours de paiement.
+
+\textbf{État en fin de période :} les encaissements, remboursements et versements réels via ces prestataires ne sont pas finalisés. L'affichage de montants ou de statuts internes ne signifie pas qu'un transfert d'argent est exécuté.
+\evidence{API \texttt{0deda12} ; Sequo \texttt{41f493d}}
+
+\newpage
+\sectiontitle{2. Authentification et sécurité des accès}
+\subsectiontitle{Comptes, identités et sessions}
+\begin{itemize}
+  \item Évolution du modèle d'authentification vers des identités multiples, des sessions par appareil et des demandes de validation temporaires, avec tables dédiées et adaptation des tests.
+  \item Ajout de parcours serveur pour codes WhatsApp, clés d'accès (\textit{passkeys}) et validation depuis un autre appareil. Leur présence dans le code ne vaut pas intégration complète des services externes ni validation de sécurité de bout en bout.
+  \item Amélioration de la normalisation des adresses e-mail et de la gestion du changement d'utilisateur sur un appareil.
+  \item Mise à jour des clients Google pour les différentes applications et plateformes, puis utilisation des identifiants OAuth de l'entreprise. Renforcement de la vérification des jetons Facebook.
+  \item Côté Sequo : stockage protégé des jetons Android/iOS, restauration et renouvellement de session, déconnexion distante, mémorisation du compte et infrastructure biométrique locale.
+\end{itemize}
+\evidence{API \texttt{ab8f447}, \texttt{e2447b4}, \texttt{d2f72ab}, \texttt{abf0005}, \texttt{da5350a}, \texttt{213fa53}, \texttt{0ad48d2} ; Sequo \texttt{7228af2}, \texttt{ebb3688}, \texttt{546698b}, \texttt{76754b4}}
+\simpleexplanation{Le travail porte sur la manière de reconnaître un utilisateur, conserver sa connexion et contrôler l'appareil utilisé. L'empreinte ou la reconnaissance faciale sert ici à protéger l'accès local à la session ; elle ne remplace pas la vérification du compte par le serveur.}
+
+\subsectiontitle{Connexion à l'administration depuis le téléphone}
+\begin{itemize}
+  \item Ajout d'une demande de connexion web, d'un code temporaire, du suivi de son état et de son échange contre une session après approbation.
+  \item Ajout, dans les quatre applications, d'une entrée de compte et d'un écran permettant de consulter, approuver ou refuser les demandes accessibles à l'utilisateur autorisé.
+  \item Contrôles de rôle et de propriétaire, protection des codes affichables, journalisation d'événements d'authentification et limitation de fréquence des requêtes.
+  \item Renforcement des sessions web administratives et ajout d'un parcours de secours par code e-mail.
+\end{itemize}
+\evidence{API \texttt{9d201ce}, \texttt{6c1362d}, \texttt{32ae09b}, \texttt{a18d458}, \texttt{e169c0c}, \texttt{52cac73}, \texttt{587dc71} ; admin \texttt{361c49d}, \texttt{89d22f7}, \texttt{ce72c86}}
+
+\subsectiontitle{Éléments non finalisés en octobre}
+L'envoi effectif des codes e-mail administratifs n'est pas raccordé : l'adaptateur présent n'effectue aucun envoi. L'envoi WhatsApp et les alertes d'approbation interappareils restent des points d'intégration journalisés. La vérification des passkeys reste une base technique à compléter avec une validation cryptographique conforme. Ces moyens d'accès ne sont donc pas présentés comme prêts pour une exploitation complète. La connexion Apple reste non finalisée.
+
+\simpleexplanation{Les écrans et mécanismes de validation ont avancé, mais certains services qui doivent réellement transmettre un code ou vérifier une clé d'accès restent à brancher et à valider. L'authentification dans son ensemble demeure un chantier en cours.}
+
+\newpage
+\sectiontitle{3. Sequo : application client}
+\begin{itemize}
+  \item Remplacement du catalogue intégré dans le code par un chargement via \texttt{CatalogApiClient} : accueil, catégories, boutiques et suggestions utilisent désormais le catalogue distant.
+  \item Suppression des anciens exemples de commandes et de notifications, avec états vides. Le raccordement de ces deux historiques à l'API reste à réaliser.
+  \item Affichage des informations du compte, accès invité, traitement des erreurs de connexion et améliorations Google Sign-In sur Android et iOS.
+  \item Ajout de traductions françaises et anglaises, d'un contrôle de cohérence des traductions, des préférences persistantes de langue et de thème, et des raccourcis du menu latéral.
+  \item Amélioration du chargement visuel, des fiches produits, de la comparaison des prix et de l'export ou du partage de photos avec filigrane.
+  \item Ajout du choix du mode de livraison au panier, d'interfaces de demande et suivi de retour et d'une interface locale de négociation.
+\end{itemize}
+\textbf{État en fin de période :} le catalogue est raccordé. Le panier et les parcours de retour/négociation ne constituent pas encore un cycle commercial entièrement synchronisé : la négociation utilise un dépôt local, et la persistance du choix de livraison ainsi que le raccordement des retours restent à terminer.
+\evidence{\texttt{123511c}, \texttt{10f75d6}, \texttt{392a132}, \texttt{a6fed6a}, \texttt{0cb0b11}, \texttt{0889abd}, \texttt{12cc18a}, \texttt{b763f10}, \texttt{9d8a5fe}, \texttt{393aef2}, \texttt{9723706}}
+\simpleexplanation{Les produits peuvent venir du serveur au lieu d'une liste écrite dans l'application. En revanche, voir un écran de retour ou de négociation ne signifie pas encore que la demande est enregistrée et traitée par le vendeur sur le serveur.}
+
+\sectiontitle{4. SequoHub : application point relais}
+\begin{itemize}
+  \item Ajout d'un client et d'un dépôt API pour charger le résumé du relais, son état de contrôle et résoudre les codes de scan.
+  \item Développement des interfaces de réception et de remise client, avec validations et états d'erreur ; raccordement de la gestion de disponibilité des casiers et du dépôt de retour par code.
+  \item Ajout d'une vue de manifeste de collecte et d'indications de stockage, de dépassement de durée et de frais.
+\end{itemize}
+\textbf{État en fin de période :} l'intégration reste partielle. Des casiers et éléments d'historique sont encore reconstitués à partir d'exemples ou du résumé. Le manifeste de collecte reste local et sa confirmation finale n'est pas disponible via l'API dans ce raccordement.
+\evidence{\texttt{09f1e70}, \texttt{746413a}, \texttt{c79206d}, \texttt{7cf58c3}, \texttt{8334eef}, \texttt{513332f}}
+\simpleexplanation{Le relais dispose de premiers échanges réels avec le serveur, notamment pour les codes et les retours. Toutes les cases visibles à l'écran ne correspondent pas encore à un inventaire détaillé récupéré du serveur.}
+
+\newpage
+\sectiontitle{5. SequoVendor : application commerçant}
+\begin{itemize}
+  \item Initialisation du projet Kotlin Multiplatform Android/iOS, de son identité visuelle, de la navigation, des écrans de compte, du tableau de bord et de l'authentification Google.
+  \item Raccordement des commandes commerçant : chargement des détails, acceptation, refus motivé, préparation, marquage prêt et confirmation de remise. Ajout de validations et prévention des soumissions simultanées.
+  \item Chargement et filtrage du catalogue marchand, édition des produits et raccordement des écritures au serveur, avec distinction entre enregistrement synchronisé et brouillon local de secours.
+  \item Intégration de la boîte de notifications et de ses préférences, avec identification de la famille d'application commerçant.
+  \item Création des interfaces de disponibilité de boutique, horaires et exceptions, de négociation et de visibilité des ventes ; ajout de tests ciblés de logique et de réseau.
+\end{itemize}
+\textbf{État en fin de période :} les horaires et réglages de boutique restent locaux. La sélection du contexte commerçant, la prise et l'envoi de photos, les négociations avec le client et la visibilité financière complète demandent encore du raccordement ou des validations. Des données de démonstration et solutions de secours subsistent.
+\evidence{\texttt{519de5b}, \texttt{7fca08e}, \texttt{2d747ad}, \texttt{920640a}, \texttt{a760aab}, \texttt{6b97d99}, \texttt{cd204bd}, \texttt{d962518}, \texttt{d09c2ea}}
+\simpleexplanation{Le commerçant dispose maintenant d'une application dédiée pour consulter et traiter ses commandes et travailler sur son catalogue. Certaines préférences et vues restent gérées dans l'appareil, et un brouillon local n'est pas encore un produit enregistré sur le serveur.}
+
+\sectiontitle{6. SequoRider : application livreur}
+\begin{itemize}
+  \item Construction de la structure applicative, du contexte de connexion, des écrans de liste et de détail de mission, des étapes d'itinéraire et de l'historique.
+  \item Développement des parcours de retrait, de livraison et de dépôt au relais, puis raccordement des missions aux routes réservées au livreur connecté.
+  \item Ajout de la consultation des rémunérations et de son client API, raccordement des notifications et configuration des clients Google.
+\end{itemize}
+\textbf{État en fin de période :} les échanges avec de vrais comptes livreurs et les validations de terrain restent à vérifier. Des dépôts de démonstration existent encore. La consultation de rémunérations ne déclenche pas de versement réel.
+\evidence{\texttt{a2a027f}, \texttt{48d3bc1}, \texttt{be69ac4}, \texttt{e4573ec}, \texttt{ccd088e}, \texttt{93584ec}, \texttt{17837c0}, \texttt{b8f9852}}
+\simpleexplanation{L'application livreur a gagné ses principaux écrans et des connexions au serveur. Il reste à confirmer le fonctionnement complet d'une mission sur le terrain, du retrait à la remise finale.}
+
+\newpage
+\sectiontitle{7. Administration et sites web}
+\subsectiontitle{Administration web}
+J'ai développé une structure d'administration avec tableau de bord, utilisateurs et rôles, commerçants, suivi des commandes/livraisons, retours/remboursements et paramètres métier. Des chargements API ont été ajoutés pour les vues opérationnelles, ainsi que des écrans de connexion et une gestion du renouvellement et de la suppression des jetons de session.
+
+L'interface a été retravaillée pour le personnel opérationnel : présentation plus lisible, vocabulaire métier, filtres et actions indisponibles désactivées. La connexion par approbation mobile, le parcours de secours par e-mail et les entrées sociales ont avancé.
+
+\textbf{État en fin de période :} des valeurs de démonstration et un mode de démonstration restent présents. Plusieurs actions de modification et de paramétrage ne sont pas encore disponibles ; l'administration ne constitue donc pas un outil complet de pilotage en production. L'envoi réel des codes e-mail demeure à raccorder côté serveur.
+\evidence{\texttt{944d1ff}, \texttt{e031b80}, \texttt{178bc3d}, \texttt{d6fc034}, \texttt{ce70c21}, \texttt{1e8dd92}, \texttt{2c5bf85}, \texttt{361c49d}, \texttt{2dee7aa}}
+
+\subsectiontitle{Site public et portail développeurs}
+Le site public a reçu un ajustement du texte commerçant relatif au calcul des reversements après commission en pourcentage (\texttt{76dc615}). Aucun autre avancement de ce site n'est attribué à octobre dans ce rapport. Aucun commit d'octobre n'a été identifié pour le portail développeurs. Le déploiement initial de ces sites, déjà réalisé auparavant, n'est pas comptabilisé comme réalisation du mois.
+
+\sectiontitle{Éléments restant à finaliser}
+{\small\renewcommand{\arraystretch}{1.2}\rowcolors{2}{SequoPale}{white}
+\begin{tabularx}{\linewidth}{@{}L{3.1cm}Y@{}}
+\toprule\rowcolor{SequoHeader}\textbf{Chantier} & \textbf{Travail restant constaté en fin d'octobre} \\
+\midrule
+Authentification & Raccorder les envois e-mail/WhatsApp et les alertes interappareils ; compléter les passkeys et valider les parcours entre applications et rôles. Apple reste à finaliser. \\
+Application client & Intégrer les commandes et notifications personnelles ; synchroniser panier, choix de livraison, demandes de retour et négociations. \\
+Relais et livreur & Remplacer les éléments de démonstration restants, terminer la collecte et vérifier les opérations avec des comptes autorisés et des colis réels de test. \\
+Application vendeur & Synchroniser les réglages de boutique et négociations, terminer les photos et fiabiliser le contexte commerçant. \\
+Administration & Compléter les mutations autorisées et le paramétrage ; remplacer les valeurs de secours pour l'usage opérationnel. \\
+Services financiers & Raccorder les prestataires et vérifier encaissements, remboursements et versements réels. \\
+\bottomrule
+\end{tabularx}}
+\simpleexplanation{Le mois a apporté des écrans et des raccordements concrets. Les points ci-dessus décrivent ce qui reste incomplet à la clôture d'octobre ; ils ne constituent pas un engagement de calendrier pour le mois suivant.}
+
+\newpage
+\sectiontitle{Annexe de traçabilité}
+Le comptage porte sur les commits accessibles depuis la révision \texttt{HEAD} de chaque dépôt local au moment de la consultation, filtrés par \textbf{date d'enregistrement Git du commit} entre le 1er octobre à 00 h 00 et le 1er novembre à 00 h 00 (borne exclue), fuseau Europe/Paris. Les commits de fusion sont exclus. Les modifications non commitées sont exclues.
+
+Les références ci-dessous correspondent au dernier commit d'octobre rencontré dans chaque historique actif. Les descriptions du rapport ont été rapprochées des changements et des fichiers à ces révisions, afin d'écarter les évolutions ultérieures de novembre.
+
+{\small\renewcommand{\arraystretch}{1.28}\rowcolors{2}{SequoPale}{white}
+\begin{tabularx}{\linewidth}{@{}L{3.1cm}L{1.5cm}L{2.4cm}Y@{}}
+\toprule\rowcolor{SequoHeader}\textbf{Dépôt} & \textbf{Commits} & \textbf{Référence} & \textbf{Dates des commits retenus} \\
+\midrule
+Sequo & 199 & \texttt{ef03227} & Du 1er au 12 octobre \\
+SequoVendor & 134 & \texttt{b099f94} & Du 10 au 12 octobre \\
+sequo-api & 89 & \texttt{587dc71} & Du 1er au 12 octobre \\
+SequoRider & 20 & \texttt{b8f9852} & Du 11 au 12 octobre \\
+sequo-admin & 18 & \texttt{2dee7aa} & Du 11 au 12 octobre \\
+SequoHub & 13 & \texttt{9b144c1} & Du 11 au 12 octobre \\
+sequo-services & 1 & \texttt{76dc615} & 12 octobre \\
+sequo-developers & 0 & Sans objet & Aucun commit retenu \\
+\midrule
+\textbf{Total} & \textbf{474} & & \textbf{8 dépôts examinés} \\
+\bottomrule
+\end{tabularx}}
+
+Ces chiffres décrivent l'activité enregistrée, et non un pourcentage d'achèvement ou une mesure de valeur métier. Aucun commit du 13 au 31 octobre n'a été identifié dans les historiques actifs consultés. L'absence de commit ne permet pas de conclure à l'absence de travail hors de ces historiques.
+
+\sectiontitle{Repères non techniques}
+{\small\renewcommand{\arraystretch}{1.25}\rowcolors{2}{SequoPale}{white}
+\begin{tabularx}{\linewidth}{@{}L{3.2cm}Y@{}}
+\toprule\rowcolor{SequoHeader}\textbf{Terme} & \textbf{Explication simple} \\
+\midrule
+API / endpoint & Serveur commun et adresse d'une opération permettant aux applications de lire ou modifier des données. \\
+Commit Git & Enregistrement daté d'un ensemble de modifications dans le projet. \\
+OAuth / jeton & Mécanisme de connexion avec un fournisseur comme Google, puis preuve temporaire utilisée pour accéder au serveur. \\
+Migration Flyway & Modification versionnée de la structure de la base de données. \\
+CI/CD / déploiement & Vérifications automatiques du code et procédure de mise à jour du service sur le serveur. \\
+Dépôt local / secours & Traitement ou donnée conservé dans l'application ; il peut rester indépendant des données partagées par le serveur. \\
+\bottomrule
+\end{tabularx}}
+
+\vfill
+\textbf{Muhirwa Gabo Oreste}\\
+Développement de l'écosystème Sequo
+\end{document}
