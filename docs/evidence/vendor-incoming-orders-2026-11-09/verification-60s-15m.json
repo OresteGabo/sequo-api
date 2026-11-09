@@ -1,0 +1,165 @@
+{
+  "protocol": "SEQUO_VENDOR_INCOMING_TIMING_V2",
+  "recordedAt": "2026-11-09T03:26:46.457549+00:00",
+  "userSelectedPolicy": {
+    "alertSeconds": 60,
+    "responseSeconds": 900,
+    "responseStartsAt": "verified-paid merchant part creation",
+    "existingSnapshotsRewritten": false
+  },
+  "supersedesDefaultsIn": "verification.json",
+  "sourceCommits": {
+    "sequo-api": "62748e8",
+    "SequoVendor": "79ed43c"
+  },
+  "tests": {
+    "api": {
+      "tests": 37,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "vendorHost": {
+      "tests": 85,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "bothNativeMainCompilers": "PASS",
+    "iosRunnerUnit": {
+      "tests": 14,
+      "passed": 14
+    },
+    "androidNative": [
+      {
+        "result": "/tmp/sequo-vendor-timing-60-15-devices/android-existing-wait-junit.xml",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0,
+        "durationSeconds": "3.999"
+      },
+      {
+        "result": "/tmp/sequo-vendor-timing-60-15-devices/android-refuse-3-as-wait-junit.xml",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0,
+        "durationSeconds": "60.464"
+      }
+    ],
+    "iosNative": [
+      {
+        "case": "case-inspect-waiting-MXQ-TZK-0GY",
+        "result": "/tmp/sequo-vendor-timing-60-15-devices/ios-ui/case-inspect-waiting-MXQ-TZK-0GY/test-summary.json",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0
+      },
+      {
+        "case": "case-wait-MKA-T6K-ERF",
+        "result": "/tmp/sequo-vendor-timing-60-15-devices/ios-ui/case-wait-MKA-T6K-ERF/test-summary.json",
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "runtimeNewRecords": [
+    {
+      "scene": "android-refuse",
+      "attempt": 3,
+      "snapshot": {
+        "publicReference": "MXQ-TZK-0GY",
+        "orderReference": "CPR-F2G-WX0",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "createdAt": "2026-11-09T03:18:01.645692Z",
+        "alertUntilAt": "2026-11-09T03:19:01.645692Z",
+        "responseDeadlineAt": "2026-11-09T03:33:01.645692Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "serverNow": "2026-11-09T03:19:53.779217Z"
+      },
+      "alertSeconds": 60,
+      "responseSeconds": 900
+    },
+    {
+      "scene": "ios-wait",
+      "attempt": 2,
+      "snapshot": {
+        "publicReference": "MKA-T6K-ERF",
+        "orderReference": "CZ9-F59-96W",
+        "status": "MERCHANT_PENDING",
+        "orderStatus": "ACCEPTED_FOR_FULFILLMENT",
+        "orderPaymentStatus": "Validated",
+        "createdAt": "2026-11-09T03:22:46.382375Z",
+        "alertUntilAt": "2026-11-09T03:23:46.382375Z",
+        "responseDeadlineAt": "2026-11-09T03:37:46.382375Z",
+        "responseExpiredAt": null,
+        "responseState": "PENDING",
+        "serverNow": "2026-11-09T03:26:46.389800Z"
+      },
+      "alertSeconds": 60,
+      "responseSeconds": 900
+    }
+  ],
+  "retainedOldRecord": {
+    "publicReference": "MD6-KKR-D3V",
+    "status": "ACCEPTED",
+    "alertSeconds": 45,
+    "responseSeconds": 600,
+    "alertUntilAt": "2026-11-09T02:25:15.633999Z",
+    "responseDeadlineAt": "2026-11-09T02:34:30.633999Z"
+  },
+  "apps": [
+    {
+      "platform": "android",
+      "releaseId": "sequo-vendor-incoming-20261109-02",
+      "sourceHead": "79ed43ce097e92acfe5f4f0e69737e71cff72c74",
+      "applicationId": "dev.orestegabo.sequovendor.fixture",
+      "apiBaseUrl": "http://10.0.2.2:55840",
+      "artifact": "/private/tmp/sequo-vendor-timing-60-15-devices/vendor-android/SequoVendor-sequo-vendor-incoming-20261109-02-LOCAL_FIXTURE.apk",
+      "sha256": "b20e5f2df35daf4d5cb32c31632873d250d70e6ec008ad985ae58e97bba01420",
+      "payloadSha256": null,
+      "preservedLocalEditSha256": {
+        "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+      }
+    },
+    {
+      "platform": "ios",
+      "releaseId": "sequo-vendor-incoming-20261109-02",
+      "sourceHead": "79ed43ce097e92acfe5f4f0e69737e71cff72c74",
+      "applicationId": "dev.orestegabo.sequovendor.SequoVendor.fixture",
+      "apiBaseUrl": "http://127.0.0.1:55840",
+      "artifact": "/private/tmp/sequo-vendor-timing-60-15-devices/vendor-ios/SequoVendor-sequo-vendor-incoming-20261109-02-LOCAL_FIXTURE.app",
+      "sha256": null,
+      "payloadSha256": "16538fb4d90ed6ea5a0adc6338d0ae34d904ca6f8e277b37e200af80a4786fcb",
+      "preservedLocalEditSha256": {
+        "iosApp/iosApp.xcodeproj/project.pbxproj": "a7f7b50149460a7df096ea86593ca2644a0d463d0add8e59f42cd0c1c16e3af9"
+      }
+    }
+  ],
+  "installedAndroidProof": {
+    "matched": true,
+    "sha256": "b20e5f2df35daf4d5cb32c31632873d250d70e6ec008ad985ae58e97bba01420",
+    "sourceHead": "79ed43ce097e92acfe5f4f0e69737e71cff72c74"
+  },
+  "installedIosFullPayloadMatches": "Validated before both XCTest runs",
+  "realProviderOperations": false,
+  "dataReset": false,
+  "fifteenMinuteWallClockRun": "Not performed; before/at/after boundary verified by server tests",
+  "limitations": [
+    "Foreground/resumed alerts only; closed/locked-app push registration and transport remain unconfigured.",
+    "Physical-phone audibility, vibration, silent/DND and volume remain unverified."
+  ],
+  "logs": [
+    "/tmp/sequo-vendor-timing-60-15-api-check.log",
+    "/tmp/sequo-vendor-timing-60-15-vendor-check.log",
+    "/tmp/sequo-vendor-timing-60-15-ios-wait-2.log",
+    "/tmp/sequo-vendor-timing-60-15-android-refuse-3-as-wait.log"
+  ]
+}

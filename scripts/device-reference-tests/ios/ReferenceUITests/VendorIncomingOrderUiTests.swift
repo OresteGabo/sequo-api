@@ -36,8 +36,8 @@ final class VendorIncomingOrderUiTests: XCTestCase {
               env["SIMULATOR_UDID"] == config.simulatorUDID,
               config.apiBaseURL == "http://127.0.0.1:55840",
               config.bundle == "dev.orestegabo.sequovendor.SequoVendor.fixture",
-              config.releaseID == "sequo-vendor-incoming-20261109-01",
-              config.sourceHead == "c9fcd64ec6307d7e183830332173aed143dc3795",
+              config.releaseID == "sequo-vendor-incoming-20261109-02",
+              config.sourceHead == "79ed43ce097e92acfe5f4f0e69737e71cff72c74",
               config.payloadSha256.count == 64, config.expectedQuantity == 2,
               (1...1_000_000).contains(config.expectedAmountCfa),
               ["accept", "refuse", "wait", "inspect-waiting"].contains(config.action), validReference(config.expectedReference) else {
@@ -72,7 +72,7 @@ final class VendorIncomingOrderUiTests: XCTestCase {
         XCTAssertTrue(eventually(3) { self.labels().contains { $0.range(of: "^2\\s*×\\s*.+", options: .regularExpression) != nil } }, "Actual quantity-two product line required")
         XCTAssertTrue(eventually(3) { self.labels().contains { String($0.filter { !$0.isWhitespace }) == "\(self.config.expectedAmountCfa)CFA" } }, "Actual server subtotal required")
         if config.action == "wait" {
-            try awaitOverlayGone(48)
+            try awaitOverlayGone(63)
             if visible(["Back to orders", "Retour aux commandes"]) { try tap(["Back to orders", "Retour aux commandes"]) }
             try navigation(["Orders", "Commandes"])
             try tap(["New", "Nouvelles"], filter: true)

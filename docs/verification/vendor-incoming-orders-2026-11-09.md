@@ -1,5 +1,7 @@
 # Vendor incoming paid orders — verification, 2026-11-09
 
+> Historical verification of the initial 45-second/10-minute policy. The user subsequently selected **60 seconds / 15 minutes**. See the [current timing update](vendor-incoming-orders-60s-15m-2026-11-09.md). Original results, timestamps and receipts below are retained.
+
 Foreground incoming orders and server response deadlines are implemented and committed. Final verification: 58 API regressions, 83 Vendor host tests, and eight native checks pass. Closed/locked-app push and physical-phone audibility remain open. The sanitized [verification receipt](../evidence/vendor-incoming-orders-2026-11-09/verification.json) contains exact files, artifacts, cases and server readbacks; no screenshots or credentials are committed.
 
 ## Scope and contract evidence

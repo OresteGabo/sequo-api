@@ -8,9 +8,9 @@ from pathlib import Path
 HERE=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location('reference_runner',HERE/'run.py')
 shared=importlib.util.module_from_spec(spec);spec.loader.exec_module(shared)
-ROOT=Path('/tmp/sequo-vendor-incoming-devices').resolve()
-HEAD='c9fcd64ec6307d7e183830332173aed143dc3795'
-RELEASE='sequo-vendor-incoming-20261109-01'
+ROOT=Path('/tmp/sequo-vendor-timing-60-15-devices').resolve()
+HEAD='79ed43ce097e92acfe5f4f0e69737e71cff72c74'
+RELEASE='sequo-vendor-incoming-20261109-02'
 BUNDLE=shared.BUNDLES['vendor']
 METHOD='ReferenceUITests/VendorIncomingOrderUiTests/testIncomingOrderUsesExistingMerchantAction'
 INSPECT_METHOD='ReferenceUITests/VendorIncomingOrderUiTests/testExistingWaitingQueueIsReadable'
@@ -37,7 +37,7 @@ def artifact():
  require(app.is_dir() and app.suffix=='.app' and app.is_relative_to(ROOT),'Identified Vendor app must remain in the approved artifact root.')
  require(metadata['app']=='SequoVendor' and metadata['platform']=='ios' and metadata['environment']=='LOCAL_FIXTURE' and
   metadata['apiBaseUrl']==shared.BASE and metadata['releaseId']==RELEASE and metadata['applicationId']==BUNDLE and metadata['sourceHead']==HEAD,
-  'Only the approved c9fcd64 Vendor LOCAL_FIXTURE artifact is supported.')
+  'Only the approved 79ed43c Vendor LOCAL_FIXTURE artifact is supported.')
  require(plistlib.loads((app/'Info.plist').read_bytes())['CFBundleIdentifier']==BUNDLE,'Artifact bundle mismatch.')
  require(metadata.get('debugDylibSha256') and payload(app)==metadata['payloadSha256'],'Identified full app payload changed.')
  for relative,sha in metadata['debugDylibSha256'].items():

@@ -1,15 +1,15 @@
 # Installed Vendor incoming-order XCTest
 
-This separate opt-in XCTest performs only the normal installed Vendor UI: exact fresh M reference, actual server item subtotal and quantity-two line, then Accept, Refuse, or no action while the 45-second overlay ends and the order remains waiting. It does not create fixtures, send HTTP/payment/refund requests, inject credentials, install/build the product, reset data or generate explicit screenshots. Teardown presses Home only for this fixture app. Audio/haptic audibility and ten-minute expiry require separate evidence.
+This separate opt-in XCTest performs only the normal installed Vendor UI: exact fresh M reference, actual server item subtotal and quantity-two line, then Accept, Refuse, or no action while the 60-second overlay ends and the order remains waiting. It does not create fixtures, send HTTP/payment/refund requests, inject credentials, install/build the product, reset data or commit screenshots. Teardown presses Home only for this fixture app. Audio/haptic audibility and fifteen-minute expiry require separate evidence.
 
-`run-incoming.py` accepts only simulator `59D90F12-C368-449B-8752-6BD86241E8DB` and the current identified Vendor artifact under `/tmp/sequo-vendor-incoming-devices/vendor-ios`: source `c9fcd64ec6307d7e183830332173aed143dc3795`, release `sequo-vendor-incoming-20261109-01`, LOCAL_FIXTURE, loopback port55840, exact `.fixture` bundle. The complete payload is checked against `build-target.json` before preparation and again against the installed app before a test. The prepared xctestrun and test sources are hash-bound; edits require a new prepared bundle. No physical devices, other simulator, production bundle or silently skipped/empty run is accepted.
+`run-incoming.py` accepts only simulator `59D90F12-C368-449B-8752-6BD86241E8DB` and the current identified Vendor artifact under `/tmp/sequo-vendor-timing-60-15-devices/vendor-ios`: source `79ed43cec6307d7e183830332173aed143dc3795`, release `sequo-vendor-incoming-20261109-02`, LOCAL_FIXTURE, loopback port55840, exact `.fixture` bundle. The complete payload is checked against `build-target.json` before preparation and again against the installed app before a test. The prepared xctestrun and test sources are hash-bound; edits require a new prepared bundle. No physical devices, other simulator, production bundle or silently skipped/empty run is accepted.
 
 From `sequo-api`, first compile **only the isolated XCTest harness**, before creating a fresh scene:
 
 ```sh
 python3 scripts/device-reference-tests/ios/run-incoming.py \
   --simulator 59D90F12-C368-449B-8752-6BD86241E8DB \
-  --output-dir /tmp/sequo-vendor-incoming-devices/ios-incoming-tests-01 \
+  --output-dir /tmp/sequo-vendor-timing-60-15-devices/ios-incoming-tests-01 \
   --prepare-test-bundle
 ```
 
@@ -18,7 +18,7 @@ Only after that command exits successfully, root creates one unused authorized f
 ```sh
 python3 scripts/device-reference-tests/ios/run-incoming.py \
   --simulator 59D90F12-C368-449B-8752-6BD86241E8DB \
-  --output-dir /tmp/sequo-vendor-incoming-devices/ios-incoming-tests-01 \
+  --output-dir /tmp/sequo-vendor-timing-60-15-devices/ios-incoming-tests-01 \
   --run-prepared --incoming-reference "$REF" \
   --incoming-action accept --incoming-amount-cfa "$ITEM_SUBTOTAL"
 ```

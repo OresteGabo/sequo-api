@@ -106,8 +106,8 @@ public final class InstalledVendorIncomingOrderUiTest {
         assertTrue("The incoming dialog must show the server subtotal supplied by the fixture readback", amountVisible());
 
         if ("wait".equals(action)) {
-            // Do not silence/dismiss. Observe the app's own server-derived 45-second window.
-            awaitIncomingGone(48_000L);
+            // Do not silence/dismiss. Observe the app's own server-derived 60-second window.
+            awaitIncomingGone(63_000L);
             UiObject2 previousDetail = exact("Back to orders", "Retour aux commandes");
             if (previousDetail != null) clickText("Back to orders", "Retour aux commandes");
             clickNavigation("Orders", "Commandes");
@@ -208,21 +208,33 @@ public final class InstalledVendorIncomingOrderUiTest {
     }
 
     private void enterYawaOnlyIfSignedOut() {
-        long deadline = SystemClock.uptimeMillis() + 8_000L;
+        long deadline = SystemClock.uptimeMillis() + LOAD_TIMEOUT;
+        boolean chooserOpened = false;
+        boolean accountSubmitted = false;
         do {
             assertForeground();
-            if (exact(TITLES) != null || exact("Orders", "Commandes") != null) return;
+            // Stored-session restoration can replace the temporary auth screen between snapshots.
+            // Non-click readiness never requires an enabled accessibility leaf.
+            if (workspaceOrIncomingPresent()) return;
             UiObject2 account = exact("[TEST] Yawa Adjei");
-            if (account != null) { clickText("[TEST] Yawa Adjei"); return; }
-            UiObject2 chooser = exact("Local test merchant accounts", "Comptes commerçants de test local");
-            if (chooser != null) {
-                clickText("Local test merchant accounts", "Comptes commerçants de test local");
-                clickText("[TEST] Yawa Adjei");
-                return;
+            if (account != null && !accountSubmitted) {
+                if (workspaceOrIncomingPresent()) return;
+                if (clickIfStillCurrent(account)) accountSubmitted = true;
+            } else if (!chooserOpened && !accountSubmitted) {
+                UiObject2 chooser = exact("Local test merchant accounts", "Comptes commerçants de test local");
+                if (chooser != null) {
+                    if (workspaceOrIncomingPresent()) return;
+                    if (clickIfStillCurrent(chooser)) chooserOpened = true;
+                }
             }
             SystemClock.sleep(100L);
         } while (SystemClock.uptimeMillis() < deadline);
         fail("Use the existing Yawa session or normal server-offered local merchant chooser; no auth bypass is permitted");
+    }
+
+    private boolean workspaceOrIncomingPresent() {
+        for (String title : TITLES) if (device.hasObject(By.text(title))) return true;
+        return device.hasObject(By.text("Orders")) || device.hasObject(By.text("Commandes"));
     }
 
     private void waitForVendorForeground() {
