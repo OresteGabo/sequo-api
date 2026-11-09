@@ -17,8 +17,9 @@ The flow is designed for shared or work computers where staff may not want to si
 
 The initial allowed roles are:
 
-- `ADMIN`
-- `SUPER_ADMIN`
+- `ADMIN` (Operations, including support)
+- `STAFF_MANAGER` (Staff manager)
+- `SUPER_ADMIN` (Owner)
 
 `SUPPORT_AGENT` may be added later only if product policy explicitly allows support staff to access SEQUO Admin web. Until then, support access should remain read-only where already implemented by existing backend authorization policies.
 

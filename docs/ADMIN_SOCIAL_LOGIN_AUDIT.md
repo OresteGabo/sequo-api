@@ -1,5 +1,7 @@
 # Admin Social Login Audit
 
+Update, 9 November 2026: admin entry now accepts ADMIN (Operations), STAFF_MANAGER (Staff manager), or SUPER_ADMIN (Owner). The historical findings below predate that additive role. Current permissions and compatibility rules are in [ADMIN_ROLES_AND_PERMISSIONS.md](ADMIN_ROLES_AND_PERMISSIONS.md).
+
 Purpose: decide whether SEQUO Admin Web can safely offer social login as a secondary option.
 
 ## Current Backend Surface

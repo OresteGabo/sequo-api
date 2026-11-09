@@ -17,8 +17,9 @@ Phone-approved login remains the preferred flow for shared or work computers bec
 
 The initial allowed roles are:
 
-- `ADMIN`
-- `SUPER_ADMIN`
+- `ADMIN` (Operations, including support)
+- `STAFF_MANAGER` (Staff manager)
+- `SUPER_ADMIN` (Owner)
 
 Other staff roles must not receive admin web tokens through this flow unless product policy explicitly adds them later.
 

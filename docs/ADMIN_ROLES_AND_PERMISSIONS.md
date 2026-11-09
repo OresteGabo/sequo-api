@@ -59,10 +59,21 @@ History records the actor, target, action, before/after values, reason and serve
 
 ## Initial Owner
 
-The project owner explicitly selected `orestegabo@icloud.com` as the initial Owner. Provision this single confirmed account through a private, audited operator transaction after migration validation. This is a one-time bootstrap, not an email allowlist, public signup rule or automatic role migration. Preserve unrelated accounts and require a fresh sign-in after its role changes.
+The project owner explicitly selected `orestegabo@icloud.com` as the initial Owner. After migration validation, a private operator transaction granted SUPER_ADMIN to that existing active account, preserved its ADMIN role, recorded the before/after authority in admin_access_changes, rotated its authorization version and revoked its old sessions. This one-time bootstrap is separate from the application self-change prohibition; it is not an email allowlist, public signup rule or automatic role migration. Unrelated accounts were preserved. A fresh sign-in is required.
 
 Future administrators should be added from an explicitly approved list of exact work emails, with their intended tier recorded. Do not grant every staff member Owner access.
 
 ## Future changes
 
 The backend RoleGroups and the website adminPermissions module centralize tier decisions. If support and operations need to split later, introduce an explicit permission model and reviewed migrations rather than inferring authority from email addresses or hiding buttons alone. Re-run the permission matrix and concurrent access-change tests when extending these rules.
+
+## Verification and deployment
+
+- 49 backend tests passed, including direct HTTP permission denials, forged role-claim denial, personnel grants/suspension, session invalidation, last-Owner protection, concurrent changes, staff-manager email sign-in and mobile approval regressions.
+- Four UI permission tests passed; Vue/TypeScript production build passed. The hosted Vercel deployment for website commit `471e5d6a9b084aa402516d34bf83c0ff202f7a46` succeeded, and the public custom domain's actual bundle contains all three tiers.
+- Vendor and Hub shared Kotlin metadata compiled successfully with STAFF_MANAGER compatibility. Their source changes were pushed; installed native apps are not automatically replaced by these commits.
+- API release `sequo-admin-roles-20261109-01`, source `6d83d72ba2c578b4b35d30c0dbb6726b9d887332`, artifact SHA-256 `84a78078c91cc7f4eb6829e0469c645cef8445fa948df681af86253262648435` was backed up and tested first against a private production database copy. All 63 migration checksums validated; V63 applied successfully, with email sending and background workers disabled in the validation copy.
+- The same release was activated on the VPS as `sequo-api:admin-roles-20261109`. V63 applied successfully to production and public readiness returned UP. Signing secrets, Resend credentials, business records and existing unrelated role assignments were retained.
+- The temporary validation database/container and duplicate environment file were removed after live readiness passed. The protected pre-change database dump and environment snapshot remain under `/home/ubuntu/sequo-admin-roles-20261109/` with the rollback image `sequo-api:before-admin-roles-20261109`.
+
+Do not automatically downgrade to an older application after assigning STAFF_MANAGER accounts: older clients/services may not recognize that additive role. Review assignments and preserve applied migrations when planning a rollback.
