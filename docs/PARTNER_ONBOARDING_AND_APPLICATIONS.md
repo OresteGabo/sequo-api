@@ -113,3 +113,23 @@ run the admin partner, permission/session and Owner-directory checks and public
 application payload checks. Validate V66 and an anonymous-submission-to-approval
 cycle on an isolated PostgreSQL copy before production. Never edit already-applied
 Flyway migrations.
+
+## Release validation — 9 November 2026
+
+- Backend source: `99b4dfece6d1dc103f8634dde2e59398c773bc79`.
+- Admin interface: `e2808ba72cfe7f6f765e0c48e402b5af78e280e8`.
+- Public forms: `0189fa7d2d18a29e1bbf96bcb0cafb763feda5e7`.
+- API artifact SHA-256: `f8139e476d8915890962870acd059fe401d7cbdbc4be4e13f14cd7ffd93d08b5`.
+- 48 targeted backend tests passed; the final field-length adjustment was followed
+  by another passing run of the nine onboarding HTTP tests. Admin checks (16) and
+  public payload checks (3) passed. Both production website builds passed.
+- V66 and all three direct registrations were exercised against an isolated
+  PostgreSQL copy, including public pending intake, corrected approval, rejection,
+  exact retries, complete rollback and the append-only audit trigger.
+- GitHub Actions did not start because the GitHub account was billing-locked.
+  The documented API-only manual deployment fallback activated the validated
+  artifact. PostgreSQL and existing partner/account records were preserved.
+- Production readiness returned UP; Flyway reported V66; both official public
+  origins passed CORS preflight. No test applications or partner accounts were
+  created in production. The private validation database/container and its
+  temporary signing secret were removed; the private rollback backup was retained.
