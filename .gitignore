@@ -82,3 +82,6 @@ __pycache__/
 /docs/evidence/**/*.jpg
 /docs/evidence/**/*.jpeg
 /docs/evidence/**/*.webp
+
+# Temporary document compilation, raster previews and duplicate exports stay local.
+/tmp/
