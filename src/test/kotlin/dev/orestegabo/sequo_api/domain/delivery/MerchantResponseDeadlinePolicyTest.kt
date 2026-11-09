@@ -22,10 +22,14 @@ class MerchantResponseDeadlinePolicyTest {
         assertEquals(Duration.ofSeconds(30), policy.alertWindow)
     }
     @Test fun invalidOrLongerThanResponseAlertWindowsFailAtConfiguration() {
-        listOf("PT0S", "PT-1S", "PT11M").forEach { value ->
+        // A single nanosecond above the shared native hard cap must fail; exactly 45s remains valid above.
+        listOf("PT0S", "PT-1S", "PT11M", "PT45.000000001S").forEach { value ->
             assertFailsWith<IllegalArgumentException> { MerchantResponseDeadlinePolicy(MockEnvironment()
                 .withProperty("sequo.merchant-fulfillment.response-deadline.alert-window", value)) }
         }
+        assertFailsWith<IllegalArgumentException> { MerchantResponseDeadlinePolicy(MockEnvironment()
+            .withProperty("sequo.merchant-fulfillment.response-deadline.response-window", "PT30S")
+            .withProperty("sequo.merchant-fulfillment.response-deadline.alert-window", "PT45S")) }
         assertFailsWith<IllegalArgumentException> { MerchantResponseDeadlinePolicy(MockEnvironment()
             .withProperty("sequo.merchant-fulfillment.response-deadline.response-window", "PT0S")) }
     }

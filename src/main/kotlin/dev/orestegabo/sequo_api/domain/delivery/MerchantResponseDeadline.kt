@@ -32,7 +32,9 @@ class MerchantResponseDeadlinePolicy(environment: Environment) {
     val alertWindow: Duration = Duration.parse(environment.getProperty("sequo.merchant-fulfillment.response-deadline.alert-window", "PT45S"))
     init {
         require(!responseWindow.isZero && !responseWindow.isNegative) { "Merchant response window must be positive." }
-        require(!alertWindow.isZero && !alertWindow.isNegative && alertWindow <= responseWindow) { "Incoming alert window must be positive and no longer than the response window." }
+        require(!alertWindow.isZero && !alertWindow.isNegative && alertWindow <= Duration.ofSeconds(45) && alertWindow <= responseWindow) {
+            "Incoming alert window must be positive, at most 45 seconds, and no longer than the response window."
+        }
     }
 }
 
