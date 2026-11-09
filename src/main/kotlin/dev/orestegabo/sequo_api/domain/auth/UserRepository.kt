@@ -16,6 +16,7 @@ interface UserRepository : JpaRepository<User, String> {
     fun lockCheckoutOwner(id: String): User?
 
     fun findByEmail(email: String): User?
+    fun findByEmailIgnoreCase(email: String): User?
     fun findByPhoneNumber(phoneNumber: String): User?
 }
 

@@ -39,6 +39,8 @@ Vendor's role decoder and Hub's session checks recognize STAFF_MANAGER. Older in
 
 ## Personnel management
 
+See [Owner network management](OWNER_NETWORK_MANAGEMENT.md) for the account creation, profile editing and removal interfaces added after this initial role rollout.
+
 A Staff manager can manage another non-admin account's operational roles. Account suspension/reactivation requires that the target already has a courier, relay-partner or merchant personnel role. Staff managers cannot change an account holding ADMIN, STAFF_MANAGER, SUPER_ADMIN or legacy SUPPORT_AGENT, even if it also has a personnel role.
 
 In **Users**, load the current account and access history. Assign the required personnel role, then use the appropriate rider/merchant enrollment form. To approve an established personnel account, set active to true and status to ACTIVE; to stop its access, set active to false and status to SUSPENDED. Required reasons must describe the reviewed decision.

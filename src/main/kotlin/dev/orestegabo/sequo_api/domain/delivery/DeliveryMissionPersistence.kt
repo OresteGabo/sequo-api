@@ -164,6 +164,7 @@ class DeliveryProblemResolutionRecord(
 }
 
 interface DeliveryMissionRepository : JpaRepository<DeliveryMission, String> {
+    fun existsByRelayPointIdAndStatusIn(relayPointId: String, statuses: Collection<DeliveryMissionRecordStatus>): Boolean
     @Query("select m.orderId from DeliveryMission m where m.id = :id")
     fun orderReference(id: String): String?
     fun countByCourierIdAndStatusInAndIdNot(courierId: String, status: Collection<DeliveryMissionRecordStatus>, id: String): Long

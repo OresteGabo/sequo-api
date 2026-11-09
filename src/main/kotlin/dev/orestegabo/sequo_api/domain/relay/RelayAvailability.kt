@@ -67,8 +67,14 @@ class RelayAvailabilityService(private val points: RelayPointRepository, private
         if (lockers.countByRelayPointIdAndStatus(point.id, HubLockerStatus.AVAILABLE) == 0L || !open(point.id)) return@mapNotNull null
         RelayDestination(point.id, point.name, point.city, point.neighborhood, point.landmark, latitude, longitude)
     }
-    fun requireAvailable(id: String, reroute: Boolean = false): RelayDestination =
-        requireNotNull(available(reroute).firstOrNull { it.id == id }) { "Relay point is unavailable." }
+    fun requireAvailable(id: String, reroute: Boolean = false): RelayDestination {
+        // Mutating checkout/deposit/reroute transactions serialize with Owner archival.
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive() &&
+            !org.springframework.transaction.support.TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
+            requireNotNull(points.lockForAdministration(id)) { "Relay point is unavailable." }
+        }
+        return requireNotNull(available(reroute).firstOrNull { it.id == id }) { "Relay point is unavailable." }
+    }
 
     private fun open(id: String): Boolean {
         val schedule = hubs.getOpeningHours(id)

@@ -65,6 +65,7 @@ class PendingPaymentCheckoutRecord(
 )
 
 interface PendingPaymentCheckoutRepository : JpaRepository<PendingPaymentCheckoutRecord, String> {
+    fun findByStatus(status: PendingPaymentCheckoutStatus): List<PendingPaymentCheckoutRecord>
     fun findByCheckoutIdAndCustomerId(checkoutId: String, customerId: String): PendingPaymentCheckoutRecord?
     fun findByCustomerIdOrderByCreatedAtDesc(customerId: String): List<PendingPaymentCheckoutRecord>
 
