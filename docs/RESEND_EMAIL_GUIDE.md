@@ -59,7 +59,7 @@ Synthetic previews (sample code only): [desktop](branding/email/desktop-preview.
 
 ## Who receives login codes
 
-Only existing, active accounts with ADMIN or SUPER_ADMIN access receive them. An unknown email does not create an account or grant access. The same generic confirmation is shown for ineligible addresses.
+Only existing, active accounts with ADMIN, STAFF_MANAGER or SUPER_ADMIN access receive them. These are Operations, Staff manager and Owner; see [the role guide](ADMIN_ROLES_AND_PERMISSIONS.md). An unknown email does not create an account or grant access. The same generic confirmation is shown for ineligible addresses.
 
 Codes expire after five minutes and are single-use. Requesting and verifying codes are rate limited. Application rate limits are separate from Resend's shared daily/monthly quotas.
 

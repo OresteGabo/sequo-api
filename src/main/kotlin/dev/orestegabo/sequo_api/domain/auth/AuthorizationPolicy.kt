@@ -51,7 +51,7 @@ class AuthorizationPolicy {
         subject: AuthorizationSubject,
     ): AuthorizationDecision {
         if (RoleCode.SUPER_ADMIN in subject.roles) return allow("Super admin access.")
-        if (RoleCode.ADMIN in subject.roles && action != AuthorizationAction.DELETE) {
+        if (subject.roles.any { it in RoleGroups.AdminOnly } && action != AuthorizationAction.DELETE) {
             return allow("Admin operational access.")
         }
         if (resource == ProtectedResource.ADMIN_OPERATION) {
@@ -95,6 +95,6 @@ class AuthorizationPolicy {
     private fun deny(reason: String) = AuthorizationDecision(false, reason)
 
     private companion object {
-        val FINANCIAL_ROLES = setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
+        val FINANCIAL_ROLES = RoleGroups.AdminOnly
     }
 }

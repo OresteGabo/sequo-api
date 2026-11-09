@@ -96,12 +96,13 @@ class AdminUserAccessService(
 
     @Transactional(rollbackFor = [Exception::class], isolation = Isolation.READ_COMMITTED)
     fun access(id: String, actor: String, request: AdminAccessRequest): AdminPartyMutationDto<AdminUserAccessDto> {
-        val global = begin(actor, true)
+        val global = begin(actor)
         val active = requireNotNull(request.active) { "active is required." }
         val status = requireNotNull(request.status) { "status is required." }
         require(status in managedStatuses) { "Choose ACTIVE, LOCKED or SUSPENDED; this action cannot verify or delete an identity." }
         val command = command("USER_ACCESS", id, null, "SET_ACCESS", actor, "$active:$status", request.reason, request.expectedUpdatedAt, request.idempotencyKey)
         val target = target(id, actor)
+        authorizePersonnelTarget(actor, target, requirePersonnel = true)
         replay(command)?.let { return AdminPartyMutationDto(userDto(target), changeDto(it)) }
         fresh(target.updatedAt, command.expected)
         if (!active || !status.canAuthenticate()) { protectLastSuper(target); protectOwners(target); protectRelayOperator(target) }
@@ -115,9 +116,10 @@ class AdminUserAccessService(
 
     @Transactional(rollbackFor = [Exception::class], isolation = Isolation.READ_COMMITTED)
     fun role(id: String, role: RoleCode, grant: Boolean, actor: String, request: AdminRoleRequest): AdminPartyMutationDto<AdminUserAccessDto> {
-        val global = begin(actor, true)
+        val global = begin(actor)
         val command = command("USER_ACCESS", id, null, if (grant) "GRANT_ROLE" else "REVOKE_ROLE", actor, role.name, request.reason, request.expectedUpdatedAt, request.idempotencyKey)
         val target = target(id, actor)
+        authorizePersonnelTarget(actor, target, role = role)
         replay(command)?.let { return AdminPartyMutationDto(userDto(target), changeDto(it)) }
         fresh(target.updatedAt, command.expected)
         require(target.active && target.status.canAuthenticate()) { "Role changes require an active established account." }
@@ -137,12 +139,13 @@ class AdminUserAccessService(
 
     @Transactional(rollbackFor = [Exception::class], isolation = Isolation.READ_COMMITTED)
     fun membership(merchantId: String, userId: String, role: RoleCode, actor: String, request: AdminMembershipRequest): AdminPartyMutationDto<AdminMerchantMembershipsDto> {
-        val global = begin(actor, false)
+        val global = begin(actor)
         require(role == RoleCode.MERCHANT_OWNER || role == RoleCode.MERCHANT_STAFF) { "Membership role must be MERCHANT_OWNER or MERCHANT_STAFF." }
         val active = requireNotNull(request.active) { "active is required." }
         val command = command("MERCHANT_MEMBERSHIP", userId, merchantId, "SET_MEMBERSHIP", actor, "${role.name}:$active", request.reason, request.expectedUpdatedAt, request.idempotencyKey)
         val merchant = merchants.findById(merchantId).orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND) }
         val target = target(userId, actor)
+        authorizePersonnelTarget(actor, target)
         replay(command)?.let { return AdminPartyMutationDto(requireNotNull(this.merchant(merchantId)), changeDto(it)) }
         require(target.active && target.status.canAuthenticate()) { "Membership changes require an active established account." }
         require(role in target.roles) { "Grant the matching account role separately before assigning merchant scope; membership does not promote an account." }
@@ -163,13 +166,22 @@ class AdminUserAccessService(
         return AdminPartyMutationDto(requireNotNull(this.merchant(merchantId)), changeDto(operation))
     }
 
-    private fun begin(actor: String, superOnly: Boolean): AdminAccessScopeRecord {
+    private fun begin(actor: String): AdminAccessScopeRecord {
         val global = scopes.lockScope("GLOBAL") ?: conflict("access_guard_unavailable", "Access administration is unavailable until its migration is applied.")
         val user = users.lockCheckoutOwner(actor) ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "An active administrator account is required.")
         entityManager.refresh(user)
-        val permitted = if (superOnly) setOf(RoleCode.SUPER_ADMIN) else RoleGroups.AdminOnly
+        val permitted = RoleGroups.StaffManagers
         if (!user.active || !user.status.canAuthenticate() || user.roles.none { it in permitted }) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Current administrator authority is required.")
         return global
+    }
+    private fun authorizePersonnelTarget(actor: String, target: User, role: RoleCode? = null, requirePersonnel: Boolean = false) {
+        val currentActor = users.findById(actor).orElseThrow { ResponseStatusException(HttpStatus.FORBIDDEN) }
+        if (RoleCode.SUPER_ADMIN in currentActor.roles) return
+        if (target.roles.any { it in RoleGroups.ProtectedAdministrators } ||
+            (role != null && role !in RoleGroups.PersonnelRoles) ||
+            (requirePersonnel && target.roles.none { it in RoleGroups.PersonnelRoles })) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only an owner can manage administrator access or roles. Staff managers manage operational personnel only.")
+        }
     }
     private fun target(id: String, actor: String): User {
         if (id == actor) conflict("self_access_change_denied", "Use another authorized administrator for changes to your own access or merchant scope.")
@@ -243,21 +255,21 @@ class AdminUserAccessController(private val service: AdminUserAccessService) {
     @GetMapping("/users/{userId}/access")
     fun user(authentication: Authentication?, @PathVariable userId: String) = authorized(authentication) { found(service.user(id(userId))) }
     @PutMapping("/users/{userId}/access")
-    fun access(authentication: Authentication?, @PathVariable userId: String, @RequestBody request: AdminAccessRequest) = authorized(authentication, true) { ok(service.access(id(userId), requireNotNull(authentication).name, request)) }
+    fun access(authentication: Authentication?, @PathVariable userId: String, @RequestBody request: AdminAccessRequest) = authorized(authentication, mutation = true) { ok(service.access(id(userId), requireNotNull(authentication).name, request)) }
     @PutMapping("/users/{userId}/roles/{roleCode}")
-    fun grant(authentication: Authentication?, @PathVariable userId: String, @PathVariable roleCode: RoleCode, @RequestBody request: AdminRoleRequest) = authorized(authentication, true) { ok(service.role(id(userId), roleCode, true, requireNotNull(authentication).name, request)) }
+    fun grant(authentication: Authentication?, @PathVariable userId: String, @PathVariable roleCode: RoleCode, @RequestBody request: AdminRoleRequest) = authorized(authentication, mutation = true) { ok(service.role(id(userId), roleCode, true, requireNotNull(authentication).name, request)) }
     @DeleteMapping("/users/{userId}/roles/{roleCode}")
-    fun revoke(authentication: Authentication?, @PathVariable userId: String, @PathVariable roleCode: RoleCode, @RequestBody request: AdminRoleRequest) = authorized(authentication, true) { ok(service.role(id(userId), roleCode, false, requireNotNull(authentication).name, request)) }
+    fun revoke(authentication: Authentication?, @PathVariable userId: String, @PathVariable roleCode: RoleCode, @RequestBody request: AdminRoleRequest) = authorized(authentication, mutation = true) { ok(service.role(id(userId), roleCode, false, requireNotNull(authentication).name, request)) }
     @GetMapping("/merchant-memberships")
     fun memberships(authentication: Authentication?, @RequestParam merchantId: String) = authorized(authentication) { found(service.merchant(id(merchantId))) }
     @PutMapping("/merchant-memberships/{merchantId}/{userId}/{roleCode}")
-    fun membership(authentication: Authentication?, @PathVariable merchantId: String, @PathVariable userId: String, @PathVariable roleCode: RoleCode, @RequestBody request: AdminMembershipRequest) = authorized(authentication) { ok(service.membership(id(merchantId), id(userId), roleCode, requireNotNull(authentication).name, request)) }
+    fun membership(authentication: Authentication?, @PathVariable merchantId: String, @PathVariable userId: String, @PathVariable roleCode: RoleCode, @RequestBody request: AdminMembershipRequest) = authorized(authentication, mutation = true) { ok(service.membership(id(merchantId), id(userId), roleCode, requireNotNull(authentication).name, request)) }
     private fun id(value: String) = ApiInputPolicy.requiredIdentifier(value, "id")
     private fun ok(value: Any): ResponseEntity<Any> = ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(value)
     private fun found(value: Any?): ResponseEntity<Any> = value?.let(::ok) ?: ResponseEntity.notFound().cacheControl(CacheControl.noStore()).build()
-    private fun authorized(authentication: Authentication?, superOnly: Boolean = false, block: () -> ResponseEntity<Any>): ResponseEntity<Any> {
+    private fun authorized(authentication: Authentication?, mutation: Boolean = false, block: () -> ResponseEntity<Any>): ResponseEntity<Any> {
         if (authentication == null) return ResponseEntity.status(401).build()
-        if (!authentication.hasAnyRole(if (superOnly) setOf(RoleCode.SUPER_ADMIN) else RoleGroups.AdminOnly)) return ResponseEntity.status(403).build()
+        if (!authentication.hasAnyRole(if (mutation) RoleGroups.StaffManagers else RoleGroups.AdminOnly)) return ResponseEntity.status(403).build()
         return block()
     }
 }

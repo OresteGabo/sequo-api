@@ -134,9 +134,12 @@ class AdminEnrollmentService(
         val actor = users.lockCheckoutOwner(command.actor)
         actor?.let(entityManager::refresh)
         requireActor(actor)
+        if (actor!!.roles.none { it in RoleGroups.StaffManagers }) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Staff manager or owner access is required for enrollment.")
         if (command.actor == command.user) conflict("self_enrollment_denied", "Use another authorized administrator to enroll a profile for your own account.")
         val target = users.lockCheckoutOwner(command.user) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
         entityManager.refresh(target)
+        if (RoleCode.SUPER_ADMIN !in actor.roles && target.roles.any { it in RoleGroups.ProtectedAdministrators })
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only an owner can manage an administrator's personnel profile.")
         return target
     }
     private fun requireActor(actor: User?) {

@@ -58,7 +58,7 @@ class AdminOperationalControlsHttpTest @Autowired constructor(
         changes.deleteAll(); ledger.deleteAll(); missions.deleteAll(); events.deleteAll(); lines.deleteAll()
         orders.deleteAll(); checkouts.deleteAll(); lockers.deleteAll(); points.deleteAll(); couriers.deleteAll(); users.deleteAll()
         fun user(role: RoleCode, name: String) = users.save(User(email = "$name@fixture.invalid", name = name, roles = mutableSetOf(role)))
-        admin = user(RoleCode.ADMIN, "admin"); secondAdmin = user(RoleCode.SUPER_ADMIN, "super-admin")
+        admin = user(RoleCode.STAFF_MANAGER, "admin"); secondAdmin = user(RoleCode.SUPER_ADMIN, "super-admin")
         customer = user(RoleCode.CUSTOMER, "customer"); rider = user(RoleCode.COURIER, "rider")
         relayA = user(RoleCode.RELAY_PARTNER, "relay-a"); relayB = user(RoleCode.RELAY_PARTNER, "relay-b")
         couriers.save(CourierRecord("actual-courier", userId = rider.id, workforceType = "FREELANCER", vehicleType = "Moto",

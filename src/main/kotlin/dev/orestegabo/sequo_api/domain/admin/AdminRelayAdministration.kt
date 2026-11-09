@@ -74,7 +74,7 @@ class AdminRelayAdministrationService(
     }
     @Transactional(isolation = Isolation.READ_COMMITTED)
     fun create(actor: String, request: RelaySiteDetailsRequest): RelaySetupMutation {
-        requireActor(actor)
+        requireActor(actor, personnel = true)
         val values = details(request)
         val intent = intent("CREATE_SITE", "NEW", actor, request.reason, request.idempotencyKey, values)
         replay(intent)?.let { return response(it) }
@@ -86,7 +86,7 @@ class AdminRelayAdministrationService(
     }
     @Transactional(isolation = Isolation.READ_COMMITTED)
     fun update(id: String, actor: String, request: RelaySiteDetailsRequest): RelaySetupMutation {
-        requireActor(actor)
+        requireActor(actor, personnel = true)
         val values = details(request) + ("expectedUpdatedAt" to expected(request.expectedUpdatedAt).toString())
         val intent = intent("UPDATE_SITE", id, actor, request.reason, request.idempotencyKey, values)
         replay(intent)?.let { return response(it) }
@@ -178,9 +178,9 @@ class AdminRelayAdministrationService(
             missionId?.let { missions.findById(it).orElse(null)?.toSnapshot(references) })
     }
     private fun site(id: String) = points.lockForAdministration(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
-    private fun requireActor(id: String) {
+    private fun requireActor(id: String, personnel: Boolean = false) {
         val actor = people.findById(id).orElse(null)
-        if (actor == null || !actor.active || !actor.status.canAuthenticate() || actor.roles.none { it in RoleGroups.AdminOnly }) throw ResponseStatusException(HttpStatus.FORBIDDEN)
+        if (actor == null || !actor.active || !actor.status.canAuthenticate() || actor.roles.none { it in (if (personnel) RoleGroups.StaffManagers else RoleGroups.AdminOnly) }) throw ResponseStatusException(HttpStatus.FORBIDDEN)
     }
     private fun details(r: RelaySiteDetailsRequest): Map<String, String?> {
         require(r.latitude?.let { it.isFinite() && it in -90.0..90.0 } == true && r.longitude?.let { it.isFinite() && it in -180.0..180.0 } == true) { "Valid latitude and longitude are required." }

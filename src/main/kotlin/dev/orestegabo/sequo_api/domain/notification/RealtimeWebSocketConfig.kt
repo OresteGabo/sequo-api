@@ -127,7 +127,7 @@ class RealtimeSubscriptionAuthorizationService {
             )
             destination == "/topic/admin/operations" -> requireAnyRole(
                 authentication,
-                setOf(RoleCode.SUPPORT_AGENT, RoleCode.ADMIN, RoleCode.SUPER_ADMIN),
+                dev.orestegabo.sequo_api.domain.auth.RoleGroups.AdminOperations,
                 "Admin operations topic requires support or admin role.",
             )
             else -> deny("Realtime destination is not allowed.")

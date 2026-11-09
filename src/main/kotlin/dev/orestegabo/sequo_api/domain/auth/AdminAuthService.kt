@@ -338,6 +338,6 @@ class AdminAuthService(
         private const val PollingIntervalSeconds = 2
         private val EmailCodeTtl = Duration.ofMinutes(5)
         private val EmailCodeRetryDelay = Duration.ofSeconds(60)
-        private val AdminApproverRoles = setOf(RoleCode.ADMIN, RoleCode.SUPER_ADMIN)
+        private val AdminApproverRoles = RoleGroups.AdminOnly
     }
 }

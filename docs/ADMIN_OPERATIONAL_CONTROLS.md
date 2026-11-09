@@ -1,6 +1,6 @@
 # Recorded admin operational controls
 
-These routes use the normal authenticated `ADMIN`/`SUPER_ADMIN` boundary and `Cache-Control: no-store`. They do not impersonate a customer, courier, merchant or relay operator. Mutation actors must also remain active administrators in the current database.
+Reads and daily operations use the authenticated Operations (`ADMIN`), `STAFF_MANAGER` or Owner (`SUPER_ADMIN`) boundary and `Cache-Control: no-store`. Personnel configuration writes (workforce, relay operator assignments and merchant memberships) require a current Staff manager or Owner. Administrator access/role changes require an Owner. See [ADMIN_ROLES_AND_PERMISSIONS.md](ADMIN_ROLES_AND_PERMISSIONS.md). These routes do not impersonate a customer, courier, merchant or relay operator; mutation actors are checked against current database authority.
 
 | Method and path | Contract |
 | --- | --- |

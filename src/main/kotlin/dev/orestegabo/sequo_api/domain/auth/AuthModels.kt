@@ -22,6 +22,7 @@ enum class RoleCode {
     RELAY_PARTNER,
     SUPPORT_AGENT,
     ADMIN,
+    STAFF_MANAGER,
     SUPER_ADMIN
 }
 

@@ -37,6 +37,7 @@ class AdminUserAccessHttpTest @Autowired constructor(
     private val json = ObjectMapper()
     private lateinit var superA: User
     private lateinit var superB: User
+    private lateinit var manager: User
     private lateinit var admin: User
     private lateinit var customer: User
     private lateinit var staff: User
@@ -51,12 +52,45 @@ class AdminUserAccessHttpTest @Autowired constructor(
         superA = user("super-a", RoleCode.SUPER_ADMIN, RoleCode.CUSTOMER)
         superB = user("super-b", RoleCode.SUPER_ADMIN, RoleCode.CUSTOMER)
         admin = user("admin", RoleCode.ADMIN, RoleCode.CUSTOMER)
+        manager = user("manager", RoleCode.STAFF_MANAGER, RoleCode.CUSTOMER)
         customer = user("customer", RoleCode.CUSTOMER)
         staff = user("staff", RoleCode.MERCHANT_STAFF, RoleCode.CUSTOMER)
         ownerA = user("owner-a", RoleCode.MERCHANT_OWNER, RoleCode.CUSTOMER)
         ownerB = user("owner-b", RoleCode.MERCHANT_OWNER, RoleCode.CUSTOMER)
         relay = user("relay", RoleCode.RELAY_PARTNER, RoleCode.CUSTOMER)
         merchant = merchants.saveAndFlush(MerchantRecord("access-merchant", ownerUserId = ownerA.id, name = "Fixture merchant"))
+    }
+
+    @Test fun threeTierBoundaryProtectsAdministratorsAndAllowsAuditedPersonnelManagement() {
+        assertEquals(200, call("users/${staff.id}/access", token(admin)).statusCode())
+        val grantPath = "users/${customer.id}/roles/COURIER"
+        assertEquals(403, call(grantPath, token(admin), "PUT", guarded(userRevision(customer), "ops-no-personnel", "Operations cannot appoint personnel")).statusCode())
+        val fakeManager = jwt.generateAccessToken(UserSession(admin.id!!, null, AuthProvider.EMAIL, setOf(RoleCode.STAFF_MANAGER)))
+        assertEquals(403, call(grantPath, fakeManager, "PUT", guarded(userRevision(customer), "forged-manager-claim", "Current database authority is required")).statusCode())
+        assertEquals(403, call("enrollment/merchants", token(admin), "POST", mapOf("userId" to ownerA.id, "name" to "New approved merchant", "expectedUserUpdatedAt" to userRevision(ownerA), "reason" to "Operations cannot enroll staff", "idempotencyKey" to "ops-no-enrollment")).statusCode())
+        assertEquals(403, call("couriers/missing/workforce", token(admin), "PUT", mapOf("workforceType" to "Freelancer", "reason" to "Operations cannot change staffing", "expectedUpdatedAt" to userRevision(customer), "idempotencyKey" to "ops-no-workforce")).statusCode())
+        assertEquals(403, call("merchant-memberships/${merchant.id}/${staff.id}/MERCHANT_STAFF", token(admin), "PUT", guarded(merchantRevision(), "ops-no-membership", "Cannot alter staff") + ("active" to true)).statusCode())
+        for (role in listOf("ADMIN", "STAFF_MANAGER", "SUPER_ADMIN", "SUPPORT_AGENT")) {
+            assertEquals(403, call("users/${customer.id}/roles/$role", token(manager), "PUT", guarded(userRevision(customer), "manager-no-$role", "Cannot appoint administrators")).statusCode())
+        }
+        assertEquals(200, call(grantPath, token(manager), "PUT", guarded(userRevision(customer), "manager-courier", "Approved rider onboarding")).statusCode())
+        val oldToken = token(users.findById(customer.id!!).orElseThrow())
+        val suspended = call("users/${customer.id}/access", token(manager), "PUT", guarded(userRevision(customer), "manager-suspend", "Reviewed personnel suspension") + mapOf("active" to false, "status" to "SUSPENDED"))
+        assertEquals(200, suspended.statusCode(), suspended.body())
+        assertTrue(inbox(oldToken).statusCode() in setOf(401, 403))
+        assertEquals(manager.id, tree(suspended)["operation"]["actorUserId"].asText())
+        for (target in listOf(admin, manager, superA)) {
+            val status = call("users/${target.id}/access", token(manager), "PUT", guarded(userRevision(target), "manager-protected-${target.id}", "Cannot suspend administrators") + mapOf("active" to false, "status" to "SUSPENDED")).statusCode()
+            assertEquals(if (target.id == manager.id) 409 else 403, status)
+        }
+        assertEquals(403, call("users/${admin.id}/roles/COURIER", token(manager), "PUT", guarded(userRevision(admin), "manager-admin-target", "Cannot modify admin roles")).statusCode())
+        val ownerGrant = call("users/${staff.id}/roles/STAFF_MANAGER", token(superA), "PUT", guarded(userRevision(staff), "owner-new-manager", "Owner approved staff manager"))
+        assertEquals(200, ownerGrant.statusCode(), ownerGrant.body())
+        assertEquals(200, call("users/${relay.id}/access", token(staff)).statusCode())
+        val staleOwner = token(superB)
+        val demote = call("users/${superB.id}/roles/SUPER_ADMIN", token(superA), "DELETE", guarded(userRevision(superB), "owner-revoke-owner", "Owner access revoked"))
+        assertEquals(200, demote.statusCode(), demote.body())
+        assertTrue(call("users/${relay.id}/access", staleOwner).statusCode() in setOf(401, 403))
     }
 
     @Test fun rolesAreSuperAdminOnlyAuditedReplaySafeAndStaleProtected() {
@@ -111,7 +145,7 @@ class AdminUserAccessHttpTest @Autowired constructor(
     @Test fun membershipRequiresSeparateGlobalRoleAndPersistsScopesWithExplicitOwnerProtection() {
         val revision = merchantRevision()
         val path = "merchant-memberships/${merchant.id}/${customer.id}/MERCHANT_STAFF"
-        assertEquals(400, call(path, token(admin), "PUT", guarded(revision, "no-role-promotion", "Scope only") + ("active" to true)).statusCode())
+        assertEquals(400, call(path, token(manager), "PUT", guarded(revision, "no-role-promotion", "Scope only") + ("active" to true)).statusCode())
         assertEquals(setOf(RoleCode.CUSTOMER), users.findById(customer.id!!).orElseThrow().roles)
         val oldStaff = token(staff)
         val oldStaffRevision = userRevision(staff)
@@ -219,7 +253,7 @@ class AdminUserAccessHttpTest @Autowired constructor(
     private fun token(user: User) = jwt.generateAccessToken(auth.accountSession(users.findById(user.id!!).orElseThrow()))
     private fun userRevision(user: User) = tree(call("users/${user.id}/access", token(users.findAll().first { it.active && it.status.canAuthenticate() && RoleCode.SUPER_ADMIN in it.roles })))["user"]["updatedAt"].asText()
     private fun merchantRevision() = tree(call("merchant-memberships?merchantId=${merchant.id}", token(admin)))["updatedAt"].asText()
-    private fun membership(user: User, role: RoleCode, active: Boolean, key: String) = call("merchant-memberships/${merchant.id}/${user.id}/$role", token(admin), "PUT", guarded(merchantRevision(), key, "Reviewed merchant scope") + ("active" to active))
+    private fun membership(user: User, role: RoleCode, active: Boolean, key: String) = call("merchant-memberships/${merchant.id}/${user.id}/$role", token(manager), "PUT", guarded(merchantRevision(), key, "Reviewed merchant scope") + ("active" to active))
     private fun guarded(revision: String, key: String, reason: String) = mapOf("expectedUpdatedAt" to revision, "idempotencyKey" to key, "reason" to reason)
     private fun tree(response: HttpResponse<String>): JsonNode = json.readTree(response.body())
     private fun inbox(token: String) = send("/api/notifications/inbox", token)

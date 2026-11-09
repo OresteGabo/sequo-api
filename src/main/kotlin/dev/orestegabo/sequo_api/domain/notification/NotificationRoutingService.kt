@@ -156,7 +156,7 @@ class NotificationRoutingService {
             RoleCode.COURIER,
             RoleCode.RELAY_PARTNER -> 1
             RoleCode.SUPPORT_AGENT -> 2
-            RoleCode.ADMIN -> 3
+            RoleCode.ADMIN, RoleCode.STAFF_MANAGER -> 3
             RoleCode.SUPER_ADMIN -> 4
         }
 }

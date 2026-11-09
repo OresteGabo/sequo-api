@@ -156,8 +156,8 @@ class AdminPartyControlService(
 
     private fun requireActor(id: String) {
         val user = users.findById(id).orElse(null)
-        if (user == null || !user.active || !user.status.canAuthenticate() || user.roles.none { it in RoleGroups.AdminOnly }) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "An active administrator is required.")
+        if (user == null || !user.active || !user.status.canAuthenticate() || user.roles.none { it in RoleGroups.StaffManagers }) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "An active staff manager or owner is required.")
         }
     }
 

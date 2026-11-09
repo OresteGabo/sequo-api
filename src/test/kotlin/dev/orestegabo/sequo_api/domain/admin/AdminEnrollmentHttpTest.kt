@@ -57,7 +57,7 @@ class AdminEnrollmentHttpTest @Autowired constructor(
     }
 
     @Test fun merchantEnrollmentCreatesExplicitScopeWithoutPromotingIdentityOrInventingStoreClaims() {
-        val admin = user(RoleCode.ADMIN); val owner = user(RoleCode.CUSTOMER, RoleCode.MERCHANT_OWNER)
+        val admin = user(RoleCode.STAFF_MANAGER); val owner = user(RoleCode.CUSTOMER, RoleCode.MERCHANT_OWNER)
         val oldToken = token(owner)
         val request = body(owner, "merchants")
         val result = call("merchants", token(admin), "POST", request)
@@ -130,7 +130,7 @@ class AdminEnrollmentHttpTest @Autowired constructor(
     }
 
     @Test fun enrollmentRequiresCurrentStaffAuthorityAndSeparatelyGrantedTargetRole() {
-        val admin = user(RoleCode.ADMIN); val customer = user(RoleCode.CUSTOMER)
+        val admin = user(RoleCode.STAFF_MANAGER); val customer = user(RoleCode.CUSTOMER)
         val target = user(RoleCode.COURIER); val payload = body(target, "couriers")
         assertTrue(call("couriers", null, "POST", payload).statusCode() in setOf(401, 403))
         assertEquals(403, call("couriers", token(customer), "POST", payload).statusCode())
@@ -153,7 +153,7 @@ class AdminEnrollmentHttpTest @Autowired constructor(
     }
 
     @Test fun staleAndChangedIntentCannotCreateOrChangeProfiles() {
-        val admin = user(RoleCode.ADMIN); val second = user(RoleCode.ADMIN); val owner = user(RoleCode.MERCHANT_OWNER)
+        val admin = user(RoleCode.STAFF_MANAGER); val second = user(RoleCode.STAFF_MANAGER); val owner = user(RoleCode.MERCHANT_OWNER)
         val stale = body(owner, "merchants", extra = mapOf("expectedUserUpdatedAt" to "2000-01-01T00:00:00Z"))
         assertEquals(409, call("merchants", token(admin), "POST", stale).statusCode())
         assertTrue(merchants.findByOwnerUserId(owner.id!!).isEmpty())
@@ -166,7 +166,7 @@ class AdminEnrollmentHttpTest @Autowired constructor(
     }
 
     @Test fun concurrentExactEnrollmentCreatesOneProfileAndOneAuditRecord() {
-        val admin = user(RoleCode.ADMIN); val owner = user(RoleCode.MERCHANT_OWNER)
+        val admin = user(RoleCode.STAFF_MANAGER); val owner = user(RoleCode.MERCHANT_OWNER)
         val request = body(owner, "merchants"); val access = token(admin)
         val calls = (1..2).map { CompletableFuture.supplyAsync { call("merchants", access, "POST", request) } }.map { it.join() }
         calls.forEach { assertEquals(200, it.statusCode(), it.body()) }

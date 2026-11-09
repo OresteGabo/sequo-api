@@ -38,6 +38,20 @@ class AdminAuthControllerEmailCodeTest @Autowired constructor(
     }
 
     @Test
+    fun staffManagerReceivesAnEmailCodeAndCanUseTheNormalAdminLogin() {
+        val user = userRepository.saveAndFlush(User(email = "staff-manager@sequo.test", roles = mutableSetOf(RoleCode.STAFF_MANAGER)))
+        val response = controller.requestEmailCode(AdminAuthController.EmailCodeRequest(user.email!!))
+        assertEquals(200, response.statusCode.value())
+        assertEquals(1L, emailCodeRepository.count())
+        val delivery = Mockito.mockingDetails(emailCodeSender).invocations.single { it.method.name == "send" }
+        assertEquals(user.email, delivery.arguments[0])
+        val verified = controller.verifyEmailCode(AdminAuthController.EmailCodeVerifyRequest(user.email!!, delivery.arguments[1] as String, "staff-manager-browser"))
+        assertEquals(200, verified.statusCode.value())
+        val session = verified.body as AdminAuthController.ExchangeLoginResponse
+        assertEquals(setOf(RoleCode.STAFF_MANAGER), jwtService.parseAccessToken(session.accessToken)!!.roles)
+    }
+
+    @Test
     fun eligibleAdminReceivesCodeAndCanVerifyForTokens() {
         userRepository.save(User(email = "admin-email@sequo.test", provider = AuthProvider.GOOGLE, roles = mutableSetOf(RoleCode.ADMIN)))
 
