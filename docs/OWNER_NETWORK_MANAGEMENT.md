@@ -66,3 +66,32 @@ history table and its append-only protection without editing earlier migrations.
 
 No production personnel, vendor, rider or hub records need to be changed to
 deploy these controls. Account provisioning requires an explicit Owner action.
+
+## Verification — 9 November 2026
+
+- 39 backend checks passed across Owner directory management, account access,
+  merchant/rider enrollment, hub administration, customer checkout and relay custody.
+- 12 web checks passed: three directory workflow checks, four permission checks
+  and five session-recovery checks. The production website build passed.
+- Isolated PostgreSQL copies validated migration V65 and the final application
+  using an existing Owner with no ADMIN or STAFF_MANAGER role. New account
+  creation, exact retries, rider enrollment, vehicle editing, archival,
+  restoration, timestamp round-trips and public references passed. Detailed
+  history rejected UPDATE, DELETE and TRUNCATE. The copies and temporary
+  credentials were removed afterward; private rollback backups were retained.
+- Owner workspaces and the new account form were checked in Safari. The live
+  vendor profile read returned its valid SEQUO reference. No production profile
+  mutations were used for these checks.
+- The browser check exposed expired authentication being mistaken for lost
+  permission. The web client now checks the authenticated identity, refreshes and
+  retries once for expiry, preserves genuine permission denials, and does not
+  clear saved credentials on a temporary diagnostic outage. Demoted/disabled
+  accounts and invalid refresh sessions remain blocked.
+- Final API revision: `82e5c3f71af2592f67aa81f0abb7503c0ae47cf9`, release
+  `sequo-owner-directory-20261109-02`, Flyway 65. Verified artifact SHA-256:
+  `5e184438f4ac032d3d742d360158b7c1655768448e9659b58092d95c9c67045e`.
+  Public readiness is UP. Final website revision:
+  `a0e6fdb0d17605f1641f9d52f1dc6b1a1003ac36`, deployed successfully through Vercel.
+- GitHub Actions remained blocked by the existing account billing lock. The
+  validated API artifact used the established API-only manual deployment fallback.
+  Existing users, roles, secrets and paid-launch gates were preserved.
