@@ -18,6 +18,8 @@ Credentials expiring or being disabled stops new password sessions. Existing ses
 
 `TEST_ORDER_FLOW_ENABLED` defaults false. Test quotes are eligible only for a nonempty basket of exact seeded product/merchant pairs. Mixed test/ordinary baskets are rejected at submission. Test records cannot go through ordinary payment submission while this flow is enabled. A legacy omitted `testOrder` flag stays compatible with ordinary checkout.
 
+When ordinary routing has no origin configured, only an eligible test basket receives the fictional Tokoin estimate origin (6.1725, 1.2314). Ordinary baskets still require normal routing configuration.
+
 Explicit test submission uses a closed pending-only payment processor: no wallet adapter call is made. It snapshots a server-owned `TEST_NO_FUNDS:` payment reference, truthful `DEMO_ILLUSTRATION` photo evidence, no benefit reservation/consumption and no subscriber priority. Ordinary photo/payment processing is unchanged.
 
 The customer's explicit test-payment action locks only their own tagged pending checkout, revalidates every immutable snapshot line and uses normal fulfillment persistence. It does not create provider webhook evidence or a provider transaction claim. Provider callbacks cannot fulfill these test checkouts. Repeating confirmation returns the existing order.

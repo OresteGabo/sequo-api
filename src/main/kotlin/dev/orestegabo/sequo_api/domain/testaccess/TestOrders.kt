@@ -23,6 +23,8 @@ fun isSeededTestRider(id:String)=id in (1..4).map{"demo-v1-rider-$it"}
 class TestOrderPolicy(@Value("\${sequo.testing.orders.enabled:false}") val enabled:Boolean) {
     private val shops=setOf("bistro","saveurs","grains","marche","boissons","mode","petits","pas","tech","maison","tissus","essentiels")
     fun testProduct(id:String,merchant:String?):Boolean = shops.any {id.matches(Regex("demo-v1-$it-[0-9]{2}")) && merchant=="demo-v1-shop-$it"}
+    fun quoteOrigin(configured:dev.orestegabo.sequo_api.domain.routing.GeoPoint?,testCart:Boolean):dev.orestegabo.sequo_api.domain.routing.GeoPoint? =
+        configured ?: if(enabled && testCart) dev.orestegabo.sequo_api.domain.routing.GeoPoint(6.1725,1.2314) else null
     fun processor(pricing:DeliveryPricingService):RegularOrderProcessor {
         check(enabled)
         val pending:(PaymentValidationRequest)->PaymentValidationResult = {PaymentValidationResult.pending("TEST — no wallet call and no money moved.")}

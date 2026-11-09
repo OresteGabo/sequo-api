@@ -81,10 +81,11 @@ class CartDeliveryQuoteService(
             addresses.findByIdAndUserId(ApiInputPolicy.requiredIdentifier(addressId, "addressId"), userId)
                 ?.takeIf { it.active && it.kind != CustomerAddressKind.RELAY },
         ) { "Delivery address is unavailable." }
-        val dispatchOrigin = requireNotNull(origin) { "Delivery estimates are unavailable." }
         val latitude = requireNotNull(address.latitude) { "Delivery address requires coordinates." }
         val longitude = requireNotNull(address.longitude) { "Delivery address requires coordinates." }
         val cart = commerce.cart(userId)
+        val testCart = testOrders?.enabled == true && cart.items.isNotEmpty() && cart.items.all { testOrders.testProduct(it.product.id,it.product.merchantId) }
+        val dispatchOrigin = requireNotNull(testOrders?.quoteOrigin(origin,testCart) ?: origin) { "Delivery estimates are unavailable." }
         require(cart.items.isNotEmpty()) { "Cart is empty." }
         require(cart.items.all { it.available }) { "Remove or replace unavailable cart items." }
         val storeRevisions = merchantStores.quoteRevisions(cart.items.mapNotNull { it.product.merchantId })
@@ -95,7 +96,6 @@ class CartDeliveryQuoteService(
             relays.requireAvailable(ApiInputPolicy.requiredIdentifier(it, "relayPointId"))
         }
         val meters = distanceProvider.estimate(RoutingDistanceRequest(dispatchOrigin, GeoPoint(relay?.latitude ?: latitude, relay?.longitude ?: longitude)))
-        val testCart = testOrders?.enabled == true && cart.items.all { testOrders.testProduct(it.product.id,it.product.merchantId) }
         val baseDelivery = pricing.calculate(DeliveryPricingInput(distanceKm = meters / 1000.0))
         val benefitReview = if(testCart) dev.orestegabo.sequo_api.domain.subscription.DeliveryBenefitReview(baseDelivery,null,null,null,listOf("TEST_NO_FUNDS"))
             else benefits.review(userId, baseDelivery,
