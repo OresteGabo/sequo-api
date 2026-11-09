@@ -1,0 +1,1856 @@
+[
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol_dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_dark.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_dark.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_dark.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoBrand.kt",
+    "sha256": "dd99dbe25cb89ba6da5850e4233ad7d7c015105f3e364aa4ed55916bc3da2bbb",
+    "previous_sha256": "dd99dbe25cb89ba6da5850e4233ad7d7c015105f3e364aa4ed55916bc3da2bbb"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/feature/splash/SplashScreen.kt",
+    "sha256": "68f7f6329ecbbed3048c47dc749f0fb47ca633bede0f285d6030af95bd82eac8",
+    "previous_sha256": "e2eb29ec3bb3bc2896bad5194eb135443dd3ec2192d45efd445db5a761460df1"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/feature/auth/AuthScreen.kt",
+    "sha256": "9e6f624ef13fd3ec40e75470d4af2a7ca6931296ac4cf62760f070a98b6116e2",
+    "previous_sha256": "9e6f624ef13fd3ec40e75470d4af2a7ca6931296ac4cf62760f070a98b6116e2"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/components/ErrorStates.kt",
+    "sha256": "baaf9ad76772dcbebbf0f01773c87331a9c32842ffd23093041bb514a65b7000",
+    "previous_sha256": "4b84b6b53051e0971cf5978d65a1d1d7e82006dade63ad6d6f402299e084bdb8"
+  },
+  {
+    "repo": "Sequo",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/ui/chrome/AppBars.kt",
+    "sha256": "59a7075a2b70ee64aecb3e0cbcecbab91907ec665c8c2bb2e1d8ef13c0277710",
+    "previous_sha256": "59a7075a2b70ee64aecb3e0cbcecbab91907ec665c8c2bb2e1d8ef13c0277710"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/drawable/ic_brand_foreground.xml",
+    "sha256": "5efee31a0e98354f972845cfd8a0012e2ae445957bef6537850e87830be4e191",
+    "previous_sha256": "5efee31a0e98354f972845cfd8a0012e2ae445957bef6537850e87830be4e191"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/drawable/ic_brand_monochrome.xml",
+    "sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36",
+    "previous_sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/drawable/ic_stat_sequo.xml",
+    "sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b",
+    "previous_sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/drawable/ic_launcher_background.xml",
+    "sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac",
+    "previous_sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "sha256": "29a5a2203bbc08cdf8c6f6b9a1417680fc45a94e138283257f2f040a47462a2b",
+    "previous_sha256": "29a5a2203bbc08cdf8c6f6b9a1417680fc45a94e138283257f2f040a47462a2b"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+    "sha256": "1a7a63d1ac9bbc2f728cfb5039f0df2cff836fdaebdfd4d3a26bb32e346a70e2",
+    "previous_sha256": "1a7a63d1ac9bbc2f728cfb5039f0df2cff836fdaebdfd4d3a26bb32e346a70e2"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "sha256": "2cd943eccada6dc1fd09693e64aa7562aeb2c8c29e8e3632318dc2b1a90c6e82",
+    "previous_sha256": "2cd943eccada6dc1fd09693e64aa7562aeb2c8c29e8e3632318dc2b1a90c6e82"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+    "sha256": "6a62be519a08a1f427f13bcdb8f0cf6d1ebcbf5e8dae4eae5ecbc58303b1f03d",
+    "previous_sha256": "6a62be519a08a1f427f13bcdb8f0cf6d1ebcbf5e8dae4eae5ecbc58303b1f03d"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "sha256": "2bb7613209daa0c22dc3d006e38cb820383a06a8ae60ca5040f4b313cf44de85",
+    "previous_sha256": "2bb7613209daa0c22dc3d006e38cb820383a06a8ae60ca5040f4b313cf44de85"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+    "sha256": "7c0e4bd67d0eb6e8972e5c557552426b050d85eab2c1c8e7f9e5b14e089cb783",
+    "previous_sha256": "7c0e4bd67d0eb6e8972e5c557552426b050d85eab2c1c8e7f9e5b14e089cb783"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "sha256": "65e5c0dfa9a9855416be653dfb0f6caecea19934b2b450f7081917bbebef5466",
+    "previous_sha256": "65e5c0dfa9a9855416be653dfb0f6caecea19934b2b450f7081917bbebef5466"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+    "sha256": "4c39f1ea4f4adbc1ae36fb9f3cb475506addbbe86459cdc73e2b7eefcefb11a6",
+    "previous_sha256": "4c39f1ea4f4adbc1ae36fb9f3cb475506addbbe86459cdc73e2b7eefcefb11a6"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "sha256": "58413caa65394e338164e37e999b70bade08d6f867c96633ce924053d36bac66",
+    "previous_sha256": "58413caa65394e338164e37e999b70bade08d6f867c96633ce924053d36bac66"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+    "sha256": "578c09ffcd4b8cb7f8ff8e7649d8eb805caa9ae643ecab08573c69aa8b7933af",
+    "previous_sha256": "578c09ffcd4b8cb7f8ff8e7649d8eb805caa9ae643ecab08573c69aa8b7933af"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/res/values-v31/styles.xml",
+    "sha256": "34ac33f05b43693a5bedc783cab6f8f28ce62b95fe74822fe866eea5fe01e9ec",
+    "previous_sha256": "34ac33f05b43693a5bedc783cab6f8f28ce62b95fe74822fe866eea5fe01e9ec"
+  },
+  {
+    "repo": "Sequo",
+    "path": "androidApp/src/main/kotlin/dev/orestegabo/sequo/MainActivity.kt",
+    "sha256": "7b6b63c896e031349757921629b9b576557fd320be3e5c603cb0b44f533ed560",
+    "previous_sha256": "7b6b63c896e031349757921629b9b576557fd320be3e5c603cb0b44f533ed560"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-20@2x.png",
+    "sha256": "79af59f9b98010870e4d6eda81e55375b8fb27e8b32fd003505342dabeb01f20",
+    "previous_sha256": "79af59f9b98010870e4d6eda81e55375b8fb27e8b32fd003505342dabeb01f20"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-20@3x.png",
+    "sha256": "52f65daf077538fb8c8baabde4e73a3652c880a103e4e965161328312fba1f43",
+    "previous_sha256": "52f65daf077538fb8c8baabde4e73a3652c880a103e4e965161328312fba1f43"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-29@2x.png",
+    "sha256": "2d021b5e191323a286a16c86b1a1411110928e27bf30a3721a711aa86329b1cb",
+    "previous_sha256": "2d021b5e191323a286a16c86b1a1411110928e27bf30a3721a711aa86329b1cb"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-29@3x.png",
+    "sha256": "f43236457f6c0375aafdefed5229a57c5c5184275d5ccf606a7e8cdea1c4351c",
+    "previous_sha256": "f43236457f6c0375aafdefed5229a57c5c5184275d5ccf606a7e8cdea1c4351c"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-40@2x.png",
+    "sha256": "243e211825bd1a4106d27572bedac72c92131f3e7b78c8d5a28e383482a798f3",
+    "previous_sha256": "243e211825bd1a4106d27572bedac72c92131f3e7b78c8d5a28e383482a798f3"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-40@3x.png",
+    "sha256": "28db2db67930e56fab9ae4dd96b77ccb2300f9c767ad7c8a3d457e4ede1414ef",
+    "previous_sha256": "28db2db67930e56fab9ae4dd96b77ccb2300f9c767ad7c8a3d457e4ede1414ef"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-60@2x.png",
+    "sha256": "28db2db67930e56fab9ae4dd96b77ccb2300f9c767ad7c8a3d457e4ede1414ef",
+    "previous_sha256": "28db2db67930e56fab9ae4dd96b77ccb2300f9c767ad7c8a3d457e4ede1414ef"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-60@3x.png",
+    "sha256": "47cb289712d05b114beed2cca1e5a862705532b2d92f1b0b7e842a820e678890",
+    "previous_sha256": "47cb289712d05b114beed2cca1e5a862705532b2d92f1b0b7e842a820e678890"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-76@2x.png",
+    "sha256": "bfedb9a0c1521a2eedff0fdfcdb0b95b35fd0791e04026a4a6a07c5ae24848ce",
+    "previous_sha256": "bfedb9a0c1521a2eedff0fdfcdb0b95b35fd0791e04026a4a6a07c5ae24848ce"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-83.5@2x.png",
+    "sha256": "2f9ae6f761c8972ac6b1dec4e35c43b8b18ccf576458276a86952cf25b8114c1",
+    "previous_sha256": "2f9ae6f761c8972ac6b1dec4e35c43b8b18ccf576458276a86952cf25b8114c1"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png",
+    "sha256": "02546d807cc89db90ab6d985ad206a95d4ad9a6f49da12d45e8d7b231b4dc9ae",
+    "previous_sha256": "02546d807cc89db90ab6d985ad206a95d4ad9a6f49da12d45e8d7b231b4dc9ae"
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-dark-1024.png",
+    "sha256": "42643b55eb3d626f1e4972e5a17a385e42714d77ee520fa66a167eb0382ee866",
+    "previous_sha256": null
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-tinted-1024.png",
+    "sha256": "a04fc40c4e44f3afa9e64bcaca97e7b87a70ebde94675f3de309ff56a1d421b2",
+    "previous_sha256": null
+  },
+  {
+    "repo": "Sequo",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json",
+    "sha256": "bf1c9c3a68181859ff6359a3c3e918ba4f91f1e8e8f837388e018dd65352e6b6",
+    "previous_sha256": "cd84608868e21c23a933448f02d12d417603562720793aa4f34f9456a4dc6839"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol_dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_dark.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_dark.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_dark.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoBrand.kt",
+    "sha256": "ab33f7dc5e5396801608ff9a80d4b112b76c095d99ad41995894a796e2671622",
+    "previous_sha256": "ab33f7dc5e5396801608ff9a80d4b112b76c095d99ad41995894a796e2671622"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/feature/splash/SplashScreen.kt",
+    "sha256": "4426f8b43596864128e0e34226e90117b34ad3404cd0f73d1bad44be0c4d0ebc",
+    "previous_sha256": "5bb480515a61871e645c82773109a1e3aa05162ff742c16bd525c5e4999f589f"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequovendor/feature/auth/AuthScreen.kt",
+    "sha256": "582bf7e26d79a72684eb38e719f1978bd84a5e83d7265f38b92497e1d47fde83",
+    "previous_sha256": "582bf7e26d79a72684eb38e719f1978bd84a5e83d7265f38b92497e1d47fde83"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/drawable/ic_brand_foreground.xml",
+    "sha256": "5313f84fef36ce65e641b81d469d6a1004980925c256888b72615c56e6b4fce6",
+    "previous_sha256": "5313f84fef36ce65e641b81d469d6a1004980925c256888b72615c56e6b4fce6"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/drawable/ic_brand_monochrome.xml",
+    "sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36",
+    "previous_sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/drawable/ic_stat_sequo.xml",
+    "sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b",
+    "previous_sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/drawable/ic_launcher_background.xml",
+    "sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac",
+    "previous_sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "sha256": "3265e61df3b5b5bc0fc7ae8433358e66eeb591c87b9787a1d985a23a15577027",
+    "previous_sha256": "3265e61df3b5b5bc0fc7ae8433358e66eeb591c87b9787a1d985a23a15577027"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+    "sha256": "905bb77c0b2741f4af20c8dfe9c6fe8af49fa3e6fe98f0fba027082f97b4e569",
+    "previous_sha256": "905bb77c0b2741f4af20c8dfe9c6fe8af49fa3e6fe98f0fba027082f97b4e569"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "sha256": "bf1b322c0059bce6415e4a35c806f20846c498a32d44752cf87f7a3772bc1d2f",
+    "previous_sha256": "bf1b322c0059bce6415e4a35c806f20846c498a32d44752cf87f7a3772bc1d2f"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+    "sha256": "35321f1d032539547eb82d0731b7d25f4bd7f0ae0a8aeca62e4fd666c75bff86",
+    "previous_sha256": "35321f1d032539547eb82d0731b7d25f4bd7f0ae0a8aeca62e4fd666c75bff86"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "sha256": "bbdf542dcf9a86d033bcc85045766cc53e3c0b18cccc4ab808c476de732f3c49",
+    "previous_sha256": "bbdf542dcf9a86d033bcc85045766cc53e3c0b18cccc4ab808c476de732f3c49"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+    "sha256": "98b7a1b99ba1fcd4ccdde1625847621b27e5833b580c66f0488ef41cb55d0dee",
+    "previous_sha256": "98b7a1b99ba1fcd4ccdde1625847621b27e5833b580c66f0488ef41cb55d0dee"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "sha256": "9e634de0865bae0295c603a6f3a23d3bf2c368c14a046e49d765fca9f7589404",
+    "previous_sha256": "9e634de0865bae0295c603a6f3a23d3bf2c368c14a046e49d765fca9f7589404"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+    "sha256": "4cbe1856f43b1fcb030eac5ed7686a610ffba192ca4f140b13128aa24258e560",
+    "previous_sha256": "4cbe1856f43b1fcb030eac5ed7686a610ffba192ca4f140b13128aa24258e560"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "sha256": "32610bdb791a6a6f4609b340ec63df48c8122208a1c665a13b430a2651d451b0",
+    "previous_sha256": "32610bdb791a6a6f4609b340ec63df48c8122208a1c665a13b430a2651d451b0"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+    "sha256": "88313725dd2a4fb604e1a9f861b4a014f61435dc0fb5249448a0bfb18a6442cd",
+    "previous_sha256": "88313725dd2a4fb604e1a9f861b4a014f61435dc0fb5249448a0bfb18a6442cd"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png",
+    "sha256": "88e012c1c41042c2363ef572012cf8cc0c5e2281f40fa1bc0c26862f51a8985d",
+    "previous_sha256": "88e012c1c41042c2363ef572012cf8cc0c5e2281f40fa1bc0c26862f51a8985d"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-dark-1024.png",
+    "sha256": "aeff76690f57b96e60f8a3e167502de8dde0153ed8ce0676a3e4ee59f5352631",
+    "previous_sha256": "aeff76690f57b96e60f8a3e167502de8dde0153ed8ce0676a3e4ee59f5352631"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-tinted-1024.png",
+    "sha256": "cd81080e446ad204d0ccda70acde246a47c4c34a95f33a3238ebf2ec99608063",
+    "previous_sha256": "cd81080e446ad204d0ccda70acde246a47c4c34a95f33a3238ebf2ec99608063"
+  },
+  {
+    "repo": "SequoVendor",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json",
+    "sha256": "71103453bb0beca7fb756a55d24260a226570a7e2074c8c97f3aed61e60e5ca0",
+    "previous_sha256": "71103453bb0beca7fb756a55d24260a226570a7e2074c8c97f3aed61e60e5ca0"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol_dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_dark.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_dark.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_dark.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoBrand.kt",
+    "sha256": "474d5d07471e22b2079df7d80d2d10be98eb2a0275ba5bc2537ca4bab2a6ec4b",
+    "previous_sha256": "474d5d07471e22b2079df7d80d2d10be98eb2a0275ba5bc2537ca4bab2a6ec4b"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/splash/SplashScreen.kt",
+    "sha256": "803708bee01b5fd47ecd02384e46c17a37e735bc5c74927e1762ed8fcad92e78",
+    "previous_sha256": "91fe9289171e6264f9ca146e3f67c71fd0d5ffa30238ef5b72c6fb0458d1c281"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequohub/feature/auth/AuthScreen.kt",
+    "sha256": "e4a158e363bf0863112ff4ab1b4e1629ba69b5e43fc09bfb21944846462a5857",
+    "previous_sha256": "7f2cee43c3ca028b8727d63c1d7554594b2db9ef0c21bdbbf3c15da67ffecf35"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/drawable/ic_brand_foreground.xml",
+    "sha256": "2c48edf9e6c4e402e35314c6af6c7c37cf6da613a16c047638cf75a8731675cd",
+    "previous_sha256": "2c48edf9e6c4e402e35314c6af6c7c37cf6da613a16c047638cf75a8731675cd"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/drawable/ic_brand_monochrome.xml",
+    "sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36",
+    "previous_sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/drawable/ic_stat_sequo.xml",
+    "sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b",
+    "previous_sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/drawable/ic_launcher_background.xml",
+    "sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac",
+    "previous_sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "sha256": "68ad92ffa5e18259dbe76034e7a1ac9361979df89ddfb48a381a1f509bce7b6b",
+    "previous_sha256": "68ad92ffa5e18259dbe76034e7a1ac9361979df89ddfb48a381a1f509bce7b6b"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+    "sha256": "63108619131c0c12de395a0e77b6f7a06d10e6dbe75f1dae370e2fdc70900b33",
+    "previous_sha256": "63108619131c0c12de395a0e77b6f7a06d10e6dbe75f1dae370e2fdc70900b33"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "sha256": "dbc36136b45931cb7d14f7741a17d3ad17174a5cf0b579b5b04399e78a8f1f99",
+    "previous_sha256": "dbc36136b45931cb7d14f7741a17d3ad17174a5cf0b579b5b04399e78a8f1f99"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+    "sha256": "1b17dda0720ea534d048fe042ed69e404365a6fb209f110ef8d79d55f5651cd5",
+    "previous_sha256": "1b17dda0720ea534d048fe042ed69e404365a6fb209f110ef8d79d55f5651cd5"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "sha256": "0969d444bdf9a06b5a91469920b83341bcef7dc1689e352bf01c4dd21f069cf0",
+    "previous_sha256": "0969d444bdf9a06b5a91469920b83341bcef7dc1689e352bf01c4dd21f069cf0"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+    "sha256": "3a0367fac080af34c803ced85ca2143df2053db91d1ff5971fb33d26469ef1dc",
+    "previous_sha256": "3a0367fac080af34c803ced85ca2143df2053db91d1ff5971fb33d26469ef1dc"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "sha256": "4e6b06a14ba70e9af362fa7babd02a2b4f50b4c706aa1b66cab039e35548331d",
+    "previous_sha256": "4e6b06a14ba70e9af362fa7babd02a2b4f50b4c706aa1b66cab039e35548331d"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+    "sha256": "dbe5002532fd9989558ecbd37422f3d86bdfad981679508f4d349930b3f9e158",
+    "previous_sha256": "dbe5002532fd9989558ecbd37422f3d86bdfad981679508f4d349930b3f9e158"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "sha256": "ae6ec0bb34a17f9c4fefbc7571b37a6b3f7007ef3df16b818b345a0ad70dfc0f",
+    "previous_sha256": "ae6ec0bb34a17f9c4fefbc7571b37a6b3f7007ef3df16b818b345a0ad70dfc0f"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+    "sha256": "2a584b13b0f81c7eaa5f5c1f689f2cdfb9b02bfbf6fa09b93a35be5828699107",
+    "previous_sha256": "2a584b13b0f81c7eaa5f5c1f689f2cdfb9b02bfbf6fa09b93a35be5828699107"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "androidApp/src/main/res/values-v31/styles.xml",
+    "sha256": "45cce638e254bc731c492f495c889551371313e2cd65cb80d43e3a60db19943c",
+    "previous_sha256": "45cce638e254bc731c492f495c889551371313e2cd65cb80d43e3a60db19943c"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png",
+    "sha256": "4f1a4b8174d7d974a7be5d45307f5f7041feaf14c8e9ce48f019e182bf4c4c29",
+    "previous_sha256": "4f1a4b8174d7d974a7be5d45307f5f7041feaf14c8e9ce48f019e182bf4c4c29"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-dark-1024.png",
+    "sha256": "e5ca4a7d811485fa36ffdbbee9c498fbd2c83870b7486f55be6b604ebc0c27e1",
+    "previous_sha256": "e5ca4a7d811485fa36ffdbbee9c498fbd2c83870b7486f55be6b604ebc0c27e1"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-tinted-1024.png",
+    "sha256": "ddfd52ea02af9ad4fb0de19de6f2f01041695cf6a557ac55d82a82421964f582",
+    "previous_sha256": "ddfd52ea02af9ad4fb0de19de6f2f01041695cf6a557ac55d82a82421964f582"
+  },
+  {
+    "repo": "SequoHub",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json",
+    "sha256": "71103453bb0beca7fb756a55d24260a226570a7e2074c8c97f3aed61e60e5ca0",
+    "previous_sha256": "71103453bb0beca7fb756a55d24260a226570a7e2074c8c97f3aed61e60e5ca0"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/files/brand/logos/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_symbol_dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_logo_dark.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_wordmark_dark.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/composeResources/drawable/sequo_brand_stacked_dark.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequo/design/SequoBrand.kt",
+    "sha256": "cb386783f17ec9210cae789dbdf12970eba9491b49d47dbfe0e4959abcc816cd",
+    "previous_sha256": "cb386783f17ec9210cae789dbdf12970eba9491b49d47dbfe0e4959abcc816cd"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/auth/RiderAuthScreen.kt",
+    "sha256": "ccd91b2a9924f0c224e9cc31c48bff9c4478a879798e25dbdfa2f5558f518a36",
+    "previous_sha256": "650dbf0615551268b52a79fafaedf7f68a4b3fa8d73a34adaf1130ebd3716fe8"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "shared/src/commonMain/kotlin/dev/orestegabo/sequorider/feature/splash/RiderSplash.kt",
+    "sha256": "1457d9e363eed3f9cfbd2f8dd31845e1e98a82c2b877d2881bda97eb6a40b4de",
+    "previous_sha256": "1457d9e363eed3f9cfbd2f8dd31845e1e98a82c2b877d2881bda97eb6a40b4de"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/drawable/ic_brand_foreground.xml",
+    "sha256": "e6edc1cd7b15294a761c146b4fa1c423ed91d51ef0dc7adad4affd67eb91f4f7",
+    "previous_sha256": "e6edc1cd7b15294a761c146b4fa1c423ed91d51ef0dc7adad4affd67eb91f4f7"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/drawable/ic_brand_monochrome.xml",
+    "sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36",
+    "previous_sha256": "c27f039cf533e4aae0d8ba92f370c7f727c56c7f8cee8e252d17d387baf71e36"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/drawable/ic_stat_sequo.xml",
+    "sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b",
+    "previous_sha256": "795ca78a276d7f23bf2739aae08675b05f9450db281e26e2f55c6565cc048e3b"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/drawable/ic_launcher_background.xml",
+    "sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac",
+    "previous_sha256": "90cd505e0c0205558c6b8d4e1d1e1207459d11e820a76beab6bc8e53b5793cac"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+    "sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1",
+    "previous_sha256": "0542d8ea872fb6d7836b69ce60ec866e017fd0d6639ff321e1d7683febd3adc1"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "sha256": "d4c34d7a0cae26c0a5fd8da949f8faba3480f0e22bec0c6b71edc47c18c23e3d",
+    "previous_sha256": "d4c34d7a0cae26c0a5fd8da949f8faba3480f0e22bec0c6b71edc47c18c23e3d"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+    "sha256": "f7a392ea2128110396a0f3b2d546cd89fa3cb9d1caf2999130b3c61c0e92010d",
+    "previous_sha256": "f7a392ea2128110396a0f3b2d546cd89fa3cb9d1caf2999130b3c61c0e92010d"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "sha256": "be629acdcc011cb5a598b5a4ecc8eef3aad9574c1fa5670cf5483a26f3a237b8",
+    "previous_sha256": "be629acdcc011cb5a598b5a4ecc8eef3aad9574c1fa5670cf5483a26f3a237b8"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+    "sha256": "b82d836f30b26be738b041ff4c10274f7f29d9444fe2144b0bccae4df7b5a2c9",
+    "previous_sha256": "b82d836f30b26be738b041ff4c10274f7f29d9444fe2144b0bccae4df7b5a2c9"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "sha256": "2862109ab8c7f644a196fdc2dcda25ab2a73eb06f02ddb4b9fd5d68c08769492",
+    "previous_sha256": "2862109ab8c7f644a196fdc2dcda25ab2a73eb06f02ddb4b9fd5d68c08769492"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+    "sha256": "0a9fa265f17c3ceb8943ef8cf6ccc6dd4089b76984108c6be63f90e6dc20873a",
+    "previous_sha256": "0a9fa265f17c3ceb8943ef8cf6ccc6dd4089b76984108c6be63f90e6dc20873a"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "sha256": "bd490484795d9e06319869e728f46d9984b9a7680b16a310b1d5cf210fd96905",
+    "previous_sha256": "bd490484795d9e06319869e728f46d9984b9a7680b16a310b1d5cf210fd96905"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+    "sha256": "1595bc0f438cd827cbe6b580447794d165b25fd8aa1b982532b21573a133f6bb",
+    "previous_sha256": "1595bc0f438cd827cbe6b580447794d165b25fd8aa1b982532b21573a133f6bb"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "sha256": "5487eae1ada7be897c6f6b3df29771db59c2956eceebc6ec410e8660e8f35e99",
+    "previous_sha256": "5487eae1ada7be897c6f6b3df29771db59c2956eceebc6ec410e8660e8f35e99"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+    "sha256": "0078af0cb2f377ec85723357c72b5f5390fb790ff0a99996fd383e529b9154f7",
+    "previous_sha256": "0078af0cb2f377ec85723357c72b5f5390fb790ff0a99996fd383e529b9154f7"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png",
+    "sha256": "2270dd08af910c26df80936d6d8368b1b1dc96f2b694cabda88ad363ad06076f",
+    "previous_sha256": "2270dd08af910c26df80936d6d8368b1b1dc96f2b694cabda88ad363ad06076f"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-dark-1024.png",
+    "sha256": "53c75dce1c83805caed38e02f429e3f277e665378382cc3a97704d14bbbbc2b1",
+    "previous_sha256": "53c75dce1c83805caed38e02f429e3f277e665378382cc3a97704d14bbbbc2b1"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-tinted-1024.png",
+    "sha256": "b63ff5ef5b7f9cc8bc8a41cacf080e9ad7b66eff23c450b2c748a0712b3f413d",
+    "previous_sha256": "b63ff5ef5b7f9cc8bc8a41cacf080e9ad7b66eff23c450b2c748a0712b3f413d"
+  },
+  {
+    "repo": "SequoRider",
+    "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json",
+    "sha256": "71103453bb0beca7fb756a55d24260a226570a7e2074c8c97f3aed61e60e5ca0",
+    "previous_sha256": "71103453bb0beca7fb756a55d24260a226570a7e2074c8c97f3aed61e60e5ca0"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/maskable-192.png",
+    "sha256": "b05babd9ed3aa71163cf62c193be9eb51f868628d193052fc3a54596f1639e40",
+    "previous_sha256": "b05babd9ed3aa71163cf62c193be9eb51f868628d193052fc3a54596f1639e40"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-wordmark-light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/favicon.ico",
+    "sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734",
+    "previous_sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-logo-light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/icon-192.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/apple-touch-icon.png",
+    "sha256": "15ea068c78bd6b4a4774d948b130c3e33677779dc71373991bcdd8ae92d12fd3",
+    "previous_sha256": "15ea068c78bd6b4a4774d948b130c3e33677779dc71373991bcdd8ae92d12fd3"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/apple-touch-icon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/icon-192.png",
+    "sha256": "4b846bb3889a99f38a51591f4653d2672ef3277ee48d4a7177dcbea57cc39da5",
+    "previous_sha256": "4b846bb3889a99f38a51591f4653d2672ef3277ee48d4a7177dcbea57cc39da5"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-stacked-light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-logo-monochrome.png",
+    "sha256": "2400e9303c584a8808c417801563a73960090dd91522797c9ad01b15e97b0f7d",
+    "previous_sha256": "2400e9303c584a8808c417801563a73960090dd91522797c9ad01b15e97b0f7d"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/maskable-192.svg",
+    "sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3",
+    "previous_sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/icon-512.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-logo-horizontal.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-symbol-white.png",
+    "sha256": "bb0d7cdbae951c425a1ceaaa36f824624054392acb1744727354d962c935f795",
+    "previous_sha256": "bb0d7cdbae951c425a1ceaaa36f824624054392acb1744727354d962c935f795"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-app-icon.png",
+    "sha256": "af2a12088653e7dda47db0123f83bc97088fcec992479ce26d21dd391d1b78f6",
+    "previous_sha256": "af2a12088653e7dda47db0123f83bc97088fcec992479ce26d21dd391d1b78f6"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/maskable-512.png",
+    "sha256": "fe44ffd3e080d010d4c3e168295c24b7d08f1086b5dc995316e1db9fe6912e0d",
+    "previous_sha256": "fe44ffd3e080d010d4c3e168295c24b7d08f1086b5dc995316e1db9fe6912e0d"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-symbol-dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-stacked-horizontal.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/maskable-512.svg",
+    "sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3",
+    "previous_sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-favicon.png",
+    "sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2",
+    "previous_sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-wordmark-horizontal.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/icon-512.png",
+    "sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2",
+    "previous_sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/favicon.ico",
+    "sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734",
+    "previous_sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/site.webmanifest",
+    "sha256": "1dd1ef27eab597749127a0215a8900c0aff4a7e2e2d11f6996e60a8d6f844078",
+    "previous_sha256": "1dd1ef27eab597749127a0215a8900c0aff4a7e2e2d11f6996e60a8d6f844078"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "index.html",
+    "sha256": "4eda6cb53f88a5bfd85ff7aaf4fd8421bd547e785376f044e1e68f0314a653da",
+    "previous_sha256": "4eda6cb53f88a5bfd85ff7aaf4fd8421bd547e785376f044e1e68f0314a653da"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "src/App.vue",
+    "sha256": "387546efc66c267e4ea7f694a9b8b7bf2365119aaaaf638d7733771787d25e44",
+    "previous_sha256": "387546efc66c267e4ea7f694a9b8b7bf2365119aaaaf638d7733771787d25e44"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "src/assets/main.css",
+    "sha256": "d77101fadc5e661d360d10cd245e74afb27c01334dd103685099c72f1f893084",
+    "previous_sha256": "d77101fadc5e661d360d10cd245e74afb27c01334dd103685099c72f1f893084"
+  },
+  {
+    "repo": "sequo-admin",
+    "path": "public/brand/README.md",
+    "sha256": "bc48be307925b3c11fc02999898f3a8c5f65c7ed248165116fa7d8a9688f1cc4",
+    "previous_sha256": "bc48be307925b3c11fc02999898f3a8c5f65c7ed248165116fa7d8a9688f1cc4"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/maskable-192.png",
+    "sha256": "b05babd9ed3aa71163cf62c193be9eb51f868628d193052fc3a54596f1639e40",
+    "previous_sha256": "b05babd9ed3aa71163cf62c193be9eb51f868628d193052fc3a54596f1639e40"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-wordmark-light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/favicon.ico",
+    "sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734",
+    "previous_sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-logo-light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/icon-192.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/apple-touch-icon.png",
+    "sha256": "15ea068c78bd6b4a4774d948b130c3e33677779dc71373991bcdd8ae92d12fd3",
+    "previous_sha256": "15ea068c78bd6b4a4774d948b130c3e33677779dc71373991bcdd8ae92d12fd3"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/apple-touch-icon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/icon-192.png",
+    "sha256": "4b846bb3889a99f38a51591f4653d2672ef3277ee48d4a7177dcbea57cc39da5",
+    "previous_sha256": "4b846bb3889a99f38a51591f4653d2672ef3277ee48d4a7177dcbea57cc39da5"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-stacked-light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-logo-monochrome.png",
+    "sha256": "2400e9303c584a8808c417801563a73960090dd91522797c9ad01b15e97b0f7d",
+    "previous_sha256": "2400e9303c584a8808c417801563a73960090dd91522797c9ad01b15e97b0f7d"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/maskable-192.svg",
+    "sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3",
+    "previous_sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/icon-512.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-logo-horizontal.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-symbol-white.png",
+    "sha256": "bb0d7cdbae951c425a1ceaaa36f824624054392acb1744727354d962c935f795",
+    "previous_sha256": "bb0d7cdbae951c425a1ceaaa36f824624054392acb1744727354d962c935f795"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-app-icon.png",
+    "sha256": "af2a12088653e7dda47db0123f83bc97088fcec992479ce26d21dd391d1b78f6",
+    "previous_sha256": "af2a12088653e7dda47db0123f83bc97088fcec992479ce26d21dd391d1b78f6"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/maskable-512.png",
+    "sha256": "fe44ffd3e080d010d4c3e168295c24b7d08f1086b5dc995316e1db9fe6912e0d",
+    "previous_sha256": "fe44ffd3e080d010d4c3e168295c24b7d08f1086b5dc995316e1db9fe6912e0d"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-symbol-dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-stacked-horizontal.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/maskable-512.svg",
+    "sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3",
+    "previous_sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-favicon.png",
+    "sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2",
+    "previous_sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-wordmark-horizontal.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/icon-512.png",
+    "sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2",
+    "previous_sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/favicon.ico",
+    "sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734",
+    "previous_sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/site.webmanifest",
+    "sha256": "f3d3681436321a766662a335c998d9a4970b61b36d5b818267855c72ff7f9493",
+    "previous_sha256": "f3d3681436321a766662a335c998d9a4970b61b36d5b818267855c72ff7f9493"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "index.html",
+    "sha256": "14d6bd94284a6795902b6eeec6d01530a3dad2d327920cd574c62f9413a2a3b7",
+    "previous_sha256": "14d6bd94284a6795902b6eeec6d01530a3dad2d327920cd574c62f9413a2a3b7"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "src/App.vue",
+    "sha256": "f606fc3618e23c1b4299f80e0491ba85b1c423a8d9d77fba6eec9400f6607dc4",
+    "previous_sha256": "f606fc3618e23c1b4299f80e0491ba85b1c423a8d9d77fba6eec9400f6607dc4"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "src/assets/main.css",
+    "sha256": "167c351494a44e4c802d3b5f4f54f2e6320ea057e183ea31c8e27d00cbc780a6",
+    "previous_sha256": "167c351494a44e4c802d3b5f4f54f2e6320ea057e183ea31c8e27d00cbc780a6"
+  },
+  {
+    "repo": "sequo-developers",
+    "path": "public/brand/README.md",
+    "sha256": "bc48be307925b3c11fc02999898f3a8c5f65c7ed248165116fa7d8a9688f1cc4",
+    "previous_sha256": "bc48be307925b3c11fc02999898f3a8c5f65c7ed248165116fa7d8a9688f1cc4"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/maskable-192.png",
+    "sha256": "b05babd9ed3aa71163cf62c193be9eb51f868628d193052fc3a54596f1639e40",
+    "previous_sha256": "b05babd9ed3aa71163cf62c193be9eb51f868628d193052fc3a54596f1639e40"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-symbol.svg",
+    "sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94",
+    "previous_sha256": "3b602fdd4b8a243a5de88715da74ab543d8f8143ac3b14d07fae6bbfd570da94"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-wordmark-light.png",
+    "sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205",
+    "previous_sha256": "330667217ef2422bbd66bc9ac0b74327c92b9bdafa60e1efc54a516c01104205"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-logo-monochrome.svg",
+    "sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8",
+    "previous_sha256": "7f945990a1326e5d71900dd4b1b8a88bc04cf551fa7ee78e9914c132da2f83c8"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/favicon.ico",
+    "sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734",
+    "previous_sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-logo-light.png",
+    "sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0",
+    "previous_sha256": "938ae35d16297b04494c336ceceab4766dc54a5e5700bd50bbb2442b9d453ee0"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-stacked-light.svg",
+    "sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b",
+    "previous_sha256": "822ffa6d48b576bca0d16f564ca7397119f3cff4b5ca9042f3581709f1b6882b"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/icon-192.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/apple-touch-icon.png",
+    "sha256": "15ea068c78bd6b4a4774d948b130c3e33677779dc71373991bcdd8ae92d12fd3",
+    "previous_sha256": "15ea068c78bd6b4a4774d948b130c3e33677779dc71373991bcdd8ae92d12fd3"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/apple-touch-icon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/icon-192.png",
+    "sha256": "4b846bb3889a99f38a51591f4653d2672ef3277ee48d4a7177dcbea57cc39da5",
+    "previous_sha256": "4b846bb3889a99f38a51591f4653d2672ef3277ee48d4a7177dcbea57cc39da5"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-stacked-light.png",
+    "sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270",
+    "previous_sha256": "8473d8acb9e70fa0f2572f6633aa21178a0f4298c5f821a35a24a671f16bd270"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-logo-light.svg",
+    "sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d",
+    "previous_sha256": "e7f3cda17a698589fa4b68a07be316ee2fbd135b60b21751264fec0cabbaae8d"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-wordmark-light.svg",
+    "sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d",
+    "previous_sha256": "0d81a253583d6dd1e44eacb6773f4706f9e0ad55aa63dd857cda8f425067de2d"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-logo-monochrome.png",
+    "sha256": "2400e9303c584a8808c417801563a73960090dd91522797c9ad01b15e97b0f7d",
+    "previous_sha256": "2400e9303c584a8808c417801563a73960090dd91522797c9ad01b15e97b0f7d"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-symbol.png",
+    "sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec",
+    "previous_sha256": "2f92ea99b024221f4345db3f665aef1adbaf1918c6f8ba32c41e6921fc82b9ec"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/maskable-192.svg",
+    "sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3",
+    "previous_sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/icon-512.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-logo-horizontal.png",
+    "sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b",
+    "previous_sha256": "951ef37d5ab1f0273fb97be9cb2d88164e420a15dbb52544d1331be7e6837a5b"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-wordmark-horizontal.svg",
+    "sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47",
+    "previous_sha256": "0892cd01163607a38dea3cb61bac482bbcbd0afebb22a24568916dbb1b479b47"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-favicon.svg",
+    "sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99",
+    "previous_sha256": "4d5858ba29e59072c22ca14a62f4a65dbb9b5392bd8dc944bc4dd7a02e976b99"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-symbol-white.png",
+    "sha256": "bb0d7cdbae951c425a1ceaaa36f824624054392acb1744727354d962c935f795",
+    "previous_sha256": "bb0d7cdbae951c425a1ceaaa36f824624054392acb1744727354d962c935f795"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-app-icon.png",
+    "sha256": "af2a12088653e7dda47db0123f83bc97088fcec992479ce26d21dd391d1b78f6",
+    "previous_sha256": "af2a12088653e7dda47db0123f83bc97088fcec992479ce26d21dd391d1b78f6"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-stacked-horizontal.svg",
+    "sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a",
+    "previous_sha256": "df0eeaee52a2bed4ef141fca79a0368518bdb6107db0e94d9356906b8128375a"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/maskable-512.png",
+    "sha256": "fe44ffd3e080d010d4c3e168295c24b7d08f1086b5dc995316e1db9fe6912e0d",
+    "previous_sha256": "fe44ffd3e080d010d4c3e168295c24b7d08f1086b5dc995316e1db9fe6912e0d"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-symbol-dark.svg",
+    "sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d",
+    "previous_sha256": "c83887ee8cfc79721fbb038efc0847c4bd9ed854b02a74e1251ad45b468db28d"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-symbol-dark.png",
+    "sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7",
+    "previous_sha256": "50fb0a0969c60ddda79196157cc7206803f7ecff82ed9866e9bfe8cbaa3b6af7"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-stacked-horizontal.png",
+    "sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580",
+    "previous_sha256": "84ebd1bde4ef98405d1cda13ae6eac02f06fae0f42b71b926dc1e03a39b78580"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/maskable-512.svg",
+    "sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3",
+    "previous_sha256": "510de399bad7881ec42b904bb95e4ab1878fe4bfe70bcc03ed20a601e09434e3"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-app-icon.svg",
+    "sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226",
+    "previous_sha256": "5b6626f8214fa0171b54aeee5c7dfe6aeb2227a3ae7b078e2f3eb2b341505226"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-symbol-white.svg",
+    "sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5",
+    "previous_sha256": "4ca2017c0960eb9a7f3a8e00d1c63cf3c35f11cf5effe7750c0b4e0ab9070cc5"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-favicon.png",
+    "sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2",
+    "previous_sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-wordmark-horizontal.png",
+    "sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113",
+    "previous_sha256": "22d6aa274a7495876ce31525276a5501ee23629728bf9556b1ecf0e67e2bc113"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/sequo-logo-horizontal.svg",
+    "sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203",
+    "previous_sha256": "3d6d36273339f83dee68a4c07052925d58c06066fa70d23b4bb32d6d19fc6203"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/icon-512.png",
+    "sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2",
+    "previous_sha256": "e26423f03c5338959efa090eabea80b6285850586977fa07c67dfc6ac6e74cf2"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/favicon.ico",
+    "sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734",
+    "previous_sha256": "b63261d4a730e7030644269b3c618999a4fd95f19c851a3fea9feaa1ece33734"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/site.webmanifest",
+    "sha256": "6d2373b711a034f98506fb8c3133edd1e0e5a6824ab76ad9efd6bf1390db04e1",
+    "previous_sha256": "6d2373b711a034f98506fb8c3133edd1e0e5a6824ab76ad9efd6bf1390db04e1"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "index.html",
+    "sha256": "20edf3c41356bcd2a88e967b8c8ada7227b735509deb9bd3dd12804932519af3",
+    "previous_sha256": "20edf3c41356bcd2a88e967b8c8ada7227b735509deb9bd3dd12804932519af3"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "src/App.vue",
+    "sha256": "969c4ad59a4a1d527adb505d3e8b7857d4033cb963469597c55437b90fd6f940",
+    "previous_sha256": "969c4ad59a4a1d527adb505d3e8b7857d4033cb963469597c55437b90fd6f940"
+  },
+  {
+    "repo": "sequo-services",
+    "path": "public/brand/README.md",
+    "sha256": "bc48be307925b3c11fc02999898f3a8c5f65c7ed248165116fa7d8a9688f1cc4",
+    "previous_sha256": "bc48be307925b3c11fc02999898f3a8c5f65c7ed248165116fa7d8a9688f1cc4"
+  }
+]

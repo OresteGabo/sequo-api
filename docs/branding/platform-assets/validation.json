@@ -1,0 +1,26 @@
+[
+  {
+    "app": "Sequo",
+    "opaque_1024": true,
+    "adaptive_radius_fraction": 0.2908,
+    "safe_radius": 0.3055555555555556
+  },
+  {
+    "app": "SequoVendor",
+    "opaque_1024": true,
+    "adaptive_radius_fraction": 0.2908,
+    "safe_radius": 0.3055555555555556
+  },
+  {
+    "app": "SequoHub",
+    "opaque_1024": true,
+    "adaptive_radius_fraction": 0.2908,
+    "safe_radius": 0.3055555555555556
+  },
+  {
+    "app": "SequoRider",
+    "opaque_1024": true,
+    "adaptive_radius_fraction": 0.2908,
+    "safe_radius": 0.3055555555555556
+  }
+]

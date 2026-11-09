@@ -1,0 +1,33 @@
+{
+  "removed_files": 334,
+  "packages": [
+    {
+      "project": "Sequo",
+      "retired_assets": 0,
+      "current_theme_resources": 8,
+      "android_build": "passed",
+      "ios_shared_compile": "passed"
+    },
+    {
+      "project": "SequoVendor",
+      "retired_assets": 0,
+      "current_theme_resources": 8,
+      "android_build": "passed",
+      "ios_shared_compile": "passed"
+    },
+    {
+      "project": "SequoHub",
+      "retired_assets": 0,
+      "current_theme_resources": 8,
+      "android_build": "passed",
+      "ios_shared_compile": "passed"
+    },
+    {
+      "project": "SequoRider",
+      "retired_assets": 0,
+      "current_theme_resources": 8,
+      "android_build": "passed",
+      "ios_shared_compile": "passed"
+    }
+  ]
+}

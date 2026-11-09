@@ -1,0 +1,22 @@
+[
+  {
+    "repo": "Sequo",
+    "exit_code": 0,
+    "log": "/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/build/branding-rollout/actool/Sequo/actool.log"
+  },
+  {
+    "repo": "SequoVendor",
+    "exit_code": 0,
+    "log": "/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/build/branding-rollout/actool/SequoVendor/actool.log"
+  },
+  {
+    "repo": "SequoHub",
+    "exit_code": 0,
+    "log": "/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/build/branding-rollout/actool/SequoHub/actool.log"
+  },
+  {
+    "repo": "SequoRider",
+    "exit_code": 0,
+    "log": "/Users/muhirwagabooreste/AndroidStudioProjects/SequoService/sequo-api/build/branding-rollout/actool/SequoRider/actool.log"
+  }
+]

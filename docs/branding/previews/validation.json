@@ -1,0 +1,108 @@
+{
+  "revision": "balanced box projection and softened S returns",
+  "renderer": "librsvg",
+  "checks": [
+    {
+      "file": "sequo-logo-horizontal.svg",
+      "wordmark_unchanged": true
+    },
+    {
+      "file": "sequo-logo-light.svg",
+      "wordmark_unchanged": true
+    },
+    {
+      "file": "sequo-logo-monochrome.svg",
+      "wordmark_unchanged": true
+    },
+    {
+      "file": "sequo-app-icon.svg",
+      "alpha_bounds": [
+        0,
+        0,
+        1200,
+        1200
+      ],
+      "passed": true
+    },
+    {
+      "file": "sequo-favicon.svg",
+      "alpha_bounds": [
+        0,
+        0,
+        1200,
+        1200
+      ],
+      "passed": true
+    },
+    {
+      "file": "sequo-logo-horizontal.svg",
+      "alpha_bounds": [
+        35,
+        35,
+        1171,
+        298
+      ],
+      "passed": true
+    },
+    {
+      "file": "sequo-logo-light.svg",
+      "alpha_bounds": [
+        35,
+        35,
+        1171,
+        298
+      ],
+      "passed": true
+    },
+    {
+      "file": "sequo-logo-monochrome.svg",
+      "alpha_bounds": [
+        35,
+        35,
+        1171,
+        298
+      ],
+      "passed": true
+    },
+    {
+      "file": "sequo-symbol.svg",
+      "alpha_bounds": [
+        124,
+        122,
+        1076,
+        1040
+      ],
+      "passed": true
+    },
+    {
+      "file": "symbol-24.png",
+      "render_width": 24,
+      "passed": true
+    },
+    {
+      "file": "symbol-48.png",
+      "render_width": 48,
+      "passed": true
+    },
+    {
+      "file": "symbol-96.png",
+      "render_width": 96,
+      "passed": true
+    },
+    {
+      "file": "symbol-192.png",
+      "render_width": 192,
+      "passed": true
+    },
+    {
+      "file": "favicon-16.png",
+      "render_width": 16,
+      "passed": true
+    },
+    {
+      "file": "favicon-32.png",
+      "render_width": 32,
+      "passed": true
+    }
+  ]
+}

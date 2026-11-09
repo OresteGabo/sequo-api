@@ -1,0 +1,122 @@
+[
+  {
+    "repo": "sequo-admin",
+    "viewport": "desktop",
+    "ready": "complete",
+    "images": [
+      {
+        "src": "/brand/sequo-logo-horizontal.svg",
+        "ok": true,
+        "width": 210,
+        "height": 58
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "repo": "sequo-admin",
+    "viewport": "mobile",
+    "ready": "complete",
+    "images": [
+      {
+        "src": "/brand/sequo-logo-horizontal.svg",
+        "ok": true,
+        "width": 210,
+        "height": 58
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "repo": "sequo-developers",
+    "viewport": "desktop",
+    "ready": "complete",
+    "images": [
+      {
+        "src": "/brand/sequo-symbol.svg",
+        "ok": true,
+        "width": 37.59375,
+        "height": 37.59375
+      },
+      {
+        "src": "/brand/sequo-wordmark-light.svg",
+        "ok": true,
+        "width": 106,
+        "height": 27.21875
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "repo": "sequo-developers",
+    "viewport": "mobile",
+    "ready": "complete",
+    "images": [
+      {
+        "src": "/brand/sequo-symbol.svg",
+        "ok": true,
+        "width": 37.59375,
+        "height": 37.59375
+      },
+      {
+        "src": "/brand/sequo-wordmark-light.svg",
+        "ok": true,
+        "width": 106,
+        "height": 27.21875
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "repo": "sequo-services",
+    "viewport": "desktop",
+    "ready": "complete",
+    "images": [
+      {
+        "src": "/brand/sequo-logo-light.svg",
+        "ok": true,
+        "width": 134,
+        "height": 37
+      },
+      {
+        "src": "/brand/sequo-logo-light.svg",
+        "ok": true,
+        "width": 86,
+        "height": 23.75
+      },
+      {
+        "src": "/brand/sequo-logo-light.svg",
+        "ok": true,
+        "width": 134,
+        "height": 37
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "repo": "sequo-services",
+    "viewport": "mobile",
+    "ready": "complete",
+    "images": [
+      {
+        "src": "/brand/sequo-logo-light.svg",
+        "ok": true,
+        "width": 116,
+        "height": 32.03125
+      },
+      {
+        "src": "/brand/sequo-logo-light.svg",
+        "ok": true,
+        "width": 86,
+        "height": 23.75
+      },
+      {
+        "src": "/brand/sequo-logo-light.svg",
+        "ok": true,
+        "width": 116,
+        "height": 32.03125
+      }
+    ],
+    "overflow": false
+  }
+]
