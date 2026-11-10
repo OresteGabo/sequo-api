@@ -52,6 +52,27 @@ class MerchantCatalogHttpTest @Autowired constructor(
     private val endpoint = "/api/merchant/catalog/products"
 
     @Test
+    fun legacySharedIdsAndNamesResolveToOneCanonicalEssential() {
+        val canonical = "ref-canonical-legacy-milk"
+        val legacy = "ref-legacy-milk-name"
+        sharedReferences.save(dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRecord(canonical, "Canonical milk", "grocery", "legacy fresh milk 1l", essential = true))
+        sharedReferences.save(dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRecord(legacy, "Legacy fresh milk 1L", "grocery", "", canonicalReferenceId = canonical))
+        val merchant = "legacy-reference-owner"
+        merchants.save(MerchantRecord(merchant, name = "Legacy reference shop"))
+        val body = """{"merchantId":"$merchant","name":"Brand milk 1 L","kind":"GenericSealedItem","basePriceCfa":900,"productReferenceId":"$legacy"}"""
+        val created = request("POST", endpoint, token(merchant), body)
+        assertEquals(200, created.statusCode(), created.body())
+        val product = json.readTree(created.body())
+        assertEquals(canonical, product.path("productReference").path("id").asText())
+        assertEquals(canonical, products.findById(product.path("id").asText()).orElseThrow().productReferenceId)
+        val found = json.readTree(request("GET", "/api/catalog/product-references?q=legacy").body())
+        assertEquals(listOf(canonical), found.map { it.path("id").asText() })
+        val implicit = request("POST", endpoint, token(merchant), """{"merchantId":"$merchant","name":"Legacy fresh milk 1L","kind":"GenericSealedItem","basePriceCfa":1200}""")
+        assertEquals(200, implicit.statusCode(), implicit.body())
+        assertEquals(canonical, json.readTree(implicit.body()).path("productReference").path("id").asText())
+    }
+
+    @Test
     fun sharedProductSuggestionsLinkShopOffersAndKeepSellerPricesIndependent() {
         sharedReferences.save(dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRecord("ref-fixture-milk", "Lait", "grocery", "milk", essential = true))
         val a = "reference-owner-a"; val b = "reference-owner-b"

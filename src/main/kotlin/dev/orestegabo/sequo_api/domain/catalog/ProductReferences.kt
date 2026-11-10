@@ -20,6 +20,7 @@ class ProductReferenceRecord(
     @Column(nullable = false) val category: String,
     @Column(nullable = false, columnDefinition = "text") val aliases: String,
     @Column(nullable = false) val essential: Boolean = false,
+    @Column(name = "canonical_reference_id", length = 128) val canonicalReferenceId: String? = null,
 ) {
     fun dto() = ProductReferenceDto(id, name, category, aliases.split('|').filter(String::isNotBlank), essential)
 }
@@ -64,24 +65,42 @@ class ProductReferenceService(private val repository: ProductReferenceRepository
     fun suggestions(query: String, limit: Int): List<ProductReferenceDto> {
         require(query.length <= 180) { "q must be at most 180 characters." }
         require(limit in 1..12) { "limit must be between 1 and 12." }
-        return suggestProductReferences(repository.findAll().map { it.dto() }, query, limit)
+        return suggestProductReferences(repository.findAll().filter { it.canonicalReferenceId == null }.map { it.dto() }, query, limit)
     }
     @Transactional(readOnly = true)
     fun essentials(): List<ProductReferenceDto> = repository.findByEssentialTrueOrderByCategoryAscNameAsc().map { it.dto() }
 
-    fun get(id: String?): ProductReferenceDto? = id?.let { repository.findById(it).orElse(null)?.dto() }
-    fun byIds(ids: Collection<String>): Map<String, ProductReferenceDto> = repository.findAllById(ids.distinct()).associate { it.id to it.dto() }
+    fun get(id: String?): ProductReferenceDto? = id?.let { byIds(listOf(it))[it] }
+    fun byIds(ids: Collection<String>): Map<String, ProductReferenceDto> {
+        val records = repository.findAllById(ids.distinct()).associateBy { it.id }.toMutableMap()
+        repeat(8) {
+            val missing = records.values.mapNotNull { it.canonicalReferenceId }.filterNot(records::containsKey).distinct()
+            if (missing.isNotEmpty()) records.putAll(repository.findAllById(missing).associateBy { it.id })
+        }
+        return ids.distinct().mapNotNull { original -> canonicalRecord(original, records)?.let { original to it.dto() } }.toMap()
+    }
+    private fun canonicalRecord(id: String, records: Map<String, ProductReferenceRecord>): ProductReferenceRecord? {
+        var record = records[id] ?: return null
+        val visited = mutableSetOf<String>()
+        repeat(9) {
+            require(visited.add(record.id)) { "Invalid shared product reference cycle." }
+            val next = record.canonicalReferenceId ?: return record
+            record = records[next] ?: throw IllegalArgumentException("Shared product reference is unavailable.")
+        }
+        throw IllegalArgumentException("Shared product reference chain is too long.")
+    }
     fun resolve(id: String?, name: String, category: String?): String? {
         if (id != null) {
             if (id.isBlank()) return null // Explicit unlink; null in a patch means no change.
-            require(id.length <= 128 && repository.existsById(id)) { "Choose an existing shared product reference." }
-            return id
+            require(id.length <= 128) { "Choose an existing shared product reference." }
+            return requireNotNull(get(id)) { "Choose an existing shared product reference." }.id
         }
         // Exact, unambiguous aliases only. Never infer identity from a substring or similar spelling.
         val normalized = normalizeProductName(name)
-        val matching = repository.findAll().filter { ref ->
+        val records = repository.findAll().associateBy { it.id }
+        val matching = records.values.filter { ref ->
             (listOf(ref.name) + ref.dto().aliases).any { normalizeProductName(it) == normalized }
-        }.map { it.id }.distinct()
+        }.mapNotNull { canonicalRecord(it.id, records)?.id }.distinct()
         if (matching.size == 1) return matching.single()
         if (matching.size > 1) return null // Ambiguous aliases require an explicit vendor choice.
         if (normalized.length < 2) return null
