@@ -66,7 +66,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.GET, "/api/admin-auth/development-access").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/admin-auth/development-session").permitAll()
                     .requestMatchers("/api/admin-auth/mobile/**").authenticated()
-                    .requestMatchers(HttpMethod.POST, "/api/payments/webhooks/yas_togo", "/api/payments/webhooks/moov_africa").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/payments/webhooks/yas_togo", "/api/payments/webhooks/moov_africa", "/api/payments/kkiapay/webhook", "/api/payments/kkiapay/complete").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/catalog/products/*/customizations/quote").permitAll()
                     .requestMatchers(
                         HttpMethod.GET,
@@ -81,6 +81,7 @@ class SecurityConfig(
                         "/api/catalog/products/*/customizations",
                         "/api/subscriptions/plans",
                         "/api/payments/providers",
+                        "/payments/kkiapay",
                     ).permitAll()
                     .anyRequest().authenticated()
             }

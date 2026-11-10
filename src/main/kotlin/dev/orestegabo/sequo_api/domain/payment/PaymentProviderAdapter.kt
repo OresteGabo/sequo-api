@@ -104,6 +104,7 @@ sealed class ProviderPayoutInstructionResult {
 interface PaymentProviderAdapter {
     val provider: PaymentProviderId
     val displayName: String
+    val enabledFeatures: Set<PaymentFeature> get() = setOf(PaymentFeature.CustomerCheckout, PaymentFeature.PaymentCancellation, PaymentFeature.Refund)
 
     fun createPaymentAttempt(request: PaymentAttemptRequest): PaymentAttemptResult
 
@@ -179,11 +180,7 @@ fun PaymentProviderAdapter.asPaymentMethod(): SequoPaymentMethod {
     return object : SequoPaymentMethod() {
         override val provider: PaymentProviderId = adapter.provider
         override val displayName: String = adapter.displayName
-        override val supportedFeatures: Set<PaymentFeature> = setOf(
-            PaymentFeature.CustomerCheckout,
-            PaymentFeature.PaymentCancellation,
-            PaymentFeature.Refund,
-        )
+        override val supportedFeatures: Set<PaymentFeature> = adapter.enabledFeatures
 
         override fun createPaymentAttempt(request: PaymentAttemptRequest): PaymentAttemptResult =
             adapter.createPaymentAttempt(request)

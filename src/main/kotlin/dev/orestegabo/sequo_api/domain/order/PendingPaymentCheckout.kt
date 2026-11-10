@@ -171,7 +171,7 @@ class PendingPaymentCheckoutService(
         val pending = pendingCheckouts.lockForReconciliation(event.checkoutId)
             ?: return PaymentReconciliationResult.ReviewRequired("pending_checkout_not_found")
 
-        if (dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(pending.paymentReference)) return PaymentReconciliationResult.ReviewRequired("test_checkout_is_not_provider_payment")
+        if (pending.paymentReference.startsWith(dev.orestegabo.sequo_api.domain.testaccess.TEST_ORDER_REFERENCE)) return PaymentReconciliationResult.ReviewRequired("test_checkout_is_not_provider_payment")
         if (event.currency != "XOF") return PaymentReconciliationResult.ReviewRequired("currency_mismatch")
         if (event.provider.value != pending.paymentProvider) return PaymentReconciliationResult.ReviewRequired("provider_mismatch")
         if (event.paymentReference != pending.paymentReference) return PaymentReconciliationResult.ReviewRequired("payment_reference_mismatch")
@@ -231,7 +231,7 @@ class PendingPaymentCheckoutService(
         val request = objectMapper.readPendingRequest(pending.requestPayload)
         val pricing = objectMapper.readPricingSnapshot(pending.pricingPayload)
         val accepted = request.toAcceptedForFulfillment(pricing, event.providerReference ?: event.paymentReference)
-        benefits.complete(pending.checkoutId, pending.customerId)
+        if (!dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(pending.paymentReference)) benefits.complete(pending.checkoutId, pending.customerId)
         val fulfilled = fulfillmentPersistence.persistAcceptedOrder(request, accepted, event.receivedAt)
 
         pending.status = PendingPaymentCheckoutStatus.COMPLETED

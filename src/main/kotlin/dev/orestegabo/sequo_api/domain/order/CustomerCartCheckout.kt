@@ -46,6 +46,7 @@ data class CustomerCheckoutSummary(
     val publicReference: String? = null,
     val orderReference: String? = null,
     val testOrder: Boolean = false,
+    val paymentSandbox: Boolean = false,
 )
 
 data class CheckoutLineSummary(val productName: String, val quantity: Int, val optionLabel: String? = null)
@@ -69,8 +70,11 @@ class CustomerCartCheckoutService(
     private val references: PublicReferenceRegistry? = null,
     private val demo: dev.orestegabo.sequo_api.domain.demo.DemoEnvironment? = null,
     private val testOrders: dev.orestegabo.sequo_api.domain.testaccess.TestOrderPolicy? = null,
+    private val paymentProviders: dev.orestegabo.sequo_api.domain.platform.PaymentProviderConfigurationRepository? = null,
+    private val kkiapay: dev.orestegabo.sequo_api.domain.payment.KkiapayConfiguration? = null,
 ) {
     private val processor = RegularOrderProcessor(paymentProcessor, pricing, allowDemoIllustrations = demo != null)
+    private val sandboxProcessor = RegularOrderProcessor(paymentProcessor, pricing, allowDemoIllustrations = true)
     private val mapper = ObjectMapper()
 
     @Transactional
@@ -79,14 +83,20 @@ class CustomerCartCheckoutService(
         require(request.quoteRevision.matches(Regex("[a-f0-9]{64}"))) { "A reviewed quote is required." }
         val addressId = ApiInputPolicy.requiredIdentifier(request.addressId, "addressId")
         val provider = when (request.paymentProvider) {
+            SequoPaymentProviders.Kkiapay.value -> SequoPaymentProviders.Kkiapay
             SequoPaymentProviders.YasTogo.value -> SequoPaymentProviders.YasTogo
             SequoPaymentProviders.MoovAfrica.value -> SequoPaymentProviders.MoovAfrica
             else -> throw IllegalArgumentException("Payment provider is not supported.")
         }
+        val providerSandbox = provider == SequoPaymentProviders.Kkiapay && kkiapay?.sandbox == true
+        if (provider == SequoPaymentProviders.Kkiapay) {
+            require(kkiapay?.ready() == true && paymentProviders?.findById("kkiapay")?.orElse(null)?.readiness?.let { it != dev.orestegabo.sequo_api.domain.platform.PaymentProviderReadiness.DISABLED } == true) { "KKiaPay is not ready for payment." }
+            require(isTestOrder == providerSandbox) { "Sandbox payments require a test basket; live payments cannot use test goods." }
+        }
         require(users.lockCheckoutOwner(customerId)?.active == true) { "Customer account is unavailable." }
 
         val digest = MessageDigest.getInstance("SHA-256")
-            .digest(mapper.writeValueAsBytes(if(isTestOrder) listOf(customerId,request.quoteRevision,"TEST_NO_FUNDS") else listOf(customerId, request.quoteRevision))).toHexString()
+            .digest(mapper.writeValueAsBytes(if (provider == SequoPaymentProviders.Kkiapay) listOf(customerId, request.quoteRevision, if (providerSandbox) "KKIAPAY_SANDBOX" else "KKIAPAY_LIVE") else if(isTestOrder) listOf(customerId,request.quoteRevision,"TEST_NO_FUNDS") else listOf(customerId, request.quoteRevision))).toHexString()
         val checkoutId = "$CART_CHECKOUT_PREFIX$digest"
         checkouts.findByCheckoutIdAndCustomerId(checkoutId, customerId)?.let {
             val existing = mapper.readPendingRequest(it.requestPayload)
@@ -143,10 +153,10 @@ class CustomerCartCheckoutService(
         val order = OrderProcessingRequest(
             checkoutId, customerId, OrderServiceLevel.Regular, if (reviewed.relayDestination == null) OrderRoute.FastDelivery else OrderRoute.PointDeRelai,
             lines, reviewed.quote.distanceMeters / 1000.0,
-            paymentProvider = provider, paymentReference = if(isTestOrder) dev.orestegabo.sequo_api.domain.testaccess.TEST_ORDER_REFERENCE+checkoutId else checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
+            paymentProvider = provider, paymentReference = if (providerSandbox) dev.orestegabo.sequo_api.domain.payment.KKIAPAY_SANDBOX_REFERENCE + checkoutId else if(isTestOrder) dev.orestegabo.sequo_api.domain.testaccess.TEST_ORDER_REFERENCE+checkoutId else checkoutId, homeDestination = reviewed.destination, relayDestination = reviewed.relayDestination,
             deliveryOption = reviewed.quote.deliveryOption, subscriberPriority = if(isTestOrder) false else benefits.subscriberPriority(customerId),
         )
-        val result = (if(isTestOrder) requireNotNull(testOrders).processor(pricing) else processor).process(order, reviewed.pricing)
+        val result = (if (providerSandbox) sandboxProcessor else if(isTestOrder) requireNotNull(testOrders).processor(pricing) else processor).process(order, reviewed.pricing)
         val status = when (result) {
             is OrderProcessingResult.AwaitingPaymentValidation -> PendingPaymentCheckoutStatus.AWAITING_WEBHOOK
             is OrderProcessingResult.AcceptedForFulfillment -> PendingPaymentCheckoutStatus.COMPLETED
@@ -178,6 +188,7 @@ class CustomerCartCheckoutService(
         request.lines.map { CheckoutLineSummary(it.productName, it.quantity, it.optionLabel) },
         publicReference = references.referenceOrNull(PublicReferenceKind.CHECKOUT, checkoutId),
         testOrder = dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(paymentReference),
+        paymentSandbox = paymentReference.startsWith(dev.orestegabo.sequo_api.domain.payment.KKIAPAY_SANDBOX_REFERENCE),
         orderReference = if (status == PendingPaymentCheckoutStatus.COMPLETED) references.referenceOrNull(PublicReferenceKind.ORDER, checkoutId.toOrderId()) else null,
     )
 }

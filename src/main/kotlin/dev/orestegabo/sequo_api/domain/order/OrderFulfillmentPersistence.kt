@@ -375,7 +375,7 @@ class OrderFulfillmentPersistenceService(
                     sourceType = "CHECKOUT",
                     sourceId = request.checkoutId,
                     actorUserId = request.customerId,
-                    metadata = if(dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(request.paymentReference)) "TEST_NO_FUNDS order accepted; no provider payment." else "Paid order accepted for merchant fulfillment.",
+                    metadata = if(dev.orestegabo.sequo_api.domain.testaccess.isNoFundsTestOrder(request.paymentReference)) "Test order accepted; no real funds moved." else "Paid order accepted for merchant fulfillment.",
                     createdAt = createdAt,
                 )
             )

@@ -16,7 +16,7 @@ import java.time.Instant
 import java.util.UUID
 
 const val TEST_ORDER_REFERENCE = "TEST_NO_FUNDS:"
-fun isNoFundsTestOrder(reference:String)=reference.startsWith(TEST_ORDER_REFERENCE)
+fun isNoFundsTestOrder(reference:String)=reference.startsWith(TEST_ORDER_REFERENCE) || reference.startsWith(KKIAPAY_SANDBOX_REFERENCE)
 fun isSeededTestRider(id:String)=id in (1..4).map{"demo-v1-rider-$it"}
 
 @Service
@@ -42,6 +42,7 @@ class TestOrderService(private val policy:TestOrderPolicy,private val checkouts:
     @Transactional
     fun confirm(customer:String,id:String):CustomerCheckoutSummary {
         val checkout=ownedCheckout(customer,id,true)
+        require(checkout.paymentProvider != SequoPaymentProviders.Kkiapay.value) { "KKiaPay test payments must be verified by the provider." }
         if(checkout.status==PendingPaymentCheckoutStatus.COMPLETED)return requireNotNull(summaries.get(customer,id))
         require(checkout.status==PendingPaymentCheckoutStatus.AWAITING_WEBHOOK){"This test checkout cannot be confirmed."}
         val request=mapper.readPendingRequest(checkout.requestPayload)

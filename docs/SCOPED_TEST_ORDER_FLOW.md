@@ -37,3 +37,7 @@ Vendor acceptance/preparation, rider pickup/deposit and Hub customer-code releas
 Security/checkout focused tests and the final complete backend suite passed: 785 tests, zero failures/errors, one optional database exercise skipped. Native HTTP client tests and Android/iOS compilation/signing are recorded per app. A live PostgreSQL migration-copy check and deployed smoke verification are required before claiming deployment complete.
 
 The user-facing walkthrough is `TEST_ORDER_FLOW.md` in the customer repository. Private credentials are excluded from Git at `demo/.private/TEST_ACCOUNTS.md`. Seed manifests record IDs for later cleanup. Before a real launch: disable the two feature flags, revoke/deactivate test identities, unpublish fixtures and preserve referenced order/audit history. Do not reuse reserved test IDs for real inventory.
+
+## Provider sandbox
+
+KKiaPay sandbox checkouts share the no-real-funds fulfillment protections but require server-verified provider evidence. They cannot use manual test-payment confirmation. Only Yas Togo and Moov Africa Togo are allowed. See [KKIAPAY_SETUP.md](KKIAPAY_SETUP.md) for activation, environment configuration and pending provider tests.

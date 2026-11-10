@@ -74,6 +74,7 @@ class AccountDataExportService(private val jdbc: JdbcTemplate, private val users
         add("Devices", "user_devices", "device_id,app_source,created_at,last_active_at,expires_at,revoked_at")
         add("Cart", "customer_cart_items", "id,product_id,quantity,selections_json,bargaining_thread_id,created_at,updated_at")
         add("Checkouts", "pending_payment_checkouts", "checkout_id,payment_provider,payment_reference,amount_cfa,status,request_payload,created_at,updated_at,completed_at", "customer_id=?")
+        add("Payment sessions", "kkiapay_checkout_sessions", "checkout_id,sandbox,created_at,expires_at,transaction_id", "checkout_id in (select checkout_id from pending_payment_checkouts where customer_id=?)")
         add("Orders", "customer_orders", "id,checkout_id,service_level,route,customer_facing_status,order_status,item_subtotal_cfa,delivery_fee_cfa,total_cfa,payment_provider,payment_status,payment_reference,created_at,updated_at,delivered_at,return_window_ends_at", "customer_id=?")
         add("Order items", "customer_order_lines", "order_id,product_id,seller_name,product_name,category,quantity,unit_price_cfa,negotiated_unit_price_cfa,effective_unit_price_cfa,line_total_cfa,option_label,created_at", "order_id in ($ownedOrders)")
         add("Order totals", "order_pricing_snapshots", "order_id,currency,item_subtotal_cfa,service_fee_total_cfa,delivery_base_fee_cfa,subscription_discount_cfa,loyalty_discount_cfa,referral_credit_applied_cfa,customer_delivery_fee_cfa,total_cfa,created_at", "customer_id=?")

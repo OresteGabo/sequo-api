@@ -384,6 +384,7 @@ data class PaymentProviderConfigurationDto(
     val notes: String?,
     val apiConfigured: Boolean = false,
     val checkoutConnected: Boolean = false,
+    val sandbox: Boolean = false,
     val configuredReadiness: PaymentProviderReadiness? = null,
     val integrationStatus: PaymentIntegrationStatus = PaymentIntegrationStatus.NOT_CONNECTED,
     val configurationIssues: List<PaymentConfigurationIssue> = emptyList(),
@@ -590,12 +591,15 @@ class PlatformCommerceService(
         paymentProviders.findAllByOrderByDisplayNameAsc().map { provider ->
             // Stored preparation flags cannot enable the current, unimplemented provider transports.
             provider.toDto().copy(
-                readiness = if (provider.readiness == PaymentProviderReadiness.DISABLED) PaymentProviderReadiness.DISABLED else PaymentProviderReadiness.PLANNED,
-                customerCheckoutEnabled = false,
+                readiness = if (provider.readiness == PaymentProviderReadiness.DISABLED) PaymentProviderReadiness.DISABLED else if (paymentConfiguration.connected(provider.providerId)) {
+                    if (paymentConfiguration.sandbox(provider.providerId)) PaymentProviderReadiness.SANDBOX_READY else PaymentProviderReadiness.LIVE_READY
+                } else if (provider.readiness == PaymentProviderReadiness.DISABLED) PaymentProviderReadiness.DISABLED else PaymentProviderReadiness.PLANNED,
+                customerCheckoutEnabled = provider.readiness != PaymentProviderReadiness.DISABLED && paymentConfiguration.connected(provider.providerId),
                 refundEnabled = false,
                 courierPayoutEnabled = false,
                 apiConfigured = paymentConfiguration.apiConfigured(provider.providerId),
-                checkoutConnected = false,
+                checkoutConnected = provider.readiness != PaymentProviderReadiness.DISABLED && paymentConfiguration.connected(provider.providerId),
+                sandbox = paymentConfiguration.sandbox(provider.providerId),
                 configuredReadiness = provider.readiness,
                 integrationStatus = paymentConfiguration.integrationStatus(provider.providerId),
                 configurationIssues = paymentConfiguration.configurationIssues(provider.providerId),

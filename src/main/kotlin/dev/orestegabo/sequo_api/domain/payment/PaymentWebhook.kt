@@ -122,6 +122,18 @@ class PaymentWebhookService(
             is ProviderCallbackVerificationResult.Rejected -> throw IllegalArgumentException(verification.message)
         }
 
+        return persistVerified(command)
+    }
+
+    /** Trusted server-only path: the KKiaPay service verifies the upstream transaction and checkout binding first. */
+    @Transactional
+    fun acceptKkiapayVerified(command: PaymentWebhookCommand): PaymentWebhookResult {
+        require(command.provider == SequoPaymentProviders.Kkiapay && command.currency == "XOF")
+        require(command.status == PaymentWebhookProviderStatus.VALIDATED)
+        return persistVerified(command)
+    }
+
+    private fun persistVerified(command: PaymentWebhookCommand): PaymentWebhookResult {
         val payloadHash = sha256(command.rawPayload)
         val existing = events.findByProviderAndEventId(command.provider.value, command.eventId)
         if (existing != null) {

@@ -7,6 +7,7 @@ data class PaymentProviderId(val value: String) {
 }
 
 object SequoPaymentProviders {
+    val Kkiapay = PaymentProviderId("kkiapay")
     val YasTogo = PaymentProviderId("yas_togo")
     val MoovAfrica = PaymentProviderId("moov_africa")
 }
