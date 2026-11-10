@@ -53,7 +53,7 @@ class MerchantCatalogHttpTest @Autowired constructor(
 
     @Test
     fun sharedProductSuggestionsLinkShopOffersAndKeepSellerPricesIndependent() {
-        sharedReferences.save(dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRecord("ref-fixture-milk", "Lait", "grocery", "milk"))
+        sharedReferences.save(dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRecord("ref-fixture-milk", "Lait", "grocery", "milk", essential = true))
         val a = "reference-owner-a"; val b = "reference-owner-b"
         merchants.saveAll(listOf(MerchantRecord(a, name = "Milk shop A"), MerchantRecord(b, name = "Milk shop B")))
         val suggestions = request("GET", "/api/catalog/product-references?q=MILK")
@@ -67,9 +67,14 @@ class MerchantCatalogHttpTest @Autowired constructor(
             assertEquals(200, response.statusCode(), response.body())
             return json.readTree(response.body())
         }
+        val presaved = request("GET", "/api/catalog/product-references/essentials")
+        assertEquals(200, presaved.statusCode(), presaved.body())
+        kotlin.test.assertTrue(json.readTree(presaved.body()).any { it.path("id").asText() == "ref-fixture-milk" })
+        val sharedCount = sharedReferences.count()
         val first = create(a, "Brand A demi-écrémé 1 L", 1200)
         val second = create(b, "Brand B milk 500 mL", 800)
         assertEquals(first.path("productReference"), second.path("productReference"))
+        assertEquals(sharedCount, sharedReferences.count(), "Two shop offers must reuse the existing shared product")
         assertEquals(1200, first.path("priceCfa").asInt()); assertEquals(800, second.path("priceCfa").asInt())
         kotlin.test.assertNotEquals(first.path("id"), second.path("id"))
         val id = first.path("id").asText()
@@ -86,6 +91,9 @@ class MerchantCatalogHttpTest @Autowired constructor(
         val customB = create(b, "  CUSTOM CAFE FIXTURE  ", 500, null)
         assertEquals(customA.path("productReference").path("id"), customB.path("productReference").path("id"))
         kotlin.test.assertFalse(customA.path("productReference").path("id").asText().isBlank())
+        kotlin.test.assertTrue(json.readTree(request("GET", "/api/catalog/product-references/essentials").body()).none {
+            it.path("id") == customA.path("productReference").path("id")
+        })
         // A substring must not silently relink a different whole product name.
         val renamed = request("PATCH", "$endpoint/${customA.path("id").asText()}", token(a), """{"name":"Custom cafe fixture decaf"}""")
         assertEquals(200, renamed.statusCode(), renamed.body())

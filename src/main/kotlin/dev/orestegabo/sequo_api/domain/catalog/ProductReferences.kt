@@ -19,17 +19,19 @@ class ProductReferenceRecord(
     @Column(nullable = false) val name: String,
     @Column(nullable = false) val category: String,
     @Column(nullable = false, columnDefinition = "text") val aliases: String,
+    @Column(nullable = false) val essential: Boolean = false,
 ) {
-    fun dto() = ProductReferenceDto(id, name, category, aliases.split('|').filter(String::isNotBlank))
+    fun dto() = ProductReferenceDto(id, name, category, aliases.split('|').filter(String::isNotBlank), essential)
 }
 
-data class ProductReferenceDto(val id: String, val name: String, val category: String, val aliases: List<String>)
+data class ProductReferenceDto(val id: String, val name: String, val category: String, val aliases: List<String>, val essential: Boolean = false)
 interface ProductReferenceRepository : JpaRepository<ProductReferenceRecord, String> {
+    fun findByEssentialTrueOrderByCategoryAscNameAsc(): List<ProductReferenceRecord>
     @Modifying
-    @Query(value = "INSERT INTO catalog_product_references(id,name,category,aliases) VALUES (:id,:name,:category,'') ON CONFLICT DO NOTHING", nativeQuery = true)
+    @Query(value = "INSERT INTO catalog_product_references(id,name,category,aliases,essential) VALUES (:id,:name,:category,'',FALSE) ON CONFLICT DO NOTHING", nativeQuery = true)
     fun insertIfMissing(id: String, name: String, category: String): Int
     @Modifying
-    @Query(value = "MERGE INTO catalog_product_references r USING (VALUES (CAST(:id AS VARCHAR),CAST(:name AS VARCHAR),CAST(:category AS VARCHAR))) v(id,name,category) ON r.id=v.id WHEN NOT MATCHED THEN INSERT (id,name,category,aliases) VALUES (v.id,v.name,v.category,'')", nativeQuery = true)
+    @Query(value = "MERGE INTO catalog_product_references r USING (VALUES (CAST(:id AS VARCHAR),CAST(:name AS VARCHAR),CAST(:category AS VARCHAR))) v(id,name,category) ON r.id=v.id WHEN NOT MATCHED THEN INSERT (id,name,category,aliases,essential) VALUES (v.id,v.name,v.category,'',FALSE)", nativeQuery = true)
     fun insertIfMissingEmbedded(id: String, name: String, category: String): Int
 }
 
@@ -64,6 +66,9 @@ class ProductReferenceService(private val repository: ProductReferenceRepository
         require(limit in 1..12) { "limit must be between 1 and 12." }
         return suggestProductReferences(repository.findAll().map { it.dto() }, query, limit)
     }
+    @Transactional(readOnly = true)
+    fun essentials(): List<ProductReferenceDto> = repository.findByEssentialTrueOrderByCategoryAscNameAsc().map { it.dto() }
+
     fun get(id: String?): ProductReferenceDto? = id?.let { repository.findById(it).orElse(null)?.dto() }
     fun byIds(ids: Collection<String>): Map<String, ProductReferenceDto> = repository.findAllById(ids.distinct()).associate { it.id to it.dto() }
     fun resolve(id: String?, name: String, category: String?): String? {
@@ -93,6 +98,9 @@ class ProductReferenceService(private val repository: ProductReferenceRepository
 @RestController
 @RequestMapping("/api/catalog/product-references")
 class ProductReferenceController(private val service: ProductReferenceService) {
+    @GetMapping("/essentials")
+    fun essentials() = service.essentials()
+
     @GetMapping
     fun suggestions(@RequestParam(defaultValue = "") q: String, @RequestParam(defaultValue = "6") limit: Int): ResponseEntity<Any> =
         try { ResponseEntity.ok(service.suggestions(q, limit)) }
