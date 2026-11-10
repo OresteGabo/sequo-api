@@ -1122,6 +1122,20 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(0,jdbc.queryForObject("select count(*) from delivery_settlements where mission_id=?",Int::class.java,mid))
         assertEquals(0,jdbc.queryForObject("select count(*) from settlement_ledger_entries where source_id in (?,?)",Int::class.java,mid,part))
         assertFalse(read("GET","/api/returns/orders/${order.id}/eligibility",f.token)["eligible"].asBoolean())
+
+        val exportResponse = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/account/data-export"))
+            .header("Authorization", "Bearer ${f.token}").header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString("{\"devicePreferences\":{}}")).build(), HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200, exportResponse.statusCode())
+        val exportedData = java.util.zip.ZipInputStream(java.io.ByteArrayInputStream(exportResponse.body())).use { zip ->
+            var data: ByteArray? = null
+            while (true) { val entry = zip.nextEntry ?: break; if (entry.name == "data.json") data = zip.readBytes() }
+            json.readTree(requireNotNull(data))
+        }
+        assertEquals(order.id, exportedData["sections"]["Orders"].single()["id"].asText())
+        assertEquals("DELIVERED", exportedData["sections"]["Orders"].single()["order_status"].asText())
+        assertEquals(1, exportedData["sections"]["Order items"].size())
+        assertEquals(1, exportedData["sections"]["Delivery history"].size())
     }
 
     private data class Fixture(val userId: String, val token: String, val productId: String, val addressId: String)

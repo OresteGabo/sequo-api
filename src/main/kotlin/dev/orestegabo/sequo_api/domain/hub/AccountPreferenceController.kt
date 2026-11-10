@@ -29,7 +29,7 @@ class AccountController(
         @RequestBody request: DeletionRequest,
     ): ResponseEntity<Any> {
         userId ?: return ResponseEntity.status(401).build()
-        return ResponseEntity.ok(
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
             service.requestAccountDeletion(
                 AccountDeletionRequestCommand(
                     userId = userId,
