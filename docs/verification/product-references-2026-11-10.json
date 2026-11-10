@@ -1,0 +1,29 @@
+{
+  "live": {
+    "schemaVersion": 70,
+    "totalOffers": 132,
+    "linkedOffers": 132,
+    "invalidReferenceLinks": 0,
+    "release": "product-references-20261110",
+    "revision": "8206537f2174f2ed21d0bb3cefdd69c90d2198d1",
+    "publicHealth": "UP",
+    "milkAlias": "ref-milk",
+    "privateRestoreVerified": true,
+    "artifactHashVerified": true,
+    "newLiveTestOffersCreated": false
+  },
+  "privateRestore": {
+    "schemaVersion": 70,
+    "linkedOffers": 138,
+    "unresolvedForeignKeys": 0,
+    "concurrentReferences": 1,
+    "privateRestore": true,
+    "bilingualSuggestions": true,
+    "separateSellerPrices": true,
+    "concurrentNameDeduplication": true,
+    "explicitUnlink": true,
+    "unknownReferenceRejected": true,
+    "foreignShopEditRejected": true,
+    "productionTestProductsCreated": false
+  }
+}

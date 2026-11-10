@@ -14,6 +14,7 @@ parser.add_argument("--device", required=True)
 parser.add_argument("--products", type=Path, required=True)
 parser.add_argument("--output", type=Path, required=True)
 parser.add_argument("--actions", type=Path, required=True)
+parser.add_argument("--app", choices=["dev.orestegabo.sequo.Sequo", "dev.orestegabo.sequovendor.SequoVendor"], default="dev.orestegabo.sequo.Sequo")
 args = parser.parse_args()
 os.umask(0o077)
 args.output.mkdir(parents=True, exist_ok=False, mode=0o700)
@@ -30,6 +31,7 @@ configured = False
 for target in targets:
     if isinstance(target, dict) and target.get("IsUITestBundle"):
         environment = target.setdefault("EnvironmentVariables", {})
+        environment["SEQUO_PHONE_APP"] = args.app
         environment["SEQUO_CART_PHONE_CONFIG"] = "inspect-authorized-20261110"
         environment["SEQUO_CART_PHONE_ACTIONS"] = base64.b64encode(json.dumps(actions).encode()).decode()
         configured = True

@@ -1,12 +1,14 @@
 # Physical iPhone cart checks
 
-This separate XCTest host drives the installed normal Sequo app through its real UI. It contains no HTTP clients, injected sessions or fixture login bypass. The existing simulator-only reference suites keep their simulator guards.
+This separate XCTest host drives the installed normal Sequo or SequoVendor app through its real UI. It contains no HTTP clients, injected sessions or fixture login bypass. The existing simulator-only reference suites keep their simulator guards.
 
 Run only on an explicitly authorized connected, unlocked development iPhone, signed into a fictional test customer. Live data can change. Use only seeded `[TEST]` products and explicitly labelled no-money checkout; never type a real wallet payment confirmation. Ordinary checkout/deletion taps are blocked by label, but coordinates and other actions still require operator review.
 
 Build for testing with `xcodebuild -project scripts/cart-iphone-tests/CartPhoneTests.xcodeproj -scheme CartPhoneTests -configuration Debug -destination "platform=iOS,id=$PHONE_UDID" -derivedDataPath "$PRIVATE_OUTPUT/DerivedData" -allowProvisioningUpdates build-for-testing`. The project's development team must match your authorized signing membership.
 
 Run `python3 scripts/cart-iphone-tests/run.py --authorize-physical-ui --device "$PHONE_UDID" --products "$PRIVATE_OUTPUT/DerivedData/Build/Products" --output "$PRIVATE_OUTPUT/inspect" --actions "$PRIVATE_ACTIONS"`.
+
+Use `--app dev.orestegabo.sequovendor.SequoVendor` for the normal Vendor app. Both bundle IDs are explicitly allowlisted.
 
 Actions are a JSON array, for example `[{"kind":"wait","label":"Cart"},{"kind":"tap","label":"Cart"},{"kind":"capture","label":"cart"}]`. Supported actions/assertions are documented by the Swift switch. `scrollUntil` defaults to scrolling toward the bottom; `value:"down"` scrolls toward the top. `allowLocationOnce` handles only Sequo's temporary location permission. Do not save a real GPS location during fictional-address checks.
 

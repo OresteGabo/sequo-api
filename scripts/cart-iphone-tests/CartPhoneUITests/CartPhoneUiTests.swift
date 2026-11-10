@@ -21,7 +21,11 @@ final class CartPhoneUiTests: XCTestCase {
         guard ProcessInfo.processInfo.environment["SEQUO_CART_PHONE_CONFIG"] == "inspect-authorized-20261110" else {
             XCTFail("Explicit physical cart-test authorization configuration is required."); throw Failure.notAuthorized
         }
-        app = XCUIApplication(bundleIdentifier: "dev.orestegabo.sequo.Sequo")
+        let bundle = ProcessInfo.processInfo.environment["SEQUO_PHONE_APP"] ?? "dev.orestegabo.sequo.Sequo"
+        guard ["dev.orestegabo.sequo.Sequo", "dev.orestegabo.sequovendor.SequoVendor"].contains(bundle) else {
+            throw Failure.notAuthorized
+        }
+        app = XCUIApplication(bundleIdentifier: bundle)
     }
     override func tearDownWithError() throws {
         if testRun?.hasSucceeded == false && app != nil { capture("failure-state") }
