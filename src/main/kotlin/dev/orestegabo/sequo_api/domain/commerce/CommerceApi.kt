@@ -242,6 +242,7 @@ interface CatalogPromotionRepository : JpaRepository<CatalogPromotionRecord, Str
 
 interface CustomerCartItemRepository : JpaRepository<CustomerCartItemRecord, String> {
     fun findByUserIdOrderByUpdatedAtDesc(userId: String): List<CustomerCartItemRecord>
+    fun findByUserIdOrderByCreatedAtDescIdAsc(userId: String): List<CustomerCartItemRecord>
     fun findByIdAndUserId(id: String, userId: String): CustomerCartItemRecord?
     fun findByUserIdAndProductIdAndConfigurationKey(
         userId: String, productId: String, configurationKey: String,
@@ -846,7 +847,7 @@ class CommerceService(
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     fun cart(userId: String): CommerceCartDto {
-        val records = cartItems.findByUserIdOrderByUpdatedAtDesc(userId)
+        val records = cartItems.findByUserIdOrderByCreatedAtDescIdAsc(userId)
         val menus = platformCommerce.customizationsByProduct(records.map { it.productId }.distinct())
         val items = records.mapNotNull { item ->
             val product = item.product ?: products.findById(item.productId).orElse(null) ?: return@mapNotNull null
@@ -922,6 +923,25 @@ class CommerceService(
                 bargainingThreadId = request.bargainingThreadId,
             )
         )
+        return cart(userId)
+    }
+
+    /** Adjust only the persisted line; never recreate or merge another size/measurement/agreement. */
+    @Transactional
+    fun setCartItemQuantity(userId: String, itemId: String, quantity: Int): CommerceCartDto {
+        require(users.lockCheckoutOwner(userId)?.active == true) { "Customer account is unavailable." }
+        val safeItemId = ApiInputPolicy.requiredIdentifier(itemId, "itemId")
+        require(quantity in 1..99) { "quantity must be between 1 and 99." }
+        val item = requireNotNull(cartItems.findByIdAndUserId(safeItemId, userId)) { "Cart item is unavailable." }
+        val product = requireNotNull(products.lockForCustomization(item.productId)) { "Product is unavailable." }
+        item.bargainingThreadId?.let { bargaining.acceptedPrice(userId, product, it) }
+        val selections = cartSelectionsMapper.readTree(item.selectionsJson).map {
+            FoodCustomizationSelection(it["groupId"].asText(), it["optionIds"].map { option -> option.asText() }.toSet())
+        }
+        val price = platformCommerce.quoteCustomizations(item.productId, QuoteProductCustomizationsRequest(selections))
+        require(price.unitPriceCfa.toLong() * quantity <= Int.MAX_VALUE) { "Cart line total is too large." }
+        item.quantity = quantity
+        item.updatedAt = Instant.now()
         return cart(userId)
     }
 
@@ -1128,6 +1148,13 @@ class CommerceCartController(private val commerce: CommerceService) {
     @PutMapping("/items")
     fun putItem(@AuthenticationPrincipal userId: String?, @RequestBody request: UpsertCartItemRequest): ResponseEntity<Any> =
         authenticated(userId) { commerce.putCartItem(it, request) }
+
+    data class QuantityRequest(val quantity: Int)
+
+    @PutMapping("/items/{itemId}/quantity")
+    fun setQuantity(@AuthenticationPrincipal userId: String?, @PathVariable itemId: String,
+        @RequestBody request: QuantityRequest): ResponseEntity<Any> =
+        authenticated(userId) { commerce.setCartItemQuantity(it, itemId, request.quantity) }
 
     @DeleteMapping("/items/{itemId}")
     fun removeItem(@AuthenticationPrincipal userId: String?, @PathVariable itemId: String): ResponseEntity<Any> =

@@ -120,6 +120,35 @@ class CommerceServiceTest @Autowired constructor(
     }
 
     @Test
+    fun quantityUpdatesKeepRowOrderAndDoNotChangeOtherSizesOrProducts() {
+        seedCatalog()
+        val customer = createCustomer()
+        val other = createCustomer("other-quantity@fixture.invalid")
+        val group = platformCommerce.replaceCustomizations("test-product", ReplaceProductCustomizationsRequest(listOf(
+            ProductCustomizationGroupRequest("Size", 1, 1, options = listOf(
+                ProductCustomizationOptionRequest("Small", 0), ProductCustomizationOptionRequest("Large", 200)
+            ))
+        )), "merchant-test").single()
+        for (option in group.options) service.putCartItem(customer, UpsertCartItemRequest("test-product", 1,
+            listOf(FoodCustomizationSelection(group.id, setOf(option.id)))))
+        service.putCartItem(customer, UpsertCartItemRequest("bargain-product", 2))
+        val original = service.cart(customer)
+        val selected = original.items.single { it.selections.any { choice -> group.options[0].id in choice.optionIds } }
+        for (quantity in listOf(2, 3, 2, 1, 99)) {
+            val changed = service.setCartItemQuantity(customer, selected.id, quantity)
+            assertEquals(original.items.map { it.id }, changed.items.map { it.id })
+            assertEquals(quantity, changed.items.single { it.id == selected.id }.quantity)
+            assertEquals(selected.selections, changed.items.single { it.id == selected.id }.selections)
+            assertEquals(original.items.filter { it.id != selected.id }, changed.items.filter { it.id != selected.id })
+        }
+        assertFailsWith<IllegalArgumentException> { service.setCartItemQuantity(other, selected.id, 3) }
+        for (bad in listOf(0, -1, 100)) assertFailsWith<IllegalArgumentException> { service.setCartItemQuantity(customer, selected.id, bad) }
+        service.removeCartItem(customer, selected.id)
+        assertFailsWith<IllegalArgumentException> { service.setCartItemQuantity(customer, selected.id, 2) }
+        assertEquals(2, service.cart(customer).items.size)
+    }
+
+    @Test
     fun cartRestoresVariantsRepricesAndQuotesOnlyAvailableLinesForOwnedAddresses() {
         seedCatalog()
         val customer = createCustomer()

@@ -1138,6 +1138,30 @@ class CustomerCartCheckoutHttpTest @Autowired constructor(
         assertEquals(1, exportedData["sections"]["Delivery history"].size())
     }
 
+    @Test
+    fun quantityEndpointOnlyChangesOwnedLineAndKeepsStableOrder() {
+        val f = fixture()
+        val other = fixture()
+        assertEquals(200, call("PUT", "/api/cart/items", f.token,
+            """{"productId":"${other.productId}","quantity":1}""").statusCode())
+        val original = read("GET", "/api/cart", f.token)["items"]
+        val ids = original.map { it["id"].asText() }
+        val id = original.single { it["product"]["id"].asText() == f.productId }["id"].asText()
+        for (quantity in listOf(3, 2, 1)) {
+            val result = call("PUT", "/api/cart/items/$id/quantity", f.token, """{"quantity":$quantity}""")
+            assertEquals(200, result.statusCode(), result.body())
+            val items = json.readTree(result.body())["items"]
+            assertEquals(ids, items.map { it["id"].asText() })
+            assertEquals(quantity, items.single { it["id"].asText() == id }["quantity"].asInt())
+            assertEquals(1, items.single { it["id"].asText() != id }["quantity"].asInt())
+        }
+        assertEquals(400, call("PUT", "/api/cart/items/$id/quantity", other.token, """{"quantity":5}""").statusCode())
+        assertEquals(400, call("PUT", "/api/cart/items/$id/quantity", f.token, """{"quantity":100}""").statusCode())
+        assertEquals(200, call("DELETE", "/api/cart/items/$id", f.token).statusCode())
+        assertEquals(400, call("PUT", "/api/cart/items/$id/quantity", f.token, """{"quantity":2}""").statusCode())
+        assertEquals(1, read("GET", "/api/cart", f.token)["items"].size())
+    }
+
     private data class Fixture(val userId: String, val token: String, val productId: String, val addressId: String)
 
     private fun fixture(): Fixture {

@@ -144,10 +144,12 @@ class BargainingCheckoutHttpTest @Autowired constructor(
         assertEquals(2, mixed.map { it["id"].asText() }.toSet().size)
         assertEquals(1, mixed.single { it["id"].asText() == catalogLineId }["quantity"].asInt())
         assertEquals(2, mixed.single { it["bargainingThreadId"].asText() == id }["quantity"].asInt())
-        val changedQuantity = call("PUT", "/api/cart/items", fixture.customer.token,
-            """{"productId":"${fixture.productId}","quantity":3,"bargainingThreadId":"$id"}""")
+        val negotiatedLineId = mixed.single { it["bargainingThreadId"].asText() == id }["id"].asText()
+        val changedQuantity = call("PUT", "/api/cart/items/$negotiatedLineId/quantity", fixture.customer.token,
+            """{"quantity":3}""")
         assertEquals(200, changedQuantity.statusCode(), changedQuantity.body())
         val changedItems = json.readTree(changedQuantity.body())["items"]
+        assertEquals(mixed.map { it["id"].asText() }, changedItems.map { it["id"].asText() })
         assertEquals(1, changedItems.single { it["id"].asText() == catalogLineId }["quantity"].asInt())
         assertEquals(3, changedItems.single { it["bargainingThreadId"].asText() == id }["quantity"].asInt())
         putCart(fixture, id)
