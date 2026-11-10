@@ -1,0 +1,34 @@
+{
+  "live": {
+    "schemaVersion": 72,
+    "totalOffers": 132,
+    "linkedOffers": 132,
+    "invalidReferenceLinks": 0,
+    "reviewedOffersLinked": 19,
+    "milkListingCount": 1,
+    "groceryOffersLinkedToEssentials": 24,
+    "essentialProducts": 74,
+    "release": "essential-links-20261110",
+    "revision": "6b6cde45f5fc1921dab3bbf9e8ff300ceb25bfb1",
+    "publicHealth": "UP",
+    "milkAlias": "ref-milk",
+    "privateRestoreVerified": true,
+    "artifactHashVerified": true,
+    "newLiveTestOffersCreated": false
+  },
+  "privateRestore": {
+    "schemaVersion": 72,
+    "updatedOffers": 19,
+    "essentialProducts": 74,
+    "redirectedLegacyReferences": 19,
+    "offerFieldsPreserved": true,
+    "cartRowsPreserved": true,
+    "historicalOrderLinesPreserved": true,
+    "legacyIdsAndNamesResolveToCanonical": true,
+    "ambiguousAndMixedGoodsKeptSeparate": true,
+    "milkListingCount": 1,
+    "milkPriceCfa": 1900,
+    "productionOffersCreated": false,
+    "privateRestore": true
+  }
+}

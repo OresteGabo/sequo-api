@@ -79,7 +79,7 @@ class MerchantCatalogHttpTest @Autowired constructor(
         merchants.saveAll(listOf(MerchantRecord(a, name = "Milk shop A"), MerchantRecord(b, name = "Milk shop B")))
         val suggestions = request("GET", "/api/catalog/product-references?q=MILK")
         assertEquals(200, suggestions.statusCode(), suggestions.body())
-        assertEquals("ref-fixture-milk", json.readTree(suggestions.body()).single().path("id").asText())
+        assertEquals("ref-fixture-milk", json.readTree(suggestions.body()).first().path("id").asText())
         assertEquals(400, request("GET", "/api/catalog/product-references?q=milk&limit=99").statusCode())
         fun create(merchant: String, name: String, price: Int, reference: String? = "ref-fixture-milk"): JsonNode {
             val body = json.writeValueAsString(mapOf("merchantId" to merchant, "name" to name, "kind" to "GenericSealedItem",
