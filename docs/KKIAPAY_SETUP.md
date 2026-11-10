@@ -72,3 +72,11 @@ KKiaPay is a plausible supported provider for Togo, not a guarantee of uninterru
 - [Sandbox testing](https://docs.kkiapay.me/v1/compte/kkiapay-sandbox-guide-de-test)
 - [Supported currency](https://docs.kkiapay.me/v1/paiements/devises-supportees)
 - [BCEAO payment-establishment list](https://www.bceao.int/sites/default/files/2026-03/LISTE%20DES%20ETABLISSEMENTS%20DE%20PAIEMENT%20AGR%C3%89%C3%89S%20DANS%20L%E2%80%99UMOA%20au%2031%20janvier%202026.pdf)
+
+## Deployment verification — 10 November 2026
+
+- Backend release `kkiapay-prepared-20261110`, runtime revision `f3cb2a2a4dbad836a8120fe54a6e49be8ad89d70`, deployed to the existing OVH API. Public health is UP and schema V73 is applied.
+- The complete artifact hash was verified against the local package. A private database restore passed migration with the checked product, cart, order, user and settlement records preserved. Fresh private backups were taken before activation; the validation container and database were removed afterward.
+- Existing JWT, Apple login, database and encryption configuration was preserved. KKiaPay collection, live approval and refunds are explicitly disabled. The public provider status reports checkout unavailable, and the webhook rejects requests without credentials.
+- All 57 backend payment/checkout/account regression checks and five Android host client/translation checks passed. The payment integration also passed on disposable PostgreSQL through V73. Android and iOS arm64 compilation passed; the signed normal Sequo iPhone app built and installed successfully. Native app source revision: `168704b`.
+- No real KKiaPay transaction was attempted or verified. The company's activation, keys, webhook setup and actual provider sandbox acceptance tests remain pending. No live payment approval or payout configuration was submitted.
