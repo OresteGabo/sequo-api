@@ -19,4 +19,3 @@ Brosse à dents, Dentifrice, Serviettes hygiéniques, Shampooing.
 ## Baby
 
 Couches, Lingettes bébé.
-
