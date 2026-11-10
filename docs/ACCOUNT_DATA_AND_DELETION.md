@@ -36,3 +36,9 @@ For Sign in with Apple, token revocation must be included in permanent erasure. 
 - The full test relay journey additionally exports a delivered order, its item and mission, without creating money movements.
 - Client contract tests exercise authenticated ZIP download, preferences, request status and exact deletion confirmation serialization.
 - Runtime translation coverage checks every declared string in both selectable languages. This also repairs six cart labels missing from the earlier manual lookup maps.
+
+### Deployed verification, 2026-11-10
+
+Backend source `e6d06f86648049e5d94164c1149d172f50d14e52` is deployed as `sequo-api:account-data-20261110`; JAR SHA-256 `b0858860d1c71672e9d1c8e87f493d6351f71e47f29e04d72f524a3e046e66d8`. The previous configuration and a database backup were retained privately before activation. No schema migration was needed; existing auth/payment configuration was preserved. Public health, readiness and deployed artifact identity passed.
+
+The live fictional customer successfully downloaded a valid owner-scoped archive containing completed orders, with no-store and no forbidden secret columns. Status retrieval passed; the temporary verification session was logged out. [Non-secret verification receipt](verification/account-data-export-2026-11-10.json). No live deletion request was submitted. Backend checks passed 5 isolation/privacy/contract tests plus the completed-order journey/export test; client download/confirmation and full translation coverage tests passed. Android and iOS compilation passed; the signed normal iPhone app was built and installed. Native Files interaction still needs a human save/cancel exercise; compilation/installation is not a claim that a user saved an archive.
