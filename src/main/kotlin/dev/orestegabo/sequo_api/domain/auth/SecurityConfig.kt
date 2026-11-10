@@ -71,6 +71,7 @@ class SecurityConfig(
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/catalog/home",
+                        "/api/catalog/product-references",
                         "/api/catalog/categories",
                         "/api/catalog/merchants",
                         "/api/catalog/products",

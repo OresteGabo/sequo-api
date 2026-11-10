@@ -207,9 +207,10 @@ interface CommerceProductRepository : JpaRepository<ProductRecord, String> {
         where target.id = :targetId
           and related.id <> target.id
           and related.status = dev.orestegabo.sequo_api.domain.catalog.CatalogProductStatus.ACTIVE
-          and related.category is not null
-          and related.category = target.category
+          and ((target.productReferenceId is not null and related.productReferenceId = target.productReferenceId)
+               or (related.category is not null and related.category = target.category))
         order by
+          case when target.productReferenceId is not null and related.productReferenceId = target.productReferenceId then 0 else 1 end,
           case
               when target.subcategory is not null and related.subcategory = target.subcategory then 0
               else 1
@@ -316,6 +317,7 @@ data class CatalogProductDto(
     val customizations: List<ProductCustomizationGroupDto> = emptyList(),
     val publicReference: String? = null,
     val merchantReference: String? = null,
+    val productReference: dev.orestegabo.sequo_api.domain.catalog.ProductReferenceDto? = null,
 )
 
 data class CatalogPromotionDto(
@@ -365,6 +367,7 @@ data class ManageCatalogProductRequest(
     val capturedAtLabel: String? = null,
     val sortOrder: Int? = null,
     val idempotencyKey: String? = null,
+    val productReferenceId: String? = null,
 )
 
 data class PatchCatalogProductRequest(
@@ -381,6 +384,7 @@ data class PatchCatalogProductRequest(
     val cameraVerified: Boolean? = null,
     val capturedAtLabel: String? = null,
     val sortOrder: Int? = null,
+    val productReferenceId: String? = null,
 )
 
 data class MerchantProductPhotoRequest(
@@ -464,11 +468,13 @@ class CommerceService(
     private val merchantStores: dev.orestegabo.sequo_api.domain.store.MerchantStoreService,
     @Value("\${sequo.catalog.approved-generic-image-url:}") private val approvedGenericImageUrl: String,
     private val publicReferences: PublicReferenceRegistry? = null,
+    private val productReferences: dev.orestegabo.sequo_api.domain.catalog.ProductReferenceService? = null,
 ) {
-    private fun ProductRecord.toDto(showConfiguredBargaining: Boolean = true): CatalogProductDto =
+    private fun ProductRecord.toDto(showConfiguredBargaining: Boolean = true, reference: dev.orestegabo.sequo_api.domain.catalog.ProductReferenceDto? = productReferences?.get(productReferenceId)): CatalogProductDto =
         toCatalogDto(showConfiguredBargaining).copy(
             publicReference = publicReferences?.reference(PublicReferenceKind.PRODUCT, id),
             merchantReference = merchantId?.let { publicReferences?.reference(PublicReferenceKind.MERCHANT, it) },
+            productReference = reference,
         )
 
     private fun MerchantStorefrontRecord.toDto(merchantRecord: MerchantRecord, storeProducts: List<CatalogProductDto>): MerchantStorefrontDto =
@@ -555,10 +561,11 @@ class CommerceService(
     }
 
     private fun catalogDtos(records: List<ProductRecord>, showConfiguredBargaining: Boolean): List<CatalogProductDto> {
+        val sharedReferences = productReferences?.byIds(records.mapNotNull { it.productReferenceId }).orEmpty()
         val menus = platformCommerce.customizationsByProduct(records.map { it.id })
         return records.map { record ->
             val groups = menus[record.id].orEmpty()
-            record.toDto(showConfiguredBargaining).copy(
+            record.toDto(showConfiguredBargaining, sharedReferences[record.productReferenceId]).copy(
                 customizations = if (showConfiguredBargaining) groups else groups.filter { it.active }
             )
         }
@@ -610,6 +617,7 @@ class CommerceService(
             sortOrder = request.sortOrder ?: 0,
             createdAt = now,
             updatedAt = now,
+            productReferenceId = productReferences?.resolve(request.productReferenceId, request.name, ApiInputPolicy.optionalIdentifier(request.category, "category")),
         )
         val existing = products.findById(productId).orElse(null)
         if (existing != null) {
@@ -627,7 +635,11 @@ class CommerceService(
         val product = products.findById(safeProductId).orElseThrow {
             IllegalArgumentException("productId does not reference an existing product.")
         }
+        val renamed = request.name != null && request.name != product.name
         request.name?.let { product.name = ApiInputPolicy.requiredShortText(it, "name", 180) }
+        if (request.productReferenceId != null || renamed) {
+            product.productReferenceId = productReferences?.resolve(request.productReferenceId, product.name, request.category?.let { ApiInputPolicy.optionalIdentifier(it, "category") } ?: product.category)
+        }
         request.status?.let {
             require(it != CatalogProductStatus.ACTIVE || !product.photoRequired || product.imageUrl != null) {
                 "Capture and upload a camera photo before publishing this product."

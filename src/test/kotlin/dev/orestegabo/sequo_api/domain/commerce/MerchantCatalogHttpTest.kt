@@ -43,12 +43,54 @@ class MerchantCatalogHttpTest @Autowired constructor(
     private val products: CommerceProductRepository,
     private val addresses: CustomerAddressRepository,
     private val users: UserRepository,
+    private val sharedReferences: dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRepository,
 ) {
     @LocalServerPort
     private var port = 0
     private val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
     private val json = ObjectMapper()
     private val endpoint = "/api/merchant/catalog/products"
+
+    @Test
+    fun sharedProductSuggestionsLinkShopOffersAndKeepSellerPricesIndependent() {
+        sharedReferences.save(dev.orestegabo.sequo_api.domain.catalog.ProductReferenceRecord("ref-fixture-milk", "Lait", "grocery", "milk"))
+        val a = "reference-owner-a"; val b = "reference-owner-b"
+        merchants.saveAll(listOf(MerchantRecord(a, name = "Milk shop A"), MerchantRecord(b, name = "Milk shop B")))
+        val suggestions = request("GET", "/api/catalog/product-references?q=MILK")
+        assertEquals(200, suggestions.statusCode(), suggestions.body())
+        assertEquals("ref-fixture-milk", json.readTree(suggestions.body()).single().path("id").asText())
+        assertEquals(400, request("GET", "/api/catalog/product-references?q=milk&limit=99").statusCode())
+        fun create(merchant: String, name: String, price: Int, reference: String? = "ref-fixture-milk"): JsonNode {
+            val body = json.writeValueAsString(mapOf("merchantId" to merchant, "name" to name, "kind" to "GenericSealedItem",
+                "category" to "grocery", "basePriceCfa" to price, "productReferenceId" to reference))
+            val response = request("POST", endpoint, token(merchant), body)
+            assertEquals(200, response.statusCode(), response.body())
+            return json.readTree(response.body())
+        }
+        val first = create(a, "Brand A demi-écrémé 1 L", 1200)
+        val second = create(b, "Brand B milk 500 mL", 800)
+        assertEquals(first.path("productReference"), second.path("productReference"))
+        assertEquals(1200, first.path("priceCfa").asInt()); assertEquals(800, second.path("priceCfa").asInt())
+        kotlin.test.assertNotEquals(first.path("id"), second.path("id"))
+        val id = first.path("id").asText()
+        val invalid = request("PATCH", "$endpoint/$id", token(a), """{"productReferenceId":"missing-reference","basePriceCfa":99}""")
+        assertEquals(400, invalid.statusCode(), invalid.body())
+        assertEquals(1200, products.findById(id).orElseThrow().basePriceCfa)
+        assertEquals(400, request("PATCH", "$endpoint/$id", token(b), """{"productReferenceId":""}""").statusCode())
+        val related = json.readTree(request("GET", "/api/catalog/products/$id/related").body())
+        assertEquals(second.path("id").asText(), related.first().path("id").asText())
+        val unlinked = request("PATCH", "$endpoint/$id", token(a), """{"productReferenceId":""}""")
+        assertEquals(200, unlinked.statusCode(), unlinked.body())
+        kotlin.test.assertTrue(json.readTree(unlinked.body()).path("productReference").isNull)
+        val customA = create(a, "Custom café fixture", 300, null)
+        val customB = create(b, "  CUSTOM CAFE FIXTURE  ", 500, null)
+        assertEquals(customA.path("productReference").path("id"), customB.path("productReference").path("id"))
+        kotlin.test.assertFalse(customA.path("productReference").path("id").asText().isBlank())
+        // A substring must not silently relink a different whole product name.
+        val renamed = request("PATCH", "$endpoint/${customA.path("id").asText()}", token(a), """{"name":"Custom cafe fixture decaf"}""")
+        assertEquals(200, renamed.statusCode(), renamed.body())
+        kotlin.test.assertNotEquals(customA.path("productReference").path("id"), json.readTree(renamed.body()).path("productReference").path("id"))
+    }
 
     @Test
     fun adminEditorReadsFullInactiveMenuWithoutChangingPublicOrMerchantScope() {

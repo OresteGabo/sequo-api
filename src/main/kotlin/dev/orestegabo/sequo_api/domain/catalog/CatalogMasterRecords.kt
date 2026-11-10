@@ -93,6 +93,9 @@ class ProductRecord(
     @Version
     @Column(name = "version", nullable = false)
     var version: Long = 0,
+
+    @Column(name = "product_reference_id", length = 128)
+    var productReferenceId: String? = null,
 )
 
 @Entity
