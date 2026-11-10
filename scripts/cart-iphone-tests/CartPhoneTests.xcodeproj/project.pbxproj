@@ -1,0 +1,32 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+		000000000000000000000001 /* project */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = NO; LastUpgradeCheck = 1600; TargetAttributes = {000000000000000000000012 = {CreatedOnToolsVersion = 16.0; }; 000000000000000000000013 = {CreatedOnToolsVersion = 16.0; TestTargetID = 000000000000000000000012; }; }; }; buildConfigurationList = 000000000000000000000016; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 000000000000000000000002; productRefGroup = 000000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (000000000000000000000012, 000000000000000000000013); };
+		000000000000000000000002 /* main */ = {isa = PBXGroup; children = (000000000000000000000004, 000000000000000000000005, 000000000000000000000003); sourceTree = "<group>"; };
+		000000000000000000000004 /* hostgroup */ = {isa = PBXGroup; children = (000000000000000000000006); path = CartPhoneTestHost; sourceTree = "<group>"; };
+		000000000000000000000005 /* testgroup */ = {isa = PBXGroup; children = (000000000000000000000007); path = CartPhoneUITests; sourceTree = "<group>"; };
+		000000000000000000000003 /* products */ = {isa = PBXGroup; children = (00000000000000000000000A, 00000000000000000000000B); name = Products; sourceTree = "<group>"; };
+		000000000000000000000006 /* hostfile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		000000000000000000000007 /* testfile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartPhoneUiTests.swift; sourceTree = "<group>"; };
+		00000000000000000000000A /* hostproduct */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CartPhoneTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		00000000000000000000000B /* testproduct */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CartPhoneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000008 /* hostbuild */ = {isa = PBXBuildFile; fileRef = 000000000000000000000006; };
+		00000000000000000000000C /* hostsources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000008); runOnlyForDeploymentPostprocessing = 0; };
+		00000000000000000000000E /* hostframework */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		000000000000000000000010 /* hostresources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		000000000000000000000012 /* hosttarget */ = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000017; buildPhases = (00000000000000000000000C, 00000000000000000000000E, 000000000000000000000010); buildRules = (); dependencies = (); name = CartPhoneTestHost; productName = CartPhoneTestHost; productReference = 00000000000000000000000A; productType = "com.apple.product-type.application"; };
+		000000000000000000000009 /* testbuild */ = {isa = PBXBuildFile; fileRef = 000000000000000000000007; };
+		00000000000000000000000D /* testsources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000009); runOnlyForDeploymentPostprocessing = 0; };
+		00000000000000000000000F /* testframework */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		000000000000000000000011 /* testresources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		000000000000000000000013 /* testtarget */ = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000018; buildPhases = (00000000000000000000000D, 00000000000000000000000F, 000000000000000000000011); buildRules = (); dependencies = (000000000000000000000015); name = CartPhoneUITests; productName = CartPhoneUITests; productReference = 00000000000000000000000B; productType = "com.apple.product-type.bundle.ui-testing"; };
+		000000000000000000000014 /* proxy */ = {isa = PBXContainerItemProxy; containerPortal = 000000000000000000000001; proxyType = 1; remoteGlobalIDString = 000000000000000000000012; remoteInfo = CartPhoneTestHost; };
+		000000000000000000000015 /* dependency */ = {isa = PBXTargetDependency; target = 000000000000000000000012; targetProxy = 000000000000000000000014; };
+		000000000000000000000016 /* projectconfig */ = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000019); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+		000000000000000000000017 /* hostconfig */ = {isa = XCConfigurationList; buildConfigurations = (00000000000000000000001A); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+		000000000000000000000018 /* testconfig */ = {isa = XCConfigurationList; buildConfigurations = (00000000000000000000001B); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+		000000000000000000000019 /* projectdebug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; DEVELOPMENT_TEAM = V2BJSBRM66; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; CODE_SIGN_STYLE = Automatic; }; name = Debug; };
+		00000000000000000000001A /* hostdebug */ = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO; INFOPLIST_KEY_UILaunchScreen_Generation = YES; PRODUCT_BUNDLE_IDENTIFIER = dev.orestegabo.sequo.CartPhoneTestHost; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		00000000000000000000001B /* testdebug */ = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = dev.orestegabo.sequo.CartPhoneUITests; PRODUCT_NAME = "$(TARGET_NAME)"; TEST_TARGET_NAME = CartPhoneTestHost; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+ }; rootObject = 000000000000000000000001;
+}
